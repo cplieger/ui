@@ -50,7 +50,16 @@ import {
 import type { ChartSpec } from "./spec.js";
 import { generatedSummary } from "./summary.js";
 import { tableModel } from "./table.js";
-import { ladder } from "./test-helpers/frames.js";
+import {
+  boxes as boxFrame,
+  categories,
+  events,
+  grid as gridFrame,
+  ladder,
+  points as pointsFrame,
+  seriesFrame,
+  unitBins,
+} from "./test-helpers/frames.js";
 import { chartWords } from "./words.js";
 
 function projection(model: Model, width: number, height: number, yHi: number, dpr = 1): Projection {
@@ -77,19 +86,19 @@ function boxes(d: string): { left: number; top: number; right: number; bottom: n
 }
 
 function buckets(n: number, values: (i: number) => number | null = () => 1): ChartSpec {
-  const x1 = Array.from({ length: n }, (_, i) => i);
   return {
-    x: {},
-    marks: [
-      {
-        mark: "rect",
-        x1,
-        x2: x1.map((v) => v + 1),
-        series: [{ name: "a", y: x1.map(values) }],
-      },
-    ],
+    data: unitBins([Array.from({ length: n }, (_, i) => values(i))]),
+    mark: { mark: "rect" },
   };
 }
+
+// A histogram of reads on duration ladder `edges`, one read a bin, in seconds.
+const waits = (edges: readonly number[]) =>
+  unitBins([edges.slice(1).map(() => 1)], {
+    unit: "seconds",
+    x1: edges.slice(0, -1),
+    x2: edges.slice(1),
+  });
 
 describe("rect geometry", () => {
   it("draws 72 buckets in 276 px about 2.8 px wide and 1 px apart", () => {
@@ -115,20 +124,8 @@ describe("rect geometry", () => {
 
   it("stacks in series order, the upper segment giving its bottom px as the gap", () => {
     const spec: ChartSpec = {
-      x: {},
-      marks: [
-        {
-          mark: "rect",
-          x1: [0],
-          x2: [1],
-          series: [
-            { name: "a", y: [100] },
-            { name: "b", y: [50] },
-            { name: "c", y: [1] },
-            { name: "d", y: [0.4] },
-          ],
-        },
-      ],
+      data: unitBins([[100], [50], [1], [0.4]]),
+      mark: { mark: "rect" },
     };
     const m = model(spec);
     // 1 px per post.
@@ -142,19 +139,11 @@ describe("rect geometry", () => {
 
   it("stacks a 100% bucket's shares to the top, the gap between them, and leaves a total of 0 empty", () => {
     const spec: ChartSpec = {
-      x: {},
-      marks: [
-        {
-          mark: "rect",
-          arrange: "share",
-          x1: [0, 1, 2],
-          x2: [1, 2, 3],
-          series: [
-            { name: "a", y: [30, 0, 5] },
-            { name: "b", y: [10, 0, null] },
-          ],
-        },
-      ],
+      data: unitBins([
+        [30, 0, 5],
+        [10, 0, null],
+      ]),
+      mark: { mark: "rect", arrange: "share" },
     };
     const m = model(spec);
     // 200 px for the whole of each bucket: 3/4 and 1/4 of 40, then 5 of 5.
@@ -170,20 +159,8 @@ describe("rect geometry", () => {
 
   it("draws nothing for a null or a 0, which keeps the segments above in place", () => {
     const spec: ChartSpec = {
-      x: {},
-      marks: [
-        {
-          mark: "rect",
-          x1: [0],
-          x2: [1],
-          series: [
-            { name: "a", y: [null] },
-            { name: "b", y: [0] },
-            { name: "c", y: [Number.NaN] },
-            { name: "d", y: [10] },
-          ],
-        },
-      ],
+      data: unitBins([[null], [0], [Number.NaN], [10]]),
+      mark: { mark: "rect" },
     };
     const m = model(spec);
     const [a, b, c, d] = rectPaths(rectOf(m), projection(m, 100, 100, 10));
@@ -197,20 +174,7 @@ describe("rect geometry", () => {
     for (const box of boxes(rectPaths(rectOf(m), f)[0] ?? "")) {
       expect(box.bottom).toBeGreaterThan(box.top);
     }
-    const two: ChartSpec = {
-      x: {},
-      marks: [
-        {
-          mark: "rect",
-          x1: [0],
-          x2: [1],
-          series: [
-            { name: "a", y: [7] },
-            { name: "b", y: [5] },
-          ],
-        },
-      ],
-    };
+    const two: ChartSpec = { data: unitBins([[7], [5]]), mark: { mark: "rect" } };
     const t = model(two);
     expect(boxes(rectPaths(rectOf(t), projection(t, 10, 240, 12))[1] ?? "")[0]?.top).toBe(0);
   });
@@ -228,15 +192,9 @@ describe("rect geometry", () => {
   it("draws the read histogram's underflow bin below the low end, the width of its neighbour", () => {
     const edges = ladder();
     const spec: ChartSpec = {
-      x: { type: "log", format: "duration", domain: [1, edges.at(-1) ?? 0] },
-      marks: [
-        {
-          mark: "rect",
-          x1: edges.slice(0, -1),
-          x2: edges.slice(1),
-          series: [{ name: "Reads", y: edges.slice(1).map(() => 1) }],
-        },
-      ],
+      data: waits(edges),
+      mark: { mark: "rect" },
+      x: { type: "log", domain: [1, edges.at(-1) ?? 0] },
     };
     const m = model(spec);
     expect(m.x.drawnLo).toBe(0.5);
@@ -252,21 +210,12 @@ describe("rect geometry", () => {
 
 // `n` buckets of `series` series under "group", each value its series' index + 1.
 function grouped(n: number, series: number, domain?: readonly [number, number]): Model {
-  const x1 = Array.from({ length: n }, (_, i) => i);
   return model({
-    x: domain === undefined ? {} : { domain },
-    marks: [
-      {
-        mark: "rect",
-        arrange: "group",
-        x1,
-        x2: x1.map((v) => v + 1),
-        series: Array.from({ length: series }, (_, k) => ({
-          name: String(k),
-          y: x1.map(() => k + 1),
-        })),
-      },
-    ],
+    data: unitBins(
+      Array.from({ length: series }, (_, k) => Array.from({ length: n }, () => k + 1)),
+    ),
+    mark: { mark: "rect", arrange: "group" },
+    ...(domain === undefined ? {} : { x: { domain } }),
   });
 }
 
@@ -361,20 +310,8 @@ describe("grouped column geometry", () => {
 
   it("draws each series from the baseline in its own slot, a null leaving its slot empty", () => {
     const m = model({
-      x: {},
-      marks: [
-        {
-          mark: "rect",
-          arrange: "group",
-          x1: [0],
-          x2: [1],
-          series: [
-            { name: "a", y: [10] },
-            { name: "b", y: [null] },
-            { name: "c", y: [5] },
-          ],
-        },
-      ],
+      data: unitBins([[10], [null], [5]]),
+      mark: { mark: "rect", arrange: "group" },
     });
     const [a, b, c] = rectPaths(rectOf(m), projection(m, 100, 100, 10, 100)).map(boxes);
     // A 12.5 px inset a side and 1 px gaps leave (100 − 25 − 2) ÷ 3 px each.
@@ -419,21 +356,26 @@ function outlines(d: string): [number, number][][] {
 
 const area = (
   x1: number[],
-  series: { name: string; y: (number | null)[] }[],
-  more: { x2?: number[]; arrange?: "stack" | "share"; domain?: [number, number] } = {},
+  series: (number | null)[][],
+  more: {
+    x2?: number[];
+    arrange?: "stack" | "share";
+    domain?: [number, number];
+    resets?: number[];
+  } = {},
 ): Model =>
   model({
-    x: more.domain === undefined ? {} : { domain: more.domain },
-    marks: [
-      {
-        mark: "rect",
-        shape: "area",
-        x1,
-        x2: more.x2 ?? x1.map((v) => v + 1),
-        ...(more.arrange === undefined ? {} : { arrange: more.arrange }),
-        series,
-      },
-    ],
+    data: unitBins(series, {
+      x1,
+      x2: more.x2 ?? x1.map((v) => v + 1),
+      ...(more.resets === undefined ? {} : { resets: more.resets }),
+    }),
+    mark: {
+      mark: "rect",
+      shape: "area",
+      ...(more.arrange === undefined ? {} : { arrange: more.arrange }),
+    },
+    ...(more.domain === undefined ? {} : { x: { domain: more.domain } }),
   });
 
 describe("step area geometry", () => {
@@ -441,8 +383,8 @@ describe("step area geometry", () => {
     const m = area(
       [0, 1, 2, 3],
       [
-        { name: "a", y: [2, 4, 0, 3] },
-        { name: "b", y: [1, 1, 1, 1] },
+        [2, 4, 0, 3],
+        [1, 1, 1, 1],
       ],
     );
     // 100 px a bucket, 10 px a unit.
@@ -490,13 +432,7 @@ describe("step area geometry", () => {
   });
 
   it("takes no gap below a segment under 3 px tall", () => {
-    const m = area(
-      [0],
-      [
-        { name: "a", y: [5] },
-        { name: "b", y: [0.2] },
-      ],
-    );
+    const m = area([0], [[5], [0.2]]);
     const [, b] = rectPaths(rectOf(m), projection(m, 100, 100, 10)).map(outlines);
     expect(b?.[0]?.slice(0, 2)).toEqual([
       [0, 50],
@@ -505,7 +441,7 @@ describe("step area geometry", () => {
   });
 
   it("ends a run at a 0, a null and a gap in x, never bridging them", () => {
-    const m = area([0, 1, 3, 4, 5, 6], [{ name: "a", y: [1, 1, 1, null, 1, 0] }], {
+    const m = area([0, 1, 3, 4, 5, 6], [[1, 1, 1, null, 1, 0]], {
       x2: [1, 2, 4, 5, 6, 7],
     });
     const [a] = rectPaths(rectOf(m), projection(m, 700, 100, 1)).map(outlines);
@@ -516,9 +452,18 @@ describe("step area geometry", () => {
     ]);
   });
 
+  it("ends a run at a reset, between the last bucket before it and the first at or after it", () => {
+    const m = area([0, 1, 2, 3], [[1, 1, 1, 1]], { resets: [-5, 1.5, 9] });
+    const [a] = rectPaths(rectOf(m), projection(m, 400, 100, 1)).map(outlines);
+    expect(a?.map((o) => [o[0]?.[0], Math.max(...o.map((p) => p[0]))])).toEqual([
+      [0, 200],
+      [200, 400],
+    ]);
+  });
+
   it("lets buckets touch with no inset, so 72 on 276 px fill the plot edge to edge", () => {
     const x1 = Array.from({ length: 72 }, (_, i) => i);
-    const m = area(x1, [{ name: "a", y: x1.map(() => 1) }]);
+    const m = area(x1, [x1.map(() => 1)]);
     const f = projection(m, 276, 200, 1, 3);
     const edges = rectOf(m).shown.map((i) => bucketEdges(rectOf(m), i, f));
     expect(edges[0]?.left).toBe(0);
@@ -530,7 +475,7 @@ describe("step area geometry", () => {
   });
 
   it("cuts a run at each end of a passed domain at the plot's edge", () => {
-    const m = area([0, 1, 2, 3, 4, 5], [{ name: "a", y: [1, 1, 1, 1, 1, 1] }], {
+    const m = area([0, 1, 2, 3, 4, 5], [[1, 1, 1, 1, 1, 1]], {
       domain: [1.5, 4.5],
     });
     const [a] = rectPaths(rectOf(m), projection(m, 300, 100, 1)).map(outlines);
@@ -547,10 +492,9 @@ describe("step area geometry", () => {
 
   it("runs right to left on a reversed x", () => {
     const m = model({
+      data: unitBins([[1, 2]]),
+      mark: { mark: "rect", shape: "area" },
       x: { reverse: true },
-      marks: [
-        { mark: "rect", shape: "area", x1: [0, 1], x2: [1, 2], series: [{ name: "a", y: [1, 2] }] },
-      ],
     });
     const [a] = rectPaths(rectOf(m), projection(m, 200, 100, 2)).map(outlines);
     expect(a).toEqual([
@@ -569,16 +513,9 @@ describe("step area geometry", () => {
   it("joins the read histogram's underflow bin to its run", () => {
     const edges = ladder();
     const m = model({
-      x: { type: "log", format: "duration", domain: [1, edges.at(-1) ?? 0] },
-      marks: [
-        {
-          mark: "rect",
-          shape: "area",
-          x1: edges.slice(0, -1),
-          x2: edges.slice(1),
-          series: [{ name: "Reads", y: edges.slice(1).map(() => 1) }],
-        },
-      ],
+      data: waits(edges),
+      mark: { mark: "rect", shape: "area" },
+      x: { type: "log", domain: [1, edges.at(-1) ?? 0] },
     });
     const [a] = rectPaths(rectOf(m), projection(m, 276, 200, 1)).map(outlines);
     expect(a).toEqual([
@@ -596,8 +533,8 @@ describe("step area geometry", () => {
     const m = area(
       [0, 1, 2],
       [
-        { name: "a", y: [1, 0, 1] },
-        { name: "b", y: [3, 0, 1] },
+        [1, 0, 1],
+        [3, 0, 1],
       ],
       { arrange: "share" },
     );
@@ -622,10 +559,9 @@ function points(d: string): number[][] {
 
 describe("line geometry", () => {
   const ramp = (curve: "linear" | "step"): ChartSpec => ({
+    data: seriesFrame([0, 10, 20, 30], [[0, 10, 20, 30]]),
+    mark: { mark: "line", curve },
     x: { domain: [5, 25] },
-    marks: [
-      { mark: "line", x: [0, 10, 20, 30], curve, series: [{ name: "a", y: [0, 10, 20, 30] }] },
-    ],
   });
 
   it("cuts a straight line at each end of the domain at its value there", () => {
@@ -642,14 +578,8 @@ describe("line geometry", () => {
 
   it("breaks at a gap, NaN included, and draws a lone value as a dot", () => {
     const m = model({
-      x: {},
-      marks: [
-        {
-          mark: "line",
-          x: [0, 1, 2, 3, 4],
-          series: [{ name: "a", y: [1, 2, null, 4, Number.NaN] }],
-        },
-      ],
+      data: seriesFrame([0, 1, 2, 3, 4], [[1, 2, null, 4, Number.NaN]]),
+      mark: { mark: "line" },
     });
     const d = linePath(lineOf(m), 0, projection(m, 400, 100, 4));
     expect(points(d)).toEqual([
@@ -660,9 +590,9 @@ describe("line geometry", () => {
 
   it("reads a line's value at or below 0 on a log y as a gap, in the path, summary and table", () => {
     const m = model({
-      x: {},
+      data: seriesFrame([0, 1, 2, 3], [[2, 0, 8, -1]]),
+      mark: { mark: "line" },
       y: { type: "log" },
-      marks: [{ mark: "line", x: [0, 1, 2, 3], series: [{ name: "a", y: [2, 0, 8, -1] }] }],
     });
     const f: Projection = { ...projection(m, 300, 100, 1), yAt: position("log", 2, 8, 100, 0) };
     expect(points(linePath(lineOf(m), 0, f))).toEqual([
@@ -677,8 +607,9 @@ describe("line geometry", () => {
 
   it("starts a line on a log x at its first sample inside the domain when the one before is at 0", () => {
     const m = model({
+      data: seriesFrame([0, 10, 100], [[1, 2, 3]]),
+      mark: { mark: "line" },
       x: { type: "log", domain: [1, 100] },
-      marks: [{ mark: "line", x: [0, 10, 100], series: [{ name: "a", y: [1, 2, 3] }] }],
     });
     const d = linePath(lineOf(m), 0, projection(m, 200, 300, 3));
     expect(points(d)).toEqual([[100, 100, 200, 0]]);
@@ -686,10 +617,9 @@ describe("line geometry", () => {
 
   it("holds a step line's value from the low end of a log x when the sample before is at 0", () => {
     const m = model({
+      data: seriesFrame([0, 10, 100], [[5, 2, 3]]),
+      mark: { mark: "line", curve: "step" },
       x: { type: "log", domain: [1, 100] },
-      marks: [
-        { mark: "line", x: [0, 10, 100], curve: "step", series: [{ name: "a", y: [5, 2, 3] }] },
-      ],
     });
     const d = linePath(lineOf(m), 0, projection(m, 200, 300, 6));
     expect(points(d)).toEqual([[0, 50, 100, 50, 100, 200, 200, 200, 200, 150]]);
@@ -700,8 +630,9 @@ describe("line geometry", () => {
     const S = Date.UTC(2026, 10, 12, 9);
     const x = [S, S + 10 * MIN, S + 20 * MIN];
     const line = (y: (number | null)[], curve: "linear" | "step", reverse = false): ChartSpec => ({
+      data: seriesFrame(x, [y]),
+      mark: { mark: "line", curve },
       x: { type: "time", reverse },
-      marks: [{ mark: "line", x, curve, series: [{ name: "a", y }] }],
     });
     // On 425 px, 100 px tall up to 5: 3 sits at 40, 4 at 20 and 5 at 0.
     const drawn = (spec: ChartSpec) => {
@@ -731,10 +662,9 @@ describe("line geometry", () => {
 
   it("draws a sample on the end of a plot of fractional width after a gap in its last column", () => {
     const m = model({
+      data: seriesFrame([0, 999, 999.5, 1_000], [[1, 2, null, 3]]),
+      mark: { mark: "line" },
       x: { domain: [0, 1_000] },
-      marks: [
-        { mark: "line", x: [0, 999, 999.5, 1_000], series: [{ name: "a", y: [1, 2, null, 3] }] },
-      ],
     });
     const runs = points(linePath(lineOf(m), 0, projection(m, 424.6, 300, 3)));
     expect(runs).toHaveLength(2);
@@ -745,9 +675,9 @@ describe("line geometry", () => {
     const x = Array.from({ length: 4_320 }, (_, i) => i);
     const y = x.map((i) => (i === 2_000 ? 50 : i === 3_000 ? -40 : 0));
     const m = model({
-      x: {},
+      data: seriesFrame(x, [y]),
+      mark: { mark: "line" },
       y: { zero: false },
-      marks: [{ mark: "line", x, series: [{ name: "a", y }] }],
     });
     const f: Projection = { ...projection(m, 276, 100, 1), yAt: (v) => 50 - v };
     const pts = points(linePath(lineOf(m), 0, f))[0] ?? [];
@@ -757,10 +687,34 @@ describe("line geometry", () => {
     expect(pts.length / 2).toBeLessThan(4 * 277);
   });
 
+  it("breaks at a reset, before the first sample at or after it, and nowhere else", () => {
+    const at = (resets: number[], curve: "linear" | "step" = "linear") => {
+      const m = model({
+        data: seriesFrame([0, 1, 2, 3], [[1, 2, 3, 4]], { resets }),
+        mark: { mark: "line", curve },
+      });
+      return points(linePath(lineOf(m), 0, projection(m, 300, 100, 4)));
+    };
+    const broken = [
+      [0, 75, 100, 50],
+      [200, 25, 300, 0],
+    ];
+    expect(at([2])).toEqual(broken);
+    expect(at([1.5])).toEqual(broken);
+    // A reset at or before the first sample, or after the last, breaks nothing.
+    expect(at([-1, 0, 7])).toEqual([[0, 75, 100, 50, 200, 25, 300, 0]]);
+    // A step line holds no value across a reset.
+    expect(at([2], "step")).toEqual([
+      [0, 75, 100, 75, 100, 50],
+      [200, 25, 300, 25, 300, 0],
+    ]);
+  });
+
   it("draws a reversed x right to left", () => {
     const m = model({
+      data: seriesFrame([0, 1], [[0, 1]]),
+      mark: { mark: "line" },
       x: { reverse: true },
-      marks: [{ mark: "line", x: [0, 1], series: [{ name: "a", y: [0, 1] }] }],
     });
     expect(points(linePath(lineOf(m), 0, projection(m, 100, 100, 1)))).toEqual([[100, 100, 0, 0]]);
   });
@@ -774,18 +728,19 @@ function shapes(d: string): number[][] {
 describe("area geometry", () => {
   const stack = (
     series: (number | null)[][],
-    more: { curve?: "step"; reverse?: boolean; share?: boolean } = {},
+    more: { curve?: "step"; reverse?: boolean; share?: boolean; resets?: number[] } = {},
   ): ChartSpec => ({
+    data: seriesFrame(
+      (series[0] ?? []).map((_, i) => i),
+      series,
+      more.resets === undefined ? {} : { resets: more.resets },
+    ),
+    mark: {
+      mark: "area",
+      ...(more.curve === undefined ? {} : { curve: more.curve }),
+      ...(more.share === true ? { arrange: "share" as const } : {}),
+    },
     x: { reverse: more.reverse === true },
-    marks: [
-      {
-        mark: "area",
-        x: (series[0] ?? []).map((_, i) => i),
-        ...(more.curve === undefined ? {} : { curve: more.curve }),
-        ...(more.share === true ? { arrange: "share" as const } : {}),
-        series: series.map((y, k) => ({ name: `s${String(k)}`, y })),
-      },
-    ],
   });
   const drawn = (spec: ChartSpec, width: number, yHi: number) => {
     const m = model(spec);
@@ -881,6 +836,28 @@ describe("area geometry", () => {
     expect(b).toHaveLength(2);
   });
 
+  it("breaks every layer at a reset, as at a gap", () => {
+    const [a, b] = drawn(
+      stack(
+        [
+          [2, 4, 2, 4],
+          [2, 2, 2, 2],
+        ],
+        { resets: [2] },
+      ),
+      300,
+      10,
+    );
+    expect(a).toEqual([
+      [0, 80, 100, 60, 100, 100, 0, 100],
+      [200, 80, 300, 60, 300, 100, 200, 100],
+    ]);
+    expect(b).toEqual([
+      [0, 60, 100, 40, 100, 59, 0, 79],
+      [200, 60, 300, 40, 300, 59, 200, 79],
+    ]);
+  });
+
   it("holds each value until the next sample on a step curve", () => {
     const [a] = drawn(stack([[1, 3]], { curve: "step" }), 100, 4);
     expect(a?.[0]?.slice(0, 6)).toEqual([0, 75, 100, 75, 100, 25]);
@@ -922,8 +899,9 @@ describe("area geometry", () => {
 describe("dot geometry", () => {
   it("draws tied and same-pixel dots once and leaves out dots outside the domain", () => {
     const m = model({
+      data: events({ a: [10, 10, 10.2, 20, 500] }),
+      mark: { mark: "dot" },
       x: { domain: [0, 400] },
-      marks: [{ mark: "dot", rows: [{ name: "a", x: [10, 10, 10.2, 20, 500] }] }],
     });
     const dots = m.marks[0];
     if (dots?.kind !== "dot") {
@@ -942,17 +920,13 @@ describe("dot geometry", () => {
 });
 
 describe("bars", () => {
+  const bands = (series: (number | null)[][]) =>
+    categories(
+      (series[0] ?? []).map((_, i) => `c${String(i)}`),
+      series,
+    );
   const barModel = (series: (number | null)[][]) =>
-    model({
-      x: {},
-      marks: [
-        {
-          mark: "bar",
-          y: (series[0] ?? []).map((_, i) => `c${String(i)}`),
-          series: series.map((x, k) => ({ name: `s${String(k)}`, x })),
-        },
-      ],
-    });
+    model({ data: bands(series), mark: { mark: "bar" } });
   const barProjection = (m: Model, lo: number, hi: number, width = 100): Projection => ({
     width,
     height: 48,
@@ -999,21 +973,11 @@ describe("bars", () => {
   it("draws a series' bars below 0 in its below slot, and keeps one path without it", () => {
     const spec = (below?: 2 | 4) =>
       model({
-        x: {},
-        marks: [
-          {
-            mark: "bar",
-            y: ["a", "b", "c"],
-            series: [
-              {
-                name: "Change",
-                slot: 3,
-                ...(below === undefined ? {} : { below }),
-                x: [20, -10, 0],
-              },
-            ],
-          },
-        ],
+        data: categories(["a", "b", "c"], [[20, -10, 0]]),
+        mark: {
+          mark: "bar",
+          keys: [{ key: "a", name: "Change", slot: 3, ...(below === undefined ? {} : { below }) }],
+        },
       });
     const f = barProjection(spec(), -50, 50);
     expect(barPaths(barOf(spec(4)), [12, 36, 60], 16, f)).toEqual([
@@ -1053,17 +1017,7 @@ describe("bars", () => {
   });
 
   const grouped = (series: (number | null)[][]) =>
-    model({
-      x: {},
-      marks: [
-        {
-          mark: "bar",
-          y: (series[0] ?? []).map((_, i) => `c${String(i)}`),
-          arrange: "group",
-          series: series.map((x, k) => ({ name: `s${String(k)}`, x })),
-        },
-      ],
-    });
+    model({ data: bands(series), mark: { mark: "bar", arrange: "group" } });
 
   it("groups series as 12 px bars one under another, 1 px apart, each from 0", () => {
     const m = grouped([[30], [-10], [null], [20]]);
@@ -1083,18 +1037,14 @@ describe("bars", () => {
 
   it("stacks each row's shares to the full width, and draws nothing in a row whose total is 0", () => {
     const m = model({
-      x: {},
-      marks: [
-        {
-          mark: "bar",
-          y: ["a", "b"],
-          arrange: "share",
-          series: [
-            { name: "p", x: [30, 0] },
-            { name: "q", x: [10, null] },
-          ],
-        },
-      ],
+      data: categories(
+        ["a", "b"],
+        [
+          [30, 0],
+          [10, null],
+        ],
+      ),
+      mark: { mark: "bar", arrange: "share" },
     });
     const f = barProjection(m, 0, 1, 200);
     expect(barSegments(barOf(m), 0, f, 12, 16)).toEqual([
@@ -1115,17 +1065,7 @@ describe("bars", () => {
   });
 
   const split = (series: (number | null)[][]) =>
-    model({
-      x: {},
-      marks: [
-        {
-          mark: "bar",
-          y: (series[0] ?? []).map((_, i) => `c${String(i)}`),
-          arrange: "split",
-          series: series.map((x, k) => ({ name: `s${String(k)}`, x })),
-        },
-      ],
-    });
+    model({ data: bands(series), mark: { mark: "bar", arrange: "split" } });
   // Two 92 px panels 16 px apart, each 0 to 50 along its first 80 px.
   const panelled = (m: Model): Projection => ({
     ...barProjection(m, 0, 50, 200),
@@ -1167,19 +1107,7 @@ describe("bars", () => {
   });
 
   const diverging = (series: (number | null)[][], left: number, centre: boolean) =>
-    model({
-      x: {},
-      marks: [
-        {
-          mark: "bar",
-          y: (series[0] ?? []).map((_, i) => `c${String(i)}`),
-          arrange: "diverge",
-          left,
-          centre,
-          series: series.map((x, k) => ({ name: `s${String(k)}`, x })),
-        },
-      ],
-    });
+    model({ data: bands(series), mark: { mark: "bar", arrange: "diverge", left, centre } });
 
   it("stacks the left series leftward from the centre's half, the rest rightward, each beyond another 1 px short", () => {
     const m = diverging([[10], [15], [20], [30], [25]], 2, true);
@@ -1240,18 +1168,14 @@ describe("bars", () => {
 
   it("draws a mirror's first side leftward from its spine and its second rightward", () => {
     const m = model({
-      x: {},
-      marks: [
-        {
-          mark: "bar",
-          y: ["45-50", "50-55"],
-          arrange: "mirror",
-          series: [
-            { name: "Male", x: [50, null] },
-            { name: "Female", x: [25, 0] },
-          ],
-        },
-      ],
+      data: categories(
+        ["45-50", "50-55"],
+        [
+          [50, null],
+          [25, 0],
+        ],
+      ),
+      mark: { mark: "bar", arrange: "mirror" },
     });
     // Two 96 px sides either side of an 8 px spine, each 0 to 50 along 80 px.
     const along = position("linear", 0, 50, 0, 80);
@@ -1275,14 +1199,15 @@ describe("bars", () => {
 describe("points", () => {
   const pointModel = (x: NonNullable<ChartSpec["x"]>, series: (number | null)[][]) =>
     model({
+      data: categories(
+        (series[0] ?? []).map((_, i) => `c${String(i)}`),
+        series,
+      ),
+      mark: {
+        mark: "point",
+        keys: series.map((_, k) => ({ key: String.fromCharCode(97 + k), slot: (k + 2) as 2 })),
+      },
       x,
-      marks: [
-        {
-          mark: "point",
-          y: (series[0] ?? []).map((_, i) => `c${String(i)}`),
-          series: series.map((v, k) => ({ name: `s${String(k)}`, slot: (k + 2) as 2, x: v })),
-        },
-      ],
     });
   const pointOf = (m: Model) => m.marks[0] as PointModel;
   const pointProjection = (m: Model, lo: number, hi: number, dpr = 1): Projection => ({
@@ -1353,32 +1278,19 @@ describe("points", () => {
 describe("an x rule on bar rows", () => {
   const diverging = (domain?: readonly [number, number]) =>
     model({
-      x: domain === undefined ? {} : { domain },
-      marks: [
-        {
-          mark: "bar",
-          y: ["a"],
-          arrange: "diverge",
-          left: 1,
-          series: [
-            { name: "No", x: [20] },
-            { name: "Yes", x: [40] },
-          ],
-        },
-        { mark: "rule", x: 30, label: "Goal" },
-      ],
+      data: categories(["a"], [[20], [40]], { refs: [{ key: "goal", value: 30 }] }),
+      mark: { mark: "bar", arrange: "diverge", left: 1 },
+      refs: [{ key: "goal", label: "Goal" }],
+      ...(domain === undefined ? {} : { x: { domain } }),
     });
 
   it("draws once on a plain axis", () => {
-    const m = model({
-      x: {},
-      marks: [{ mark: "bar", y: ["a"], series: [{ name: "a", x: [50] }] }],
-    });
+    const m = model({ data: categories(["a"], [[50]]), mark: { mark: "bar" } });
     expect(ruleXs(25, projection(m, 200, 24, 1))).toEqual([100]);
   });
 
   it("draws in every panel at its value, in series order", () => {
-    const m = model({ x: {}, marks: [] });
+    const m = model({ data: categories(["a"], [[50]]), mark: { mark: "bar" } });
     const panels = [0, 108].map((left) => ({
       left,
       right: left + 92,
@@ -1412,17 +1324,15 @@ describe("an x rule on bar rows", () => {
 
 describe("slope geometry", () => {
   const m = model({
-    marks: [
-      {
-        mark: "slope",
-        x: ["2005", "2015"],
-        series: [
-          { name: "Cats", y: [50, 25] },
-          { name: "Dogs", y: [null, 10] },
-          { name: "Mice", y: [null, null] },
-        ],
-      },
-    ],
+    data: categories(
+      ["2005", "2015"],
+      [
+        [50, 25],
+        [null, 10],
+        [null, null],
+      ],
+    ),
+    mark: { mark: "slope" },
   });
   const slopeOf = m.marks[0] as SlopeModel;
   const f = projection(m, 200, 100, 50);
@@ -1445,22 +1355,13 @@ describe("slope geometry", () => {
 
 describe("scatter geometry", () => {
   const m = model({
+    data: pointsFrame([
+      { key: "Europe", names: ["A", "B", "C", "D"], x: [50, 20, null, 120], y: [50, 80, 10, 10] },
+      { key: "Asia", names: ["E"], x: [52], y: [50] },
+    ]),
+    mark: { mark: "scatter" },
     x: { label: "a", domain: [0, 100] },
     y: { label: "b", domain: [0, 100] },
-    marks: [
-      {
-        mark: "scatter",
-        series: [
-          {
-            name: "Europe",
-            names: ["A", "B", "C", "D"],
-            x: [50, 20, null, 120],
-            y: [50, 80, 10, 10],
-          },
-          { name: "Asia", names: ["E"], x: [52], y: [50] },
-        ],
-      },
-    ],
   });
   const scatterOf = m.marks[0] as ScatterModel;
   const f = projection(m, 100, 100, 100);
@@ -1479,20 +1380,19 @@ describe("scatter geometry", () => {
 
 describe("small multiples' context", () => {
   const panels = (mark: "line" | "scatter"): ChartSpec => ({
+    mark: { mark },
     x: { label: "a", domain: [0, 100] },
     y: { label: "b", domain: [0, 100] },
-    marks: [],
     facets: {
       context: true,
-      panels: ["North", "South", "East"].map((name, k) => ({
-        marks: [
+      panels: ["North", "South", "East"].map((key, k) => ({
+        key,
+        data:
           mark === "line"
-            ? { mark, x: [0, 100], series: [{ name, y: [10 * k, 50] }] }
-            : {
-                mark,
-                series: [{ name, names: ["A", "B", "C"], x: [10, 90, null], y: [10 * k, 50, 20] }],
-              },
-        ],
+            ? { ...seriesFrame([0, 100], []), series: [{ key, values: [10 * k, 50] }] }
+            : pointsFrame([
+                { key, names: ["A", "B", "C"], x: [10, 90, null], y: [10 * k, 50, 20] },
+              ]),
       })),
     },
   });
@@ -1521,24 +1421,20 @@ describe("small multiples' context", () => {
 
 describe("bubble geometry", () => {
   const m = model({
+    data: pointsFrame([
+      {
+        key: "Small",
+        names: ["A", "B", "C", "D"],
+        x: [50, 10, 20, 30],
+        y: [50, 10, 20, 30],
+        r: [25, 400, 0, 0.01],
+      },
+      { key: "Large", names: ["E", "F"], x: [52, 60], y: [50, 60], r: [100, 400] },
+    ]),
+    mark: { mark: "scatter" },
     x: { label: "a", domain: [0, 100] },
     y: { label: "b", domain: [0, 100] },
     r: { label: "c", domain: [0, 400] },
-    marks: [
-      {
-        mark: "scatter",
-        series: [
-          {
-            name: "Small",
-            names: ["A", "B", "C", "D"],
-            x: [50, 10, 20, 30],
-            y: [50, 10, 20, 30],
-            r: [25, 400, 0, 0.01],
-          },
-          { name: "Large", names: ["E", "F"], x: [52, 60], y: [50, 60], r: [100, 400] },
-        ],
-      },
-    ],
   });
   const bubbleOf = m.marks[0] as ScatterModel;
   const f = { ...projection(m, 100, 100, 100), bubble: 24 };
@@ -1568,17 +1464,13 @@ describe("bubble geometry", () => {
 
   it("keeps two bubbles apart whose outlines alone would touch", () => {
     const pair = model({
+      data: pointsFrame([
+        { key: "s", names: ["A", "B", "C"], x: [10, 25.5, 80], y: [50, 50, 50], r: [4, 1, 1] },
+      ]),
+      mark: { mark: "scatter" },
       x: { label: "a", domain: [0, 100] },
       y: { label: "b", domain: [0, 100] },
       r: { label: "c", domain: [0, 4] },
-      marks: [
-        {
-          mark: "scatter",
-          series: [
-            { name: "s", names: ["A", "B", "C"], x: [10, 25.5, 80], y: [50, 50, 50], r: [4, 1, 1] },
-          ],
-        },
-      ],
     });
     // A has a 10 px radius and B a 5 px one, 15.5 px apart: only their outlines meet.
     const paths = bubblePaths(pair.marks[0] as ScatterModel, {
@@ -1590,9 +1482,10 @@ describe("bubble geometry", () => {
 
   it("gives a plain dot its fixed radius", () => {
     const plain = model({
+      data: pointsFrame([{ key: "s", names: ["A"], x: [1], y: [2] }]),
+      mark: { mark: "scatter" },
       x: { label: "a" },
       y: { label: "b" },
-      marks: [{ mark: "scatter", series: [{ name: "s", names: ["A"], x: [1], y: [2] }] }],
     }).marks[0] as ScatterModel;
     expect(dotRadius(plain, 0, 0, f)).toBe(4);
   });
@@ -1604,15 +1497,13 @@ describe("cell geometry", () => {
     colour: NonNullable<ChartSpec["colour"]> = { thresholds: [5] },
   ) =>
     model({
+      data: gridFrame(
+        { names: (values[0] ?? []).map((_, c) => `c${String(c)}`) },
+        { names: values.map((_, r) => `r${String(r)}`) },
+        values,
+      ),
+      mark: { mark: "cell" },
       colour,
-      marks: [
-        {
-          mark: "cell",
-          x: (values[0] ?? []).map((_, c) => `c${String(c)}`),
-          y: values.map((_, r) => `r${String(r)}`),
-          values,
-        },
-      ],
     }).marks[0] as CellModel;
 
   it("draws each class as one path of its cells in class order, each with its scale step", () => {
@@ -1672,23 +1563,26 @@ describe("box geometry", () => {
     more: { outliers?: number[][]; domain?: [number, number]; series?: number } = {},
   ) =>
     model({
-      x: more.domain === undefined ? {} : { domain: more.domain },
-      marks: [
-        {
-          mark: "box",
-          y: five.map((_, i) => `c${String(i)}`),
-          series: Array.from({ length: more.series ?? 1 }, (_, k) => ({
-            name: `s${String(k)}`,
-            slot: (k + 3) as 3,
-            low: five.map((f) => f[0] ?? null),
-            q1: five.map((f) => f[1] ?? null),
-            median: five.map((f) => f[2] ?? null),
-            q3: five.map((f) => f[3] ?? null),
-            high: five.map((f) => f[4] ?? null),
-            ...(more.outliers === undefined ? {} : { outliers: more.outliers }),
-          })),
-        },
-      ],
+      data: boxFrame(
+        five.map((_, i) => `c${String(i)}`),
+        Array.from({ length: more.series ?? 1 }, (_, k) => ({
+          key: `s${String(k)}`,
+          low: five.map((f) => f[0] ?? null),
+          q1: five.map((f) => f[1] ?? null),
+          median: five.map((f) => f[2] ?? null),
+          q3: five.map((f) => f[3] ?? null),
+          high: five.map((f) => f[4] ?? null),
+          ...(more.outliers === undefined ? {} : { outliers: more.outliers }),
+        })),
+      ),
+      mark: {
+        mark: "box",
+        keys: Array.from({ length: more.series ?? 1 }, (_, k) => ({
+          key: `s${String(k)}`,
+          slot: (k + 3) as 3,
+        })),
+      },
+      ...(more.domain === undefined ? {} : { x: { domain: more.domain } }),
     });
   const boxOf = (m: Model) => m.marks[0] as BoxModel;
   // x 0 to 100 over 200 px: 2 px a unit.

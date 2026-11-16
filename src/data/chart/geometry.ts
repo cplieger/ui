@@ -236,7 +236,7 @@ function outline(run: readonly Step[]): string {
  * The step area: one path per series of `m`, each run of shown buckets that
  * touch (one's x2 is the next one's x1) and where the series draws above 0
  * one closed shape, stacked as `rectPaths` stacks bars and flush at each
- * shared edge. A 0, a `null` or a gap in x ends the run.
+ * shared edge. A 0, a `null`, a gap in x or a break ends the run.
  */
 function stepAreaPaths(m: RectModel, f: Projection): string[] {
   const paths = m.series.map(() => "");
@@ -245,9 +245,10 @@ function stepAreaPaths(m: RectModel, f: Projection): string[] {
     paths[k] = `${paths[k] ?? ""}${outline(runs[k] ?? [])}`;
     runs[k] = [];
   };
+  const broken = new Set(m.breaks);
   let prev: number | undefined;
   for (const i of m.shown) {
-    const touching = prev !== undefined && m.x2[prev] === m.x1[i];
+    const touching = prev !== undefined && m.x2[prev] === m.x1[i] && !broken.has(i);
     prev = i;
     const { left, right } = bucketEdges(m, i, f);
     const [from, to] = f.x.reverse ? [right, left] : [left, right];
@@ -312,7 +313,8 @@ function placed(m: SampleModel, f: Projection) {
   const us = Array.from(m.x, (v, i) =>
     i >= from && i < to ? (i === from && unplaced(i) ? -1 : u(v)) : 0,
   );
-  return { from, to, us, flip };
+  const breaks = new Set(m.breaks);
+  return { from, to, us, flip, broken: (i: number) => breaks.has(i) };
 }
 
 // A reduced run in plot px as drawn: in steps held until the next sample
@@ -336,13 +338,14 @@ function piece(run: readonly Point[], step: boolean, width: number): Point[] {
 /**
  * Series `s` of `m` as one path: the samples inside the domain and the one
  * beyond each end, reduced per device pixel column, in steps held until the
- * next sample when `m.step`, cut where the plot ends, broken at each gap. A
- * lone sample is a zero-length segment, which a round cap draws as a dot.
+ * next sample when `m.step`, cut where the plot ends, broken at each gap and
+ * break. A lone sample is a zero-length segment, which a round cap draws as
+ * a dot.
  */
 export function linePath(m: LineModel, s: number, f: Projection): string {
   const ys = m.series[s]?.y ?? [];
-  const { from, to, us, flip } = placed(m, f);
-  const runs = reduce(us, ys, from, to, 1 / f.dpr, f.width);
+  const { from, to, us, flip, broken } = placed(m, f);
+  const runs = reduce(us, ys, from, to, 1 / f.dpr, f.width, broken);
   let d = "";
   for (const run of runs) {
     const drawn = piece(
@@ -360,10 +363,12 @@ export function linePath(m: LineModel, s: number, f: Projection): string {
 }
 
 // The device pixel column `reduce` gives each sample of `[from, to)`, by its
-// rule: after a gap, a run starts past the column the run before it ended in.
+// rule: after a gap or at a break, a run starts past the column the run
+// before it ended in.
 function columnsOf(
   us: readonly number[],
   gap: (i: number) => boolean,
+  broken: (i: number) => boolean,
   from: number,
   to: number,
   width: number,
@@ -372,11 +377,12 @@ function columnsOf(
   let after = Number.NEGATIVE_INFINITY;
   let col = Number.NaN;
   for (let i = from; i < to; i++) {
-    if (gap(i)) {
-      if (!Number.isNaN(col)) {
-        after = col;
-        col = Number.NaN;
-      }
+    const skip = gap(i);
+    if ((skip || broken(i)) && !Number.isNaN(col)) {
+      after = col;
+      col = Number.NaN;
+    }
+    if (skip) {
       continue;
     }
     col = Math.max(Math.floor((us[i] ?? 0) / width), after + 1);
@@ -388,14 +394,14 @@ function columnsOf(
 /**
  * One path per series of area `m`: the layer between its stack's top and the
  * top below it (the baseline for the first), one closed shape per run between
- * gaps, stacked under "share" from each sample's shares; a sample whose stack
- * is not drawn (`drawnTotal`) breaks every layer. Each boundary
+ * gaps and breaks, stacked under "share" from each sample's shares; a sample
+ * whose stack is not drawn (`drawnTotal`) breaks every layer. Each boundary
  * is reduced per device pixel column as a line is, so a layer's bottom is the
  * edge below it, raised by the 1 px gap in each column where the layer is at
  * least 3 px tall at every sample and stands on a stack above 0.
  */
 export function areaPaths(m: AreaModel, f: Projection): string[] {
-  const { from, to, us, flip } = placed(m, f);
+  const { from, to, us, flip, broken } = placed(m, f);
   const w = 1 / f.dpr;
   const tops: (number | null)[][] = m.series.map(() => []);
   for (let i = from; i < to; i++) {
@@ -410,7 +416,7 @@ export function areaPaths(m: AreaModel, f: Projection): string[] {
     });
   }
   const gap = (i: number) => drawnTotal(m, i) === null;
-  const cols = columnsOf(us, gap, from, to, w);
+  const cols = columnsOf(us, gap, broken, from, to, w);
   const at = (p: Point) => `${num(flip ? f.width - p.x : p.x)} ${num(p.y)}`;
   return m.series.map((_, k) => {
     const top = tops[k] ?? [];
@@ -439,8 +445,8 @@ export function areaPaths(m: AreaModel, f: Projection): string[] {
         bottomPx[i] = b - GAP;
       }
     }
-    const upper = reduce(us, topPx, from, to, w, f.width);
-    const lower = reduce(us, bottomPx, from, to, w, f.width);
+    const upper = reduce(us, topPx, from, to, w, f.width, broken);
+    const lower = reduce(us, bottomPx, from, to, w, f.width, broken);
     let d = "";
     upper.forEach((run, r) => {
       const a = piece(run, m.step, f.width);

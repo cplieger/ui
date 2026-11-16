@@ -99,6 +99,9 @@ export interface RectModel {
   readonly arrange: "stack" | "group" | "share";
   readonly shape: "bars" | "area";
   readonly series: readonly SeriesModel[];
+  /** The buckets a reset broke the data before, ascending: an area's run
+   *  ends at each. */
+  readonly breaks: readonly number[];
   /** Each bucket's sum, found once so a reading per series costs no pass
    *  over the others; read through `bucketTotal`. */
   readonly totals: readonly number[];
@@ -124,6 +127,9 @@ interface Samples {
   readonly x: readonly number[];
   readonly step: boolean;
   readonly series: readonly SeriesModel[];
+  /** The samples a reset broke the data before, ascending: a path ends at
+   *  the sample before each and starts again at it. */
+  readonly breaks: readonly number[];
   /** The samples inside the domain, `[from, to)`. */
   readonly from: number;
   readonly to: number;
@@ -629,6 +635,19 @@ function series(list: RectInput["series"], log = false): SeriesModel[] {
   return list.map((s, i) => ({ name: s.name, slot: s.slot ?? i + 1, y: gaps(s.y, log) }));
 }
 
+// The index of the first of `xs` at or after each reset instant, past the
+// first index, as `Samples.breaks` and `RectModel.breaks` hold them.
+function breaksOf(xs: readonly number[], resets: readonly number[] | undefined): number[] {
+  const out = new Set<number>();
+  for (const t of resets ?? []) {
+    const i = lowerBound(xs, t);
+    if (i > 0 && i < xs.length) {
+      out.add(i);
+    }
+  }
+  return [...out].sort((a, b) => a - b);
+}
+
 // A rect's series and each of its `length` buckets' sum, a `null` as 0.
 function rectSeries(list: RectInput["series"], length: number) {
   const out = series(list);
@@ -1039,6 +1058,7 @@ function build(
               : "stack",
           shape: m.shape ?? "bars",
           ...rectSeries(m.series, m.x1.length),
+          breaks: breaksOf(m.x1, m.breaks),
           shown: shownBuckets(m, index, x),
         };
       case "line":
@@ -1047,6 +1067,7 @@ function build(
           x: m.x,
           step: m.curve === "step",
           series: series(m.series, y.type === "log"),
+          breaks: breaksOf(m.x, m.breaks),
           from: lowerBound(m.x, x.lo),
           to: upperBound(m.x, x.hi),
         };
@@ -1057,6 +1078,7 @@ function build(
           step: m.curve === "step",
           arrange: m.arrange ?? "stack",
           ...areaSeries(m.series, m.x.length),
+          breaks: breaksOf(m.x, m.breaks),
           from: lowerBound(m.x, x.lo),
           to: upperBound(m.x, x.hi),
         };
