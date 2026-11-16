@@ -271,6 +271,14 @@ describe("refs and notes", () => {
     expect(totals(model)).toEqual([["50%"], ["70%"], ["70%"]]);
   });
 
+  it("writes a histogram share's totals as counts, whatever the unit of its bins", () => {
+    const model = build({
+      data: unitBins(waits, { unit: "seconds" }),
+      mark: { mark: "rect", arrange: "share" },
+    });
+    expect(totals(model)).toEqual([["3,600"], ["5,400"], ["3,600"]]);
+  });
+
   it("draws a ref on a histogram share's x, which carries the frame's unit", () => {
     const waits = unitBins(two, { refs });
     expect(check({ data: waits, mark: { mark: "rect", arrange: "share" } }).marks[1]).toEqual({

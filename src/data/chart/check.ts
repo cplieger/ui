@@ -728,12 +728,12 @@ function checkSubRows(rows: number, across: number, f: string, most: Room): void
 
 const opt = (key: string, v: unknown): Rec => (v === undefined ? {} : { [key]: v });
 
-// The data mark of `frame`, read at field `f`, in the drawing's terms.
 // Under "share" the axis writes shares, so the mark carries the format the
 // frame's unit gives its values.
 const shareFormat = (m: Rec, unit: string): Rec =>
   opt("format", m["arrange"] === "share" ? UNIT_FORMATS.get(unit) : undefined);
 
+// The data mark of `frame`, read at field `f`, in the drawing's terms.
 function dataInput(frame: Frame, f: string, c: MarkCopy, most: Room): Rec {
   const { kind, m } = c;
   const seriesOf = (list: readonly { key: string }[], at: string) =>
