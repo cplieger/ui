@@ -212,17 +212,23 @@ describe("widthKey", () => {
     (locale) => {
       const key = widthKey("duration", locale);
       expect(key).toBeDefined();
+      // Thousands of values per locale: each written once and an expect only
+      // over the misses, so the case stays far inside its timeout under load.
+      const misses: string[] = [];
       for (const signed of [false, true]) {
         const write = writer("duration", locale, { signed });
         const seen = new Map<number, string>();
         for (const v of [...durations, ...durations.map((d) => -d)]) {
           const k = key?.(v) ?? Number.NaN;
-          expect(k, String(v)).not.toBeNaN();
-          const s = seen.get(k) ?? shape(write(v));
-          expect(shape(write(v)), String(v)).toBe(s);
+          const text = shape(write(v));
+          const s = seen.get(k) ?? text;
+          if (Number.isNaN(k) || text !== s) {
+            misses.push(`${String(signed)} ${String(v)}: ${text} under ${s}'s key`);
+          }
           seen.set(k, s);
         }
       }
+      expect(misses).toEqual([]);
     },
   );
 
