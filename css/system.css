@@ -3472,7 +3472,9 @@ a.cp-wordmark {
  * stands, worst first, and opens its panel. data-state names the state; the
  * stylesheet draws its glyph and fill, and the words are the app's: the
  * state's words, then an optional data-part="detail", such as a running
- * check. A state that needs the person fills the button in its tone. */
+ * check. A state that needs the person fills the button in its tone. The
+ * rest fill moves away from the shell ink, as the nav's hover does: a tint
+ * of the ink itself dropped its words to 3.94:1 on a light shell. */
 .cp-header-status {
   --cp-status-glyph: none;
 
@@ -3483,7 +3485,7 @@ a.cp-wordmark {
   padding-inline: var(--cp-space-3);
   border: 0;
   border-radius: var(--cp-radius-round);
-  background: oklch(from var(--cp-shell-ink) l c h / 12%);
+  background: var(--cp-shell-hover);
   color: var(--cp-shell-ink);
   font: inherit;
   font-size: var(--cp-text-sm);
@@ -3555,7 +3557,7 @@ a.cp-wordmark {
 
 @keyframes cp-status-breathe {
   50% {
-    background-color: oklch(from var(--cp-shell-ink) l c h / 22%);
+    background-color: var(--cp-shell-current);
   }
 }
 
@@ -3564,8 +3566,25 @@ a.cp-wordmark {
   outline-offset: var(--cp-focus-offset);
 }
 
-/* Compact: the glyph and the state's words; the detail waits in the panel. */
+/* Compact: the glyph alone. The words stay in the button's name, so they are
+ * clipped rather than hidden; the detail waits in the panel's heading. */
 @media (width < 40rem) {
+  .cp-header-status {
+    justify-content: center;
+    min-inline-size: var(--cp-control-h-sm);
+    padding-inline: 0;
+  }
+
+  .cp-header-status > :not([data-part="detail"]) {
+    position: absolute;
+    overflow: hidden;
+    clip-path: inset(50%);
+    inline-size: 1px;
+    block-size: 1px;
+    margin: -1px;
+    white-space: nowrap;
+  }
+
   .cp-header-status > [data-part="detail"] {
     display: none;
   }
@@ -10900,17 +10919,34 @@ button.cp-figure[aria-expanded="true"]::after {
 }
 
 /* The header status's panel: a .cp-popover[data-variant="panel"] whose
- * heading repeats the state's words, over one <section> per fact, each a
- * <strong> head with its glyph and a sentence, divided edge to edge. After
- * popover.css, whose panel padding this replaces. */
+ * heading repeats the state's words, over one <section> per fact, divided
+ * edge to edge. A section of rows holds a plain .cp-list under its
+ * heading; its foot, the history link, stays at the panel's end while the
+ * rest scrolls. After popover.css, whose panel padding this replaces. */
 .cp-popover.cp-status-panel {
   gap: 0;
   inline-size: 20rem;
+  max-block-size: min(36rem, calc(100dvh - 5rem));
   padding: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
-.cp-status-panel > h2 {
+.cp-status-panel > h2,
+.cp-status-panel > header {
   padding: var(--cp-space-3) var(--cp-space-4);
+}
+
+.cp-status-panel > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cp-space-3);
+}
+
+.cp-status-panel > h2,
+.cp-status-panel > header > h2 {
+  margin: 0;
   font-size: var(--cp-text-md);
 }
 
@@ -10923,10 +10959,56 @@ button.cp-figure[aria-expanded="true"]::after {
   font-size: var(--cp-text-sm);
 }
 
+/* Rows carry their own inset, so a section of rows drops its own. */
+.cp-status-panel > section:has(> .cp-list) {
+  gap: 0;
+  padding-inline: 0;
+  padding-block: var(--cp-space-3) var(--cp-space-1);
+}
+
 .cp-status-panel > section > strong {
   display: flex;
   align-items: center;
   gap: var(--cp-space-2);
+}
+
+/* The starts: each start's reason line sits under its own button. */
+.cp-status-panel > section > ul.cp-cluster {
+  align-items: start;
+  margin: 0;
+  padding: 0;
+}
+
+.cp-status-panel > section > .cp-cluster > li {
+  display: grid;
+  justify-items: start;
+  gap: var(--cp-space-1);
+}
+
+.cp-status-panel > section > .cp-cluster > li > small {
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-xs);
+}
+
+/* The foot's link holds the hit size, and the foot's padding gives back what
+ * the link grows by, so the foot keeps its height under a mouse. */
+.cp-status-panel > footer {
+  --cp-chart-surface: var(--cp-surface-overlay);
+
+  position: sticky;
+  inset-block-end: 0;
+  display: flex;
+  align-items: center;
+  padding: max(0px, var(--cp-space-3) - (var(--cp-hit-min) - 1lh) / 2) var(--cp-space-4);
+  border-block-start: var(--cp-line-w) solid var(--cp-line);
+  background: var(--cp-surface-overlay);
+  font-size: var(--cp-text-sm);
+}
+
+.cp-status-panel > footer > a {
+  display: flex;
+  align-items: center;
+  min-block-size: var(--cp-hit-min);
 }
 
 /* The options under a combobox (@cplieger/ui/combobox): a .cp-popover as

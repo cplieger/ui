@@ -25,6 +25,7 @@
     "./feed": "./src/data/feed/feed.ts",
     "./file": "./src/forms/file/file.ts",
     "./form": "./src/forms/form/form.ts",
+    "./header-status": "./src/navigation/header-status/header-status.ts",
     "./held-list": "./src/data/held-list/held-list.ts",
     "./highlight": "./src/content/highlight/highlight.ts",
     "./icons": "./src/foundations/icons/icons.ts",

@@ -2,7 +2,7 @@
 
 `@cplieger/ui/panel`
 
-The focus a panel of controls in a popover needs, such as a header status's panel. A `.cp-popover[data-variant="panel"]` opens by its button's `popovertarget` and closes on Escape and on a press outside by itself. It does not trap focus, since it is not modal.
+The focus a panel of controls in a popover needs, such as a header status's panel, which [header-status](../navigation/header-status.md) writes and enhances itself. A `.cp-popover[data-variant="panel"]` opens by its button's `popovertarget` and closes on Escape and on a press outside by itself. It does not trap focus, since it is not modal.
 
 ```html
 <button class="cp-header-status" type="button" data-state="ok" popovertarget="status">All good</button>
