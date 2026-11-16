@@ -272,18 +272,27 @@ if (urgentPill !== null && urgentPanel !== null && banner !== null) {
   });
 }
 
-// Every 15 minutes over the last day, the last three checks unanswered.
+// Every 15 minutes over the last day, in seconds, the last three checks
+// unanswered.
 const STEPS = 96;
 const DOWN = 3;
 const at = Array.from({ length: STEPS }, (_, i) => now - (STEPS - 1 - i) * 15 * MINUTE);
 const answer = at.map((_, i) =>
-  i >= STEPS - DOWN ? null : Math.round(180 + 60 * Math.sin(i / 7) + (i % 5) * 12 + i * 4),
+  i >= STEPS - DOWN ? null : Math.round(180 + 60 * Math.sin(i / 7) + (i % 5) * 12 + i * 4) / 1000,
 );
 for (const figure of document.querySelectorAll<HTMLElement>("figure[data-hs-chart]")) {
   renderChart(figure, {
-    x: { type: "time", domain: [at[0] ?? now, now] },
-    y: { label: "Answer time", format: "duration" },
-    marks: [{ mark: "line", x: at, series: [{ name: "Answer time", slot: 1, y: answer }] }],
+    data: {
+      type: "series",
+      name: "answer_seconds",
+      unit: "seconds",
+      x: at,
+      domain: [at[0] ?? now, now],
+      series: [{ key: "answer", values: answer }],
+    },
+    mark: { mark: "line", keys: [{ key: "answer", name: "Answer time", slot: 1 }] },
+    x: { type: "time" },
+    y: { label: "Answer time" },
     empty: "No checks in this range.",
   });
 }
