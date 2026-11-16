@@ -18,8 +18,8 @@
       href="specimen.css">
   </head>
   <body>
-    <!-- The Security page: the profile, the sign-in methods, the sessions and the API keys,
-         with a new key shown once. -->
+    <!-- Account and security as mountSecurity draws it: the session line, the profile, the
+         sign-in methods, the passkeys, the sessions and the API keys. -->
     <div class="cp-app">
       <header class="cp-header">
         <a
@@ -100,574 +100,1181 @@
       </header>
 
       <main class="cp-main">
-        <div class="cp-heading-row">
-          <div>
-            <h1>Security</h1>
-            <p class="cp-meta">Signed in as mika, with a passkey, 4 minutes ago.</p>
-          </div>
-        </div>
-
+        <h1>Account and security</h1>
         <div class="cp-stack">
+          <div data-part="session"><p class="cp-meta">Signed in as mika with a passkey.</p></div>
           <section
             class="cp-stack"
             aria-labelledby="profile-title"
           >
             <h2 id="profile-title">Profile</h2>
-            <form
-              class="cp-form"
-              action="#"
-              method="post"
-            >
-              <div class="cp-field">
-                <label
-                  class="cp-label"
-                  for="username"
-                  >Username</label
-                >
-                <input
-                  class="cp-input"
-                  id="username"
-                  name="username"
-                  type="text"
-                  autocomplete="username"
-                  autocapitalize="none"
-                  spellcheck="false"
-                  value="mika"
-                >
-              </div>
-              <div class="cp-field">
-                <label
-                  class="cp-label"
-                  for="display-name"
-                  >Display name</label
-                >
-                <input
-                  class="cp-input"
-                  id="display-name"
-                  name="display-name"
-                  type="text"
-                  autocomplete="name"
-                  value="Mika Laine"
-                >
-              </div>
-              <button
-                class="cp-button"
-                type="submit"
+            <div class="cp-stack">
+              <form
+                class="cp-form"
+                novalidate
               >
-                Save profile
-              </button>
-            </form>
+                <dl class="cp-facts">
+                  <dt>Username</dt>
+                  <dd>mika</dd>
+                </dl>
+                <div class="cp-field">
+                  <label
+                    class="cp-label"
+                    for="display-name"
+                    >Display name</label
+                  ><input
+                    class="cp-input"
+                    id="display-name"
+                    name="display_name"
+                    type="text"
+                    autocomplete="name"
+                    autocapitalize="none"
+                    autocorrect="off"
+                    spellcheck="false"
+                    maxlength="256"
+                 >
+                </div>
+                <button
+                  class="cp-button"
+                  type="submit"
+                  data-cp-confirm="glide"
+                >
+                  <span
+                    class="cp-icon"
+                    data-cp-icon="spinner-arc"
+                    aria-hidden="true"
+                    data-part="busy"
+                  ></span
+                  ><span
+                    class="cp-icon"
+                    data-cp-icon="check"
+                    aria-hidden="true"
+                    data-part="done"
+                  ></span
+                  ><span class="cp-roll"><span>Save profile</span></span>
+                </button>
+              </form>
+            </div>
           </section>
-
           <section
             class="cp-stack"
-            aria-labelledby="methods-title"
+            aria-labelledby="sign-in-methods-title"
           >
-            <h2 id="methods-title">Sign-in methods</h2>
-            <div
-              class="cp-panel"
-              data-flush
+            <h2
+              id="sign-in-methods-title"
+              tabindex="-1"
             >
-              <table
-                class="cp-table"
-                aria-labelledby="methods-title"
+              Sign-in methods
+            </h2>
+            <div class="cp-stack">
+              <div
+                class="cp-stack"
+                data-part="methods"
               >
-                <thead>
-                  <tr>
-                    <th scope="col">Method</th>
-                    <th scope="col">State</th>
-                    <th
-                      scope="col"
-                      data-col="actions"
-                    >
-                      <span class="cp-hidden-narrow">Actions</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>Password</td>
-                    <td>
-                      <div class="cp-cell-stack">
-                        <span
-                          class="cp-chip"
-                          data-tone="warning"
-                          ><span
-                            class="cp-icon"
-                            data-cp-icon="lock"
-                            aria-hidden="true"
-                          ></span
-                          >Turned off</span
+                <div
+                  class="cp-panel"
+                  data-flush
+                >
+                  <table
+                    class="cp-table"
+                    aria-labelledby="sign-in-methods-title"
+                  >
+                    <thead>
+                      <tr>
+                        <th scope="col">Method</th>
+                        <th scope="col">State</th>
+                        <th
+                          scope="col"
+                          data-col="actions"
                         >
-                        <small>Turned off after many failed attempts.</small>
-                      </div>
-                    </td>
-                    <td data-col="actions">
-                      <div class="cp-toolbar">
-                        <button
-                          class="cp-button"
-                          data-size="sm"
-                          type="button"
+                          <span class="cp-hidden-narrow">Actions</span>
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <th scope="row">Password</th>
+                        <td>
+                          <span
+                            class="cp-state"
+                            data-tone="success"
+                            ><span
+                              class="cp-icon"
+                              data-cp-icon="circle-check"
+                              aria-hidden="true"
+                            ></span
+                            >Set</span
+                          >
+                        </td>
+                        <td data-col="actions">
+                          <button
+                            class="cp-button"
+                            type="button"
+                            data-variant="quiet"
+                            data-size="sm"
+                            aria-label="Actions for Password"
+                            popovertarget="menu-1"
+                          >
+                            <span
+                              class="cp-icon"
+                              data-cp-icon="ellipsis"
+                              aria-hidden="true"
+                            ></span>
+                          </button>
+                          <div
+                            class="cp-popover cp-menu"
+                            id="menu-1"
+                            popover="auto"
+                            role="menu"
+                          >
+                            <button
+                              type="button"
+                              role="menuitem"
+                              data-cp-action="password-change"
+                            >
+                              Change password…</button
+                            ><button
+                              type="button"
+                              role="menuitem"
+                              data-cp-action="password-remove"
+                              data-tone="danger"
+                            >
+                              Remove password…
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <th scope="row">Passkeys</th>
+                        <td>
+                          <span
+                            class="cp-state"
+                            data-tone="success"
+                            ><span
+                              class="cp-icon"
+                              data-cp-icon="circle-check"
+                              aria-hidden="true"
+                            ></span
+                            >2 passkeys</span
+                          >
+                        </td>
+                        <td data-col="actions">
+                          <button
+                            class="cp-button"
+                            type="button"
+                            data-size="sm"
+                            aria-label="Add a passkey"
+                            data-cp-action="passkey-add"
+                            data-cp-confirm="glide"
+                          >
+                            <span
+                              class="cp-icon"
+                              data-cp-icon="plus"
+                              aria-hidden="true"
+                            ></span
+                            ><span
+                              class="cp-icon"
+                              data-cp-icon="spinner-arc"
+                              aria-hidden="true"
+                              data-part="busy"
+                            ></span
+                            ><span
+                              class="cp-icon"
+                              data-cp-icon="check"
+                              aria-hidden="true"
+                              data-part="done"
+                            ></span
+                            ><span class="cp-roll"><span>Add</span></span>
+                          </button>
+                        </td>
+                      </tr>
+                      <tr>
+                        <th scope="row">Authenticator app</th>
+                        <td>
+                          <div class="cp-cell-stack">
+                            <span
+                              class="cp-state"
+                              data-tone="success"
+                              ><span
+                                class="cp-icon"
+                                data-cp-icon="circle-check"
+                                aria-hidden="true"
+                              ></span
+                              >Set</span
+                            ><small>Set up Nov 3, 2026</small>
+                          </div>
+                        </td>
+                        <td data-col="actions">
+                          <button
+                            class="cp-button"
+                            type="button"
+                            data-variant="quiet"
+                            data-size="sm"
+                            aria-label="Actions for Authenticator app"
+                            popovertarget="menu-2"
+                          >
+                            <span
+                              class="cp-icon"
+                              data-cp-icon="ellipsis"
+                              aria-hidden="true"
+                            ></span>
+                          </button>
+                          <div
+                            class="cp-popover cp-menu"
+                            id="menu-2"
+                            popover="auto"
+                            role="menu"
+                          >
+                            <button
+                              type="button"
+                              role="menuitem"
+                              data-cp-action="totp-replace"
+                            >
+                              Replace authenticator app</button
+                            ><button
+                              type="button"
+                              role="menuitem"
+                              data-cp-action="totp-remove"
+                              data-tone="danger"
+                            >
+                              Remove authenticator app…
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <th scope="row">Recovery code</th>
+                        <td>
+                          <span
+                            class="cp-state"
+                            data-tone="success"
+                            ><span
+                              class="cp-icon"
+                              data-cp-icon="circle-check"
+                              aria-hidden="true"
+                            ></span
+                            >Set</span
+                          >
+                        </td>
+                        <td data-col="actions">
+                          <button
+                            class="cp-button"
+                            type="button"
+                            data-size="sm"
+                            aria-label="Replace recovery code…"
+                            data-cp-action="recovery-code-replace"
+                            data-cp-confirm="glide"
+                          >
+                            <span
+                              class="cp-icon"
+                              data-cp-icon="spinner-arc"
+                              aria-hidden="true"
+                              data-part="busy"
+                            ></span
+                            ><span
+                              class="cp-icon"
+                              data-cp-icon="check"
+                              aria-hidden="true"
+                              data-part="done"
+                            ></span
+                            ><span class="cp-roll"><span>Replace…</span></span>
+                          </button>
+                        </td>
+                      </tr>
+                      <tr>
+                        <th scope="row">Single sign-on</th>
+                        <td>
+                          <span
+                            class="cp-state"
+                            data-tone="success"
+                            ><span
+                              class="cp-icon"
+                              data-cp-icon="circle-check"
+                              aria-hidden="true"
+                            ></span
+                            >Linked to Authelia</span
+                          >
+                        </td>
+                        <td data-col="actions">
+                          <button
+                            class="cp-button"
+                            type="button"
+                            data-size="sm"
+                            aria-label="Unlink Authelia…"
+                            data-cp-action="oidc-unlink"
+                            data-tone="danger"
+                            data-cp-confirm="glide"
+                          >
+                            <span
+                              class="cp-icon"
+                              data-cp-icon="spinner-arc"
+                              aria-hidden="true"
+                              data-part="busy"
+                            ></span
+                            ><span
+                              class="cp-icon"
+                              data-cp-icon="check"
+                              aria-hidden="true"
+                              data-part="done"
+                            ></span
+                            ><span class="cp-roll"><span>Unlink…</span></span>
+                          </button>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <h3 id="passkeys-title">Passkeys</h3>
+                <div
+                  class="cp-panel"
+                  data-flush
+                >
+                  <table
+                    class="cp-table"
+                    aria-labelledby="passkeys-title"
+                  >
+                    <thead>
+                      <tr>
+                        <th scope="col">Name</th>
+                        <th
+                          scope="col"
+                          data-priority="mid"
                         >
-                          Turn it back on
-                        </button>
-                        <button
-                          class="cp-button"
-                          data-size="sm"
-                          type="button"
+                          Added
+                        </th>
+                        <th
+                          scope="col"
+                          data-priority="low"
                         >
-                          Change password…
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>Passkeys</td>
-                    <td>
-                      <span
-                        class="cp-chip"
-                        data-tone="success"
-                        ><span
-                          class="cp-icon"
-                          data-cp-icon="circle-check"
-                          aria-hidden="true"
-                        ></span
-                        >2 passkeys</span
-                      >
-                    </td>
-                    <td data-col="actions">
-                      <button
-                        class="cp-button"
-                        data-size="sm"
-                        type="button"
-                      >
-                        <span
-                          class="cp-icon"
-                          data-cp-icon="plus"
-                          aria-hidden="true"
-                        ></span
-                        >Add a passkey
-                      </button>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>Single sign-on</td>
-                    <td>
-                      <span
-                        class="cp-chip"
-                        data-tone="success"
-                        ><span
-                          class="cp-icon"
-                          data-cp-icon="circle-check"
-                          aria-hidden="true"
-                        ></span
-                        >Linked to Authelia</span
-                      >
-                    </td>
-                    <td data-col="actions">
-                      <button
-                        class="cp-button"
-                        data-size="sm"
-                        type="button"
-                      >
-                        Unlink…
-                      </button>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-            <h3 id="passkeys-title">Passkeys</h3>
-            <div
-              class="cp-panel"
-              data-flush
-            >
-              <table
-                class="cp-table"
-                aria-labelledby="passkeys-title"
-              >
-                <thead>
-                  <tr>
-                    <th scope="col">Name</th>
-                    <th scope="col">Added</th>
-                    <th
-                      scope="col"
-                      data-priority="low"
-                    >
-                      Last used
-                    </th>
-                    <th scope="col">Where</th>
-                    <th
-                      scope="col"
-                      data-col="actions"
-                    >
-                      <span class="cp-hidden-narrow">Actions</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>Phone</td>
-                    <td><time datetime="2026-09-14">14 Sep 2026</time></td>
-                    <td data-priority="low"><time datetime="2026-11-08T16:41">4 minutes ago</time></td>
-                    <td>
-                      <span
-                        class="cp-chip"
-                        data-tone="neutral"
-                        >Synced</span
-                      >
-                    </td>
-                    <td data-col="actions">
-                      <div class="cp-toolbar">
-                        <button
-                          class="cp-button"
-                          data-size="sm"
-                          type="button"
-                          aria-label="Rename Phone"
+                          Last used
+                        </th>
+                        <th scope="col">Where</th>
+                        <th
+                          scope="col"
+                          data-col="actions"
                         >
-                          Rename…
-                        </button>
-                        <button
-                          class="cp-button"
-                          data-size="sm"
-                          type="button"
-                          aria-label="Remove Phone"
-                        >
-                          Remove…
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>Security key</td>
-                    <td><time datetime="2026-03-02">2 Mar 2026</time></td>
-                    <td data-priority="low"><time datetime="2026-10-30">30 Oct 2026</time></td>
-                    <td>
-                      <span
-                        class="cp-chip"
-                        data-tone="warning"
-                        ><span
-                          class="cp-icon"
-                          data-cp-icon="triangle-alert"
-                          aria-hidden="true"
-                        ></span
-                        >May be copied</span
-                      >
-                    </td>
-                    <td data-col="actions">
-                      <div class="cp-toolbar">
-                        <button
-                          class="cp-button"
-                          data-size="sm"
-                          type="button"
-                          aria-label="Rename Security key"
-                        >
-                          Rename…
-                        </button>
-                        <button
-                          class="cp-button"
-                          data-size="sm"
-                          type="button"
-                          aria-label="Remove Security key"
-                        >
-                          Remove…
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+                          <span class="cp-hidden-narrow">Actions</span>
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <th scope="row"><span>Phone</span></th>
+                        <td data-priority="mid">
+                          <time datetime="2026-09-14T10:00:00Z">Sep&nbsp;14,&nbsp;2026</time>
+                        </td>
+                        <td data-priority="low">
+                          <time datetime="2026-11-16T08:02:20.042Z">Nov&nbsp;16,&nbsp;2026</time>
+                        </td>
+                        <td>
+                          <div class="cp-cluster">
+                            <span
+                              class="cp-chip"
+                              data-tone="neutral"
+                              >Synced</span
+                            >
+                          </div>
+                        </td>
+                        <td data-col="actions">
+                          <button
+                            class="cp-button"
+                            type="button"
+                            data-variant="quiet"
+                            data-size="sm"
+                            aria-label="Actions for Phone"
+                            popovertarget="menu-3"
+                          >
+                            <span
+                              class="cp-icon"
+                              data-cp-icon="ellipsis"
+                              aria-hidden="true"
+                            ></span>
+                          </button>
+                          <div
+                            class="cp-popover cp-menu"
+                            id="menu-3"
+                            popover="auto"
+                            role="menu"
+                          >
+                            <button
+                              type="button"
+                              role="menuitem"
+                              data-cp-action="passkey-rename-1"
+                            >
+                              Rename…</button
+                            ><button
+                              type="button"
+                              role="menuitem"
+                              data-cp-action="passkey-remove-1"
+                              data-tone="danger"
+                            >
+                              Remove…
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <th scope="row"><span>Security key</span></th>
+                        <td data-priority="mid">
+                          <time datetime="2026-03-02T10:00:00Z">Mar&nbsp;2,&nbsp;2026</time>
+                        </td>
+                        <td data-priority="low">
+                          <time datetime="2026-10-30T18:00:00Z">Oct&nbsp;30,&nbsp;2026</time>
+                        </td>
+                        <td>
+                          <div class="cp-cluster">
+                            <span
+                              class="cp-chip"
+                              data-tone="neutral"
+                              >This device only</span
+                            ><span
+                              class="cp-chip"
+                              data-tone="warning"
+                              ><span
+                                class="cp-icon"
+                                data-cp-icon="triangle-alert"
+                                aria-hidden="true"
+                              ></span
+                              >May be copied</span
+                            >
+                          </div>
+                        </td>
+                        <td data-col="actions">
+                          <button
+                            class="cp-button"
+                            type="button"
+                            data-variant="quiet"
+                            data-size="sm"
+                            aria-label="Actions for Security key"
+                            popovertarget="menu-4"
+                          >
+                            <span
+                              class="cp-icon"
+                              data-cp-icon="ellipsis"
+                              aria-hidden="true"
+                            ></span>
+                          </button>
+                          <div
+                            class="cp-popover cp-menu"
+                            id="menu-4"
+                            popover="auto"
+                            role="menu"
+                          >
+                            <button
+                              type="button"
+                              role="menuitem"
+                              data-cp-action="passkey-rename-2"
+                            >
+                              Rename…</button
+                            ><button
+                              type="button"
+                              role="menuitem"
+                              data-cp-action="passkey-remove-2"
+                              data-tone="danger"
+                            >
+                              Remove…
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           </section>
-
           <section
             class="cp-stack"
             aria-labelledby="sessions-title"
           >
-            <div class="cp-heading-row">
-              <h2 id="sessions-title">Sessions</h2>
-              <div class="cp-toolbar">
-                <button
-                  class="cp-button"
-                  type="button"
-                >
-                  <span
-                    class="cp-icon"
-                    data-cp-icon="log-out"
-                    aria-hidden="true"
-                  ></span
-                  >Sign out everywhere else…
-                </button>
-              </div>
-            </div>
-            <div
-              class="cp-panel"
-              data-flush
+            <h2
+              id="sessions-title"
+              tabindex="-1"
             >
-              <table class="cp-table">
-                <thead>
-                  <tr>
-                    <th scope="col">Device</th>
-                    <th
-                      scope="col"
-                      data-priority="mid"
-                    >
-                      Signed in with
-                    </th>
-                    <th scope="col">Last active</th>
-                    <th
-                      scope="col"
-                      data-priority="low"
-                    >
-                      Address
-                    </th>
-                    <th
-                      scope="col"
-                      data-col="actions"
-                    >
-                      <span class="cp-hidden-narrow">Actions</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>
-                      <div class="cp-cell-stack">
-                        <span>Firefox on Linux</span>
-                        <small>This device</small>
-                      </div>
-                    </td>
-                    <td data-priority="mid">Passkey</td>
-                    <td><time datetime="2026-11-08T16:45">Now</time></td>
-                    <td
-                      data-priority="low"
-                      class="cp-mono"
-                    >
-                      192.0.2.14
-                    </td>
-                    <td data-col="actions">
-                      <button
-                        class="cp-button"
-                        data-size="sm"
-                        type="button"
-                        aria-label="Sign out this device"
-                      >
-                        Sign out
-                      </button>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>
-                      <div class="cp-cell-stack">
-                        <span>Living room tablet</span>
-                        <small>Safari on iPadOS</small>
-                      </div>
-                    </td>
-                    <td data-priority="mid">Single sign-on</td>
-                    <td><time datetime="2026-11-08T09:12">Today at 09:12</time></td>
-                    <td
-                      data-priority="low"
-                      class="cp-mono"
-                    >
-                      192.0.2.31
-                    </td>
-                    <td data-col="actions">
-                      <button
-                        class="cp-button"
-                        data-size="sm"
-                        type="button"
-                        aria-label="Sign out Living room tablet"
-                      >
-                        Sign out
-                      </button>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </section>
-
-          <section
-            class="cp-stack"
-            aria-labelledby="keys-title"
-          >
-            <div class="cp-heading-row">
-              <h2 id="keys-title">API keys</h2>
-              <div class="cp-toolbar">
-                <button
-                  class="cp-button"
-                  type="button"
-                >
-                  <span
-                    class="cp-icon"
-                    data-cp-icon="plus"
-                    aria-hidden="true"
-                  ></span
-                  >Create key…
-                </button>
-              </div>
-            </div>
-            <div
-              class="cp-panel"
-              role="group"
-              aria-labelledby="new-key-label"
-            >
-              <div class="cp-stack">
+              Sessions
+            </h2>
+            <div class="cp-stack">
+              <div
+                class="cp-stack"
+                data-part="sessions"
+              >
                 <div
-                  class="cp-notice"
-                  data-tone="warning"
-                  role="status"
+                  class="cp-panel"
+                  data-flush
                 >
-                  <span
-                    class="cp-icon"
-                    data-cp-icon="triangle-alert"
-                    aria-hidden="true"
-                  ></span>
-                  <div>Copy it now. It will not be shown again.</div>
-                </div>
-                <div class="cp-field">
-                  <span
-                    class="cp-label"
-                    id="new-key-label"
-                    >New key for backup script</span
+                  <table
+                    class="cp-table"
+                    aria-labelledby="sessions-title"
                   >
-                  <div
-                    class="cp-code"
-                    role="group"
-                    aria-labelledby="new-key-label"
-                  >
-                    <code id="new-key">rt_example-shown-once</code>
-                    <button
-                      class="cp-button cp-copy"
-                      type="button"
-                    >
-                      <span
-                        class="cp-icon"
-                        data-cp-icon="copy"
-                        aria-hidden="true"
-                      ></span
-                      ><span
-                        class="cp-icon"
-                        data-cp-icon="check"
-                        data-part="done"
-                        aria-hidden="true"
-                      ></span
-                      >Copy
-                    </button>
-                  </div>
+                    <thead>
+                      <tr>
+                        <th scope="col">Device</th>
+                        <th
+                          scope="col"
+                          data-priority="mid"
+                        >
+                          Signed in with
+                        </th>
+                        <th scope="col">Last active</th>
+                        <th
+                          scope="col"
+                          data-priority="low"
+                        >
+                          Address
+                        </th>
+                        <th
+                          scope="col"
+                          data-col="actions"
+                        >
+                          <span class="cp-hidden-narrow">Actions</span>
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <th scope="row">
+                          <div class="cp-cell-stack">
+                            <span>Firefox on Linux</span><small>This device</small>
+                          </div>
+                        </th>
+                        <td data-priority="mid">a passkey</td>
+                        <td>
+                          <time
+                            datetime="2026-11-16T08:02:20.042Z"
+                            data-cp-tip="Nov 16, 2026, 9:02 AM"
+                            >now<span class="cp-visually-hidden"> Nov 16, 2026, 9:02 AM</span></time
+                          >
+                        </td>
+                        <td data-priority="low"><span class="cp-mono">192.0.2.10</span></td>
+                        <td data-col="actions">
+                          <button
+                            class="cp-button"
+                            type="button"
+                            data-variant="quiet"
+                            data-size="sm"
+                            aria-label="Actions for Firefox on Linux"
+                            popovertarget="menu-5"
+                          >
+                            <span
+                              class="cp-icon"
+                              data-cp-icon="ellipsis"
+                              aria-hidden="true"
+                            ></span>
+                          </button>
+                          <div
+                            class="cp-popover cp-menu"
+                            id="menu-5"
+                            popover="auto"
+                            role="menu"
+                          >
+                            <button
+                              type="button"
+                              role="menuitem"
+                              data-cp-action="session-rename-here"
+                            >
+                              Rename…</button
+                            ><button
+                              type="button"
+                              role="menuitem"
+                              data-cp-action="session-revoke-here"
+                              data-tone="danger"
+                            >
+                              Sign out
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <th scope="row"><span>Mika's phone</span></th>
+                        <td data-priority="mid">a passkey</td>
+                        <td>
+                          <time
+                            datetime="2026-11-16T06:02:20.042Z"
+                            data-cp-tip="Nov 16, 2026, 7:02 AM"
+                            >2 hours ago<span class="cp-visually-hidden"> Nov 16, 2026, 7:02 AM</span></time
+                          >
+                        </td>
+                        <td data-priority="low"><span class="cp-mono">198.51.100.23</span></td>
+                        <td data-col="actions">
+                          <button
+                            class="cp-button"
+                            type="button"
+                            data-variant="quiet"
+                            data-size="sm"
+                            aria-label="Actions for Mika's phone"
+                            popovertarget="menu-6"
+                          >
+                            <span
+                              class="cp-icon"
+                              data-cp-icon="ellipsis"
+                              aria-hidden="true"
+                            ></span>
+                          </button>
+                          <div
+                            class="cp-popover cp-menu"
+                            id="menu-6"
+                            popover="auto"
+                            role="menu"
+                          >
+                            <button
+                              type="button"
+                              role="menuitem"
+                              data-cp-action="session-rename-phone"
+                            >
+                              Rename…</button
+                            ><button
+                              type="button"
+                              role="menuitem"
+                              data-cp-action="session-revoke-phone"
+                              data-tone="danger"
+                            >
+                              Sign out
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <th scope="row">
+                          <div class="cp-cell-stack">
+                            <span>Chrome on Windows</span
+                            ><small
+                              ><span class="cp-cluster"
+                                ><span
+                                  class="cp-state"
+                                  data-tone="warning"
+                                  ><span
+                                    class="cp-icon"
+                                    data-cp-icon="lock"
+                                    aria-hidden="true"
+                                  ></span
+                                  >Plain HTTP</span
+                                >Until 09:17&nbsp;AM, or when the browser closes</span
+                              ></small
+                            >
+                          </div>
+                        </th>
+                        <td data-priority="mid">a password</td>
+                        <td>
+                          <time
+                            datetime="2026-11-15T06:02:20.042Z"
+                            data-cp-tip="Nov 15, 2026, 7:02 AM"
+                            >yesterday<span class="cp-visually-hidden"> Nov 15, 2026, 7:02 AM</span></time
+                          >
+                        </td>
+                        <td data-priority="low"><span class="cp-mono">10.0.0.14</span></td>
+                        <td data-col="actions">
+                          <button
+                            class="cp-button"
+                            type="button"
+                            data-variant="quiet"
+                            data-size="sm"
+                            aria-label="Actions for Chrome on Windows"
+                            popovertarget="menu-7"
+                          >
+                            <span
+                              class="cp-icon"
+                              data-cp-icon="ellipsis"
+                              aria-hidden="true"
+                            ></span>
+                          </button>
+                          <div
+                            class="cp-popover cp-menu"
+                            id="menu-7"
+                            popover="auto"
+                            role="menu"
+                          >
+                            <button
+                              type="button"
+                              role="menuitem"
+                              data-cp-action="session-rename-lan"
+                            >
+                              Rename…</button
+                            ><button
+                              type="button"
+                              role="menuitem"
+                              data-cp-action="session-revoke-lan"
+                              data-tone="danger"
+                            >
+                              Sign out
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
-                <div class="cp-toolbar">
+                <div class="cp-cluster">
                   <button
                     class="cp-button"
-                    data-variant="primary"
                     type="button"
+                    data-cp-action="sessions-others"
+                    data-cp-confirm="glide"
                   >
-                    Done
+                    <span
+                      class="cp-icon"
+                      data-cp-icon="log-out"
+                      aria-hidden="true"
+                    ></span
+                    ><span
+                      class="cp-icon"
+                      data-cp-icon="spinner-arc"
+                      aria-hidden="true"
+                      data-part="busy"
+                    ></span
+                    ><span
+                      class="cp-icon"
+                      data-cp-icon="check"
+                      aria-hidden="true"
+                      data-part="done"
+                    ></span
+                    ><span class="cp-roll"><span>Sign out everywhere else…</span></span>
                   </button>
                 </div>
               </div>
             </div>
-            <div
-              class="cp-panel"
-              data-flush
+          </section>
+          <section
+            class="cp-stack"
+            aria-labelledby="api-keys-title"
+          >
+            <h2
+              id="api-keys-title"
+              tabindex="-1"
             >
-              <table class="cp-table">
-                <thead>
-                  <tr>
-                    <th scope="col">Label</th>
-                    <th
-                      scope="col"
-                      data-priority="mid"
-                    >
-                      Key
-                    </th>
-                    <th scope="col">Scopes</th>
-                    <th
-                      scope="col"
-                      data-priority="low"
-                    >
-                      Expires
-                    </th>
-                    <th
-                      scope="col"
-                      data-priority="low"
-                    >
-                      Last used
-                    </th>
-                    <th
-                      scope="col"
-                      data-col="actions"
-                    >
-                      <span class="cp-hidden-narrow">Actions</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>backup script</td>
-                    <td
-                      data-priority="mid"
-                      class="cp-mono"
-                    >
-                      rt_exa…nce
-                    </td>
-                    <td>
-                      <span
-                        class="cp-chip"
-                        data-tone="neutral"
-                        >library:read</span
-                      >
-                    </td>
-                    <td data-priority="low"><time datetime="2027-02-06">6 Feb 2027</time></td>
-                    <td data-priority="low">Never</td>
-                    <td data-col="actions">
-                      <button
-                        class="cp-button"
-                        data-size="sm"
-                        type="button"
-                        aria-label="Revoke backup script"
-                      >
-                        Revoke…
-                      </button>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>home dashboard</td>
-                    <td
-                      data-priority="mid"
-                      class="cp-mono"
-                    >
-                      rt_Pz4…k2Q
-                    </td>
-                    <td>
-                      <div class="cp-toolbar">
-                        <span
-                          class="cp-chip"
-                          data-tone="neutral"
-                          >library:read</span
+              API keys
+            </h2>
+            <div class="cp-stack">
+              <div
+                class="cp-stack"
+                data-part="keys"
+              >
+                <div class="cp-cluster">
+                  <button
+                    class="cp-button"
+                    type="button"
+                    data-cp-action="key-create"
+                  >
+                    <span
+                      class="cp-icon"
+                      data-cp-icon="plus"
+                      aria-hidden="true"
+                    ></span
+                    >Create key…
+                  </button>
+                </div>
+                <div
+                  class="cp-panel"
+                  data-flush
+                >
+                  <table
+                    class="cp-table"
+                    aria-labelledby="api-keys-title"
+                  >
+                    <thead>
+                      <tr>
+                        <th scope="col">Label</th>
+                        <th
+                          scope="col"
+                          data-priority="mid"
                         >
-                        <span
-                          class="cp-chip"
-                          data-tone="neutral"
-                          >releases:read</span
+                          Key
+                        </th>
+                        <th
+                          scope="col"
+                          data-priority="low"
                         >
-                      </div>
-                    </td>
-                    <td data-priority="low">Never</td>
-                    <td data-priority="low"><time datetime="2026-11-08T16:30">15 minutes ago</time></td>
-                    <td data-col="actions">
-                      <button
-                        class="cp-button"
-                        data-size="sm"
-                        type="button"
-                        aria-label="Revoke home dashboard"
-                      >
-                        Revoke…
-                      </button>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+                          Scopes
+                        </th>
+                        <th
+                          scope="col"
+                          data-priority="low"
+                        >
+                          Expires
+                        </th>
+                        <th
+                          scope="col"
+                          data-priority="low"
+                        >
+                          Last used
+                        </th>
+                        <th scope="col">State</th>
+                        <th
+                          scope="col"
+                          data-col="actions"
+                        >
+                          <span class="cp-hidden-narrow">Actions</span>
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <th
+                          scope="row"
+                          id="key-12"
+                          tabindex="-1"
+                        >
+                          <span>backup script</span>
+                        </th>
+                        <td data-priority="mid"><span class="cp-mono">rt_exa⁠…⁠nce</span></td>
+                        <td data-priority="low">
+                          <div class="cp-cluster"><span class="cp-chip">Read</span></div>
+                        </td>
+                        <td data-priority="low">
+                          <time datetime="2027-01-05T08:02:20.043Z">Jan&nbsp;5,&nbsp;2027</time>
+                        </td>
+                        <td data-priority="low">
+                          <time datetime="2026-11-16T03:02:20.043Z">Nov&nbsp;16,&nbsp;2026</time>
+                        </td>
+                        <td>
+                          <span
+                            class="cp-state"
+                            data-tone="success"
+                            ><span
+                              class="cp-icon"
+                              data-cp-icon="circle-check"
+                              aria-hidden="true"
+                            ></span
+                            >Active</span
+                          >
+                        </td>
+                        <td data-col="actions">
+                          <button
+                            class="cp-button"
+                            type="button"
+                            data-variant="quiet"
+                            data-size="sm"
+                            aria-label="Actions for backup script"
+                            popovertarget="menu-8"
+                          >
+                            <span
+                              class="cp-icon"
+                              data-cp-icon="ellipsis"
+                              aria-hidden="true"
+                            ></span>
+                          </button>
+                          <div
+                            class="cp-popover cp-menu"
+                            id="menu-8"
+                            popover="auto"
+                            role="menu"
+                          >
+                            <button
+                              type="button"
+                              role="menuitem"
+                              data-cp-action="key-rename-12"
+                            >
+                              Rename…</button
+                            ><button
+                              type="button"
+                              role="menuitem"
+                              data-cp-action="key-rotate-12"
+                            >
+                              Rotate…</button
+                            ><button
+                              type="button"
+                              role="menuitem"
+                              data-cp-action="key-revoke-12"
+                              data-tone="danger"
+                            >
+                              Revoke…
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <th
+                          scope="row"
+                          id="key-14"
+                          tabindex="-1"
+                        >
+                          <span>ci</span>
+                        </th>
+                        <td data-priority="mid"><span class="cp-mono">rt_9fk⁠…⁠q2Z</span></td>
+                        <td data-priority="low">
+                          <div class="cp-cluster">
+                            <span class="cp-chip">Read and change</span
+                            ><span class="cp-chip">Manage users</span>
+                          </div>
+                        </td>
+                        <td data-priority="low">Never</td>
+                        <td data-priority="low">Not yet</td>
+                        <td>
+                          <div class="cp-cell-stack">
+                            <span
+                              class="cp-state"
+                              data-tone="warning"
+                              ><span
+                                class="cp-icon"
+                                data-cp-icon="timer"
+                                aria-hidden="true"
+                              ></span
+                              >Retiring until 09:44&nbsp;AM</span
+                            ><small
+                              >The old key works until this machine first uses the new one, or until
+                              09:44&nbsp;AM.</small
+                            >
+                          </div>
+                        </td>
+                        <td data-col="actions">
+                          <button
+                            class="cp-button"
+                            type="button"
+                            data-variant="quiet"
+                            data-size="sm"
+                            aria-label="Actions for ci"
+                            popovertarget="menu-9"
+                          >
+                            <span
+                              class="cp-icon"
+                              data-cp-icon="ellipsis"
+                              aria-hidden="true"
+                            ></span>
+                          </button>
+                          <div
+                            class="cp-popover cp-menu"
+                            id="menu-9"
+                            popover="auto"
+                            role="menu"
+                          >
+                            <button
+                              type="button"
+                              role="menuitem"
+                              data-cp-action="key-rename-14"
+                            >
+                              Rename…</button
+                            ><button
+                              type="button"
+                              role="menuitem"
+                              data-cp-action="key-rotate-14"
+                            >
+                              Rotate…</button
+                            ><button
+                              type="button"
+                              role="menuitem"
+                              data-cp-action="key-revoke-14"
+                              data-tone="danger"
+                            >
+                              Revoke…
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <th
+                          scope="row"
+                          id="key-15"
+                          tabindex="-1"
+                        >
+                          <div class="cp-cell-stack">
+                            <span>ci deploy step</span><small>Minted by ci</small>
+                          </div>
+                        </th>
+                        <td data-priority="mid"><span class="cp-mono">rt_m3x⁠…⁠7Lp</span></td>
+                        <td data-priority="low">
+                          <div class="cp-cluster"><span class="cp-chip">Read</span></div>
+                        </td>
+                        <td data-priority="low">Never</td>
+                        <td data-priority="low">
+                          <time datetime="2026-11-16T07:02:20.043Z">Nov&nbsp;16,&nbsp;2026</time>
+                        </td>
+                        <td>
+                          <span
+                            class="cp-state"
+                            data-tone="success"
+                            ><span
+                              class="cp-icon"
+                              data-cp-icon="circle-check"
+                              aria-hidden="true"
+                            ></span
+                            >Active</span
+                          >
+                        </td>
+                        <td data-col="actions">
+                          <button
+                            class="cp-button"
+                            type="button"
+                            data-variant="quiet"
+                            data-size="sm"
+                            aria-label="Actions for ci deploy step"
+                            popovertarget="menu-10"
+                          >
+                            <span
+                              class="cp-icon"
+                              data-cp-icon="ellipsis"
+                              aria-hidden="true"
+                            ></span>
+                          </button>
+                          <div
+                            class="cp-popover cp-menu"
+                            id="menu-10"
+                            popover="auto"
+                            role="menu"
+                          >
+                            <button
+                              type="button"
+                              role="menuitem"
+                              data-cp-action="key-rename-15"
+                            >
+                              Rename…</button
+                            ><button
+                              type="button"
+                              role="menuitem"
+                              data-cp-action="key-rotate-15"
+                            >
+                              Rotate…</button
+                            ><button
+                              type="button"
+                              role="menuitem"
+                              data-cp-action="key-revoke-15"
+                              data-tone="danger"
+                            >
+                              Revoke…
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <th
+                          scope="row"
+                          id="key-9"
+                          tabindex="-1"
+                        >
+                          <span>old laptop</span>
+                        </th>
+                        <td data-priority="mid"><span class="cp-mono">rt_k1d⁠…⁠wQ8</span></td>
+                        <td data-priority="low">
+                          <div class="cp-cluster"><span class="cp-chip">Read</span></div>
+                        </td>
+                        <td data-priority="low">
+                          <time datetime="2026-11-05T08:02:20.043Z">Nov&nbsp;5,&nbsp;2026</time>
+                        </td>
+                        <td data-priority="low">
+                          <time datetime="2026-10-27T08:02:20.043Z">Oct&nbsp;27,&nbsp;2026</time>
+                        </td>
+                        <td>
+                          <span
+                            class="cp-state"
+                            data-tone="neutral"
+                            ><span
+                              class="cp-icon"
+                              data-cp-icon="clock"
+                              aria-hidden="true"
+                            ></span
+                            >Expired Nov 5, 2026</span
+                          >
+                        </td>
+                        <td data-col="actions">
+                          <button
+                            class="cp-button"
+                            type="button"
+                            data-variant="quiet"
+                            data-size="sm"
+                            aria-label="Actions for old laptop"
+                            popovertarget="menu-11"
+                          >
+                            <span
+                              class="cp-icon"
+                              data-cp-icon="ellipsis"
+                              aria-hidden="true"
+                            ></span>
+                          </button>
+                          <div
+                            class="cp-popover cp-menu"
+                            id="menu-11"
+                            popover="auto"
+                            role="menu"
+                          >
+                            <button
+                              type="button"
+                              role="menuitem"
+                              data-cp-action="key-rename-9"
+                            >
+                              Rename…</button
+                            ><button
+                              type="button"
+                              role="menuitem"
+                              data-cp-action="key-revoke-9"
+                              data-tone="danger"
+                            >
+                              Revoke…
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <th
+                          scope="row"
+                          id="key-3"
+                          tabindex="-1"
+                        >
+                          <span>Unnamed key</span>
+                        </th>
+                        <td data-priority="mid"><span class="cp-mono">rt_a7c⁠…⁠0nE</span></td>
+                        <td data-priority="low">None</td>
+                        <td data-priority="low">Never</td>
+                        <td data-priority="low">
+                          <time datetime="2026-08-18T08:02:20.043Z">Aug&nbsp;18,&nbsp;2026</time>
+                        </td>
+                        <td>
+                          <span
+                            class="cp-state"
+                            data-tone="success"
+                            ><span
+                              class="cp-icon"
+                              data-cp-icon="circle-check"
+                              aria-hidden="true"
+                            ></span
+                            >Active</span
+                          >
+                        </td>
+                        <td data-col="actions">
+                          <button
+                            class="cp-button"
+                            type="button"
+                            data-variant="quiet"
+                            data-size="sm"
+                            aria-label="Actions for Unnamed key"
+                            popovertarget="menu-12"
+                          >
+                            <span
+                              class="cp-icon"
+                              data-cp-icon="ellipsis"
+                              aria-hidden="true"
+                            ></span>
+                          </button>
+                          <div
+                            class="cp-popover cp-menu"
+                            id="menu-12"
+                            popover="auto"
+                            role="menu"
+                          >
+                            <button
+                              type="button"
+                              role="menuitem"
+                              data-cp-action="key-rename-3"
+                            >
+                              Rename…</button
+                            ><button
+                              type="button"
+                              role="menuitem"
+                              data-cp-action="key-rotate-3"
+                            >
+                              Rotate…</button
+                            ><button
+                              type="button"
+                              role="menuitem"
+                              data-cp-action="key-revoke-3"
+                              data-tone="danger"
+                            >
+                              Revoke…
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           </section>
         </div>

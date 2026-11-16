@@ -54,6 +54,9 @@ export function showSecret(spec: ShownSpec, w: AccountWords, signal?: AbortSigna
   code.setAttribute("role", "group");
   code.setAttribute("aria-labelledby", label.id);
   const text = el("code", "cp-mono", spec.secret);
+  // `.cp-code > code` scrolls a long secret sideways; the arrow keys reach
+  // the rest only once it takes focus.
+  text.tabIndex = 0;
   const copy = el("button", "cp-button cp-copy");
   copy.type = "button";
   copy.append(glyph("copy"), glyph("check", "done"), w["shown.copy"]);

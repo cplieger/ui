@@ -212,6 +212,7 @@ export function authenticatorKey(
   box.setAttribute("role", "group");
   box.setAttribute("aria-labelledby", keyLabel.id);
   const text = el("code", "cp-mono", inFours(begun.text, " "));
+  text.tabIndex = 0;
   const copy = el("button", "cp-button cp-copy");
   copy.type = "button";
   copy.append(glyph("copy"), glyph("check", "done"), w["shown.copy"]);

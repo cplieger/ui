@@ -18,7 +18,8 @@
       href="specimen.css">
   </head>
   <body>
-    <!-- A sign-in gate page: the app's mark and name, one panel, one line under it. -->
+    <!-- A sign-in gate page as mountSignIn fills its panel: the app's mark and name, the panel
+         with the recovery hint in its foot, and the app's own line under it. -->
     <main class="cp-gate">
       <div class="cp-wordmark">
         <span
@@ -93,6 +94,12 @@
                     class="cp-icon"
                     data-cp-icon="eye"
                     aria-hidden="true"
+                  ></span
+                  ><span
+                    class="cp-icon"
+                    data-cp-icon="eye-off"
+                    aria-hidden="true"
+                    data-part="on"
                   ></span>
                 </button>
               </div>
@@ -118,21 +125,21 @@
               ></span
               >Sign in with a passkey
             </button>
-            <button
+            <a
               class="cp-button"
-              type="button"
-            >
-              <span
+              href="#"
+              ><span
                 class="cp-icon"
                 data-cp-icon="log-in"
                 aria-hidden="true"
               ></span
-              >Continue with Authelia
-            </button>
+              >Continue with Authelia</a
+            >
           </div>
+          <p class="cp-meta">Lost access? Ask an admin for a temporary password.</p>
         </div>
       </section>
-      <p class="cp-meta">Lost access? Ask an admin for a recovery link.</p>
+      <p class="cp-meta"><a href="#">Help for this screen</a></p>
     </main>
   </body>
 </html>

@@ -185,6 +185,7 @@ describe("mountSecurity: Create key", () => {
     await userEvent.click(button(d, "Create key"));
     const shown = await dialogOf("New key for ci");
     expect(shown.querySelector("code")?.textContent).toBe("rt_example_new_secret");
+    expect(shown.querySelector("code")?.tabIndex).toBe(0);
     expect(fake.named("createKey")[0]?.args).toEqual([
       { label: "ci", scopes: ["write", "users"], expires_in_days: 90 },
     ]);
