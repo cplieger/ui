@@ -7,19 +7,55 @@
   <section class="g-section" id="head">
     <h2>Item hero</h2>
     <div class="g-grid">
-      <div class="card g-wide">
-        <div class="g-media-head">
-          <span class="g-cover" data-h="2"><span class="cp-icon" data-cp-icon="tv" aria-hidden="true"></span></span>
+      <div class="card g-wide" data-new>
+        <h2>A hero that only reports</h2>
+        <header class="cp-heading-row">
+          <span class="cp-cover" data-harmony="1"><span class="cp-icon" data-cp-icon="film" aria-hidden="true"></span></span>
+          <div>
+            <h2>Spirited Away</h2>
+            <p data-part="alt-title" lang="ja">千と千尋の神隠し</p>
+            <p class="cp-cluster cp-meta"><span>Film, 2001</span><span>Both routes</span><span>2 copies</span></p>
+            <ul class="cp-stack" data-gap="tight">
+              <li>Radarr: <span class="cp-state" data-tone="success"><span class="cp-icon" data-cp-icon="circle-check" aria-hidden="true"></span>On the best release</span></li>
+              <li>Radarr 4K: <span class="cp-state" data-tone="warning"><span class="cp-icon" data-cp-icon="triangle-alert" aria-hidden="true"></span>Not the best, a better release is out</span></li>
+            </ul>
+            <nav class="cp-cluster" data-gap="tight" aria-label="Spirited Away elsewhere"><a class="cp-filter-chip" href="#head" rel="external">AniList<span class="cp-visually-hidden">, opens AniList</span></a><a class="cp-filter-chip" href="#head" rel="external">SeaDex<span class="cp-visually-hidden">, opens SeaDex</span></a><a class="cp-filter-chip" href="#head" rel="external">Radarr<span class="cp-visually-hidden">, opens Radarr</span></a><span class="cp-meta">Radarr 4K</span></nav>
+            <div class="cp-cluster"><span class="cp-chip" data-tone="warning"><span class="cp-icon" data-cp-icon="triangle-alert" aria-hidden="true"></span>Not the best</span><span class="cp-chip" data-tone="neutral"><span class="cp-icon" data-cp-icon="pin" aria-hidden="true"></span>Pinned</span></div>
+          </div>
+        </header>
+        <footer>The heading row with a cover first, and no actions. Its poster stand-in shows the film glyph while there is no image. Under the title, the title in its own language, a line of facts, one line per copy saying its state in words, the links out with their external mark, a service with no public address named in plain words, then the state chips. Narrow the window and the words go under the poster once the row is under 26.5rem.</footer>
+      </div>
+      <div class="card g-wide" data-new>
+        <h2>A hero with the page's actions</h2>
+        <header class="cp-heading-row">
+          <span class="cp-cover" data-harmony="2"><span class="cp-icon" data-cp-icon="tv" aria-hidden="true"></span></span>
           <div>
             <h2>Frieren: Beyond Journey's End</h2>
-            <p class="g-alt-title" lang="ja">葬送のフリーレン</p>
-            <div class="g-media-meta"><span>TV, 2023</span><span>28 episodes</span><span>Japanese audio</span></div>
-            <div class="g-row-inline"><button class="cp-button" data-variant="primary" type="button"><span class="cp-icon" data-cp-icon="captions" aria-hidden="true"></span>Find subtitles</button><button class="cp-button" type="button"><span class="cp-icon" data-cp-icon="refresh-cw" aria-hidden="true"></span>Refresh</button></div>
-            <nav class="g-linkchips" aria-label="Frieren elsewhere"><a class="cp-filter-chip" href="#head">Releases</a><a class="cp-filter-chip" href="#head">Activity</a><a class="cp-filter-chip" href="#head" rel="external">Sonarr<span class="cp-visually-hidden">, opens Sonarr</span></a><a class="cp-filter-chip" href="#head" rel="external">AniList<span class="cp-visually-hidden">, opens AniList</span></a></nav>
-            <div class="g-row-inline g-gap-top"><span class="cp-chip" data-tone="success"><span class="cp-icon" data-cp-icon="circle-check" aria-hidden="true"></span>On the best</span><span class="cp-chip" data-tone="neutral"><span class="cp-icon" data-cp-icon="pin" aria-hidden="true"></span>Pinned</span></div>
+            <p data-part="alt-title" lang="ja">葬送のフリーレン</p>
+            <p class="cp-cluster cp-meta"><span>TV, 2023</span><span>28 episodes</span><span>Japanese audio</span></p>
+            <nav class="cp-cluster" data-gap="tight" aria-label="Frieren elsewhere"><a class="cp-filter-chip" href="#head">Releases</a><a class="cp-filter-chip" href="#head">Activity</a><a class="cp-filter-chip" href="#head" rel="external">Open in Sonarr<span class="cp-visually-hidden">, opens Sonarr</span></a><a class="cp-filter-chip" href="#head" rel="external">AniList<span class="cp-visually-hidden">, opens AniList</span></a></nav>
+            <div class="cp-cluster"><span class="cp-chip" data-tone="success"><span class="cp-icon" data-cp-icon="circle-check" aria-hidden="true"></span>On the best</span></div>
           </div>
+          <div class="cp-toolbar"><button class="cp-button" type="button"><span class="cp-icon" data-cp-icon="refresh-cw" aria-hidden="true"></span>Refresh</button><button class="cp-button" data-variant="primary" type="button"><span class="cp-icon" data-cp-icon="captions" aria-hidden="true"></span>Find subtitles</button></div>
+        </header>
+        <footer>The same hero holding the page's actions in its toolbar, level with the title, on a line of their own once the row is under 40rem. A chevron after a link stays in the app; the external mark leaves it.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>The poster's stand-in</h2>
+        <ul class="cp-list" aria-label="Recently added">
+          <li><a class="cp-list-row" href="#head"><span class="cp-cover" data-harmony="1"><span class="cp-icon" data-cp-icon="film" aria-hidden="true"></span></span><span class="cp-cell-stack"><strong>The Boy and the Heron</strong><small>Film, 2023</small></span></a></li>
+          <li><a class="cp-list-row" href="#head"><span class="cp-cover" data-harmony="3"><span class="cp-icon" data-cp-icon="tv" aria-hidden="true"></span></span><span class="cp-cell-stack"><strong>Mushishi</strong><small>TV, 2005, 26 episodes</small></span></a></li>
+        </ul>
+        <div class="cp-panel g-gap-top" data-flush>
+          <table class="cp-table">
+            <thead><tr><th>Title</th><th data-col="num">Copies</th></tr></thead>
+            <tbody>
+              <tr><td><div class="cp-title-cell"><span class="cp-cover" data-harmony="4" aria-hidden="true"><span class="cp-icon" data-cp-icon="film"></span></span><div class="cp-cell-stack"><a href="#head">Perfect Blue</a><span class="cp-meta">Film, 1997</span></div></div></td><td data-col="num">1</td></tr>
+              <tr><td><div class="cp-title-cell"><span class="cp-cover" data-harmony="2" aria-hidden="true"><span class="cp-icon" data-cp-icon="tv"></span></span><div class="cp-cell-stack"><a href="#head">Frieren: Beyond Journey's End</a><span class="cp-meta">TV, 2023, 28 episodes</span></div></div></td><td data-col="num">2</td></tr>
+            </tbody>
+          </table>
         </div>
-        <footer>Poster, title, the title in its own language, a line of facts, the page's actions, then links: a chevron stays in the app, the external mark leaves it. State chips close it. It wraps under the poster on a phone.</footer>
+        <footer>With no poster, the cover is the stand-in: a harmony colour and the kind's glyph, film for a film and tv for a series, at a list row's size and a table's title cell. The hero shows the same cover at 7rem.</footer>
       </div>
     </div>
   </section>
@@ -27,12 +63,12 @@
   <section class="g-section" id="video">
     <h2>Video with one caption track</h2>
     <div class="g-grid">
-      <div class="card g-wide">
-        <div class="g-player" data-offset="nudge-video">
-          <video src="media/sample.webm" preload="metadata" playsinline crossorigin="anonymous"><track kind="subtitles" src="media/sample.vtt" srclang="en" label="English" default></video>
-          <div class="g-player-bar"><button class="cp-button" data-variant="quiet" type="button" data-play aria-label="Play"><span class="cp-icon" data-cp-icon="play" aria-hidden="true"></span></button><input class="cp-range g-seek" type="range" min="0" max="12" step="0.01" value="0" aria-label="Seek"><span class="g-time-label">0:00 / 0:12</span></div>
+      <div class="card g-wide" data-new>
+        <h2>A preview with its caption track</h2>
+        <div class="cp-video" id="video-preview">
+          <video src="media/sample.webm" controls preload="metadata" playsinline crossorigin="anonymous"><track kind="subtitles" src="media/sample.vtt" srclang="en" label="English" default></video>
         </div>
-        <div class="cp-field g-gap-top"><label class="cp-label" for="nudge-video-input" id="nudge-video-l">Caption offset, previewed live</label><div class="cp-stepper" data-variant="nudge" id="nudge-video" role="group" aria-labelledby="nudge-video-l"><button class="cp-button" data-size="sm" type="button" data-step="-10" data-cp-tip="1 second earlier">−1 s</button><button class="cp-button" data-size="sm" type="button" data-step="-1" data-cp-tip="0.1 seconds earlier">−0.1 s</button><input class="cp-input" id="nudge-video-input" value="0.00" inputmode="decimal" data-min="-60" data-max="60" data-step="0.1"><button class="cp-button" data-size="sm" type="button" data-step="1" data-cp-tip="0.1 seconds later">+0.1 s</button><button class="cp-button" data-size="sm" type="button" data-step="10" data-cp-tip="1 second later">+1 s</button><button class="cp-button" data-variant="quiet" data-size="sm" type="button" data-reset="0">Reset</button></div></div>
+        <div class="cp-field g-gap-top"><label class="cp-label" for="nudge-video-input" id="nudge-video-l">Caption offset, previewed live</label><div class="cp-stepper" data-variant="nudge" id="nudge-video" role="group" aria-labelledby="nudge-video-l"><button class="cp-button" type="button" data-step="-10" data-cp-tip="1 second earlier">−1 s</button><button class="cp-button" type="button" data-step="-1" data-cp-tip="0.1 seconds earlier">−0.1 s</button><input class="cp-input" id="nudge-video-input" type="text" value="0.00" inputmode="decimal" data-min="-60" data-max="60" data-step="0.1"><button class="cp-button" type="button" data-step="1" data-cp-tip="0.1 seconds later">+0.1 s</button><button class="cp-button" type="button" data-step="10" data-cp-tip="1 second later">+1 s</button><button class="cp-button" data-variant="quiet" type="button" data-reset="0">Reset</button></div></div>
         <footer>The native video under our controls: play and pause, a seek bar with both times, and one caption track that redraws the moment the offset changes.</footer>
       </div>
     </div>
