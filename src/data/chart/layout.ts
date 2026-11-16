@@ -182,7 +182,7 @@ export interface Layout {
   /** A slope's end labels moved off their dots' heights, each joined to
    *  its dot, or a pie's outside labels, each joined to its slice's rim. */
   readonly leaders: readonly Leader[];
-  /** The notes drawn, in spec order: those whose point lies in the plot. */
+  /** The notes drawn, in frame order: those whose point lies in the plot. */
   readonly notes: readonly Note[];
   /** Every note is drawn as its numbered marker, its words listed below
    *  the plot: under 30rem, or when two notes overlap or one cannot fit. */

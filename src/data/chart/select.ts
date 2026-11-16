@@ -1125,7 +1125,7 @@ function stopOf(model: Model, sel: Selection): number | undefined {
 const joins = (j: Join, sel: Selection, stop: number | undefined): boolean =>
   j.kind === "stop" ? stop === j.i : sel.kind === "day" && sel.i === j.i;
 
-/** Each note joining `sel`'s stop through `words.noteReading`, in spec order. */
+/** Each note joining `sel`'s stop through `words.noteReading`, in frame order. */
 function noteReadings(model: Model, sel: Selection, words: Words): string {
   const out: string[] = [];
   const stop = stopOf(model, sel);

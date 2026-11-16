@@ -549,7 +549,7 @@ function treeSummary(model: Model, m: TreeModel, words: Words): string[] {
   return [words.partsSummary(total, named.join(", "))];
 }
 
-/** Each rule's sentence, in spec order; under `facets` the chart's rules
+/** Each rule's sentence, in frame order; under `facets` the chart's rules
  *  once, then each panel's own in panel order, its label after the panel's
  *  name through `panelAt`. */
 export function ruleSentences(model: Model, words: Words): string[] {
@@ -596,7 +596,7 @@ function rulesOf(model: Model, marks: Model["marks"], words: Words, panel?: stri
   return out;
 }
 
-/** Each note's sentence, in spec order: its x as the readings write it, on
+/** Each note's sentence, in frame order: its x as the readings write it, on
  *  a scatter as its measure, on a calendar its instant's date; then each
  *  note the plot has no place for, at its plain value; in a panel of small
  *  multiples that place through `panelAt`. */

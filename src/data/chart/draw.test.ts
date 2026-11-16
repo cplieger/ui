@@ -18,8 +18,19 @@ import { layout, type Layout } from "./layout.js";
 import { chartModel, type CellModel, type Model, type RectModel } from "./model.js";
 import { bucketReading, cellReading, overall, readoutWidths } from "./readout.js";
 import { navigator } from "./select.js";
-import type { ChartSpec } from "./spec.js";
-import { ladder } from "./test-helpers/frames.js";
+import type { ChartFrame, ChartSpec, Mark } from "./spec.js";
+import {
+  binsFrame,
+  boxes,
+  categories,
+  events,
+  grid as gridFrame,
+  ladder,
+  named,
+  points,
+  seriesFrame,
+  tree,
+} from "./test-helpers/frames.js";
 import { chartWords } from "./words.js";
 
 const root = document.documentElement;
@@ -118,49 +129,61 @@ function draw(spec: ChartSpec, width = 600, parent?: HTMLElement, lang = "en"): 
 
 const per = <T>(n: number, f: (i: number) => T): T[] => Array.from({ length: n }, (_, i) => f(i));
 const starts = per(24, (i) => i * 900_000);
+// Direct takes slot 4, not its place's 3.
+const posts = (more: object = {}): Mark => ({
+  mark: "rect",
+  keys: [{ key: "Direct", slot: 4 }],
+  ...more,
+});
 const stacked: ChartSpec = {
-  x: { type: "time", domain: [0, 24 * 900_000] },
+  x: { domain: [0, 24 * 900_000] },
   y: { label: "Posts", unit: { one: "post", other: "posts" } },
-  marks: [
+  data: binsFrame(
+    starts,
+    starts.map((t) => t + 900_000),
+    [],
     {
-      mark: "rect",
-      x1: starts,
-      x2: starts.map((t) => t + 900_000),
-      series: [
-        { name: "Announce", slot: 1, y: per(24, (i) => 3 + (i % 4)) },
-        { name: "Path", slot: 2, y: per(24, (i) => (i === 5 ? null : 2)) },
-        { name: "Direct", slot: 4, y: per(24, () => 1) },
-      ],
+      series: named(
+        ["Announce", per(24, (i) => 3 + (i % 4))],
+        ["Path", per(24, (i) => (i === 5 ? null : 2))],
+        ["Direct", per(24, () => 1)],
+      ),
     },
-  ],
+  ),
+  mark: posts(),
 };
+// `spec` with frame notes keyed by their text, or refs keyed by their label.
+const noted = (spec: ChartSpec, ...notes: (readonly [number, string])[]): ChartSpec =>
+  ({
+    ...spec,
+    data: { ...(spec.data as ChartFrame), notes: notes.map(([at, key]) => ({ key, at })) },
+  }) as ChartSpec;
+const reffed = (spec: ChartSpec, ...refs: (readonly [number, string])[]): ChartSpec =>
+  ({
+    ...spec,
+    data: { ...(spec.data as ChartFrame), refs: refs.map(([value, key]) => ({ key, value })) },
+  }) as ChartSpec;
 
 const minutes = per(360, (i) => i * 60_000);
 const stepLine: ChartSpec = {
   x: { type: "time", domain: [0, 360 * 60_000] },
   y: { label: "Agents" },
-  marks: [
-    {
-      mark: "line",
-      curve: "step",
-      x: minutes,
-      series: [
-        { name: "Live", slot: 1, y: minutes.map((_, i) => (i < 30 ? null : 4 + (i % 7))) },
-        { name: "Active", slot: 2, y: minutes.map((_, i) => (i < 30 ? null : i % 5)) },
-      ],
-    },
-  ],
+  data: seriesFrame(minutes, [], {
+    series: named(
+      ["Live", minutes.map((_, i) => (i < 30 ? null : 4 + (i % 7)))],
+      ["Active", minutes.map((_, i) => (i < 30 ? null : i % 5))],
+    ),
+  }),
+  mark: { mark: "line", curve: "step" },
 };
 
 const strip = (names: readonly string[]): ChartSpec => ({
-  x: { type: "time", domain: [0, 360 * 60_000] },
+  x: { domain: [0, 360 * 60_000] },
   y: { type: "band", mono: true },
-  marks: [
-    {
-      mark: "dot",
-      rows: names.map((name, r) => ({ name, x: per(r * 3, (i) => (i + 1) * 3_000_000) })),
-    },
-  ],
+  data: events(
+    Object.fromEntries(names.map((name, r) => [name, per(r * 3, (i) => (i + 1) * 3_000_000)])),
+  ),
+  mark: { mark: "dot" },
 });
 
 // A colour as the page resolves it on an element of the plot, or in `scheme`.
@@ -211,8 +234,7 @@ describe("the marks", () => {
   });
 
   it("sets a group's series side by side from the baseline, and rings each sub-column or the chosen one", () => {
-    const mark = stacked.marks[0] as Extract<ChartSpec["marks"][number], { mark: "rect" }>;
-    const d = draw({ ...stacked, marks: [{ ...mark, arrange: "group" }] }, 600);
+    const d = draw({ ...stacked, mark: posts({ arrange: "group" }) }, 600);
     const boxes = (p: Element | null | undefined) =>
       [...(p?.getAttribute("d") ?? "").matchAll(/M([\d.]+) ([\d.]+)H([\d.]+)V([\d.]+)/g)].map((g) =>
         g.slice(1).map(Number),
@@ -245,8 +267,7 @@ describe("the marks", () => {
   });
 
   it("stacks each 100% bucket to the top of the axis, and rings the bucket or a share", () => {
-    const mark = stacked.marks[0] as Extract<ChartSpec["marks"][number], { mark: "rect" }>;
-    const d = draw({ ...stacked, marks: [{ ...mark, arrange: "share" }] }, 600);
+    const d = draw({ ...stacked, mark: posts({ arrange: "share" }) }, 600);
     const boxes = (p: Element | null | undefined) =>
       [...(p?.getAttribute("d") ?? "").matchAll(/M([\d.]+) ([\d.]+)H([\d.]+)V([\d.]+)/g)].map((g) =>
         g.slice(1).map(Number),
@@ -278,8 +299,7 @@ describe("the marks", () => {
   });
 
   it("draws a step area as one shape per run, and rings a bucket 1 px inside its flush edges", () => {
-    const mark = stacked.marks[0] as Extract<ChartSpec["marks"][number], { mark: "rect" }>;
-    const d = draw({ ...stacked, marks: [{ ...mark, shape: "area" }] }, 600);
+    const d = draw({ ...stacked, mark: posts({ shape: "area" }) }, 600);
     const paths = series(d, "rect");
     expect(paths.map((p) => p.dataset["series"])).toEqual(["1", "2", "4"]);
     // Path's null in bucket 5 splits it in two; the others run unbroken.
@@ -306,16 +326,10 @@ describe("the marks", () => {
     const x = per(60, (i) => i * 60_000);
     const d = draw({
       x: { type: "time" },
-      marks: [
-        {
-          mark: "area",
-          x,
-          series: [
-            { name: "Gas", slot: 1, y: x.map(() => 4) },
-            { name: "Wind", slot: 3, y: x.map((_, i) => (i === 30 ? null : 2)) },
-          ],
-        },
-      ],
+      data: seriesFrame(x, [], {
+        series: named(["Gas", x.map(() => 4)], ["Wind", x.map((_, i) => (i === 30 ? null : 2))]),
+      }),
+      mark: { mark: "area", keys: [{ key: "Wind", slot: 3 }] },
     });
     const paths = series(d, "layers");
     expect(paths.map((p) => p.dataset["series"])).toEqual(["1", "3"]);
@@ -347,17 +361,13 @@ describe("the marks", () => {
     const d = draw(
       {
         x: { type: "time" },
-        marks: [
-          {
-            mark: "area",
-            x,
-            arrange: "share",
-            series: [
-              { name: "Gas", slot: 1, y: x.map((_, i) => (i === 20 ? 0 : 1)) },
-              { name: "Wind", slot: 3, y: x.map((_, i) => (i === 20 ? 0 : 3)) },
-            ],
-          },
-        ],
+        data: seriesFrame(x, [], {
+          series: named(
+            ["Gas", x.map((_, i) => (i === 20 ? 0 : 1))],
+            ["Wind", x.map((_, i) => (i === 20 ? 0 : 3))],
+          ),
+        }),
+        mark: { mark: "area", arrange: "share", keys: [{ key: "Wind", slot: 3 }] },
       },
       600,
     );
@@ -404,16 +414,19 @@ describe("the marks", () => {
   it("draws rules 2 px in ink, and a rule outside the domain as its label only", () => {
     const edges = ladder();
     const d = draw({
-      x: { type: "log", format: "duration", domain: [1, edges.at(-1) ?? 0] },
-      marks: [
-        {
-          mark: "rect",
-          x1: edges.slice(0, -1),
-          x2: edges.slice(1),
-          series: [{ name: "Reads", y: edges.slice(1).map(() => 2) }],
-        },
-        { mark: "rule", x: 42, label: "Median" },
-        { mark: "rule", x: 4 * 86_400, label: "95th percentile" },
+      x: { type: "log", domain: [1, edges.at(-1) ?? 0] },
+      data: binsFrame(edges.slice(0, -1), edges.slice(1), [edges.slice(1).map(() => 2)], {
+        axis: "value",
+        unit: "seconds",
+        refs: [
+          { key: "median", value: 42 },
+          { key: "p95", value: 4 * 86_400 },
+        ],
+      }),
+      mark: { mark: "rect" },
+      refs: [
+        { key: "median", label: "Median" },
+        { key: "p95", label: "95th percentile" },
       ],
     });
     const rules = [...d.svg.querySelectorAll('[data-part="rule"]')];
@@ -428,7 +441,7 @@ describe("the marks", () => {
   });
 
   it("cuts rects crossing a passed domain at the plot's edges, over neither gutter", () => {
-    const d = draw({ ...stacked, x: { type: "time", domain: [450_000, 23.5 * 900_000] } });
+    const d = draw({ ...stacked, x: { domain: [450_000, 23.5 * 900_000] } });
     const area = d.svg.querySelector('[data-part="area"]') as SVGSVGElement;
     for (const p of series(d, "rect")) {
       const box = p.getBBox();
@@ -441,66 +454,75 @@ describe("the marks", () => {
 
   it("writes only finite numbers into the drawing, for every mark on every scale", () => {
     const edges = ladder();
-    const rule = (axis: "x" | "y", v: number) => ({ mark: "rule", [axis]: v, label: "R" }) as const;
-    const line = (x: number[], y: (number | null)[]) =>
-      ({ mark: "line", x, series: [{ name: "a", y }] }) as const;
+    // Refs keyed by their place, each on `axis`.
+    const ruled = (spec: ChartSpec, axis: "x" | "y", ...values: number[]): ChartSpec =>
+      ({
+        ...reffed(spec, ...values.map((v, k) => [v, `${axis}${String(k)}`] as const)),
+        refs: values.map((_, k) => ({ key: `${axis}${String(k)}`, axis })),
+      }) as ChartSpec;
+    const line = (x: number[], y: (number | null)[]) => seriesFrame(x, [y]);
     const specs: ChartSpec[] = [
-      { ...stacked, marks: [...stacked.marks, rule("x", 900_000), rule("y", 99), rule("x", -5)] },
-      {
-        x: { type: "log", format: "duration", domain: [1, edges.at(-1) ?? 0] },
-        marks: [
-          {
-            mark: "rect",
-            x1: edges.slice(0, -1),
-            x2: edges.slice(1),
-            series: [{ name: "Reads", y: edges.slice(1).map((_, i) => i % 3) }],
-          },
-          rule("x", 0.4),
-          rule("x", 0),
-          rule("x", -1),
-          rule("x", 9e9),
-        ],
-      },
-      ...(["linear", "log", "time"] as const).flatMap((type) => [
+      ruled(stacked, "x", 900_000, -5),
+      ruled(stacked, "y", 99),
+      ruled(
         {
-          x: type === "log" ? { type, domain: [1, 100] as const } : { type },
-          y: { type: "log" as const },
-          marks: [line([0, 1, 10, 100, 200], [2, 0, -3, null, 8]), rule("y", 0), rule("y", 4)],
+          x: { type: "log", domain: [1, edges.at(-1) ?? 0] },
+          data: binsFrame(
+            edges.slice(0, -1),
+            edges.slice(1),
+            [edges.slice(1).map((_, i) => i % 3)],
+            {
+              axis: "value",
+              unit: "seconds",
+            },
+          ),
+          mark: { mark: "rect" },
         },
+        "x",
+        0.4,
+        0,
+        -1,
+        9e9,
+      ),
+      ...(["linear", "log", "time"] as const).flatMap((type): ChartSpec[] => [
+        ruled(
+          {
+            x: type === "log" ? { type, domain: [1, 100] } : { type },
+            y: { type: "log" },
+            data: line([0, 1, 10, 100, 200], [2, 0, -3, null, 8]),
+            mark: { mark: "line" },
+          },
+          "y",
+          0,
+          4,
+        ),
         {
           x: { type, reverse: true },
           y: { zero: false },
-          marks: [{ ...line([1, 2, 3], [-2, Number.NaN, 5]), curve: "step" as const }],
+          data: line([1, 2, 3], [-2, Number.NaN, 5]),
+          mark: { mark: "line", curve: "step" },
         },
         {
-          x: type === "log" ? { type, domain: [1, 100] as const } : { type, reverse: true },
-          marks: [
-            {
-              mark: "area" as const,
-              x: [0, 1, 10, 100, 200],
-              curve: "step" as const,
-              series: [
-                { name: "a", y: [2, 0, null, 3, 8] },
-                { name: "b", y: [1, Number.NaN, 4, 0, 2] },
-              ],
-            },
-          ],
-        },
-        {
-          x: type === "log" ? { type, domain: [1, 1_000] as const } : { type },
-          y: { type: "band" as const },
-          marks: [
-            {
-              mark: "dot" as const,
-              rows: [
-                { name: "a", x: [0, 1, 1, 50] },
-                { name: "b", x: [] },
-              ],
-            },
-            rule("x", 0),
-          ],
+          x: type === "log" ? { type, domain: [1, 100] } : { type, reverse: true },
+          data: seriesFrame(
+            [0, 1, 10, 100, 200],
+            [
+              [2, 0, null, 3, 8],
+              [1, Number.NaN, 4, 0, 2],
+            ],
+          ),
+          mark: { mark: "area", curve: "step" },
         },
       ]),
+      ruled(
+        {
+          y: { type: "band" },
+          data: events({ a: [0, 1, 1, 50], b: [] }),
+          mark: { mark: "dot" },
+        },
+        "x",
+        0,
+      ),
     ];
     for (const spec of specs) {
       const d = draw(spec);
@@ -599,13 +621,10 @@ describe("charts in a group", () => {
   const thousands: ChartSpec = {
     ...stepLine,
     y: { label: "Requests" },
-    marks: [
-      {
-        mark: "line",
-        x: minutes,
-        series: [{ name: "All", y: minutes.map((_, i) => 12_000 + (i % 13) * 100) }],
-      },
-    ],
+    data: seriesFrame(minutes, [], {
+      series: named(["All", minutes.map((_, i) => 12_000 + (i % 13) * 100)]),
+    }),
+    mark: { mark: "line" },
   };
 
   it.each([
@@ -676,15 +695,8 @@ describe("labels", () => {
 });
 
 describe("notes", () => {
-  const noted = (more: ChartSpec["marks"]): ChartSpec => ({
-    ...stacked,
-    marks: [...stacked.marks, ...more],
-  });
-
   it("writes each line of a note in the plot at its layout, ink on a halo of the surface", () => {
-    const d = draw(
-      noted([{ mark: "text", x: 9_000_000, y: 6, text: "Deploy of the new feed reader at last" }]),
-    );
+    const d = draw(noted(stacked, [9_000_000, "Deploy of the new feed reader at last"]));
     const lines = [
       ...d.svg.querySelectorAll<SVGTextElement>('[data-part="area"] [data-part="note"] text'),
     ];
@@ -706,26 +718,15 @@ describe("notes", () => {
     }
   });
 
-  it("draws in spec order over the marks before it, and leaves out a note off the domain", () => {
-    const d = draw(
-      noted([
-        { mark: "text", x: 30 * 900_000, y: 6, text: "Later" },
-        { mark: "text", x: 900_000, y: 6, text: "Early" },
-      ]),
-    );
+  it("draws over the data mark, and leaves out a note off the domain", () => {
+    const d = draw(noted(stacked, [30 * 900_000, "Later"], [900_000, "Early"]));
     const notes = [...d.svg.querySelectorAll('[data-part="area"] > [data-part="note"]')];
     expect(notes.map((n) => n.textContent)).toEqual(["Early"]);
     expect(notes[0]?.previousElementSibling?.getAttribute("data-part")).toBe("rect");
   });
 
-  it("draws numbered markers under 30rem: a 20 px ink circle at the point, its number in the surface", () => {
-    const d = draw(
-      noted([
-        { mark: "text", x: 9_000_000, y: 6, text: "Deploy" },
-        { mark: "text", x: 12_600_000, y: 3, text: "Rollback" },
-      ]),
-      320,
-    );
+  it("draws numbered markers under 30rem: a 20 px ink circle at its x on the top edge, its number in the surface", () => {
+    const d = draw(noted(stacked, [9_000_000, "Deploy"], [12_600_000, "Rollback"]), 320);
     expect(d.lay.numbered).toBe(true);
     expect(d.svg.querySelector('[data-part="note"]')).toBeNull();
     const marks = [...d.svg.querySelectorAll('[data-part="area"] > [data-part="marker"]')];
@@ -735,7 +736,8 @@ describe("notes", () => {
     const b = circle.getBBox();
     expect(b.width).toBeCloseTo(20, 0);
     expect(b.x + b.width / 2).toBeCloseTo(d.lay.projection.xAt(9_000_000), 1);
-    expect(b.y + b.height / 2).toBeCloseTo(d.lay.projection.yAt(6), 1);
+    // At the top edge, held whole inside the area's clip.
+    expect(b.y).toBeCloseTo(-AREA_ROOM, 1);
     expect(getComputedStyle(circle).fill).toBe(token(circle, "var(--cp-ink)"));
     const number = first?.querySelector("text") as Element;
     expect(getComputedStyle(number).fill).toBe(token(number, "var(--cp-surface-page)"));
@@ -745,7 +747,7 @@ describe("notes", () => {
   it("finds each note's layout once, so 20,000 numbered notes read the layout's notes a few times each", () => {
     const NOTES = 20_000;
     const d = draw(
-      noted(per(NOTES, (k) => ({ mark: "text", x: (k % 24) * 900_000, y: 6, text: "Deploy" }))),
+      noted(stacked, ...per(NOTES, (k) => [(k % 24) * 900_000, `Deploy ${String(k)}`] as const)),
       320,
     );
     expect(d.lay.numbered).toBe(true);
@@ -766,7 +768,7 @@ describe("notes", () => {
   });
 
   it("keeps a marker at the plot's edge whole inside the area's clip", () => {
-    const d = draw(noted([{ mark: "text", x: 0, y: 0, text: "Start" }]), 320);
+    const d = draw(noted(stacked, [0, "Start"]), 320);
     const b = (d.svg.querySelector('[data-part="marker"] path') as SVGPathElement).getBBox();
     expect(b.x).toBeGreaterThanOrEqual(-AREA_ROOM - 0.01);
     expect(b.y + b.height).toBeLessThanOrEqual(d.lay.projection.height + AREA_ROOM + 0.01);
@@ -777,18 +779,19 @@ describe("small multiples' context", () => {
   const panels = (mark: "line" | "scatter"): ChartSpec => ({
     x: { label: "Month", domain: [0, 11] },
     y: { label: "Rate", domain: [0, 10] },
-    marks: [],
+    mark: { mark },
     facets: {
       context: true,
-      panels: ["North", "South", "East"].map((name, k) => ({
-        marks: [
+      panels: ["North", "South", "East"].map((key, k) => ({
+        key,
+        data:
           mark === "line"
-            ? { mark, x: per(12, (i) => i), series: [{ name, y: per(12, (i) => (i + k) % 10) }] }
-            : {
-                mark,
-                series: [{ name, names: ["A", "B"], x: [2, 8], y: [k + 1, 9 - k] }],
-              },
-        ],
+            ? seriesFrame(
+                per(12, (i) => i),
+                [],
+                { series: named([key, per(12, (i) => (i + k) % 10)]) },
+              )
+            : points([{ key, names: ["A", "B"], x: [2, 8], y: [k + 1, 9 - k] }]),
       })),
     },
   });
@@ -963,12 +966,8 @@ describe("surfaces", () => {
       {
         x: { label: "Seeders" },
         y: { label: "Size" },
-        marks: [
-          {
-            mark: "scatter",
-            series: [{ name: "Releases", names: ["A", "B"], x: [1, 2], y: [3, 4] }],
-          },
-        ],
+        data: points([{ key: "Releases", names: ["A", "B"], x: [1, 2], y: [3, 4] }]),
+        mark: { mark: "scatter" },
       },
       700,
       holder(),
@@ -1069,22 +1068,13 @@ describe("surfaces", () => {
       }
       const end = raised.svg.querySelector('[data-part="end"] text') as Element;
       expect(getComputedStyle(end).fill).toBe(token(end, "var(--cp-ink)", "color", palette));
-      const noted = draw({
-        ...stacked,
-        marks: [...stacked.marks, { mark: "text", x: 9_000_000, y: 6, text: "Deploy" }],
-      });
-      const note = noted.svg.querySelector('[data-part="note"] text') as Element;
+      const note9 = draw(noted(stacked, [9_000_000, "Deploy"]));
+      const note = note9.svg.querySelector('[data-part="note"] text') as Element;
       expect(getComputedStyle(note).fill).toBe(token(note, "var(--cp-ink)", "color", palette));
       expect(getComputedStyle(note).stroke).toBe(
         token(note, "var(--cp-surface-page)", "color", palette),
       );
-      const numbered = draw(
-        {
-          ...stacked,
-          marks: [...stacked.marks, { mark: "text", x: 9_000_000, y: 6, text: "Deploy" }],
-        },
-        320,
-      );
+      const numbered = draw(noted(stacked, [9_000_000, "Deploy"]), 320);
       const circle = numbered.svg.querySelector('[data-part="marker"] path') as Element;
       expect(getComputedStyle(circle).fill).toBe(token(circle, "var(--cp-ink)", "color", palette));
       const number = numbered.svg.querySelector('[data-part="marker"] text') as Element;
@@ -1102,25 +1092,13 @@ describe("surfaces", () => {
       ] as const) {
         const plot = draw({
           x: {},
-          marks: [
-            {
-              mark: "point",
-              y: ["a"],
-              link,
-              series: [
-                { name: "A", x: [1] },
-                { name: "B", x: [9] },
-              ],
-            },
-          ],
+          data: categories(["a"], [[1], [9]]),
+          mark: { mark: "point", link },
         });
         const el = plot.svg.querySelector(`[data-part="${part}"]`) as Element;
         expect(getComputedStyle(el)[prop], part).toBe(token(el, value, "color", palette));
       }
-      const bars = draw({
-        x: {},
-        marks: [{ mark: "bar", y: ["a", "b"], series: [{ name: "A", x: [3, 5] }] }],
-      });
+      const bars = draw({ x: {}, data: categories(["a", "b"], [[3, 5]]), mark: { mark: "bar" } });
       drawSelection(
         bars.svg,
         bars.model,
@@ -1150,11 +1128,12 @@ describe("surfaces", () => {
       const faceted = draw({
         x: { label: "Month", domain: [0, 2] },
         y: { label: "Rate", domain: [0, 4] },
-        marks: [],
+        mark: { mark: "line" },
         facets: {
           context: true,
-          panels: ["North", "South"].map((name, k) => ({
-            marks: [{ mark: "line" as const, x: [0, 1, 2], series: [{ name, y: [k, 2, 3 - k] }] }],
+          panels: ["North", "South"].map((key, k) => ({
+            key,
+            data: seriesFrame([0, 1, 2], [], { series: named([key, [k, 2, 3 - k]]) }),
           })),
         },
       });
@@ -1166,17 +1145,8 @@ describe("surfaces", () => {
       );
       const split = draw({
         x: {},
-        marks: [
-          {
-            mark: "bar",
-            y: ["a"],
-            arrange: "split",
-            series: [
-              { name: "A", x: [3] },
-              { name: "B", x: [5] },
-            ],
-          },
-        ],
+        data: categories(["a"], [[3], [5]]),
+        mark: { mark: "bar", arrange: "split" },
       });
       const head = split.svg.querySelector('[data-part="head"] text') as Element;
       expect(getComputedStyle(head).fill).toBe(
@@ -1204,13 +1174,8 @@ describe("surfaces", () => {
 describe("a bar chart", () => {
   const ages: ChartSpec = {
     x: {},
-    marks: [
-      {
-        mark: "bar",
-        y: ["Holy See", "Monaco", "Japan"],
-        series: [{ name: "Median age", slot: 2, x: [57.4, 54.5, 49.8] }],
-      },
-    ],
+    data: categories(["Holy See", "Monaco", "Japan"], [[57.4, 54.5, 49.8]]),
+    mark: { mark: "bar", keys: [{ key: "a", name: "Median age", slot: 2 }] },
   };
 
   it("draws one path of bars in the series' slot, values at their ends, an upright zero line", () => {
@@ -1230,10 +1195,7 @@ describe("a bar chart", () => {
   });
 
   it("writes value labels in ink on a halo of the surface, over a rule that crosses them", () => {
-    const d = draw(
-      { ...ages, marks: [...ages.marks, { mark: "rule", x: 50, label: "Median" }] },
-      600,
-    );
+    const d = draw(reffed(ages, [50, "Median"]), 600);
     const label = d.svg.querySelector('[data-part="value"] text') as Element;
     const cs = getComputedStyle(label);
     expect(cs.fill).toBe(token(label, "var(--cp-ink)"));
@@ -1247,14 +1209,8 @@ describe("a bar chart", () => {
   it("fills a diverging bar's bars below 0 in its below slot and signs its labels", () => {
     const d = draw(
       {
-        x: { format: "percent" },
-        marks: [
-          {
-            mark: "bar",
-            y: ["Utah", "Texas", "Puerto Rico"],
-            series: [{ name: "Change", slot: 1, below: 3, x: [0.16, 0, -0.14] }],
-          },
-        ],
+        data: categories(["Utah", "Texas", "Puerto Rico"], [[0.16, 0, -0.14]], { unit: "ratio" }),
+        mark: { mark: "bar", keys: [{ key: "a", name: "Change", below: 3 }] },
       },
       600,
     );
@@ -1274,18 +1230,7 @@ describe("a bar chart", () => {
   });
 
   it("draws vertical gridlines at the x ticks with labels off", () => {
-    const d = draw(
-      {
-        ...ages,
-        marks: [
-          {
-            ...(ages.marks[0] as Extract<ChartSpec["marks"][number], { mark: "bar" }>),
-            labels: false,
-          },
-        ],
-      },
-      600,
-    );
+    const d = draw({ ...ages, mark: { ...ages.mark, labels: false } as Mark }, 600);
     const grid = d.svg.querySelector('[data-part="grid"]')?.getAttribute("d") ?? "";
     expect(grid).toMatch(/^M[\d.]+ 0V/u);
     expect(d.svg.querySelector('[data-part="x"]')?.childElementCount).toBeGreaterThan(0);
@@ -1317,17 +1262,10 @@ describe("a bar chart", () => {
   it("draws grouped bars in their slots one under another and rings the row's box", () => {
     const sexes: ChartSpec = {
       x: {},
-      marks: [
-        {
-          mark: "bar",
-          y: ["Japan", "Italy"],
-          arrange: "group",
-          series: [
-            { name: "Female", slot: 1, x: [51.1, 48.6] },
-            { name: "Male", slot: 3, x: [48.4, 45.1] },
-          ],
-        },
-      ],
+      data: categories(["Japan", "Italy"], [], {
+        series: named(["Female", [51.1, 48.6]], ["Male", [48.4, 45.1]]),
+      }),
+      mark: { mark: "bar", arrange: "group", keys: [{ key: "Male", slot: 3 }] },
     };
     const d = draw(sexes, 600);
     const paths = [...d.svg.querySelectorAll('[data-part="bar"] > path')];
@@ -1351,17 +1289,10 @@ describe("a bar chart", () => {
 
   const split: ChartSpec = {
     x: {},
-    marks: [
-      {
-        mark: "bar",
-        y: ["Instagram", "Facebook"],
-        arrange: "split",
-        series: [
-          { name: "Daily", slot: 1, x: [34, 20] },
-          { name: "Weekly", slot: 3, x: [8, 43] },
-        ],
-      },
-    ],
+    data: categories(["Instagram", "Facebook"], [], {
+      series: named(["Daily", [34, 20]], ["Weekly", [8, 43]]),
+    }),
+    mark: { mark: "bar", arrange: "split", keys: [{ key: "Weekly", slot: 3 }] },
   };
 
   it("draws a split's panels side by side under their heads, a zero line and a ring each", () => {
@@ -1392,17 +1323,10 @@ describe("a bar chart", () => {
   it("draws a mirror's sides back to back, a baseline each in the spine and a ring per side", () => {
     const pyramid: ChartSpec = {
       x: {},
-      marks: [
-        {
-          mark: "bar",
-          y: ["90+", "45-50"],
-          arrange: "mirror",
-          series: [
-            { name: "Male", slot: 1, x: [12, 40] },
-            { name: "Female", slot: 3, x: [20, 36] },
-          ],
-        },
-      ],
+      data: categories(["90+", "45-50"], [], {
+        series: named(["Male", [12, 40]], ["Female", [20, 36]]),
+      }),
+      mark: { mark: "bar", arrange: "mirror", keys: [{ key: "Female", slot: 3 }] },
     };
     const d = draw(pyramid, 320);
     const [male, female] = d.lay.projection.panels ?? [];
@@ -1441,34 +1365,23 @@ describe("a bar chart", () => {
   });
 
   it("draws a rule in every split panel, once folded, and either side of a diverging 0", () => {
-    const aim = { mark: "rule", x: 10, label: "Aim" } as const;
+    const aim = (spec: ChartSpec) => reffed(spec, [10, "Aim"]);
     const xs = (d: Drawn) => {
       const path = d.svg.querySelector('[data-part="rule"]')?.getAttribute("d") ?? "";
       return [...path.matchAll(/M([\d.]+) /gu)].map((m) => Number(m[1]));
     };
-    const panelled = draw({ ...split, marks: [...split.marks, aim] }, 600);
+    const panelled = draw(aim(split), 600);
     const panels = panelled.lay.projection.panels ?? [];
     expect(xs(panelled)).toEqual(panels.map((p) => snap(p.at(10), panelled.lay.projection.dpr)));
     expect(panelled.svg.querySelectorAll('[data-part="rule-label"] text')).toHaveLength(1);
-    const folded = draw({ ...split, marks: [...split.marks, aim] }, 320);
+    const folded = draw(aim(split), 320);
     expect(xs(folded)).toEqual([snap(folded.lay.projection.xAt(10), folded.lay.projection.dpr)]);
     const likert = draw(
-      {
+      aim({
         x: {},
-        marks: [
-          {
-            mark: "bar",
-            y: ["Item 1"],
-            arrange: "diverge",
-            left: 1,
-            series: [
-              { name: "Disagree", x: [30] },
-              { name: "Agree", x: [40] },
-            ],
-          },
-          aim,
-        ],
-      },
+        data: categories(["Item 1"], [], { series: named(["Disagree", [30]], ["Agree", [40]]) }),
+        mark: { mark: "bar", arrange: "diverge", left: 1 },
+      }),
       600,
     );
     const f = likert.lay.projection;
@@ -1485,28 +1398,21 @@ describe("a bar chart", () => {
   });
 });
 
-const latency = (
-  count: number,
-  more: Partial<Extract<ChartSpec["marks"][number], { mark: "box" }>> = {},
-): ChartSpec => ({
+const latency = (count: number): ChartSpec => ({
   x: { label: "Latency" },
-  marks: [
-    {
-      mark: "box",
-      y: ["search", "export", "login"],
-      series: per(count, (k) => ({
-        name: k === 0 ? "Before" : "After",
-        slot: (k === 0 ? 1 : 4) as 1,
-        low: [120, 300, 40],
-        q1: [180, 900, 60],
-        median: [240, 1400, 75],
-        q3: [410, 2100, 90],
-        high: [760, 4000, 130],
-        outliers: [[1100, 2600], [], [400]],
-      })),
-      ...more,
-    },
-  ],
+  data: boxes(
+    ["search", "export", "login"],
+    per(count, (k) => ({
+      key: k === 0 ? "Before" : "After",
+      low: [120, 300, 40],
+      q1: [180, 900, 60],
+      median: [240, 1400, 75],
+      q3: [410, 2100, 90],
+      high: [760, 4000, 130],
+      outliers: [[1100, 2600], [], [400]],
+    })),
+  ),
+  mark: { mark: "box", keys: [{ key: "After", slot: 4 }] },
 });
 
 describe("a box plot", () => {
@@ -1574,10 +1480,7 @@ describe("a box plot", () => {
   });
 
   it("draws an x rule down every row", () => {
-    const d = draw(
-      { ...latency(1), marks: [...latency(1).marks, { mark: "rule", x: 1000, label: "Target" }] },
-      600,
-    );
+    const d = draw(reffed(latency(1), [1000, "Target"]), 600);
     const rule = d.svg.querySelector('[data-part="area"] > [data-part="rule"]');
     expect(rule?.getAttribute("d")).toBe(
       `M${num(snap(d.lay.projection.xAt(1000), 1))} 0V${num(d.lay.projection.height)}`,
@@ -1594,21 +1497,12 @@ describe("a box plot", () => {
 
 describe("a pie", () => {
   const land = (hole = false): ChartSpec => ({
-    marks: [
-      {
-        mark: "pie",
-        hole,
-        unit: { other: "km²" },
-        slices: [
-          { name: "Agriculture", value: 182_637 },
-          { name: "Forest", slot: 5, value: 106_839 },
-          { name: "Empty", value: 0 },
-          { name: "Housing & traffic", value: 50_000 },
-          { name: "Water", value: null },
-          { name: "Other land", value: 18_104 },
-        ],
-      },
-    ],
+    data: categories(
+      ["Agriculture", "Forest", "Empty", "Housing & traffic", "Water", "Other land"],
+      [[182_637, 106_839, 0, 50_000, null, 18_104]],
+      { unit: "none" },
+    ),
+    mark: { mark: "pie", hole, unit: { other: "km²" }, keys: [{ key: "Forest", slot: 5 }] },
   });
 
   it("fills one path per slice above 0 in its slot, with no axis, gridline or tick", () => {
@@ -1672,42 +1566,45 @@ describe("a pie", () => {
 
 // The world's GDP by region and country, in USD.
 const gdp: ChartSpec = {
-  marks: [
+  data: tree(
     {
-      mark: "tree",
-      unit: { other: "USD" },
-      format: { notation: "compact" },
-      nodes: [
+      groups: [
         {
-          name: "Asia",
+          key: "Asia",
           children: [
-            { name: "China", value: 17.8e12 },
-            { name: "Japan", value: 4.2e12 },
-            { name: "India", value: 3.6e12 },
-            { name: "Indonesia", value: 1.4e12 },
+            { key: "China", value: 17.8e12 },
+            { key: "Japan", value: 4.2e12 },
+            { key: "India", value: 3.6e12 },
+            { key: "Indonesia", value: 1.4e12 },
           ],
         },
         {
-          name: "Americas",
-          slot: 2,
+          key: "Americas",
           children: [
-            { name: "United States", value: 27.4e12 },
-            { name: "Brazil", value: 2.2e12 },
-            { name: "Canada", value: 2.1e12 },
+            { key: "United States", value: 27.4e12 },
+            { key: "Brazil", value: 2.2e12 },
+            { key: "Canada", value: 2.1e12 },
           ],
         },
         {
-          name: "Europe",
+          key: "Europe",
           children: [
-            { name: "Germany", value: 4.5e12 },
-            { name: "France", value: 3e12 },
-            { name: "Italy", value: 2.3e12 },
-            { name: "Vatican City", value: 0 },
+            { key: "Germany", value: 4.5e12 },
+            { key: "France", value: 3e12 },
+            { key: "Italy", value: 2.3e12 },
+            { key: "Vatican City", value: 0 },
           ],
         },
       ],
     },
-  ],
+    { unit: "none" },
+  ),
+  mark: {
+    mark: "tree",
+    unit: { other: "USD" },
+    format: { notation: "compact" },
+    keys: [{ key: "Americas", slot: 2 }],
+  },
 };
 
 describe("a treemap", () => {
@@ -1762,16 +1659,10 @@ describe("a treemap", () => {
 describe("a point chart", () => {
   const ages = (x: NonNullable<ChartSpec["x"]> = {}): ChartSpec => ({
     x,
-    marks: [
-      {
-        mark: "point",
-        y: ["Holy See", "Monaco", "Japan"],
-        series: [
-          { name: "Female", slot: 1, x: [60.4, 54.5, 51.1] },
-          { name: "Male", slot: 3, x: [54.5, null, 48.4] },
-        ],
-      },
-    ],
+    data: categories(["Holy See", "Monaco", "Japan"], [], {
+      series: named(["Female", [60.4, 54.5, 51.1]], ["Male", [54.5, null, 48.4]]),
+    }),
+    mark: { mark: "point", keys: [{ key: "Male", slot: 3 }] },
   });
 
   it("draws a path of 10 px round dots per series in its slot on row hairlines", () => {
@@ -1834,17 +1725,10 @@ describe("a point chart", () => {
 
   const linked = (link: "range" | "arrow", male: (number | null)[]): ChartSpec => ({
     x: {},
-    marks: [
-      {
-        mark: "point",
-        y: ["Holy See", "Monaco", "Japan"],
-        link,
-        series: [
-          { name: "Female", slot: 1, x: [60.4, 54.5, 51.1] },
-          { name: "Male", slot: 3, x: male },
-        ],
-      },
-    ],
+    data: categories(["Holy See", "Monaco", "Japan"], [], {
+      series: named(["Female", [60.4, 54.5, 51.1]], ["Male", male]),
+    }),
+    mark: { mark: "point", link, keys: [{ key: "Male", slot: 3 }] },
   });
 
   it("joins a range's two dots with a 4 px line under them, none at a gap", () => {
@@ -1901,18 +1785,21 @@ describe("a point chart", () => {
 describe("a slope chart", () => {
   const pets = (right: readonly number[]): ChartSpec => ({
     y: { label: "Share of homes" },
-    marks: [
-      {
-        mark: "slope",
-        x: ["2005", "2015"],
-        series: [
-          { name: "Cats", slot: 1, y: [50, right[0] ?? null] },
-          { name: "Dogs", slot: 3, y: [40, right[1] ?? null] },
-          { name: "Horses", slot: 5, y: [null, right[2] ?? null] },
-        ],
-      },
-      { mark: "rule", y: 45, label: "Target" },
-    ],
+    data: categories(["2005", "2015"], [], {
+      series: named(
+        ["Cats", [50, right[0] ?? null]],
+        ["Dogs", [40, right[1] ?? null]],
+        ["Horses", [null, right[2] ?? null]],
+      ),
+      refs: [{ key: "Target", value: 45 }],
+    }),
+    mark: {
+      mark: "slope",
+      keys: [
+        { key: "Dogs", slot: 3 },
+        { key: "Horses", slot: 5 },
+      ],
+    },
   });
 
   it("draws a 2 px line per series and 8 px round ends in its slot, over no axis or gridline", () => {
@@ -1990,28 +1877,23 @@ describe("a scatter plot", () => {
   ): ChartSpec => ({
     x: { label: "GDP per capita", ...x },
     y: { label: "Life expectancy", ...y },
-    marks: [
+    data: points([
       {
-        mark: "scatter",
-        unit: { one: "country", other: "countries" },
-        series: [
-          {
-            name: "Europe",
-            slot: 2,
-            names: ["Albania", "Andorra", "Austria"],
-            x: [18_920, 65_928, 61_000],
-            y: [79.8, 84.1, 82],
-          },
-          {
-            name: "Africa",
-            slot: 5,
-            names: ["Chad", "Kenya", "Mali"],
-            x: [1_500, 5_200, null],
-            y: [53, 62, 59],
-          },
-        ],
+        key: "Europe",
+        names: ["Albania", "Andorra", "Austria"],
+        x: [18_920, 65_928, 61_000],
+        y: [79.8, 84.1, 82],
       },
-    ],
+      { key: "Africa", names: ["Chad", "Kenya", "Mali"], x: [1_500, 5_200, null], y: [53, 62, 59] },
+    ]),
+    mark: {
+      mark: "scatter",
+      unit: { one: "country", other: "countries" },
+      keys: [
+        { key: "Europe", slot: 2 },
+        { key: "Africa", slot: 5 },
+      ],
+    },
   });
 
   it("draws each series as one path of opaque circles in its slot, outlined in the surface", () => {
@@ -2041,15 +1923,11 @@ describe("a scatter plot", () => {
     const d = draw({
       x: { label: "a", domain: [0, 100] },
       y: { label: "b", domain: [0, 100] },
-      marks: [
-        {
-          mark: "scatter",
-          series: [
-            { name: "Europe", names: ["A", "B"], x: [50, 51], y: [50, 50] },
-            { name: "Africa", names: ["C"], x: [52], y: [50] },
-          ],
-        },
-      ],
+      data: points([
+        { key: "Europe", names: ["A", "B"], x: [50, 51], y: [50, 50] },
+        { key: "Africa", names: ["C"], x: [52], y: [50] },
+      ]),
+      mark: { mark: "scatter" },
     });
     const [europe, africa] = series(d, "scatter");
     const f = d.lay.projection;
@@ -2097,15 +1975,11 @@ describe("a scatter plot", () => {
     const d = draw({
       x: { label: "a", domain: [0, 100] },
       y: { label: "b", domain: [0, 100] },
-      marks: [
-        {
-          mark: "scatter",
-          series: [
-            { name: "Europe", names: ["A"], x: [40], y: [30] },
-            { name: "Africa", names: ["B"], x: [41], y: [30] },
-          ],
-        },
-      ],
+      data: points([
+        { key: "Europe", names: ["A"], x: [40], y: [30] },
+        { key: "Africa", names: ["B"], x: [41], y: [30] },
+      ]),
+      mark: { mark: "scatter" },
     });
     const f = d.lay.projection;
     drawSelection(
@@ -2154,22 +2028,17 @@ describe("a bubble chart", () => {
     x: { label: "GDP per capita", domain: [0, 100] },
     y: { label: "Life expectancy", domain: [0, 100] },
     r: { label: "Population", format: { notation: "compact" } },
-    marks: [
-      {
-        mark: "scatter",
-        series: [
-          {
-            name: "Asia",
-            slot: 3,
-            names: ["Laos", "Nepal"],
-            x: [50, 20],
-            y: [50, 20],
-            r: [90_000, 0],
-          },
-          { name: "Europe", slot: 2, names: ["Germany"], x: [52], y: [50], r: [1_440_000] },
-        ],
-      },
-    ],
+    data: points([
+      { key: "Asia", names: ["Laos", "Nepal"], x: [50, 20], y: [50, 20], r: [90_000, 0] },
+      { key: "Europe", names: ["Germany"], x: [52], y: [50], r: [1_440_000] },
+    ]),
+    mark: {
+      mark: "scatter",
+      keys: [
+        { key: "Asia", slot: 3 },
+        { key: "Europe", slot: 2 },
+      ],
+    },
   };
   it("paints the bubbles largest first across the series, so a small one lies on top", () => {
     const d = draw(world);
@@ -2247,20 +2116,22 @@ describe("a bubble chart", () => {
   });
 });
 
+// Four hours of two days, Monday's first unsent.
+const week = gridFrame({ names: ["0", "1", "2", "3"] }, { names: ["Mon", "Tue"] }, [
+  [0, 3, 6, 9],
+  [null, 12, 15, 18],
+]);
+// One row of two cells, a and b.
+const pair = (values: (number | null)[]): Pick<ChartSpec, "data" | "mark"> => ({
+  data: gridFrame({ names: ["a", "b"] }, { names: ["r"] }, [values]),
+  mark: { mark: "cell" },
+});
+
 describe("a heatmap", () => {
   const grid = (colour: NonNullable<ChartSpec["colour"]>): ChartSpec => ({
     colour,
-    marks: [
-      {
-        mark: "cell",
-        x: ["0", "1", "2", "3"],
-        y: ["Mon", "Tue"],
-        values: [
-          [0, 3, 6, 9],
-          [null, 12, 15, 18],
-        ],
-      },
-    ],
+    data: week,
+    mark: { mark: "cell" },
   });
 
   it.each(["sequential", "diverging"] as const)(
@@ -2313,17 +2184,8 @@ describe("a heatmap", () => {
 describe("a heatmap's selection and colour key", () => {
   const spec: ChartSpec = {
     colour: { label: "Posts", thresholds: [4, 8, 12, 16] },
-    marks: [
-      {
-        mark: "cell",
-        x: ["0", "1", "2", "3"],
-        y: ["Mon", "Tue"],
-        values: [
-          [0, 3, 6, 9],
-          [null, 12, 15, 18],
-        ],
-      },
-    ],
+    data: week,
+    mark: { mark: "cell" },
   };
   // The key as the chart draws it, at the legend row's end.
   const keyed = (s: ChartSpec, width = 600) => {
@@ -2405,7 +2267,7 @@ describe("a heatmap's selection and colour key", () => {
   it("labels a diverging key's pivot under its middle swatch and thins crowded labels", () => {
     const diverging: ChartSpec = {
       colour: { type: "diverging", steps: 5, format: { maximumFractionDigits: 2 } },
-      marks: [{ mark: "cell", x: ["a", "b"], y: ["r"], values: [[-0.123, 0.987]] }],
+      ...pair([-0.123, 0.987]),
     };
     const { key } = keyed(diverging);
     const middle = key?.querySelectorAll("rect[data-step]")[2] as Element;
@@ -2437,7 +2299,7 @@ describe("a heatmap's selection and colour key", () => {
           signDisplay: "exceptZero",
         },
       },
-      marks: [{ mark: "cell", x: ["a", "b"], y: ["r"], values: [[-2.6, 2.5]] }],
+      ...pair([-2.6, 2.5]),
     });
     const labels = [...(key?.querySelectorAll('[data-part="thresholds"] > span') ?? [])];
     expect(labels.map((l) => l.textContent)).toEqual(["-2.5°C", "0°C", "+2.5°C"]);
@@ -2447,7 +2309,7 @@ describe("a heatmap's selection and colour key", () => {
     const { key } = keyed({
       // Three classes 0.5 wide from 0.
       colour: { steps: 3 },
-      marks: [{ mark: "cell", x: ["a", "b"], y: ["r"], values: [[0, 1.4]] }],
+      ...pair([0, 1.4]),
     });
     const labels = [...(key?.querySelectorAll('[data-part="thresholds"] > span') ?? [])];
     expect(labels.map((l) => l.textContent)).toEqual(["0.5", "1.0"]);
@@ -2457,7 +2319,7 @@ describe("a heatmap's selection and colour key", () => {
     const { key } = keyed({
       // Five classes 2 wide about 0 break at -3, -1, 1 and 3; the pivot thins out -1 and 1.
       colour: { type: "diverging" },
-      marks: [{ mark: "cell", x: ["a", "b"], y: ["r"], values: [[-5, 5]] }],
+      ...pair([-5, 5]),
     });
     const labels = [...(key?.querySelectorAll('[data-part="thresholds"] > span') ?? [])];
     expect(labels.map((l) => l.textContent)).toEqual(["-3", "0", "3"]);
@@ -2467,7 +2329,7 @@ describe("a heatmap's selection and colour key", () => {
     const { key } = keyed({
       // The mean of seven counts, 37.142857142857146, in classes 20 wide.
       colour: { type: "diverging", pivot: 260 / 7 },
-      marks: [{ mark: "cell", x: ["a", "b"], y: ["r"], values: [[12, 70]] }],
+      ...pair([12, 70]),
     });
     const labels = [...(key?.querySelectorAll('[data-part="thresholds"] > span') ?? [])];
     expect(labels.map((l) => l.textContent)).toContain("37.143");
@@ -2479,7 +2341,7 @@ describe("a heatmap's selection and colour key", () => {
   ])("writes a pivot just below 0 as 0, %i classes", (steps, kept) => {
     const { key } = keyed({
       colour: { type: "diverging", steps, pivot: -0.0001 },
-      marks: [{ mark: "cell", x: ["a", "b"], y: ["r"], values: [[-3, 3]] }],
+      ...pair([-3, 3]),
     });
     const labels = [...(key?.querySelectorAll('[data-part="thresholds"] > span') ?? [])];
     expect(labels.map((l) => l.textContent)).toEqual(kept);
@@ -2496,7 +2358,7 @@ describe("a heatmap's selection and colour key", () => {
   ] as const)("writes %s without a signed zero", (_, colour, want) => {
     const { key } = keyed({
       colour,
-      marks: [{ mark: "cell", x: ["a", "b"], y: ["r"], values: [[-3, 3]] }],
+      ...pair([-3, 3]),
     });
     const labels = [...(key?.querySelectorAll('[data-part="thresholds"] > span') ?? [])].map(
       (l) => l.textContent,
@@ -2509,7 +2371,7 @@ describe("a heatmap's selection and colour key", () => {
     const { key } = keyed({
       // Four classes 2.5e-102 wide.
       colour: { steps: 4 },
-      marks: [{ mark: "cell", x: ["a", "b"], y: ["r"], values: [[0, 1e-101]] }],
+      ...pair([0, 1e-101]),
     });
     const texts = [...(key?.querySelectorAll('[data-part="thresholds"] > span') ?? [])].map(
       (l) => l.textContent,
@@ -2529,7 +2391,7 @@ describe("a heatmap's selection and colour key", () => {
         steps,
         format: { style: "unit", unit: "celsius", signDisplay: "exceptZero" },
       },
-      marks: [{ mark: "cell", x: ["a", "b"], y: ["r"], values: [[-2.6, 2.5]] }],
+      ...pair([-2.6, 2.5]),
     });
     const labels = [...(key?.querySelectorAll('[data-part="thresholds"] > span') ?? [])];
     expect(labels.map((l) => l.textContent)).toEqual(kept);
@@ -2539,18 +2401,12 @@ describe("a heatmap's selection and colour key", () => {
 describe("a 2D histogram", () => {
   const spec: ChartSpec = {
     x: { type: "log" },
-    marks: [
-      {
-        mark: "cell",
-        x: { edges: [1_000, 10_000, 100_000] },
-        y: { edges: [-10, 0, 10, 20] },
-        values: [
-          [1, 2],
-          [3, 4],
-          [5, 6],
-        ],
-      },
-    ],
+    data: gridFrame({ edges: [1_000, 10_000, 100_000] }, { edges: [-10, 0, 10, 20] }, [
+      [1, 2],
+      [3, 4],
+      [5, 6],
+    ]),
+    mark: { mark: "cell" },
   };
 
   it("ticks its binned x and labels its binned y, with no gridline or zero line across the cells", () => {

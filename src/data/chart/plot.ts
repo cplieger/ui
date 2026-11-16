@@ -13,7 +13,7 @@ import type { ChartSpec } from "./spec.js";
 type Values = readonly (number | null)[];
 
 export type Scale = NonNullable<ChartSpec["x"]>;
-export type ColourScale = NonNullable<ChartSpec["colour"]>;
+type ColourScale = NonNullable<ChartSpec["colour"]>;
 type SizeScale = NonNullable<ChartSpec["r"]>;
 
 interface Series {

@@ -153,8 +153,8 @@ function marker(note: Note, f: Layout["projection"]): SVGElement {
  *  radius and a line's cap, so a mark at the plot's edge draws whole. */
 export const AREA_ROOM = 5;
 
-// The plot's marks, in spec order, inside a nested SVG that clips them to
-// the plot outset by AREA_ROOM; its user space keeps 0 0 at the plot's corner.
+// The plot's marks inside a nested SVG that clips them to the plot outset
+// by AREA_ROOM; its user space keeps 0 0 at the plot's corner.
 function plotArea(
   model: Model,
   lay: Layout,
