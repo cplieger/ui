@@ -35,6 +35,7 @@ import {
 } from "./scales.js";
 import { check, room, type Room } from "./check.js";
 import type {
+  AreaInput,
   BarInput,
   BoxInput,
   PieInput,
@@ -600,7 +601,8 @@ export interface Model {
   readonly dateText: (day: number) => string;
   /** A value or total as an amount: the value axis's format (`xText` on a
    *  bar, point or box chart, else `yText`), a pie's or a tree's own
-   *  format, or a plain number under "share", whose axis writes shares. */
+   *  format, or under "share", whose axis writes shares, the share mark's
+   *  `format`, else a plain number. */
   readonly amountText: (v: number) => string;
   /** A share of a whole, a pie's slice's or a tree's part's (`shareWriter`). */
   readonly shareText: (v: number) => string;
@@ -1186,15 +1188,18 @@ function build(
   const yText = writer(y.type === "band" ? undefined : y.format, locale);
   const rText = writer(size?.format, locale);
   const colourText = writer(spec.colour?.format, locale);
-  const share = marks.some(
-    (m) => (m.kind === "rect" || m.kind === "area" || m.kind === "bar") && m.arrange === "share",
+  const shared = spec.marks.find(
+    (m): m is RectInput | AreaInput | BarInput =>
+      (m.mark === "rect" || m.mark === "area" || m.mark === "bar") && m.arrange === "share",
   );
+  const share = shared !== undefined;
   const bars = marks.some((m) => m.kind === "bar" || m.kind === "point" || m.kind === "box");
   // A pie and a tree have no scale, so their mark carries their format.
   const whole = spec.marks.find(
     (m): m is PieInput | TreeInput => m.mark === "pie" || m.mark === "tree",
   );
-  const amount = whole !== undefined ? whole.format : share ? "number" : undefined;
+  const amount =
+    whole !== undefined ? whole.format : share ? (shared.format ?? "number") : undefined;
   const xKey = named !== undefined || x.type === "time" ? undefined : widthKey(x.format, locale);
   const yKey = y.type === "band" ? undefined : widthKey(y.format, locale);
   return {

@@ -729,6 +729,11 @@ function checkSubRows(rows: number, across: number, f: string, most: Room): void
 const opt = (key: string, v: unknown): Rec => (v === undefined ? {} : { [key]: v });
 
 // The data mark of `frame`, read at field `f`, in the drawing's terms.
+// Under "share" the axis writes shares, so the mark carries the format the
+// frame's unit gives its values.
+const shareFormat = (m: Rec, unit: string): Rec =>
+  opt("format", m["arrange"] === "share" ? UNIT_FORMATS.get(unit) : undefined);
+
 function dataInput(frame: Frame, f: string, c: MarkCopy, most: Room): Rec {
   const { kind, m } = c;
   const seriesOf = (list: readonly { key: string }[], at: string) =>
@@ -750,6 +755,7 @@ function dataInput(frame: Frame, f: string, c: MarkCopy, most: Room): Rec {
         ...opt("open", b.open),
         ...opt("arrange", m["arrange"]),
         ...opt("shape", m["shape"]),
+        ...(b.axis === "time" ? shareFormat(m, b.unit) : {}),
         series: b.series.map((s, i) => ({ ...words[i], y: s.values })),
         ...opt("breaks", b.resets),
       };
@@ -768,6 +774,7 @@ function dataInput(frame: Frame, f: string, c: MarkCopy, most: Room): Rec {
         x: s.x,
         ...opt("curve", m["curve"]),
         ...opt("arrange", m["arrange"]),
+        ...shareFormat(m, s.unit),
         series: s.series.map((one, i) => ({ ...words[i], y: one.values })),
         ...opt("breaks", s.resets),
       };
@@ -813,6 +820,7 @@ function dataInput(frame: Frame, f: string, c: MarkCopy, most: Room): Rec {
         ...opt("left", m["left"]),
         ...opt("centre", m["centre"]),
         ...opt("labels", m["labels"]),
+        ...shareFormat(m, g.unit),
         series: g.series.map((s, i) => {
           const below = c.keys.get(s.key)?.["below"];
           if (below !== undefined && count > 1) {

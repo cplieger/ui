@@ -34,6 +34,9 @@ export interface RectInput extends Breaks {
   readonly open?: boolean;
   readonly arrange?: "stack" | "group" | "share";
   readonly shape?: "bars" | "area";
+  /** Under "share", the format of the frame's values, which the share axis
+   *  does not write: the amounts and refs beside it take it. */
+  readonly format?: Format;
   readonly series: readonly Series[];
 }
 
@@ -44,11 +47,14 @@ interface LineInput extends Breaks {
   readonly series: readonly Series[];
 }
 
-interface AreaInput extends Breaks {
+export interface AreaInput extends Breaks {
   readonly mark: "area";
   readonly x: readonly number[];
   readonly curve?: "linear" | "step";
   readonly arrange?: "stack" | "share";
+  /** Under "share", the format of the frame's values, which the share axis
+   *  does not write: the amounts and refs beside it take it. */
+  readonly format?: Format;
   readonly series: readonly Series[];
 }
 
@@ -66,6 +72,9 @@ export interface BarInput {
   readonly left?: number;
   readonly centre?: boolean;
   readonly labels?: boolean;
+  /** Under "share", the format of the frame's values, which the share axis
+   *  does not write: the amounts and refs beside it take it. */
+  readonly format?: Format;
   readonly series: readonly {
     readonly name: string;
     readonly slot?: number;

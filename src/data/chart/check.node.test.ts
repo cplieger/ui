@@ -9,7 +9,8 @@ import { check, sharedRefs } from "./check.js";
 import { chartModel } from "./model.js";
 import { noteJoin } from "./notes.js";
 import type { ChartSpec } from "./spec.js";
-import { noteSentences, ruleSentences } from "./summary.js";
+import { generatedSummary, noteSentences, ruleSentences } from "./summary.js";
+import { tableModel } from "./table.js";
 import {
   binsFrame,
   calendar,
@@ -227,6 +228,47 @@ describe("refs and notes", () => {
       { label: "cap", value: 100 },
     ]);
     expect(ruleSentences(model, en)).toEqual(["budget 0.5.", "cap 100."]);
+  });
+
+  const waits = [
+    [1800, 3600, 900],
+    [1800, 1800, 2700],
+  ];
+  const p95 = { refs: [{ key: "p95", value: 3600 }], unit: "seconds" };
+  const totals = (model: ReturnType<typeof build>) =>
+    tableModel(model, en).rows.map((r) => r.cells.at(-1)?.parts);
+  it.each([
+    ["an area", seriesFrame([0, 1, 2], waits, p95), "area"],
+    ["a rect over time", binsFrame([0, 1, 2], [1, 2, 3], waits, p95), "rect"],
+    ["a bar", categories(["a", "b", "c"], waits, p95), "bar"],
+  ])("writes a ref and the totals beside %s share in the frame's unit", (_, data, mark) => {
+    const model = build({ data, mark: { mark, arrange: "share" } });
+    expect(ruleSentences(model, en)).toEqual(["p95 1\u00A0hr."]);
+    expect(totals(model)).toEqual([["1\u00A0hr"], ["1\u00A0hr, 30\u00A0min"], ["1\u00A0hr"]]);
+  });
+
+  it("writes an area share's totals in the summary in the frame's unit", () => {
+    const model = build({
+      data: seriesFrame([0, 1, 2], waits, p95),
+      mark: { mark: "area", arrange: "share" },
+    });
+    expect(generatedSummary(model, en)).toContain(
+      "Total: last 1\u00A0hr, low 1\u00A0hr, high 1\u00A0hr, 30\u00A0min.",
+    );
+  });
+
+  it("writes a ref beside a share of ratios as a percent, a frame value", () => {
+    const ratios = [
+      [0.2, 0.4, 0.1],
+      [0.3, 0.3, 0.6],
+    ];
+    const data = seriesFrame([0, 1, 2], ratios, {
+      refs: [{ key: "p95", value: 0.5 }],
+      unit: "ratio",
+    });
+    const model = build({ data, mark: { mark: "area", arrange: "share" } });
+    expect(ruleSentences(model, en)).toEqual(["p95 50%."]);
+    expect(totals(model)).toEqual([["50%"], ["70%"], ["70%"]]);
   });
 
   it("draws a ref on a histogram share's x, which carries the frame's unit", () => {

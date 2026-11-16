@@ -875,13 +875,13 @@ describe("a rect stacked to 100%", () => {
     expect(m.yText(1 / 3)).toBe("33.3%");
   });
 
-  it("writes amounts as numbers whatever the frame's unit", () => {
+  it("writes amounts in the frame's unit, its shares as percents", () => {
     const m = build({
       ...two([90], [30]),
       data: binsFrame([0], [1], [[90], [30]], { unit: "seconds" }),
     });
     expect(m.yText(0.75)).toBe("75%");
-    expect(m.amountText(90)).toBe("90");
+    expect(m.amountText(90).replaceAll(/\s/gu, " ")).toBe("1 min, 30 sec");
   });
 
   it("names the rule a share of one series breaks", () => {
