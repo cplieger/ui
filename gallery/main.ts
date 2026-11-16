@@ -10,8 +10,6 @@ import { enhanceSelectAll } from "@cplieger/ui/checkbox";
 import { enhanceChoiceFields } from "@cplieger/ui/choice";
 import { enhanceCopy } from "@cplieger/ui/copy";
 import { enhanceDateRange } from "@cplieger/ui/date-range";
-import { enhanceFiles } from "@cplieger/ui/file";
-import { reportErrors } from "@cplieger/ui/form";
 import { enhanceRange } from "@cplieger/ui/range";
 import { enhanceSearch } from "@cplieger/ui/search";
 import { enhancePairs } from "@cplieger/ui/pairs";
@@ -40,6 +38,7 @@ import "./wire/lists.js";
 import "./wire/marks.js";
 import "./wire/nav-feedback.js";
 import "./wire/overlays.js";
+import "./wire/settings.js";
 import "./wire/templates.js";
 import "./wire/views.js";
 
@@ -150,29 +149,6 @@ for (const chip of all<HTMLButtonElement>(
 }
 for (const range of all<HTMLElement>("[data-range]")) {
   enhanceDateRange(range, { earliest: new Date(2024, 2, 1) });
-}
-// A file field names its list by data-files and its limit by data-max-size.
-// In a dialog, Upload with no file says so on the field.
-for (const input of all<HTMLInputElement>("input[type='file'][data-files]")) {
-  const list = document.getElementById(input.dataset["files"] ?? "");
-  const files = enhanceFiles(input, {
-    ...(list === null ? {} : { list }),
-    maxSize: Number(input.dataset["maxSize"] ?? Infinity),
-  });
-  const form = input.form;
-  const summary = form?.querySelector<HTMLElement>("[data-summary]");
-  if (form === null || summary === null || summary === undefined) {
-    continue;
-  }
-  form.addEventListener("submit", (e) => {
-    if (files.files.length === 0) {
-      e.preventDefault();
-      reportErrors(form, [{ field: input, message: "Choose a file to upload." }], {
-        summary,
-        heading: (n) => `${String(n)} fields need a fix`,
-      });
-    }
-  });
 }
 // The sentence editor's pickers: a language each, three to a rule.
 const LANGS = ["English", "English (signs and songs)", "French", "German", "Spanish", "Japanese"];

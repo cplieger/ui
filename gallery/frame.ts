@@ -8,10 +8,12 @@
 
 import { installAnchors } from "@cplieger/ui/anchor";
 import { installAnnouncer } from "@cplieger/ui/announce";
+import { guardChanges } from "@cplieger/ui/form";
 import { createHeaderStatus } from "@cplieger/ui/header-status";
 import { createIcons } from "@cplieger/ui/icons";
 import { enhancePill } from "@cplieger/ui/pill";
 import { applyPointerTier, installPointerTier } from "@cplieger/ui/pointer";
+import { enhanceSettings } from "@cplieger/ui/settings";
 
 applyPointerTier();
 installPointerTier();
@@ -97,5 +99,15 @@ if (pill !== null && panel !== null) {
       { id: "check", words: "Quick check found 2 releases", at: now - 95 * 60_000 },
     ],
     history: { href: "#", label: "Open activity" },
+  });
+}
+
+for (const form of document.querySelectorAll<HTMLFormElement>(".cp-settings form")) {
+  const settings = enhanceSettings(form);
+  const guard = guardChanges(form, { onChange: settings.paint });
+  settings.paint(guard.changes());
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    guard.saved();
   });
 }

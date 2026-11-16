@@ -23,7 +23,7 @@
         </div>
         <footer><code>templates/list-detail.html</code>: the app page whose main holds <code>.cp-list-detail</code>, a list of row links and the detail they open. The detail docks beside the list once main is 52rem wide and opens as a full-height sheet at the inline end below that, with Back closing it; <code>enhanceListDetail</code> and the app's route open it, so the template shows the list with its detail closed. It keys on main's width, not the window's. <a href="templates/list-detail.html">Open the template</a>.</footer>
       </div>
-      <div class="card g-wide">
+      <div class="card g-wide" data-new>
         <h2>Settings</h2>
         <div class="g-shell" data-frame-name="Settings">
           <div class="g-shell-view"><div class="g-shell-page">
@@ -31,7 +31,7 @@
               <div class="cp-header"><span class="f-box">Header</span></div>
               <div class="cp-main">
                 <div class="cp-settings">
-                  <div class="cp-settings-nav"><span class="f-box f-tall">Categories<small>beside the form; a row above it under 48rem</small></span></div>
+                  <div class="cp-settings-nav"><span class="f-box f-tall">Categories<small>beside the form; a select above it under 48rem</small></span></div>
                   <div class="f-box f-tall">Form<small>one category's settings, 32rem at most</small></div>
                 </div>
               </div>
@@ -39,7 +39,7 @@
             </div>
           </div></div>
         </div>
-        <footer><code>.cp-settings</code>: categories beside one category's form, then a row of categories above it under 48rem.</footer>
+        <footer><code>.cp-settings</code>: categories beside one category's form. Under 48rem they become a select above it, which <code>./settings</code> makes from the links, or, with no script, a row of links that scrolls.</footer>
       </div>
       <div class="card g-wide" data-new>
         <h2>Gate page</h2>

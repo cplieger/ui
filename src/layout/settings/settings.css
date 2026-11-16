@@ -1,5 +1,6 @@
 /* A settings page: its categories, a plain compact list of links, beside
- * the open one's form, and in a row above it under 48rem. */
+ * the open one's form. Under 48rem they become the select ./settings makes
+ * as the nav's .cp-field, or, with no script, a scrolling row of links. */
 .cp-settings {
   display: grid;
   grid-template-columns: 13rem minmax(0, 1fr);
@@ -20,7 +21,31 @@
   padding-inline: var(--cp-space-3);
 }
 
+.cp-settings-nav > .cp-field {
+  display: none;
+}
+
+/* A dot ./settings adds after the first paint pops in; one already there
+ * when the page loads stays still. */
+.cp-settings-nav .cp-dot[data-cp-added] {
+  animation: cp-token-in 300ms var(--cp-ease-bounce);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-settings-nav .cp-dot[data-cp-added] {
+    animation-name: cp-fade-in;
+  }
+}
+
 @media (width < 48rem) {
+  .cp-settings-nav > .cp-field {
+    display: grid;
+  }
+
+  .cp-settings-nav:has(> .cp-field) > .cp-list {
+    display: none;
+  }
+
   .cp-settings {
     grid-template-columns: minmax(0, 1fr);
     gap: var(--cp-space-5);
@@ -71,6 +96,13 @@
   min-inline-size: 0;
 }
 
+/* A control's error, which ./form puts right after a control outside a
+ * .cp-field, takes its own line under the row rather than a column beside
+ * the control. */
+.cp-setting > .cp-field-error {
+  flex-basis: 100%;
+}
+
 /* Unsaved changes: a bar that stays in view at the bottom of the form while
  * any change waits. */
 .cp-savebar {
@@ -92,6 +124,20 @@
 
 .cp-savebar > :first-child {
   flex: 1 1 auto;
+}
+
+/* Whatever focus scrolls into view lands with its ring clear of the bar
+ * (WCAG 2.4.11). `./settings` sets the bar's measured height, which grows
+ * when it wraps on a phone; one row's height stands in without it. */
+:where(form:has(.cp-savebar:not([hidden]))) * {
+  scroll-margin-block-end: calc(
+    var(--cp-savebar-size, var(--cp-control-h) + 2 * var(--cp-space-3) + 2 * var(--cp-line-w)) +
+      var(--cp-space-3) + var(--cp-focus-w) + var(--cp-focus-offset)
+  );
+}
+
+:where(.cp-savebar) * {
+  scroll-margin-block-end: 0;
 }
 
 @media (forced-colors: active) {

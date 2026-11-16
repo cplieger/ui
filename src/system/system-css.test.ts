@@ -1410,6 +1410,96 @@ describe("css/system.css", () => {
     expect(shown()).toEqual([false, true]);
   });
 
+  it("writes a value set elsewhere in the ink as selectable words, a long one wrapping inside its row", () => {
+    theme("light");
+    const el = build(
+      '<div style="inline-size: 20rem"><div class="cp-setting"><div><span class="cp-label">Data folder</span><span class="cp-help">Changes only at startup.</span></div>' +
+        '<div class="cp-set-elsewhere"><code class="cp-mono">averyveryverylongvaluewithnoplacetobreakatallinsidethisrow</code><span class="cp-chip" data-tone="neutral">from config.yaml</span></div></div>' +
+        '<div class="cp-set-elsewhere"><strong>Sonarr API key</strong><span class="cp-state" data-tone="success">Set</span></div>' +
+        '<span style="color: var(--cp-ink)"></span></div>',
+    );
+    const [line, secret] = [...el.querySelectorAll(".cp-set-elsewhere")] as [
+      HTMLElement,
+      HTMLElement,
+    ];
+    const value = line.querySelector("code") as HTMLElement;
+    const ink = getComputedStyle(el.querySelector("[style^='color']") as Element).color;
+    expect(getComputedStyle(value).color).toBe(ink);
+    expect(getComputedStyle(value).userSelect).not.toBe("none");
+    expect(value.getBoundingClientRect().right).toBeLessThanOrEqual(
+      (el.firstElementChild as Element).getBoundingClientRect().right + 0.5,
+    );
+    const name = getComputedStyle(secret.querySelector("strong") as Element);
+    expect([name.color, name.fontWeight]).toEqual([ink, "500"]);
+  });
+
+  it("sets a button after a choices legend at the end of its line, the boxes under both, the legend still naming the group", () => {
+    theme("light");
+    const el = build(
+      '<fieldset class="cp-choices" style="inline-size: 24rem"><legend class="cp-label" id="ig-l">Embedded subtitles to ignore</legend>' +
+        '<button class="cp-button" data-variant="quiet" data-size="sm" type="button" aria-describedby="ig-l">Reset to default</button>' +
+        '<label class="cp-choice"><input class="cp-checkbox" type="checkbox" checked><span>PGS</span></label>' +
+        '<label class="cp-choice"><input class="cp-checkbox" type="checkbox"><span>ASS</span></label></fieldset>',
+    );
+    const set = el.querySelector("fieldset") as HTMLFieldSetElement;
+    const box = (sel: string) => (set.querySelector(sel) as Element).getBoundingClientRect();
+    const [legend, button, first] = [box("legend"), box("button"), box(".cp-choice")];
+    const second = box(".cp-choice + .cp-choice");
+    const edge = set.getBoundingClientRect();
+    expect(legend.left).toBeCloseTo(edge.left, 0);
+    expect(button.right).toBeCloseTo(edge.right, 0);
+    expect(legend.top + legend.height / 2).toBeCloseTo(button.top + button.height / 2, 0);
+    expect([first.top - button.bottom, second.top - first.bottom]).toEqual([8, 8]);
+    expect(first.width).toBeCloseTo(edge.width, 0);
+    expect(page.getByRole("group", { name: "Embedded subtitles to ignore" }).element()).toBe(set);
+  });
+
+  it("splits a longer set into named groups, each legend quieter than the set's, groups twice a row's gap apart", () => {
+    theme("light");
+    const group = (name: string, boxes: string[]) =>
+      `<fieldset class="cp-choices"><legend>${name}</legend>` +
+      boxes
+        .map(
+          (b) =>
+            `<label class="cp-choice"><input class="cp-checkbox" type="checkbox"><span>${b}</span></label>`,
+        )
+        .join("") +
+      "</fieldset>";
+    const el = build(
+      '<span id="gr-muted" style="color: var(--cp-ink-muted)"></span>' +
+        '<fieldset class="cp-choices" style="inline-size: 24rem"><legend class="cp-label" id="gr-l">Embedded subtitles to ignore</legend>' +
+        '<button class="cp-button" data-variant="quiet" data-size="sm" type="button" aria-describedby="gr-l">Reset to default</button>' +
+        group("Text", ["SRT", "ASS"]) +
+        group("Picture", ["PGS", "VobSub"]) +
+        "</fieldset>",
+    );
+    const set = el.querySelector("fieldset") as HTMLFieldSetElement;
+    const [text, picture] = [...set.querySelectorAll(":scope > fieldset")] as [Element, Element];
+    const rect = (e: Element) => e.getBoundingClientRect();
+    // Where a legend's words start: its box top past its own padding.
+    const words = (g: Element) => {
+      const legend = g.querySelector("legend") as Element;
+      return {
+        top: rect(legend).top + Number.parseFloat(getComputedStyle(legend).paddingTop),
+        bottom: rect(legend).bottom,
+      };
+    };
+    const [t1, t2] = [...text.querySelectorAll(".cp-choice")].map(rect) as [DOMRect, DOMRect];
+    const [p1] = [...picture.querySelectorAll(".cp-choice")].map(rect) as [DOMRect];
+    expect(words(text).top - rect(set.querySelector("button") as Element).bottom).toBe(8);
+    expect([t1.top - words(text).bottom, p1.top - words(picture).bottom]).toEqual([4, 4]);
+    expect(t2.top - t1.bottom).toBe(8);
+    expect(words(picture).top - t2.bottom).toBe(16);
+    const [outer, inner] = [set, text].map((g) =>
+      getComputedStyle(g.querySelector("legend") as Element),
+    );
+    const muted = getComputedStyle(el.querySelector("#gr-muted") as Element).color;
+    expect([inner?.fontSize, inner?.fontWeight, inner?.color]).toEqual(["13px", "500", muted]);
+    expect(outer?.color).not.toBe(muted);
+    expect(page.getByRole("group", { name: "Picture" }).element()).toBe(picture);
+    expect(page.getByRole("group", { name: "Embedded subtitles to ignore" }).element()).toBe(set);
+  });
+
   it("draws the danger glyph for an error written without one, and not twice for one with it", () => {
     theme("light");
     const el = build(
@@ -2506,6 +2596,62 @@ describe("css/system.css", () => {
     expect(nav.top - toaster.bottom).toBeCloseTo(12, 2);
   });
 
+  it("turns the categories into the made select on a narrow screen, and pops in only a dot added later", async () => {
+    theme("light");
+    const dot = (added: string) =>
+      `<span data-part="end"><span class="cp-dot" data-tone="accent" aria-hidden="true"${added}></span><span class="cp-visually-hidden">, unsaved changes</span></span>`;
+    const markup =
+      '<div class="cp-settings"><nav class="cp-settings-nav" aria-label="Settings"><ul class="cp-list" data-surface="plain" data-divider="none" data-density="compact">' +
+      `<li><a class="cp-list-row" href="#c" aria-current="location"><span class="cp-cell-stack">Connections</span>${dot("")}</a></li>` +
+      `<li><a class="cp-list-row" href="#l"><span class="cp-cell-stack">Languages</span>${dot(" data-cp-added")}</a></li></ul>` +
+      '<div class="cp-field"><label class="cp-label" for="cat">Category</label><div class="cp-select"><select class="cp-input" id="cat"><option>Connections, unsaved changes</option><option>Languages, unsaved changes</option></select></div></div></nav>' +
+      '<div><div class="cp-setting"><div><label class="cp-label" for="n">Notifications</label></div><input class="cp-switch" id="n" type="checkbox" role="switch"></div></div></div>';
+    await page.viewport(1280, 720);
+    const wide = build(markup);
+    const shown = (el: HTMLElement, sel: string) =>
+      getComputedStyle(el.querySelector(sel) as Element).display !== "none";
+    expect([
+      shown(wide, ".cp-settings-nav > .cp-list"),
+      shown(wide, ".cp-settings-nav > .cp-field"),
+    ]).toEqual([true, false]);
+    const [still, added] = [...wide.querySelectorAll(".cp-dot")].map(
+      (d) => getComputedStyle(d).animationName,
+    );
+    expect([still, added]).toEqual(["none", "cp-token-in"]);
+    const end = (wide.querySelector(".cp-list-row") as Element).getBoundingClientRect().right;
+    const mark = (wide.querySelector(".cp-dot") as Element).getBoundingClientRect();
+    expect(mark.width).toBe(8);
+    expect(end - mark.right).toBe(12);
+    await page.viewport(600, 800);
+    const narrow = build(markup);
+    expect([
+      shown(narrow, ".cp-settings-nav > .cp-list"),
+      shown(narrow, ".cp-settings-nav > .cp-field"),
+    ]).toEqual([false, true]);
+    const select = narrow.querySelector("select") as HTMLSelectElement;
+    const nav = (narrow.querySelector(".cp-settings-nav") as Element).getBoundingClientRect();
+    expect(select.getBoundingClientRect().width).toBeCloseTo(nav.width, 0);
+    expect(nav.bottom).toBeLessThanOrEqual(
+      (narrow.querySelector(".cp-setting") as Element).getBoundingClientRect().top,
+    );
+  });
+
+  it("puts a setting's error on its own line under the row, the control still at the end", () => {
+    theme("light");
+    const el = build(
+      '<div class="cp-panel" style="inline-size: 40rem"><div class="cp-setting"><div><label class="cp-label" for="e">Check every</label><span class="cp-help">In minutes, 5 or more.</span></div>' +
+        '<input class="cp-input" id="e" type="number" aria-invalid="true"><span class="cp-field-error">Enter 5 minutes or more.</span></div></div>',
+    );
+    const row = (el.querySelector(".cp-setting") as Element).getBoundingClientRect();
+    const words = (el.querySelector(".cp-setting > div") as Element).getBoundingClientRect();
+    const input = (el.querySelector("input") as Element).getBoundingClientRect();
+    const error = (el.querySelector(".cp-field-error") as Element).getBoundingClientRect();
+    expect(input.right).toBeCloseTo(row.right, 0);
+    expect(input.top).toBeLessThan(words.bottom);
+    expect(error.top - Math.max(input.bottom, words.bottom)).toBe(8);
+    expect([error.left, error.width]).toEqual([row.left, row.width]);
+  });
+
   it("keeps the save bar in view at the bottom of a long form, and gone while hidden", () => {
     theme("light");
     const el = build(
@@ -2514,6 +2660,35 @@ describe("css/system.css", () => {
     const [shown, gone] = [...el.querySelectorAll(".cp-savebar")].map((n) => getComputedStyle(n));
     expect([shown?.position, shown?.insetBlockEnd]).toEqual(["sticky", "12px"]);
     expect(gone?.display).toBe("none");
+  });
+
+  it("scrolls a field into view clear of the save bar while it shows, and clears nothing once it hides", () => {
+    theme("light");
+    const fields = Array.from(
+      { length: 12 },
+      (_, i) =>
+        `<div class="cp-field"><input class="cp-input" aria-label="Field ${String(i)}"></div>`,
+    ).join("");
+    const el = build(
+      `<div style="block-size: 20rem; overflow-y: auto"><form class="cp-stack">${fields}<div class="cp-savebar"><span>1 unsaved change</span><button class="cp-button" type="reset">Discard</button></div></form></div>`,
+    );
+    const scroller = el.firstElementChild as HTMLElement;
+    const form = el.querySelector("form") as HTMLFormElement;
+    const bar = el.querySelector(".cp-savebar") as HTMLElement;
+    const last = [...form.querySelectorAll("input")].at(-1) as HTMLInputElement;
+    // The scroll a focus or a link runs; WebKit's focus() in a test page
+    // scrolls nothing.
+    last.scrollIntoView({ block: "nearest" });
+    const ring = last.getBoundingClientRect().bottom + 4;
+    expect(ring).toBeLessThanOrEqual(bar.getBoundingClientRect().top);
+    expect(getComputedStyle(bar.querySelector("button") as Element).scrollMarginBlockEnd).toBe(
+      "0px",
+    );
+    form.style.setProperty("--cp-savebar-size", "100px");
+    expect(getComputedStyle(last).scrollMarginBlockEnd).toBe("116px");
+    bar.hidden = true;
+    scroller.scrollTop = 0;
+    expect(getComputedStyle(last).scrollMarginBlockEnd).toBe("0px");
   });
 
   it("keeps an aria-disabled button under the pointer, so a press on it keeps focus", async () => {

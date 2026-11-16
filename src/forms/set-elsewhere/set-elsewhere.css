@@ -1,0 +1,16 @@
+/* A value the page shows but another place owns, such as a config file, the
+ * environment or an administrator: its name, its value or a secret's state,
+ * and a chip naming where it is set. Nothing in it is a control, so the value
+ * stays readable and selectable in the form's reading order. */
+.cp-set-elsewhere {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cp-space-1) var(--cp-space-2);
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+.cp-set-elsewhere > strong {
+  font-weight: var(--cp-weight-medium);
+}
