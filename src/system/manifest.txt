@@ -57,6 +57,7 @@ navigation/rail/filters-trigger.css
 data/text/text.css
 data/avatar/avatar.css
 data/cover/cover.css
+media/video/video.css
 data/list-row/list-row.css
 data/held-list/held-list.css
 data/keyed-list/keyed-list.css
@@ -68,6 +69,7 @@ feedback/badge/badge.css
 feedback/dot/dot.css
 feedback/notice/notice.css
 layout/panel/panel.css
+layout/heading-row/heading-row.css
 layout/stack/stack.css
 layout/cluster/cluster.css
 layout/side-main/side-main.css

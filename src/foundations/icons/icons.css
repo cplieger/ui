@@ -181,12 +181,20 @@
   --cp-icon-image: url("../icons/svg/octagon-alert.svg");
 }
 
+:where(.cp) .cp-icon:where([data-cp-icon="pause"]) {
+  --cp-icon-image: url("../icons/svg/pause.svg");
+}
+
 :where(.cp) .cp-icon:where([data-cp-icon="pin"]) {
   --cp-icon-image: url("../icons/svg/pin.svg");
 }
 
 :where(.cp) .cp-icon:where([data-cp-icon="pin-filled"]) {
   --cp-icon-image: url("../icons/svg/pin-filled.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="play"]) {
+  --cp-icon-image: url("../icons/svg/play.svg");
 }
 
 :where(.cp) .cp-icon:where([data-cp-icon="plus"]) {
