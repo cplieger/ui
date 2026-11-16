@@ -1903,11 +1903,13 @@ Contrast uses the WCAG 2 ratios: 4.5:1 for text, 3:1 for large text, boundaries 
 
 ### The axe check
 
-`gallery/a11y.node.test.ts` runs axe-core over every gallery page and frame and every reference page in `docs/system/`, in Chromium, Firefox and WebKit. CI runs it with the other browser tests, and any violation fails the pull request.
+`gallery/a11y.ts` runs axe-core over every gallery page and frame and every reference page in `docs/system/`, in Chromium, Firefox and WebKit. Each engine has two tests: `gallery/a11y-<engine>.node.test.ts` checks the pages and `gallery/a11y-overlays-<engine>.node.test.ts` their overlays. CI runs them with the other tests, split over three jobs (`cplieger.vitestShards` in `package.json`), and any violation fails the pull request.
 
 - axe-core is pinned to 4.13.0 as an exact dev dependency. A bump comes as a dependency update, and the check fails until each rule the new version adds is ruled in the table below.
 - The check selects rules by id, never by tag, so a rule that tests an adopted criterion runs even when axe marks it experimental. It also asserts that the rules it runs and the rules it leaves out together equal `axe.getRules()`.
-- Each page runs in the light and dark themes at 1440 by 900 and 390 by 844 CSS pixels. Each overlay is opened through its invoker and checked in both themes at 1440. Every `details` is opened in one more pass. The light theme at 1440 also runs under `prefers-contrast: more`, where `color-contrast-enhanced` checks the 7:1 pairs.
+- Each page runs in the light and dark themes at 1440 by 900 and 390 by 844 CSS pixels. Both themes at 1440 also run under `prefers-contrast: more`, where `color-contrast-enhanced` checks the 7:1 pairs.
+- Each overlay, every `[popover]` and `dialog`, is opened the way a person opens it and checked alone, in both themes at 1440. A menu or panel opens by its button, a list of suggestions by ArrowDown in its field, and the tooltip by the pointer resting on a control with a tip. An overlay inside another opens after the one holding it. The tooltip is skipped on a page with no control that has a tip, since it never shows there. Any other overlay with nothing on the page to open it is opened by script, and the check's report names it. A button whose overlay is built when it is pressed, such as a question or a toast, is pressed on a fresh page, and what it opens is checked.
+- Every closed `details` is opened in one more pass in the light theme at 1440. The members of a group that share a `name` open one per pass, since opening one closes the others.
 - A page whose run reports no passes fails, and a test page with a button that has no name must report `button-name` in every engine, so a run where axe did not start cannot pass.
 - axe reports some failures only as needs review. The check fails on those results for `aria-braille-equivalent`, `bypass`, `duplicate-id-aria`, `frame-title-unique`, `identical-links-same-purpose` and `no-autoplay-audio`, because axe files their real failures there. Every other needs-review result is written to the check's report and read by hand.
 

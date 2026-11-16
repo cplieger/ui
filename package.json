@@ -158,6 +158,7 @@
       "chromium",
       "firefox",
       "webkit"
-    ]
+    ],
+    "vitestShards": 3
   }
 }
