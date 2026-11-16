@@ -348,17 +348,15 @@ const FACETED = new Set<Kind>([
   "pie",
 ]);
 
-const ALL = { charge: (length: number) => length };
-
 // A list of encodings, each an object of `names` keyed by its own `key`,
-// two of one key refused.
+// two of one key refused. The page's words are no values, so the list is
+// bounded by its length alone and charges nothing.
 function encodings(v: unknown, field: string, names: readonly string[], d: Door): Map<string, Rec> {
   const out = new Map<string, Rec>();
   if (v === undefined) {
     return out;
   }
   d.list(v, field, {
-    ...ALL,
     each: (one, i) => {
       const at = `${field}[${String(i)}]`;
       if (!isObject(one)) {

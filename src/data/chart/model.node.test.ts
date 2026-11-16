@@ -431,10 +431,12 @@ describe("spec errors", () => {
     expect(() => build(lines(500_000, 2, { refs: [{ key: "zero", value: 0 }] }))).toThrow(
       past("data.refs"),
     );
-    // The page's words are charged too, read before the frame.
-    expect(() =>
-      build({ ...lines(500_000, 2), notes: [{ key: "n" }], refs: [{ key: "r" }] }),
-    ).toThrow(past("data.series"));
+    // The page's words for the frame's keys, refs and notes are no values.
+    expect(build({ ...lines(500_000, 2), notes: [{ key: "n" }], refs: [{ key: "r" }] }).kind).toBe(
+      "line",
+    );
+    const tenth = { ...lines(100_000, 10), mark: { mark: "line", keys: [{ key: "j", slot: 1 }] } };
+    expect(build(tenth).kind).toBe("line");
     const timeline = (last: number) => ({
       data: events({ a: zeros(600_000), b: zeros(last) }),
       mark: { mark: "dot" },
