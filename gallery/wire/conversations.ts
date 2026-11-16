@@ -144,9 +144,10 @@ if (root !== null && list instanceof HTMLUListElement && filters !== null) {
       }),
     );
   }
-  // A conversation a press opened has its own history entry, so closing it
-  // goes back to the list's; the entry a page loaded on is the list's too,
-  // so closing that one rewrites its address instead.
+  // A conversation a press opened has its own history entry, so Close goes
+  // back one entry, which may still name an earlier conversation; the
+  // hashchange then drops that hash. The entry a page loaded on is the
+  // list's, so closing that one rewrites its address instead.
   const LANDED = "cp-gallery-landed";
   let closing = false;
   const detail = enhanceListDetail(root, {
@@ -210,14 +211,20 @@ if (root !== null && list instanceof HTMLUListElement && filters !== null) {
   }
   // Back to a hash naming no conversation closes the phone's dialog; wide,
   // the docked conversation stays, so the layout never loses its detail.
+  // After a Close the address names no conversation, since a press on a
+  // link to the address's own hash would open nothing.
   addEventListener("hashchange", () => {
-    const row = closing ? null : linkOf(byHash());
+    const forced = closing;
+    closing = false;
+    if (forced && byHash() !== undefined) {
+      history.replaceState(null, "", location.pathname + location.search);
+    }
+    const row = forced ? null : linkOf(byHash());
     if (row !== null) {
       route(row, false);
-    } else if (closing || root.getBoundingClientRect().width < 52 * rem) {
+    } else if (forced || root.getBoundingClientRect().width < 52 * rem) {
       route(null, false);
     }
-    closing = false;
   });
 
   // A filter replaces the rows; the open conversation stays open, and its

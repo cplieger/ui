@@ -191,6 +191,56 @@ describe.each(browsers)("the gallery in %s", (name) => {
     });
   }, 60_000);
 
+  it.each([
+    ["after a second press", "messages.html", ["#c-announce", "#c-kiro-codex"], "#c-announce"],
+    [
+      "after a press on a page that loaded on one",
+      "messages.html#c-ui-data",
+      ["#c-marotte"],
+      "#c-ui-data",
+    ],
+  ])(
+    "leaves the address on the list when Close shuts a docked conversation %s",
+    async (_, page, presses, again) => {
+      const tab = await (browser as Browser).newPage({ viewport: { width: 1280, height: 800 } });
+      await tab.goto(`${origin}/index.html`);
+      await tab.goto(`${origin}/${page}`);
+      await tab.waitForFunction(() => document.querySelector("[data-build]") !== null);
+      const row = (href: string) => tab.locator(`#msg-list a.cp-list-row[href="${href}"]`);
+      const detail = (hidden: boolean) =>
+        tab.waitForFunction(
+          (h) => document.querySelector<HTMLElement>("#msg > .cp-detail")?.hidden === h,
+          hidden,
+          { timeout: 5000 },
+        );
+      for (const href of presses) {
+        await row(href).click();
+        await tab.waitForFunction((h) => location.hash === h, href);
+      }
+      await tab.locator("#msg > .cp-detail [data-detail-close]").click();
+      await detail(true);
+      const closed = new URL(tab.url()).hash;
+      await row(again).click();
+      // A press on a link to the address's own hash opens nothing.
+      await detail(false).catch(() => undefined);
+      const reopened = await tab.evaluate(
+        (h) => ({
+          shown: document.querySelector<HTMLElement>("#msg > .cp-detail")?.hidden === false,
+          current: document
+            .querySelector(`#msg-list a.cp-list-row[href="${h}"]`)
+            ?.getAttribute("aria-current"),
+        }),
+        again,
+      );
+      await tab.close();
+      expect({ closed, reopened }).toEqual({
+        closed: "",
+        reopened: { shown: true, current: "page" },
+      });
+    },
+    60_000,
+  );
+
   it.each(pageNames)(
     "runs %s's script to its end inside a sandboxed frame, as a preview tab shows it",
     async (page) => {

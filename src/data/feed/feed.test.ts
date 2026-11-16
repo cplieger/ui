@@ -3,6 +3,7 @@ import { userEvent } from "vitest/browser";
 
 import { rollText } from "../../core/roll/roll.js";
 import { installAnnouncer } from "../../feedback/announce/announce.js";
+import { anchorTo } from "../../overlays/anchor/anchor.js";
 import { enhanceLoadMore } from "../load-more/load-more.js";
 import { enhanceFeed, type FeedOptions } from "./feed.js";
 
@@ -1206,6 +1207,45 @@ describe("a history", () => {
     bar.style.blockSize = `${String(a.height + 8)}px`;
     document.body.prepend(bar);
     expect(document.elementFromPoint(a.left + a.width / 2, a.top + a.height / 2)).toBe(bar);
+  });
+
+  it("leaves a popover and a hidden word in an entry out of its flow", async () => {
+    const { feed } = history(2);
+    const [opened, worded] = feed.querySelectorAll<HTMLLIElement>(".cp-feed-entry");
+    if (opened === undefined || worded === undefined) {
+      throw new TypeError("no entries");
+    }
+    const footer = document.createElement("footer");
+    const button = document.createElement("button");
+    button.className = "cp-button";
+    button.type = "button";
+    button.textContent = "Read by 3 of 5";
+    footer.append(button);
+    const panel = document.createElement("div");
+    panel.className = "cp-popover cp-feed-readers";
+    panel.dataset["variant"] = "panel";
+    panel.popover = "auto";
+    panel.textContent = "@alpha, @bravo and @charlie";
+    opened.append(footer, panel);
+    anchorTo(panel, button);
+    const tall = worded.getBoundingClientRect().height;
+    const word = document.createElement("span");
+    word.className = "cp-visually-hidden";
+    word.textContent = "Edited";
+    worded.querySelector("header")?.after(word);
+
+    panel.showPopover();
+    await Promise.all(panel.getAnimations().map((a) => a.finished));
+    const placed = {
+      position: getComputedStyle(panel).position,
+      below: panel.getBoundingClientRect().top >= button.getBoundingClientRect().bottom,
+    };
+    panel.hidePopover();
+    expect({
+      popover: placed,
+      word: getComputedStyle(word).position,
+      height: worded.getBoundingClientRect().height,
+    }).toEqual({ popover: { position: "fixed", below: true }, word: "absolute", height: tall });
   });
 
   it("keeps the author's link above an origin link's target when the header wraps under a finger", () => {

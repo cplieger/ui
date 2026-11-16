@@ -54,8 +54,10 @@
 }
 
 /* Painted over the header, so a chip's target that reaches below it keeps
- * to the gap and leaves the subject and the text their own taps. */
-.cp-feed-entry > header ~ * {
+ * to the gap and leaves the subject and the text their own taps. No
+ * specificity, so a part's own position (a hidden word, a popover's class)
+ * wins; an unclassed popover keeps the browser's fixed. */
+:where(.cp-feed-entry > header ~ :not([popover])) {
   position: relative;
 }
 
