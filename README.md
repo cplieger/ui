@@ -94,6 +94,7 @@ The full reference, generated from the doc comments, is on [JSR](https://jsr.io/
 ## Documentation
 
 - The [principles](docs/principles.md) are the decisions every part follows.
+- [Accessibility](docs/accessibility.md) is the bar every part meets: each WCAG 2.2, WCAG 3 draft and ARIA ruling, how ui meets it and how it is tested.
 - The [design language](docs/design.md) covers type, layout, touch, shape and motion, and [colour](docs/design-colour.md) the seeds, steps, tones, harmony colours and series colours.
 - [Components](docs/design-components.md) lists every class the stylesheet ships.
 - [Design patterns](docs/design-patterns.md) covers loading, forms, tables, lists, tabs, dialogs, notifications, the header status, messages, first run, navigation and words, with [settings](docs/design-settings.md) and [account screens](docs/design-account.md) on their own pages.
