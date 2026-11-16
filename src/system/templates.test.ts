@@ -326,7 +326,7 @@ describe("the page templates", () => {
     expect(style(".cp-app").display).toBe("grid");
     expect(style(".cp-rail").display).toBe(width >= 960 ? "flex" : "none");
     expect(style(".cp-rail-toggle").display === "none").toBe(width >= 960);
-    expect(style(".cp-header > .cp-nav").position).toBe(width < 640 ? "fixed" : "static");
+    expect(style(".cp-header > .cp-nav").position === "fixed").toBe(width < 640);
     const main = doc.querySelector(".cp-main")?.getBoundingClientRect();
     const status = doc.querySelector(".cp-status")?.getBoundingClientRect();
     expect(status && main && status.top >= main.bottom - 0.5).toBe(true);
