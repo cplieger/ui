@@ -770,49 +770,8 @@ input.cp-input::-webkit-calendar-picker-indicator {
   color: var(--cp-ink-muted);
 }
 
-/* The sheet: full height at the inline end, sliding in. */
-.g-sheet {
-  inline-size: min(26rem, 100vw);
-  max-inline-size: 100vw;
-  block-size: 100dvh;
-  max-block-size: 100dvh;
-  margin: 0 0 0 auto;
-  border-block: 0;
-  border-inline-end: 0;
-  border-radius: 0;
-  scale: 1;
-  translate: 100% 0;
-  opacity: 1;
-}
-
-.g-sheet:dir(rtl) {
-  margin: 0 auto 0 0;
-  translate: -100% 0;
-}
-
-/* A sheet slides out as it came, over 280ms and speeding up. */
-.g-sheet {
-  transition-duration: 280ms;
-  transition-timing-function: cubic-bezier(0.4, 0, 1, 1);
-}
-
-.g-sheet[open] {
-  translate: 0 0;
-  scale: 1;
-  transition-duration: 300ms;
-  transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
-}
-
-@starting-style {
-  .g-sheet[open] {
-    translate: 100% 0;
-    scale: 1;
-    opacity: 1;
-  }
-}
-
 @media (width < 40rem) {
-  .g-dialog:not(.g-sheet) {
+  .g-dialog {
     inline-size: 100vw;
     max-inline-size: 100vw;
     margin: auto 0 0;
@@ -822,13 +781,15 @@ input.cp-input::-webkit-calendar-picker-indicator {
     opacity: 1;
   }
 
-  .g-dialog:not(.g-sheet)[open] {
+  .g-dialog[open] {
     translate: 0 0;
   }
 
   @starting-style {
-    .g-dialog:not(.g-sheet)[open] {
+    .g-dialog[open] {
       translate: 0 100%;
+      opacity: 1;
+      scale: 1;
     }
   }
 }
@@ -1171,22 +1132,6 @@ input.cp-input::-webkit-calendar-picker-indicator {
   gap: var(--cp-space-2) var(--cp-space-3);
 }
 
-/* A cover's stand-in: a harmony colour and the kind's glyph. */
-.g-cover {
-  position: relative;
-  display: grid;
-  place-items: center;
-  aspect-ratio: 2 / 3;
-  border-radius: var(--cp-radius-control);
-  background: var(--av, var(--cp-harmony-2));
-  color: var(--av-on, var(--cp-harmony-2-on));
-  overflow: hidden;
-}
-
-.g-cover > .cp-icon {
-  --cp-icon-size: 2rem;
-}
-
 .g-list .g-row {
   cursor: default;
 }
@@ -1338,53 +1283,6 @@ html:has(.g-header) {
 
 /* ===== Shared app pieces ===== */
 
-/* Master and detail: the list with a docked panel beside it at wide width;
- * below it the same panel is a modal dialog (gallery.js moves it). The
- * route opens it, so Back closes it. */
-.g-md {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--cp-space-4);
-  container-type: inline-size;
-}
-
-.g-md:has(> .g-dock:not([hidden])) {
-  grid-template-columns: minmax(0, 1fr) minmax(18rem, 24rem);
-}
-
-.g-dock {
-  display: grid;
-  align-content: start;
-  gap: var(--cp-space-3);
-  padding: var(--cp-space-4);
-  border: var(--cp-line-w) solid var(--cp-line);
-  border-radius: var(--cp-radius-surface);
-  background: var(--cp-surface-raised);
-  animation: dock-in 220ms var(--cp-ease-out);
-}
-
-.g-dock > header {
-  display: flex;
-  align-items: center;
-  gap: var(--cp-space-2);
-}
-
-.g-dock > header > h3 {
-  flex: 1;
-  font-size: var(--cp-text-md);
-}
-
-.g-dock > header > h3:focus {
-  outline: none;
-}
-
-@keyframes dock-in {
-  from {
-    opacity: 0;
-    translate: 1rem 0;
-  }
-}
-
 /* A phone's screen: the frame holds a page of its own, under 40rem wide, so
  * the library's narrow-width rules apply inside it. */
 .g-phone {
@@ -1434,38 +1332,6 @@ html:has(.g-header) {
   }
 }
 
-/* Video with one caption track: our controls over the native element. */
-.g-player {
-  display: grid;
-  gap: var(--cp-space-2);
-  max-inline-size: 40rem;
-}
-
-.g-player video {
-  inline-size: 100%;
-  aspect-ratio: 16 / 9;
-  border-radius: var(--cp-radius-surface);
-  background: black;
-}
-
-.g-player video::cue {
-  background: oklch(0% 0 0deg / 70%);
-  color: white;
-  font-family: var(--cp-font-sans, inherit);
-}
-
-.g-player-bar {
-  display: flex;
-  align-items: center;
-  gap: var(--cp-space-3);
-  font-variant-numeric: tabular-nums;
-  font-size: var(--cp-text-sm);
-}
-
-.g-player-bar > .cp-range {
-  flex: 1;
-}
-
 /* A proposal: a change shown before it applies. */
 .g-proposal {
   display: grid;
@@ -1490,43 +1356,6 @@ html:has(.g-header) {
   border-style: solid;
   border-color: var(--cp-success-8);
   background: var(--cp-success-3);
-}
-
-/* A media header: poster, title, facts, a quiet link and the actions. */
-.g-media-head {
-  display: grid;
-  grid-template-columns: 7rem minmax(0, 1fr);
-  gap: var(--cp-space-5);
-  align-items: start;
-  container-type: inline-size;
-}
-
-.g-media-head .g-cover {
-  inline-size: 7rem;
-}
-
-.g-media-head h2 {
-  font-size: var(--cp-text-2xl);
-}
-
-.g-media-head .g-media-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--cp-space-1) var(--cp-space-3);
-  margin: var(--cp-space-1) 0 var(--cp-space-3);
-  color: var(--cp-ink-muted);
-  font-size: var(--cp-text-sm);
-}
-
-@media (width < 40rem) {
-  .g-media-head {
-    grid-template-columns: 5rem minmax(0, 1fr);
-    gap: var(--cp-space-3);
-  }
-
-  .g-media-head .g-cover {
-    inline-size: 5rem;
-  }
 }
 
 /* Settings at compact width: the categories become a select; a category
@@ -1594,24 +1423,7 @@ html:has(.g-header) {
 }
 
 
-/* The item hero: an alternative title in its own language, link chips. */
-.g-alt-title {
-  margin: 0.125rem 0 0;
-  color: var(--cp-ink-muted);
-}
-
-.g-linkchips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--cp-space-2);
-  margin-block-start: var(--cp-space-3);
-}
-
 /* ===== Data: the table and its rules ===== */
-
-.g-media-head h2 + .g-alt-title + .g-media-meta {
-  margin-block-start: var(--cp-space-2);
-}
 
 /* ===== Layouts: frames at three widths, and arrangements inside a region ===== */
 .g-shell {

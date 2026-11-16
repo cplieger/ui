@@ -1,6 +1,7 @@
 import fc from "fast-check";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
+import { MAX_VALUES } from "../frame/limits.js";
 import { forgetMeasures } from "../scale/measure.js";
 
 import { renderChart, type ChartSpec } from "./chart.js";
@@ -13,7 +14,8 @@ const MS = { style: "unit", unit: "millisecond", maximumFractionDigits: 0 };
 const SCALE = { label: "Load", unit: UNIT, format: "number", zero: true };
 
 // One spec per mark and arrangement, together setting every field the
-// chart's spec documents, so a dropped or mistyped field reaches each one.
+// chart's spec and its frames document, so a dropped or mistyped field
+// reaches each one.
 const SPECS: readonly Record<string, unknown>[] = [
   {
     x: { type: "time", domain: [T, T + 4 * H], reverse: true, format: "number" },
@@ -21,177 +23,216 @@ const SPECS: readonly Record<string, unknown>[] = [
     height: 160,
     summary: (generated: string) => `${generated} Busy.`,
     empty: "No posts",
-    marks: [
-      {
-        mark: "rect",
-        x1: [T, T + H, T + 2 * H],
-        x2: [T + H, T + 2 * H, T + 3 * H],
-        open: true,
-        arrange: "stack",
-        shape: "area",
-        series: [
-          { name: "Posts", slot: 1, y: [3, null, 5] },
-          { name: "Replies", y: [1, 2, Number.NaN] },
-        ],
-      },
-      { mark: "rule", y: 4, label: "Goal" },
-      { mark: "text", x: T + H, y: 5, text: "Peak", side: "right" },
-    ],
+    data: {
+      type: "bins",
+      name: "Posts",
+      unit: "count",
+      axis: "time",
+      x1: [T, T + H, T + 2 * H],
+      x2: [T + H, T + 2 * H, T + 3 * H],
+      open: true,
+      domain: [T, T + 3 * H],
+      resets: [T + 2 * H],
+      series: [
+        { key: "posts", values: [3, null, 5] },
+        { key: "replies", values: [1, 2, Number.NaN] },
+      ],
+      refs: [{ key: "goal", value: 4 }],
+      notes: [{ key: "peak", at: T + H }],
+    },
+    mark: {
+      mark: "rect",
+      arrange: "stack",
+      shape: "area",
+      keys: [
+        { key: "posts", name: "Posts", slot: 1 },
+        { key: "replies", name: "Replies" },
+      ],
+    },
+    refs: [{ key: "goal", label: "Goal", axis: "y" }],
+    notes: [{ key: "peak", text: "Peak", side: "right" }],
   },
   {
-    marks: [
-      {
-        mark: "rect",
-        x1: [0, 10],
-        x2: [10, 20],
-        arrange: "group",
-        series: [
-          { name: "a", y: [1.5, 2] },
-          { name: "b", y: [2, 0.25] },
-        ],
-      },
-    ],
+    data: {
+      type: "bins",
+      name: "Sizes",
+      unit: "none",
+      axis: "value",
+      x1: [0, 10],
+      x2: [10, 20],
+      series: [
+        { key: "a", values: [1.5, 2] },
+        { key: "b", values: [2, 0.25] },
+      ],
+    },
+    mark: { mark: "rect", arrange: "group" },
   },
   {
     x: { type: "time" },
     y: { zero: false, label: "Memory", format: MS },
     summary: "Memory over the day.",
-    marks: [
-      {
-        mark: "line",
-        x: [T, T + H, T + 2 * H],
-        curve: "step",
-        series: [{ name: "Heap", slot: 3, y: [10, 12, null] }],
-      },
-      { mark: "text", x: T, y: 10, text: "Start" },
-    ],
+    data: {
+      type: "series",
+      name: "Memory",
+      unit: "bytes",
+      x: [T, T + H, T + 2 * H],
+      resets: [T + H],
+      open: true,
+      series: [{ key: "heap", values: [10, 12, null] }],
+      notes: [{ key: "start", at: T }],
+    },
+    mark: { mark: "line", curve: "step", keys: [{ key: "heap", name: "Heap", slot: 3 }] },
+    notes: [{ key: "start", text: "Start" }],
   },
   {
     y: { format: "percent" },
-    marks: [
-      {
-        mark: "area",
-        x: [0, 1, 2],
-        curve: "linear",
-        arrange: "share",
-        series: [
-          { name: "a", y: [1, 2, 3] },
-          { name: "b", slot: 2, y: [3, 2, 1] },
-        ],
-      },
-    ],
+    data: {
+      type: "series",
+      name: "Share",
+      unit: "ratio",
+      x: [0, 1, 2],
+      series: [
+        { key: "a", values: [1, 2, 3] },
+        { key: "b", values: [3, 2, 1] },
+      ],
+    },
+    mark: { mark: "area", curve: "linear", arrange: "share", keys: [{ key: "b", slot: 2 }] },
   },
   {
     x: { type: "time", label: "Time" },
-    marks: [
-      {
-        mark: "dot",
-        slot: 4,
-        unit: UNIT,
-        rows: [
-          { name: "Ada", x: [T, T + H, T + H] },
-          { name: "Bea", x: [] },
-        ],
-      },
-      { mark: "rule", x: T + H, label: "Deploy" },
-      { mark: "text", x: T, y: "Ada", text: "First" },
-    ],
+    data: {
+      type: "events",
+      name: "Posts",
+      rows: [
+        { key: "ada", at: [T, T + H, T + H] },
+        { key: "bea", at: [] },
+      ],
+      refs: [{ key: "deploy", value: T + H }],
+      notes: [{ key: "first", at: T }],
+    },
+    mark: {
+      mark: "dot",
+      slot: 4,
+      unit: UNIT,
+      keys: [
+        { key: "ada", name: "Ada" },
+        { key: "bea", name: "Bea" },
+      ],
+    },
+    refs: [{ key: "deploy", label: "Deploy" }],
+    notes: [{ key: "first", text: "First" }],
   },
   {
     x: { label: "Posts", unit: UNIT, format: "integer" },
     y: { mono: true, label: "Agents" },
-    marks: [
-      {
-        mark: "bar",
-        y: ["one", "two"],
-        labels: true,
-        series: [{ name: "Posts", slot: 2, below: 5, x: [4, -2] }],
-      },
-      { mark: "rule", x: 1, label: "Mean" },
-    ],
+    data: {
+      type: "categories",
+      name: "Posts",
+      unit: "count",
+      names: ["one", "two"],
+      series: [{ key: "posts", values: [4, -2] }],
+      refs: [{ key: "mean", value: 1 }],
+    },
+    mark: {
+      mark: "bar",
+      labels: true,
+      keys: [{ key: "posts", name: "Posts", slot: 2, below: 5 }],
+    },
+    refs: [{ key: "mean", label: "Mean", axis: "x" }],
   },
   {
-    marks: [
-      {
-        mark: "bar",
-        y: ["s1", "s2"],
-        arrange: "diverge",
-        left: 1,
-        centre: true,
-        series: [
-          { name: "No", x: [1, 2] },
-          { name: "Neutral", x: [1, 1] },
-          { name: "Yes", x: [3, 2] },
-        ],
-      },
-    ],
+    data: {
+      type: "categories",
+      name: "Answers",
+      unit: "count",
+      names: ["s1", "s2"],
+      series: [
+        { key: "No", values: [1, 2] },
+        { key: "Neutral", values: [1, 1] },
+        { key: "Yes", values: [3, 2] },
+      ],
+    },
+    mark: { mark: "bar", arrange: "diverge", left: 1, centre: true },
   },
   {
-    marks: [
-      {
-        mark: "bar",
-        y: ["0-9", "10-19"],
-        arrange: "mirror",
-        series: [
-          { name: "Men", x: [4, 5] },
-          { name: "Women", x: [5, 4] },
-        ],
-      },
-      { mark: "text", y: "0-9", text: "Young" },
-    ],
+    data: {
+      type: "categories",
+      name: "People",
+      unit: "count",
+      names: ["0-9", "10-19"],
+      series: [
+        { key: "Men", values: [4, 5] },
+        { key: "Women", values: [5, 4] },
+      ],
+      notes: [{ key: "young", at: 2 }],
+    },
+    mark: { mark: "bar", arrange: "mirror" },
+    notes: [{ key: "young", text: "Young" }],
   },
   {
     x: { type: "log", label: "Pay" },
-    marks: [
-      {
-        mark: "point",
-        y: ["BA", "MA"],
-        link: "arrow",
-        series: [
-          { name: "2000", x: [10, 20] },
-          { name: "2020", slot: 6, x: [30, null] },
-        ],
-      },
-    ],
+    data: {
+      type: "categories",
+      name: "Pay",
+      unit: "none",
+      names: ["BA", "MA"],
+      series: [
+        { key: "2000", values: [10, 20] },
+        { key: "2020", values: [30, null] },
+      ],
+    },
+    mark: { mark: "point", link: "arrow", keys: [{ key: "2020", slot: 6 }] },
   },
   {
     y: { label: "Years", domain: [60, 90] },
     height: 200,
-    marks: [
-      {
-        mark: "slope",
-        x: ["1990", "2020"],
-        series: [
-          { name: "Japan", slot: 1, y: [79, 84] },
-          { name: "Chad", y: [null, 53] },
-        ],
-      },
-      { mark: "rule", y: 70, label: "World" },
-      { mark: "text", x: "2020", y: 84, text: "Top" },
-    ],
+    data: {
+      type: "categories",
+      name: "Life",
+      unit: "none",
+      names: ["1990", "2020"],
+      series: [
+        { key: "japan", values: [79, 84] },
+        { key: "chad", values: [null, 53] },
+      ],
+      refs: [{ key: "world", value: 70 }],
+      notes: [{ key: "top", at: 84 }],
+    },
+    mark: {
+      mark: "slope",
+      keys: [
+        { key: "japan", name: "Japan", slot: 1 },
+        { key: "chad", name: "Chad" },
+      ],
+    },
+    refs: [{ key: "world", label: "World" }],
+    notes: [{ key: "top", text: "Top" }],
   },
   {
     x: { type: "log", label: "GDP", format: "integer", domain: [100, 1e5] },
     y: { label: "Life", zero: true },
     r: { type: "linear", label: "People", domain: [0, 1e9], format: "integer" },
-    marks: [
-      {
-        mark: "scatter",
-        unit: { one: "country", other: "countries" },
-        series: [
-          {
-            name: "Europe",
-            slot: 1,
-            names: ["FR", "DE"],
-            x: [4e4, 5e4],
-            y: [82, 81],
-            r: [6e7, 8e7],
-          },
-          { name: "Asia", names: ["JP"], x: [3e4], y: [84], r: [0] },
-        ],
-      },
-      { mark: "text", x: 4e4, y: 82, text: "France", side: "below" },
-    ],
+    data: {
+      type: "points",
+      name: "Countries",
+      units: { x: "none", y: "none", r: "none" },
+      series: [
+        { key: "europe", names: ["FR", "DE"], x: [4e4, 5e4], y: [82, 81], r: [6e7, 8e7] },
+        { key: "asia", names: ["JP"], x: [3e4], y: [84], r: [0] },
+      ],
+      refs: [{ key: "seventy", value: 70 }],
+      notes: [{ key: "france", at: 4e4 }],
+    },
+    mark: {
+      mark: "scatter",
+      unit: { one: "country", other: "countries" },
+      keys: [
+        { key: "europe", name: "Europe", slot: 1 },
+        { key: "asia", name: "Asia" },
+      ],
+    },
+    refs: [{ key: "seventy", label: "Seventy" }],
+    notes: [{ key: "france", text: "France", side: "below" }],
   },
   {
     colour: {
@@ -211,139 +252,172 @@ const SPECS: readonly Record<string, unknown>[] = [
       },
       format: "number",
     },
-    marks: [
-      {
-        mark: "cell",
-        x: ["Mon", "Tue"],
-        y: ["AM", "PM"],
-        values: [
-          [1, -2],
-          [null, 4],
-        ],
-      },
-      { mark: "text", x: "Mon", y: "AM", text: "Low" },
-    ],
+    data: {
+      type: "grid",
+      name: "Change",
+      unit: "count",
+      x: { names: ["Mon", "Tue"] },
+      y: { names: ["AM", "PM"] },
+      values: [
+        [1, -2],
+        [null, 4],
+      ],
+      notes: [{ key: "low", at: 0 }],
+    },
+    mark: { mark: "cell" },
+    notes: [{ key: "low", text: "Low" }],
   },
   {
     x: { type: "log", label: "Size" },
     y: { label: "Time", format: MS },
     colour: { thresholds: [1, 5], label: "Requests" },
-    marks: [
-      {
-        mark: "cell",
-        x: { edges: [1, 10, 100] },
-        y: { edges: [0, 100, 200] },
-        values: [
-          [1, 2],
-          [3, null],
-        ],
-      },
-    ],
+    data: {
+      type: "grid",
+      name: "Requests",
+      unit: "count",
+      x: { edges: [1, 10, 100] },
+      y: { edges: [0, 100, 200] },
+      values: [
+        [1, 2],
+        [3, null],
+      ],
+      refs: [{ key: "slow", value: 150 }],
+    },
+    mark: { mark: "cell" },
+    refs: [{ key: "slow", label: "Slow", axis: "y" }],
   },
   {
     colour: { steps: 4, label: "Posts", unit: UNIT },
-    marks: [
-      {
-        mark: "cell",
-        days: { start: T, values: [1, null, 3, 0, 5, 2, 8, 4, 1], open: true },
-        weekStart: 1,
-      },
-      { mark: "text", x: T + DAY, text: "Tuesday" },
-    ],
+    data: {
+      type: "calendar",
+      name: "Posts",
+      unit: "count",
+      zone: "UTC",
+      start: T,
+      values: [1, null, 3, 0, 5, 2, 8, 4, 1],
+      open: true,
+      notes: [{ key: "tuesday", at: T + DAY }],
+    },
+    mark: { mark: "cell", weekStart: 1 },
+    notes: [{ key: "tuesday", text: "Tuesday" }],
   },
   {
     x: { type: "linear", label: "Latency", format: MS, zero: true, domain: [0, 1000] },
-    marks: [
-      {
-        mark: "box",
-        y: ["/api", "/login"],
-        whiskers: "1.5 × IQR",
-        series: [
-          {
-            name: "Before",
-            slot: 1,
-            low: [10, null],
-            q1: [20, null],
-            median: [30, null],
-            q3: [40, null],
-            high: [50, null],
-            outliers: [[90], []],
-          },
-          { name: "After", low: [5, 1], q1: [6, 2], median: [7, 3], q3: [8, 4], high: [9, 5] },
-        ],
-      },
-      { mark: "rule", x: 25, label: "Target" },
-    ],
+    data: {
+      type: "boxes",
+      name: "Latency",
+      unit: "none",
+      names: ["/api", "/login"],
+      series: [
+        {
+          key: "before",
+          low: [10, null],
+          q1: [20, null],
+          median: [30, null],
+          q3: [40, null],
+          high: [50, null],
+          outliers: [[90], []],
+        },
+        { key: "after", low: [5, 1], q1: [6, 2], median: [7, 3], q3: [8, 4], high: [9, 5] },
+      ],
+      refs: [{ key: "target", value: 25 }],
+    },
+    mark: {
+      mark: "box",
+      whiskers: "1.5 × IQR",
+      keys: [
+        { key: "before", name: "Before", slot: 1 },
+        { key: "after", name: "After" },
+      ],
+    },
+    refs: [{ key: "target", label: "Target" }],
   },
   {
     summary: "Land use.",
-    marks: [
-      {
-        mark: "pie",
-        hole: true,
-        unit: { one: "km²", other: "km²" },
-        format: "integer",
-        slices: [
-          { name: "Forest", slot: 4, value: 30 },
-          { name: "Farm", value: 50 },
-          { name: "Water", value: null },
-          { name: "Ice", value: 0 },
-        ],
-      },
-    ],
+    data: {
+      type: "categories",
+      name: "Land",
+      unit: "none",
+      names: ["Forest", "Farm", "Water", "Ice"],
+      series: [{ key: "area", values: [30, 50, null, 0] }],
+    },
+    mark: {
+      mark: "pie",
+      hole: true,
+      unit: { one: "km²", other: "km²" },
+      format: "integer",
+      keys: [{ key: "Forest", slot: 4 }],
+    },
   },
   {
-    marks: [
-      {
-        mark: "tree",
-        slot: 2,
-        unit: UNIT,
-        format: "number",
-        nodes: [
-          { name: "a", value: 5, slot: 3 },
-          { name: "b", value: 3 },
-          { name: "c", value: null },
-        ],
-      },
-    ],
+    data: {
+      type: "tree",
+      name: "Spend",
+      unit: "count",
+      parts: [
+        { key: "a", value: 5 },
+        { key: "b", value: 3 },
+        { key: "c", value: null },
+      ],
+    },
+    mark: { mark: "tree", slot: 2, unit: UNIT, format: "number", keys: [{ key: "a", slot: 3 }] },
   },
   {
-    marks: [
-      {
-        mark: "tree",
-        format: MS,
-        nodes: [
-          {
-            name: "Europe",
-            slot: 1,
-            children: [
-              { name: "FR", value: 3 },
-              { name: "Other", value: 1 },
-            ],
-          },
-          { name: "Asia", children: [{ name: "Other", value: 4 }] },
-        ],
-      },
-    ],
+    data: {
+      type: "tree",
+      name: "Spend",
+      unit: "none",
+      groups: [
+        {
+          key: "Europe",
+          children: [
+            { key: "FR", value: 3 },
+            { key: "Other", value: 1 },
+          ],
+        },
+        { key: "Asia", children: [{ key: "Other", value: 4 }] },
+      ],
+    },
+    mark: { mark: "tree", format: MS, keys: [{ key: "Europe", slot: 1 }] },
   },
   {
     y: { format: "percent" },
-    marks: [{ mark: "rule", y: 0.05, label: "Target" }],
+    mark: {
+      mark: "line",
+      keys: [
+        { key: "north", name: "North" },
+        { key: "south", name: "South" },
+      ],
+    },
+    refs: [{ key: "target", label: "Target" }],
+    notes: [{ key: "strike", text: "Strike" }],
     facets: {
       unit: UNIT,
       context: true,
       panels: [
         {
-          marks: [
-            { mark: "line", x: [0, 1, 2], series: [{ name: "North", y: [0.02, 0.06, 0.04] }] },
-            { mark: "text", x: 1, y: 0.06, text: "Strike" },
-          ],
+          key: "n",
+          data: {
+            type: "series",
+            name: "Share",
+            unit: "ratio",
+            x: [0, 1, 2],
+            series: [{ key: "north", values: [0.02, 0.06, 0.04] }],
+            refs: [{ key: "target", value: 0.05 }],
+            notes: [{ key: "strike", at: 1 }],
+          },
         },
         {
+          key: "s",
           name: "Southern",
-          marks: [
-            { mark: "line", x: [0, 1, 2], series: [{ name: "South", y: [0.03, 0.01, null] }] },
-          ],
+          data: {
+            type: "series",
+            name: "Share",
+            unit: "ratio",
+            x: [0, 1, 2],
+            series: [{ key: "south", values: [0.03, 0.01, null] }],
+            refs: [{ key: "target", value: 0.05 }],
+          },
         },
       ],
     },
@@ -355,19 +429,16 @@ type Path = readonly (string | number)[];
 // A unit's plural forms, named in a message after their unit.
 const PLURALS = ["few", "many", "one", "other", "two", "zero"];
 
-// Every field name the spec documents, for a field a spec leaves out.
+// Every field name the spec and its frames document, for a field a spec
+// leaves out.
 const NAMES = [
-  ..."arrange below centre children colour context curve days domain edges empty facets format".split(
+  ..."arrange at axis below centre children colour context curve data domain edges empty".split(
     " ",
   ),
-  ..."height high hole label labels left link low mark marks median mono name names nodes".split(
-    " ",
-  ),
-  ..."open outliers panels pivot q1 q3 r reverse rows series shape side slices slot start".split(
-    " ",
-  ),
-  ..."steps summary text".split(" "),
-  ..."thresholds type unit value values weekStart whiskers x x1 x2 y zero".split(" "),
+  ..."facets format groups height high hole key keys label labels left link low mark".split(" "),
+  ..."median mono name names notes open outliers panels parts pivot q1 q3 r refs resets".split(" "),
+  ..."reverse rows series shape side slot start steps summary text thresholds type unit".split(" "),
+  ..."units value values weekStart whiskers x x1 x2 y zero zone".split(" "),
 ];
 const FIELDS = [...new Set([...NAMES, ...PLURALS])];
 
@@ -385,11 +456,10 @@ function paths(v: unknown, at: Path = []): Path[] {
 const at = (v: unknown, path: Path): unknown =>
   path.reduce<unknown>((o, k) => (o as Record<string | number, unknown>)[k], v);
 
-// Where an object sits, by its mark's kind and its path past the index.
+// Where an object sits, by its spec's mark and its path, indices aside.
 function shape(spec: unknown, path: Path): string {
-  const kind = path[0] === "marks" ? String(at(spec, ["marks", path[1] ?? 0, "mark"])) : "";
-  const rest = path[0] === "marks" ? path.slice(2) : path;
-  return `${kind}:${rest.map((k) => (typeof k === "number" ? "#" : k)).join(".")}`;
+  const kind = String(at(spec, ["mark", "mark"]));
+  return `${kind}:${path.map((k) => (typeof k === "number" ? "#" : k)).join(".")}`;
 }
 
 const isRecord = (v: unknown): v is Record<string, unknown> =>
@@ -637,7 +707,7 @@ const unread = <T extends object>(list: T): T =>
     },
   });
 
-// A field's name as the chart's errors write it: marks[0].series[1].y.
+// A field's name as the chart's errors write it: data.series[1].values.
 const named = (path: Path): string =>
   path.map((k, i) => (typeof k === "number" ? `[${String(k)}]` : i === 0 ? k : `.${k}`)).join("");
 
@@ -677,8 +747,6 @@ function liars(list: readonly unknown[]): readonly unknown[] {
   return [iterated, growing];
 }
 
-const MOST_VALUES = 1_000_000;
-
 // The index reads of the list each `share` change spreads, by the change's value.
 const READS = new WeakMap<object, { n: number }>();
 
@@ -695,7 +763,7 @@ const repeats = (spec: unknown): (readonly [Path, number])[] =>
 function share(spec: unknown, path: Path, j: number, copies: number): readonly [Path, unknown] {
   const list = at(spec, path) as readonly unknown[];
   const read = { n: 0 };
-  const length = Math.min(MOST_ENTRIES(path), Math.ceil((2 * MOST_VALUES) / copies));
+  const length = Math.min(MOST_ENTRIES(path), Math.ceil((2 * MAX_VALUES) / copies));
   const shared = new Proxy(new Array<unknown>(length).fill(list[0] ?? 0), {
     get(target, key) {
       if (typeof key === "string" && /^\d+$/u.test(key)) {
@@ -764,12 +832,19 @@ describe("a chart spec", () => {
   // y, on a log y of every decade, and a binned y of a thousand rows.
   it("draws a plot at its tallest in at most MOST_DRAWN elements and subpaths", () => {
     const line = {
-      mark: "line",
-      x: [0, 1, 2],
-      series: [{ name: "a", y: [0.1, 0.5, 0.2] }],
+      data: {
+        type: "series",
+        name: "s",
+        unit: "none",
+        x: [0, 1, 2],
+        series: [{ key: "a", values: [0.1, 0.5, 0.2] }],
+      },
+      mark: { mark: "line" },
     };
     const bins = {
-      mark: "cell",
+      type: "grid",
+      name: "g",
+      unit: "count",
       x: { edges: [1, 10, 100] },
       y: { edges: [0, 0.1, 100] },
       values: [
@@ -778,9 +853,9 @@ describe("a chart spec", () => {
       ],
     };
     for (const spec of [
-      { height: 40_000, y: { domain: [0, 1] }, marks: [line] },
-      { height: 40_000, y: { type: "log", label: "a", domain: [1e-300, 1e300] }, marks: [line] },
-      { ...SPECS[12], height: 40_000, marks: [bins] },
+      { ...line, height: 40_000, y: { domain: [0, 1] } },
+      { ...line, height: 40_000, y: { type: "log", label: "a", domain: [1e-300, 1e300] } },
+      { ...SPECS[12], height: 40_000, data: bins },
     ]) {
       expect(exercise(spec, "UTC"), JSON.stringify(spec)).toBeLessThanOrEqual(MOST_DRAWN);
     }
@@ -796,11 +871,20 @@ describe("a chart spec", () => {
     const grid = (height: number, context: boolean) => ({
       height,
       y: { domain: [0, 1] },
-      marks: [{ mark: "rule", y: 0.5, label: "Half" }],
+      mark: { mark: "line" },
+      refs: [{ key: "half", label: "Half" }],
       facets: {
         context,
         panels: Array.from({ length: panels }, (_, k) => ({
-          marks: [{ mark: "line", x: [0, 1], series: [{ name: `P${String(k)}`, y: [0.1, 0.9] }] }],
+          key: `p${String(k)}`,
+          data: {
+            type: "series",
+            name: "s",
+            unit: "none",
+            x: [0, 1],
+            series: [{ key: `P${String(k)}`, values: [0.1, 0.9] }],
+            refs: [{ key: "half", value: 0.5 }],
+          },
         })),
       },
     });
@@ -832,51 +916,60 @@ describe("a chart spec", () => {
     const at = Array.from({ length: n }, (_, i) => i);
     const names = at.map((i) => `n${String(i)}`);
     const wave = at.map((i) => (i % 7) - 3);
+    const frame = { name: "f", unit: "none" };
     for (const spec of [
       {
-        marks: [
-          {
-            mark: "line",
-            x: at,
-            series: [
-              { name: "a", y: wave },
-              { name: "b", y: at },
-            ],
-          },
-        ],
+        data: {
+          ...frame,
+          type: "series",
+          x: at,
+          series: [
+            { key: "a", values: wave },
+            { key: "b", values: at },
+          ],
+        },
+        mark: { mark: "line" },
       },
       {
-        marks: [
-          { mark: "dot", rows: names.slice(0, 50).map((name) => ({ name, x: at.slice(0, 40) })) },
-        ],
+        data: {
+          type: "events",
+          name: "e",
+          rows: names.slice(0, 50).map((key) => ({ key, at: at.slice(0, 40) })),
+        },
+        mark: { mark: "dot" },
       },
       {
-        marks: [
-          {
-            mark: "bar",
-            y: names,
-            arrange: "group",
-            series: [
-              { name: "a", x: at },
-              { name: "b", x: wave },
-            ],
-          },
-        ],
+        data: {
+          ...frame,
+          type: "categories",
+          names,
+          series: [
+            { key: "a", values: at },
+            { key: "b", values: wave },
+          ],
+        },
+        mark: { mark: "bar", arrange: "group" },
       },
       {
         x: { label: "x" },
         y: { label: "y" },
-        marks: [{ mark: "scatter", series: [{ name: "a", names, x: at, y: wave }] }],
+        data: {
+          type: "points",
+          name: "p",
+          units: { x: "none", y: "none" },
+          series: [{ key: "a", names, x: at, y: wave }],
+        },
+        mark: { mark: "scatter" },
       },
       {
-        marks: [
-          {
-            mark: "cell",
-            x: names.slice(0, 10),
-            y: names.slice(0, 100),
-            values: names.slice(0, 100).map(() => wave.slice(0, 10)),
-          },
-        ],
+        data: {
+          ...frame,
+          type: "grid",
+          x: { names: names.slice(0, 10) },
+          y: { names: names.slice(0, 100) },
+          values: names.slice(0, 100).map(() => wave.slice(0, 10)),
+        },
+        mark: { mark: "cell" },
       },
     ]) {
       expect(exercise(spec, "UTC"), JSON.stringify(spec).slice(0, 80)).toBeLessThanOrEqual(
@@ -1005,7 +1098,7 @@ describe("a chart spec", () => {
         } finally {
           // Each place a shared list sits is charged before it is read.
           for (const [value, read] of reads) {
-            expect(read.n, fc.stringify(value)).toBeLessThanOrEqual(MOST_VALUES);
+            expect(read.n, fc.stringify(value)).toBeLessThanOrEqual(MAX_VALUES);
           }
         }
         seen.drawn++;

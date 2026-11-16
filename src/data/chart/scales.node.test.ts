@@ -1,31 +1,86 @@
 import { describe, expect, it } from "vitest";
 
-import { durationEdges } from "../scale/ladder.js";
+import type { BinsFrame, FrameGridAxis, FrameRef } from "../frame/frame.js";
 
-import { rScale, ruleAt, xScale, yScale, type Continuous } from "./scales.js";
-import type { BarMark, ChartSpec, Mark } from "./spec.js";
+import { check } from "./check.js";
+import {
+  rScale as rScaleOf,
+  ruleAt,
+  xScale as xScaleOf,
+  yScale as yScaleOf,
+  type Continuous,
+} from "./scales.js";
+import type { ChartSpec } from "./spec.js";
+import {
+  binsFrame,
+  categories,
+  events,
+  grid as gridFrame,
+  ladder,
+  points as pointsFrame,
+  seriesFrame,
+} from "./test-helpers/frames.js";
 
 const S = 1_000;
 const DAY = 86_400_000;
+// A duration's seconds.
+const D = { s: 1, day: 86_400 } as const;
 
-const rect = (x1: number[], x2: number[], ...ys: (number | null)[][]): Mark => ({
-  mark: "rect",
-  x1,
-  x2,
-  series: ys.map((y, i) => ({ name: `s${String(i)}`, y })),
-});
+type Values = readonly (number | null)[];
+type Scale = NonNullable<ChartSpec["x"]>;
 
-// A histogram of read delays: the ladder's bins at the default retention, two rules.
-const edges = durationEdges();
-const bins = rect(
-  edges.slice(0, -1),
-  edges.slice(1),
-  edges.slice(1).map((_, i) => i + 1),
-);
-const readDelays = (domain?: readonly [number, number], ...rules: number[]): ChartSpec => ({
-  x: { type: "log", format: "duration", ...(domain === undefined ? {} : { domain }) },
-  marks: [bins, ...rules.map((x) => ({ mark: "rule" as const, x, label: "Median" }))],
-});
+// A spec's scales, as the chart builds them from its checked plot.
+const xScale = (spec: ChartSpec): Continuous => xScaleOf(check(spec));
+const yScale = (spec: ChartSpec) => yScaleOf(check(spec));
+const rScale = (spec: ChartSpec) => rScaleOf(check(spec));
+
+// Refs keyed r0, r1, ... at `values`, each with a `refs` entry on `axis`.
+const ruled = (spec: ChartSpec, axis: "x" | "y" | undefined, ...values: number[]): ChartSpec => {
+  const refs: FrameRef[] = values.map((value, i) => ({ key: `r${String(i)}`, value }));
+  return {
+    ...spec,
+    data: { ...spec.data, refs } as NonNullable<ChartSpec["data"]>,
+    refs: refs.map((r) => ({ key: r.key, ...(axis === undefined ? {} : { axis }) })),
+  } as ChartSpec;
+};
+
+// Bins from x1 to x2 on a value x, a series per values list.
+const rect = (
+  x1: readonly number[],
+  x2: readonly number[],
+  values: readonly Values[],
+  more: Omit<ChartSpec, "data" | "mark" | "facets"> = {},
+  data: Partial<BinsFrame> = {},
+  mark: object = {},
+): ChartSpec =>
+  ({
+    data: binsFrame(x1, x2, values, { axis: "value", ...data }),
+    mark: { mark: "rect", ...mark },
+    ...more,
+  }) as ChartSpec;
+
+// A line of series per values list over `x`.
+const line = (x: readonly number[], values: readonly Values[], more = {}): ChartSpec =>
+  ({ data: seriesFrame(x, values), mark: { mark: "line" }, ...more }) as ChartSpec;
+
+// A line with no data, its x the scale `x` alone.
+const bare = (x: Scale): ChartSpec => line([], [], { x });
+
+// A histogram of read delays in seconds: the ladder's bins at the default
+// retention, and refs at `rules`.
+const edges = ladder();
+const readDelays = (domain?: readonly [number, number], ...rules: number[]): ChartSpec =>
+  ruled(
+    rect(
+      edges.slice(0, -1),
+      edges.slice(1),
+      [edges.slice(1).map((_, i) => i + 1)],
+      { x: { type: "log", ...(domain === undefined ? {} : { domain }) } },
+      { unit: "seconds" },
+    ),
+    undefined,
+    ...rules,
+  );
 
 const continuous = (scale: ReturnType<typeof yScale>): Continuous => {
   if (scale.type === "band") {
@@ -36,306 +91,256 @@ const continuous = (scale: ReturnType<typeof yScale>): Continuous => {
 
 describe("xScale", () => {
   it("is linear unless the spec names a type", () => {
-    expect(xScale({ x: {}, marks: [] }).type).toBe("linear");
-    expect(xScale({ x: { type: "time" }, marks: [] }).type).toBe("time");
+    expect(xScale(bare({})).type).toBe("linear");
+    expect(xScale(bare({ type: "time" })).type).toBe("time");
   });
 
-  it("spans every x, x1 and x2 and every rule on a linear or time scale", () => {
-    const marks: Mark[] = [
-      rect([10, 20], [20, 30], [1, 2]),
-      { mark: "line", x: [5, 25], series: [{ name: "a", y: [1, 2] }] },
-      { mark: "rule", x: 40, label: "Goal" },
-    ];
-    expect(xScale({ x: {}, marks })).toMatchObject({ lo: 5, hi: 40, passed: false });
-    expect(xScale({ x: { type: "time" }, marks })).toMatchObject({ lo: 5, hi: 40 });
-    const dots: Mark = {
-      mark: "dot",
-      rows: [
-        { name: "a", x: [3, 50] },
-        { name: "b", x: [] },
-      ],
-    };
-    expect(xScale({ x: { type: "time" }, marks: [dots] })).toMatchObject({ lo: 3, hi: 50 });
+  it("spans every x, x1 and x2 and every x rule on a linear or time scale", () => {
+    const bins = ruled(rect([10, 20], [20, 30], [[1, 2]]), "x", 40);
+    expect(xScale(bins)).toMatchObject({ lo: 10, hi: 40, passed: false });
+    const timeBins = ruled(rect([10, 20], [20, 30], [[1, 2]], {}, { axis: "time" }), "x", 40);
+    expect(xScale(timeBins)).toMatchObject({ type: "time", lo: 10, hi: 40 });
+    const sampled = ruled(line([5, 25], [[1, 2]]), "x", 40);
+    expect(xScale(sampled)).toMatchObject({ lo: 5, hi: 40, passed: false });
+    expect(xScale({ ...sampled, x: { type: "time" } })).toMatchObject({ lo: 5, hi: 40 });
+    const dots: ChartSpec = { data: events({ a: [3, 50], b: [] }), mark: { mark: "dot" } };
+    expect(xScale(dots)).toMatchObject({ type: "time", lo: 3, hi: 50 });
   });
 
   it("spans only the positive edges on a log scale, never its rules", () => {
-    const scale = xScale(readDelays(undefined, 400, 4 * DAY));
-    expect(scale).toMatchObject({ lo: S, hi: 3 * DAY, passed: false });
+    const scale = xScale(readDelays(undefined, 0.4, 4 * D.day));
+    expect(scale).toMatchObject({ lo: D.s, hi: 3 * D.day, passed: false });
   });
 
   it("keeps a passed domain whatever the data holds", () => {
-    const marks = [rect([10], [20], [1]), { mark: "rule" as const, x: 90, label: "Far" }];
-    expect(xScale({ x: { domain: [0, 50] }, marks })).toMatchObject({
-      lo: 0,
-      hi: 50,
-      passed: true,
-    });
+    const spec = ruled(rect([10], [20], [[1]], { x: { domain: [0, 50] } }), "x", 90);
+    expect(xScale(spec)).toMatchObject({ lo: 0, hi: 50, passed: true });
   });
 
   it("knows when every x is an integer", () => {
-    expect(xScale({ x: {}, marks: [rect([1, 2], [2, 3], [1, 1])] }).integer).toBe(true);
-    expect(xScale({ x: {}, marks: [rect([1, 2.5], [2.5, 3], [1, 1])] }).integer).toBe(false);
+    expect(xScale(rect([1, 2], [2, 3], [[1, 1]])).integer).toBe(true);
+    expect(xScale(rect([1, 2.5], [2.5, 3], [[1, 1]])).integer).toBe(false);
   });
 
   it("widens a linear extent of one value, and spans 0 to 1 with no value", () => {
-    const one = { mark: "line" as const, x: [5], series: [{ name: "a", y: [1] }] };
-    expect(xScale({ x: {}, marks: [one] })).toMatchObject({ lo: 4, hi: 6 });
-    expect(xScale({ x: {}, marks: [] })).toMatchObject({ lo: 0, hi: 1 });
+    expect(xScale(line([5], [[1]]))).toMatchObject({ lo: 4, hi: 6 });
+    expect(xScale(bare({}))).toMatchObject({ lo: 0, hi: 1 });
   });
 });
 
 describe("the underflow bin", () => {
   it("draws the read histogram's first bin below the 1 sec low end, as wide as its neighbour", () => {
-    const scale = xScale(readDelays([S, 3 * DAY]));
+    const scale = xScale(readDelays([D.s, 3 * D.day]));
     expect(scale.under).toMatchObject({
       mark: 0,
       index: 0,
       x1: 0,
       drawn: "below",
-      from: 500,
+      from: 0.5,
     });
-    expect(scale.drawnLo).toBe(500);
+    expect(scale.drawnLo).toBe(0.5);
   });
 
   it("draws the same with no domain", () => {
-    expect(xScale(readDelays()).drawnLo).toBe(500);
+    expect(xScale(readDelays()).drawnLo).toBe(0.5);
   });
 
   it("takes a factor of 2 with no neighbour, and its neighbour's factor when it has one", () => {
-    const alone: ChartSpec = {
-      x: { type: "log", domain: [S, 4 * S] },
-      marks: [rect([0], [S], [3])],
-    };
+    const alone = rect([0], [S], [[3]], { x: { type: "log", domain: [S, 4 * S] } });
     expect(xScale(alone).under?.from).toBe(500);
-    const wide: ChartSpec = { x: { type: "log" }, marks: [rect([0, S], [S, 3 * S], [3, 4])] };
+    const wide = rect([0, S], [S, 3 * S], [[3, 4]], { x: { type: "log" } });
     expect(xScale(wide).under?.from).toBeCloseTo(S / 3, 9);
   });
 
   it("leaves the bin out under a 10 sec low end, drawing from 10 sec", () => {
-    const scale = xScale(readDelays([10 * S, 3 * DAY]));
+    const scale = xScale(readDelays([10 * D.s, 3 * D.day]));
     expect(scale.under?.drawn).toBe("out");
-    expect(scale.drawnLo).toBe(10 * S);
+    expect(scale.drawnLo).toBe(10 * D.s);
   });
 
   it("leaves the bin out under a 1.5 sec low end, from which the 1 to 2 sec bin is cut", () => {
-    const scale = xScale(readDelays([1_500, 3 * DAY]));
+    const scale = xScale(readDelays([1.5, 3 * D.day]));
     expect(scale.under?.drawn).toBe("out");
-    expect(scale.drawnLo).toBe(1_500);
+    expect(scale.drawnLo).toBe(1.5);
   });
 
   it("cuts a bin whose x2 lies above the low end", () => {
-    const spec: ChartSpec = {
+    const spec = rect([0, 2 * S], [2 * S, 5 * S], [[1, 1]], {
       x: { type: "log", domain: [S, 10 * S] },
-      marks: [rect([0, 2 * S], [2 * S, 5 * S], [1, 1])],
-    };
+    });
     expect(xScale(spec).under).toMatchObject({ drawn: "cut", from: S });
   });
 
-  it("throws a RangeError for a second rect whose x1 is 0 or below", () => {
-    const one: ChartSpec = {
-      x: { type: "log" },
-      marks: [rect([-5, 0, S], [0, S, 2 * S], [1, 1, 1])],
-    };
+  it("throws a RangeError for a second bin whose x1 is 0 or below", () => {
+    const one = rect([-5, 0, S], [0, S, 2 * S], [[1, 1, 1]], { x: { type: "log" } });
     expect(() => xScale(one)).toThrow(RangeError);
   });
 
-  it("never treats a rect above 0 as an underflow bin", () => {
-    const spec: ChartSpec = {
-      x: { type: "log", domain: [10 * S, 20 * S] },
-      marks: [rect([S], [2 * S], [1])],
-    };
+  it("never treats a bin above 0 as an underflow bin", () => {
+    const spec = rect([S], [2 * S], [[1]], { x: { type: "log", domain: [10 * S, 20 * S] } });
     expect(xScale(spec).under).toBeUndefined();
   });
 });
 
 describe("ruleAt", () => {
   it("puts the read histogram's 1 sec median on the tick and a 999 ms one at the bin's middle", () => {
-    const scale = xScale(readDelays([S, 3 * DAY]));
-    expect(ruleAt(scale, S)).toEqual({ at: S });
-    expect(ruleAt(scale, 999)).toEqual({ at: Math.sqrt(500 * 1_000) });
+    const scale = xScale(readDelays([D.s, 3 * D.day]));
+    expect(ruleAt(scale, D.s)).toEqual({ at: D.s });
+    expect(ruleAt(scale, 0.999)).toEqual({ at: Math.sqrt(0.5 * 1) });
   });
 
   it("puts a 400 ms median at the bin's middle with no domain", () => {
-    const scale = xScale(readDelays(undefined, 400));
-    expect(scale.drawnLo).toBe(500);
-    expect(ruleAt(scale, 400)).toEqual({ at: Math.sqrt(500 * 1_000) });
+    const scale = xScale(readDelays(undefined, 0.4));
+    expect(scale.drawnLo).toBe(0.5);
+    expect(ruleAt(scale, 0.4)).toEqual({ at: Math.sqrt(0.5 * 1) });
   });
 
   it("puts a rule outside the domain off the axis at its nearer end", () => {
-    const scale = xScale(readDelays([S, 3 * DAY]));
-    expect(ruleAt(scale, 4 * DAY)).toEqual({ off: "high" });
+    const scale = xScale(readDelays([D.s, 3 * D.day]));
+    expect(ruleAt(scale, 4 * D.day)).toEqual({ off: "high" });
     expect(ruleAt(scale, -1)).toEqual({ off: "low" });
-    const cut = xScale(readDelays([10 * S, 3 * DAY]));
-    expect(ruleAt(cut, 400)).toEqual({ off: "low" });
-    expect(ruleAt(xScale({ x: { domain: [0, 10] }, marks: [] }), 12)).toEqual({ off: "high" });
+    const cut = xScale(readDelays([10 * D.s, 3 * D.day]));
+    expect(ruleAt(cut, 0.4)).toEqual({ off: "low" });
+    expect(ruleAt(xScale(bare({ domain: [0, 10] })), 12)).toEqual({ off: "high" });
   });
 });
 
 describe("yScale", () => {
-  it("is a band of the dot rows, in the app's order", () => {
-    const dots: Mark = {
-      mark: "dot",
-      rows: [
-        { name: "b", x: [] },
-        { name: "a", x: [1] },
-      ],
+  it("is a band of the dot rows, in the frame's order", () => {
+    const dots: ChartSpec = {
+      data: events({ b: [], a: [1] }),
+      mark: { mark: "dot" },
+      y: { mono: true },
     };
-    expect(yScale({ x: { type: "time" }, y: { mono: true }, marks: [dots] })).toEqual({
-      type: "band",
-      rows: ["b", "a"],
-      mono: true,
-    });
+    expect(yScale(dots)).toEqual({ type: "band", rows: ["b", "a"], mono: true });
   });
 
   it("spans every stack's total from zero, a null counting as 0", () => {
-    const y = continuous(yScale({ x: {}, marks: [rect([0, 1], [1, 2], [1, 2], [3, null])] }));
+    const y = continuous(
+      yScale(
+        rect(
+          [0, 1],
+          [1, 2],
+          [
+            [1, 2],
+            [3, null],
+          ],
+        ),
+      ),
+    );
     expect(y).toMatchObject({ type: "linear", lo: 0, hi: 4, integer: true });
   });
 
   describe("a 100% stack", () => {
-    const shared = (x1: number[], x2: number[], ...ys: number[][]): Mark => ({
-      ...(rect(x1, x2, ...ys) as Extract<Mark, { mark: "rect" }>),
-      arrange: "share",
-    });
-    const share = shared([0, 1], [1, 2], [1, 7], [3, 2]);
+    const shared = (
+      values: readonly Values[],
+      more: Omit<ChartSpec, "data" | "mark" | "facets"> = {},
+    ) => rect([0, 1], [1, 2], values, more, {}, { arrange: "share" });
+    const share = shared([
+      [1, 7],
+      [3, 2],
+    ]);
 
     it("spans 0 to 1 as a passed domain, in percent unless y says another format", () => {
-      expect(continuous(yScale({ x: {}, marks: [share] }))).toMatchObject({
+      expect(continuous(yScale(share))).toMatchObject({
         lo: 0,
         hi: 1,
         passed: true,
         integer: false,
         format: "percent",
       });
-      expect(continuous(yScale({ x: {}, y: { format: "number" }, marks: [share] })).format).toBe(
-        "number",
-      );
-    });
-
-    it("leaves a rule above 1 off the axis, where a stack would stretch to hold it", () => {
-      const y = continuous(yScale({ x: {}, marks: [share, { mark: "rule", y: 2, label: "Cap" }] }));
-      expect(ruleAt(y, 2)).toEqual({ off: "high" });
-      expect(ruleAt(y, 0.5)).toEqual({ at: 0.5 });
+      expect(continuous(yScale({ ...share, y: { format: "number" } })).format).toBe("number");
     });
 
     it("refuses a domain and still refuses a negative value", () => {
-      expect(() => yScale({ x: {}, y: { domain: [0, 1] }, marks: [share] })).toThrow(
+      expect(() => yScale({ ...share, y: { domain: [0, 1] } })).toThrow(
         "renderChart: a 100% stack's y runs 0 to 1, so it takes no domain",
       );
-      expect(() => yScale({ x: {}, marks: [shared([0], [1], [1], [-1])] })).toThrow(RangeError);
+      expect(() =>
+        yScale(
+          shared([
+            [1, 1],
+            [-1, 1],
+          ]),
+        ),
+      ).toThrow(RangeError);
     });
   });
 
   it("spans a group's largest single value from zero, not its totals", () => {
-    const grouped: Mark = {
-      mark: "rect",
-      arrange: "group",
-      x1: [0, 1],
-      x2: [1, 2],
-      series: [
-        { name: "a", y: [1, 7] },
-        { name: "b", y: [3, 2] },
+    const grouped = rect(
+      [0, 1],
+      [1, 2],
+      [
+        [1, 7],
+        [3, 2],
       ],
-    };
-    expect(continuous(yScale({ x: {}, marks: [grouped] }))).toMatchObject({ lo: 0, hi: 7 });
+      {},
+      {},
+      { arrange: "group" },
+    );
+    expect(continuous(yScale(grouped))).toMatchObject({ lo: 0, hi: 7 });
   });
 
   it("spans an area's stack totals from zero, leaving out a sample with a gap", () => {
-    const stacked: Mark = {
-      mark: "area",
-      x: [0, 1, 2],
-      series: [
-        { name: "a", y: [1, 9, 2] },
-        { name: "b", y: [3, null, 2] },
-      ],
+    const stacked: ChartSpec = {
+      data: seriesFrame(
+        [0, 1, 2],
+        [
+          [1, 9, 2],
+          [3, null, 2],
+        ],
+      ),
+      mark: { mark: "area" },
     };
-    expect(continuous(yScale({ x: {}, marks: [stacked] }))).toMatchObject({ lo: 0, hi: 4 });
-    expect(xScale({ x: {}, marks: [stacked] })).toMatchObject({ lo: 0, hi: 2 });
+    expect(continuous(yScale(stacked))).toMatchObject({ lo: 0, hi: 4 });
+    expect(xScale(stacked)).toMatchObject({ lo: 0, hi: 2 });
   });
 
   it("spans line values and rules, from zero unless zero is false", () => {
-    const marks: Mark[] = [
-      { mark: "line", x: [0, 1, 2], series: [{ name: "a", y: [5, Number.NaN, 9.5] }] },
-      { mark: "rule", y: 12, label: "Cap" },
-    ];
-    expect(yScale({ x: {}, marks })).toMatchObject({ lo: 0, hi: 12, integer: false });
-    expect(yScale({ x: {}, y: { zero: false }, marks })).toMatchObject({ lo: 5, hi: 12 });
+    const spec = ruled(line([0, 1, 2], [[5, Number.NaN, 9.5]]), undefined, 12);
+    expect(yScale(spec)).toMatchObject({ lo: 0, hi: 12, integer: false });
+    expect(yScale({ ...spec, y: { zero: false } })).toMatchObject({ lo: 5, hi: 12 });
   });
 
   it("spans 0 to 1 when every value is 0", () => {
-    expect(yScale({ x: {}, marks: [rect([0], [1], [0])] })).toMatchObject({ lo: 0, hi: 1 });
+    expect(yScale(rect([0], [1], [[0]]))).toMatchObject({ lo: 0, hi: 1 });
   });
 
   it("spans only positive values on a log y", () => {
-    const marks: Mark[] = [
-      { mark: "line", x: [0, 1, 2], series: [{ name: "a", y: [0, 10, 1_000] }] },
-    ];
-    expect(yScale({ x: {}, y: { type: "log" }, marks })).toMatchObject({ lo: 10, hi: 1_000 });
+    const spec = line([0, 1, 2], [[0, 10, 1_000]], { y: { type: "log" } });
+    expect(yScale(spec)).toMatchObject({ lo: 10, hi: 1_000 });
   });
 });
 
 describe("scale errors", () => {
-  const line: Mark = { mark: "line", x: [0, 1], series: [{ name: "a", y: [1, 2] }] };
+  const plain = line([0, 1], [[1, 2]]);
+  const dots: ChartSpec = { data: events({}), mark: { mark: "dot" } };
 
   it.each<[string, ChartSpec, ErrorConstructor]>([
-    ["a band x", { x: { type: "band" }, marks: [] }, TypeError],
-    ["a log x domain at 0", { x: { type: "log", domain: [0, 10] }, marks: [] }, RangeError],
-    [
-      "a log x with no positive value",
-      { x: { type: "log" }, marks: [rect([-2], [0], [1])] },
-      RangeError,
-    ],
-    ["a domain low above high", { x: { domain: [5, 1] }, marks: [] }, RangeError],
-    [
-      "a domain that is not finite",
-      { x: { domain: [0, Number.POSITIVE_INFINITY] }, marks: [] },
-      RangeError,
-    ],
+    ["a band x", bare({ type: "band" }), TypeError],
+    ["a log x domain at 0", bare({ type: "log", domain: [0, 10] }), RangeError],
+    ["a log x with no positive value", rect([-2], [0], [[1]], { x: { type: "log" } }), RangeError],
+    ["a domain low above high", bare({ domain: [5, 1] }), RangeError],
+    ["a domain that is not finite", bare({ domain: [0, Number.POSITIVE_INFINITY] }), RangeError],
   ])("x: %s throws its type", (_, spec, type) => {
     expect(() => xScale(spec)).toThrow(type);
   });
 
   it.each<[string, ChartSpec, ErrorConstructor]>([
-    [
-      "a linear y under dots",
-      { x: {}, y: { type: "linear" }, marks: [{ mark: "dot", rows: [] }] },
-      TypeError,
-    ],
-    [
-      "a domain on a band",
-      { x: {}, y: { domain: [0, 1] }, marks: [{ mark: "dot", rows: [] }] },
-      TypeError,
-    ],
-    [
-      "zero false under a rect",
-      { x: {}, y: { zero: false }, marks: [rect([0], [1], [1])] },
-      TypeError,
-    ],
-    [
-      "a log y under a rect",
-      { x: {}, y: { type: "log" }, marks: [rect([0], [1], [1])] },
-      TypeError,
-    ],
+    ["a linear y under dots", { ...dots, y: { type: "linear" } }, TypeError],
+    ["a domain on a band", { ...dots, y: { domain: [0, 1] } }, TypeError],
+    ["zero false under a rect", rect([0], [1], [[1]], { y: { zero: false } }), TypeError],
+    ["a log y under a rect", rect([0], [1], [[1]], { y: { type: "log" } }), TypeError],
     [
       "a rect's y domain that leaves out 0",
-      { x: {}, y: { domain: [1, 10] }, marks: [rect([0], [1], [1])] },
+      rect([0], [1], [[1]], { y: { domain: [1, 10] } }),
       RangeError,
     ],
-    ["a negative y under a rect", { x: {}, marks: [rect([0], [1], [-1])] }, RangeError],
-    [
-      "an infinite rect y",
-      { x: {}, marks: [rect([0], [1], [Number.POSITIVE_INFINITY])] },
-      RangeError,
-    ],
-    [
-      "an infinite line y",
-      {
-        x: {},
-        marks: [{ mark: "line", x: [0], series: [{ name: "a", y: [Number.NEGATIVE_INFINITY] }] }],
-      },
-      RangeError,
-    ],
-    ["a band y without dots", { x: {}, y: { type: "band" }, marks: [line] }, TypeError],
+    ["a negative y under a rect", rect([0], [1], [[-1]]), RangeError],
+    ["an infinite rect y", rect([0], [1], [[Number.POSITIVE_INFINITY]]), RangeError],
+    ["an infinite line y", line([0], [[Number.NEGATIVE_INFINITY]]), RangeError],
+    ["a band y without dots", { ...plain, y: { type: "band" } }, TypeError],
   ])("y: %s throws its type", (_, spec, type) => {
     expect(() => yScale(spec)).toThrow(type);
   });
@@ -343,64 +348,54 @@ describe("scale errors", () => {
   it.each<[readonly [number, number]]>([[[1e16 + 2, 1e16 + 6]], [[1e16, 1e16 + 2]], [[0, 5e-324]]])(
     "refuses a passed linear domain %j narrower than its resolution, which holds no tick",
     (domain) => {
-      expect(() => xScale({ x: { domain }, marks: [line] })).toThrow(
+      expect(() => xScale({ ...plain, x: { domain } })).toThrow(
         new RangeError("renderChart: x.domain is too narrow for its ticks to tell its ends apart"),
       );
-      expect(() => yScale({ x: {}, y: { domain }, marks: [line] })).toThrow(
+      expect(() => yScale({ ...plain, y: { domain } })).toThrow(
         new RangeError("renderChart: y.domain is too narrow for its ticks to tell its ends apart"),
       );
     },
   );
 
   it("takes a passed linear domain as wide as its resolution, and any time domain", () => {
-    expect(xScale({ x: { domain: [1e16, 1e16 + 1e5] }, marks: [line] }).hi).toBe(1e16 + 1e5);
-    expect(xScale({ x: { type: "time", domain: [1e12, 1e12 + 1] }, marks: [] }).hi).toBe(1e12 + 1);
+    expect(xScale({ ...plain, x: { domain: [1e16, 1e16 + 1e5] } }).hi).toBe(1e16 + 1e5);
+    expect(xScale(bare({ type: "time", domain: [1e12, 1e12 + 1] })).hi).toBe(1e12 + 1);
   });
 });
 
 describe("a bar chart's scales", () => {
-  const bars = (...series: (number | null)[][]): ChartSpec => ({
-    x: {},
-    marks: [
-      {
-        mark: "bar",
-        y: (series[0] ?? []).map((_, i) => `c${String(i)}`),
-        series: series.map((x, k) => ({ name: `s${String(k)}`, x })),
-      },
-    ],
-  });
+  // A series per values list keyed a, b, ... over rows c0, c1, ....
+  const bars = (mark: object, ...series: Values[]): ChartSpec =>
+    ({
+      data: categories(
+        (series[0] ?? []).map((_, i) => `c${String(i)}`),
+        series,
+      ),
+      mark: { mark: "bar", ...mark },
+    }) as ChartSpec;
 
   it("takes x from 0 to the largest stack, its negatives leftward", () => {
-    const x = xScale(bars([3, 1], [4, null]));
+    const x = xScale(bars({}, [3, 1], [4, null]));
     expect([x.lo, x.hi, x.integer]).toEqual([0, 7, true]);
-    const signed = xScale(bars([3, -2], [-1, -4]));
+    const signed = xScale(bars({}, [3, -2], [-1, -4]));
     expect([signed.lo, signed.hi]).toEqual([-6, 3]);
   });
 
   it("takes a group's x from its lowest to its highest single value", () => {
-    const spec = bars([3, -2], [4, -5]);
-    const grouped = {
-      ...spec,
-      marks: [{ ...(spec.marks[0] as BarMark), arrange: "group" as const }],
-    };
-    const x = xScale(grouped);
+    const x = xScale(bars({ arrange: "group" }, [3, -2], [4, -5]));
     expect([x.lo, x.hi]).toEqual([-5, 4]);
   });
 
   it("holds 0 and its rules when every value is above 0", () => {
-    const spec = bars([40, 50]);
-    const x = xScale({ ...spec, marks: [...spec.marks, { mark: "rule", x: 60, label: "Target" }] });
+    const x = xScale(ruled(bars({}, [40, 50]), undefined, 60));
     expect([x.lo, x.hi]).toEqual([0, 60]);
   });
 
   describe("a 100% stack", () => {
-    const share = (spec: ChartSpec): ChartSpec => ({
-      ...spec,
-      marks: [{ ...(spec.marks[0] as BarMark), arrange: "share" as const }, ...spec.marks.slice(1)],
-    });
+    const share = { arrange: "share" };
 
     it("spans 0 to 1 as a passed domain, in percent unless x says another format", () => {
-      expect(xScale(share(bars([3, 1], [1, 4])))).toMatchObject({
+      expect(xScale(bars(share, [3, 1], [1, 4]))).toMatchObject({
         lo: 0,
         hi: 1,
         passed: true,
@@ -408,89 +403,72 @@ describe("a bar chart's scales", () => {
         format: "percent",
         reverse: false,
       });
-      const own = { ...share(bars([3], [1])), x: { format: "number" as const, reverse: true } };
+      const own = { ...bars(share, [3], [1]), x: { format: "number" as const, reverse: true } };
       expect(xScale(own)).toMatchObject({ format: "number", reverse: true });
     });
 
-    it("leaves a rule above 1 off the axis, where a stack would stretch to hold it", () => {
-      const spec = share(bars([3], [1]));
-      const x = xScale({ ...spec, marks: [...spec.marks, { mark: "rule", x: 2, label: "Cap" }] });
-      expect([x.lo, x.hi]).toEqual([0, 1]);
-      expect(ruleAt(x, 2)).toEqual({ off: "high" });
-    });
-
     it("refuses a domain and a negative value", () => {
-      expect(() => xScale({ ...share(bars([3], [1])), x: { domain: [0, 1] } })).toThrow(
+      expect(() => xScale({ ...bars(share, [3], [1]), x: { domain: [0, 1] } })).toThrow(
         "renderChart: a 100% stack's x runs 0 to 1, so it takes no domain",
       );
-      expect(() => xScale(share(bars([3], [-1])))).toThrow(
+      expect(() => xScale(bars(share, [3], [-1]))).toThrow(
         "renderChart: a 100% stack's x cannot be negative",
       );
     });
 
     it("runs a split's x from 0 to its largest single value, and refuses a negative one", () => {
-      const split = (spec: ChartSpec): ChartSpec => ({
-        ...spec,
-        marks: spec.marks.map((m) => (m.mark === "bar" ? { ...m, arrange: "split" } : m)),
-      });
-      expect(xScale(split(bars([30, 5], [20, 40])))).toMatchObject({ lo: 0, hi: 40 });
-      expect(() => xScale(split(bars([3], [-1])))).toThrow(
+      const split = { arrange: "split" };
+      expect(xScale(bars(split, [30, 5], [20, 40]))).toMatchObject({ lo: 0, hi: 40 });
+      expect(() => xScale(bars(split, [3], [-1]))).toThrow(
         "renderChart: a split bar's x cannot be negative",
       );
     });
 
     it("runs a mirror's x from 0 to the larger side's largest value", () => {
-      const spec = bars([30, 5], [20, 44]);
-      const mirror: ChartSpec = {
-        ...spec,
-        marks: spec.marks.map((m) => (m.mark === "bar" ? { ...m, arrange: "mirror" } : m)),
-      };
-      expect(xScale(mirror)).toMatchObject({ lo: 0, hi: 44, absolute: false });
+      expect(xScale(bars({ arrange: "mirror" }, [30, 5], [20, 44]))).toMatchObject({
+        lo: 0,
+        hi: 44,
+        absolute: false,
+      });
     });
   });
 
   describe("a diverging stack", () => {
-    const diverge = (spec: ChartSpec, left: number, centre?: boolean): ChartSpec => ({
-      ...spec,
-      marks: spec.marks.map((m) =>
-        m.mark === "bar"
-          ? { ...m, arrange: "diverge", left, ...(centre === undefined ? {} : { centre }) }
-          : m,
-      ),
+    const diverge = (left: number, centre?: boolean) => ({
+      arrange: "diverge",
+      left,
+      ...(centre === undefined ? {} : { centre }),
     });
 
     it("reaches from the widest left extent to the widest right one, a centre series half each side", () => {
-      const likert = diverge(bars([10, 5], [15, 5], [20, 0], [30, 40], [25, 50]), 2, true);
+      const likert = bars(diverge(2, true), [10, 5], [15, 5], [20, 0], [30, 40], [25, 50]);
       // Row 1: 10 + 15 + 20 / 2 left and 20 / 2 + 30 + 25 right; row 2: 10 left, 90 right.
       const x = xScale(likert);
       expect([x.lo, x.hi]).toEqual([-35, 90]);
       expect(x.absolute).toBe(true);
-      const plain = xScale(diverge(bars([10, 40], [30, 5], [null, 20]), 1));
+      const plain = xScale(bars(diverge(1), [10, 40], [30, 5], [null, 20]));
       expect([plain.lo, plain.hi]).toEqual([-40, 30]);
     });
 
     it("holds a rule on both sides and refuses a negative value, whose side comes from its order", () => {
-      const spec = diverge(bars([10], [30]), 1);
-      const x = xScale({ ...spec, marks: [...spec.marks, { mark: "rule", x: 50, label: "Goal" }] });
+      const spec = bars(diverge(1), [10], [30]);
       // The rule draws at 50 either side of 0, so each side's extent reaches it.
+      const x = xScale(ruled(spec, undefined, 50));
       expect([x.lo, x.hi]).toEqual([-50, 50]);
-      const near = xScale({
-        ...spec,
-        marks: [...spec.marks, { mark: "rule", x: 5, label: "Aim" }],
-      });
+      const near = xScale(ruled(spec, undefined, 5));
       expect([near.lo, near.hi]).toEqual([-10, 30]);
-      expect(() => xScale(diverge(bars([10], [-3]), 1))).toThrow(
+      expect(() => xScale(bars(diverge(1), [10], [-3]))).toThrow(
         "renderChart: a diverging bar's x cannot be negative",
       );
     });
 
     it("writes signed ticks on every other bar chart", () => {
-      expect(xScale(bars([3, -2], [1, 4])).absolute).toBe(false);
+      expect(xScale(bars({}, [3, -2], [1, 4])).absolute).toBe(false);
     });
   });
 
-  it("names the band y's rows in the app's order", () => {
-    expect(yScale(bars([1, 2, 3]))).toEqual({
+  it("names the band y's rows in the frame's order", () => {
+    expect(yScale(bars({}, [1, 2, 3]))).toEqual({
       type: "band",
       rows: ["c0", "c1", "c2"],
       mono: false,
@@ -499,15 +477,13 @@ describe("a bar chart's scales", () => {
 });
 
 describe("a point chart's scales", () => {
-  const points = (x: NonNullable<ChartSpec["x"]>, ...series: (number | null)[][]): ChartSpec => ({
+  const points = (x: Scale, ...series: Values[]): ChartSpec => ({
+    data: categories(
+      (series[0] ?? []).map((_, i) => `c${String(i)}`),
+      series,
+    ),
+    mark: { mark: "point" },
     x,
-    marks: [
-      {
-        mark: "point",
-        y: (series[0] ?? []).map((_, i) => `c${String(i)}`),
-        series: series.map((v, k) => ({ name: `s${String(k)}`, x: v })),
-      },
-    ],
   });
 
   it("takes x over the values without 0, since no length encodes them", () => {
@@ -527,12 +503,8 @@ describe("a point chart's scales", () => {
   it("widens one value and takes its rules", () => {
     const one = xScale(points({}, [5]));
     expect([one.lo, one.hi]).toEqual([4, 6]);
-    const spec = points({}, [40, 50]);
-    const ruled = xScale({
-      ...spec,
-      marks: [...spec.marks, { mark: "rule", x: 60, label: "Aim" }],
-    });
-    expect([ruled.lo, ruled.hi]).toEqual([40, 60]);
+    const x = xScale(ruled(points({}, [40, 50]), undefined, 60));
+    expect([x.lo, x.hi]).toEqual([40, 60]);
   });
 
   it("takes a log x above 0 and a time x over its instants", () => {
@@ -549,10 +521,7 @@ describe("a point chart's scales", () => {
     );
   });
 
-  it("refuses an infinite value, 0 or below on a log x, and zero off a linear x", () => {
-    expect(() => xScale(points({}, [Number.POSITIVE_INFINITY]))).toThrow(
-      "renderChart: a point's x cannot be infinite",
-    );
+  it("refuses 0 or below on a log x and zero on a time x", () => {
     expect(() => xScale(points({ type: "log" }, [0]))).toThrow(
       "renderChart: a point's x must be above 0 on a log x",
     );
@@ -560,18 +529,19 @@ describe("a point chart's scales", () => {
       "renderChart: a time x has no zero to hold",
     );
   });
+
+  it("refuses an infinite value by its field", () => {
+    expect(() => xScale(points({}, [Number.POSITIVE_INFINITY]))).toThrow(
+      /^renderChart: data\.series\[0\]\.values\[0\]/u,
+    );
+  });
 });
 
 describe("a slope's scales", () => {
-  const slope = (y: ChartSpec["y"], ...series: (number | null)[][]): ChartSpec => ({
+  const slope = (y: ChartSpec["y"], ...series: Values[]): ChartSpec => ({
+    data: categories(["Before", "After"], series),
+    mark: { mark: "slope" },
     ...(y === undefined ? {} : { y }),
-    marks: [
-      {
-        mark: "slope",
-        x: ["Before", "After"],
-        series: series.map((v, k) => ({ name: `s${String(k)}`, y: v })),
-      },
-    ],
   });
 
   it("puts its two columns at 0 and 1 of an x it names itself", () => {
@@ -596,36 +566,26 @@ describe("a slope's scales", () => {
   });
 
   it("takes a negative end below 0 and a y rule into its extent", () => {
-    const spec = slope(undefined, [-4, 12]);
-    const ruled = {
-      ...spec,
-      marks: [...spec.marks, { mark: "rule" as const, y: 20, label: "Goal" }],
-    };
-    expect(continuous(yScale(ruled))).toMatchObject({ lo: -4, hi: 20 });
+    expect(continuous(yScale(ruled(slope(undefined, [-4, 12]), undefined, 20)))).toMatchObject({
+      lo: -4,
+      hi: 20,
+    });
   });
 });
 
 describe("a scatter's scales", () => {
-  const scatter = (
-    x: NonNullable<ChartSpec["x"]>,
-    y: NonNullable<ChartSpec["y"]>,
-    ...dots: [number | null, number | null][]
-  ): ChartSpec => ({
+  const scatter = (x: Scale, y: Scale, ...dots: [number | null, number | null][]): ChartSpec => ({
+    data: pointsFrame([
+      {
+        key: "All",
+        names: dots.map((_, i) => `d${String(i)}`),
+        x: dots.map((d) => d[0]),
+        y: dots.map((d) => d[1]),
+      },
+    ]),
+    mark: { mark: "scatter" },
     x: { label: "GDP per capita", ...x },
     y: { label: "Life expectancy", ...y },
-    marks: [
-      {
-        mark: "scatter",
-        series: [
-          {
-            name: "All",
-            names: dots.map((_, i) => `d${String(i)}`),
-            x: dots.map((d) => d[0]),
-            y: dots.map((d) => d[1]),
-          },
-        ],
-      },
-    ],
   });
 
   it("holds 0 on neither axis unless zero is true, since a dot's place is its value", () => {
@@ -643,34 +603,33 @@ describe("a scatter's scales", () => {
     expect(continuous(yScale(spec))).toMatchObject({ type: "log", lo: 53, hi: 85.9 });
   });
 
-  it("takes rules on either axis into its extents", () => {
+  it("takes rules on either axis into its extents, y by default", () => {
     const spec = scatter({}, {}, [10, 50], [20, 60]);
-    const ruled = {
+    const both: ChartSpec = {
       ...spec,
-      marks: [
-        ...spec.marks,
-        { mark: "rule" as const, x: 30, label: "Median income" },
-        { mark: "rule" as const, y: 40, label: "Floor" },
-      ],
-    };
-    expect(xScale(ruled)).toMatchObject({ lo: 10, hi: 30 });
-    expect(continuous(yScale(ruled))).toMatchObject({ lo: 40, hi: 60 });
+      data: {
+        ...(spec.data as NonNullable<ChartSpec["data"]>),
+        refs: [
+          { key: "income", value: 30 },
+          { key: "floor", value: 40 },
+        ],
+      },
+      refs: [{ key: "income", label: "Median income", axis: "x" }],
+    } as ChartSpec;
+    expect(xScale(both)).toMatchObject({ lo: 10, hi: 30 });
+    expect(continuous(yScale(both))).toMatchObject({ lo: 40, hi: 60 });
   });
 });
 
 describe("a bubble chart's size scale", () => {
   const bubbles = (r: (number | null)[], x: (number | null)[]): ChartSpec => ({
+    data: pointsFrame([
+      { key: "All", names: r.map((_, i) => `d${String(i)}`), x, y: r.map(() => 70), r },
+    ]),
+    mark: { mark: "scatter" },
     x: { label: "GDP per capita" },
     y: { label: "Life expectancy" },
     r: { label: "Population", format: "integer" },
-    marks: [
-      {
-        mark: "scatter",
-        series: [
-          { name: "All", names: r.map((_, i) => `d${String(i)}`), x, y: r.map(() => 70), r },
-        ],
-      },
-    ],
   });
 
   it("runs from 0 to the largest size of a dot it places, in the scale's format", () => {
@@ -678,15 +637,15 @@ describe("a bubble chart's size scale", () => {
   });
 
   it("leaves a dot with no size out of both position extents, since it draws nothing", () => {
-    const spec = bubbles([5, null, 7], [10, 500, 20]);
-    expect(xScale(spec)).toMatchObject({ lo: 10, hi: 20 });
+    expect(xScale(bubbles([5, null, 7], [10, 500, 20]))).toMatchObject({ lo: 10, hi: 20 });
   });
 
   it("is absent on plain dots", () => {
     const plain: ChartSpec = {
+      data: pointsFrame([{ key: "All", names: ["d"], x: [1], y: [2] }]),
+      mark: { mark: "scatter" },
       x: { label: "a" },
       y: { label: "b" },
-      marks: [{ mark: "scatter", series: [{ name: "All", names: ["d"], x: [1], y: [2] }] }],
     };
     expect(rScale(plain)).toBeUndefined();
   });
@@ -698,14 +657,13 @@ describe("a cell chart's binned scales", () => {
   const gdp = [1_000, 2_000, 5_000, 10_000, 20_000, 50_000];
   const life = [50, 55, 60, 65, 70, 75, 80, 85];
   const grid = (
-    more: Partial<ChartSpec> = {},
-    x: Extract<Mark, { mark: "cell"; values: unknown }>["x"] = { edges: gdp },
-    y: Extract<Mark, { mark: "cell"; values: unknown }>["y"] = { edges: life },
-    rules: Mark[] = [],
+    more: Omit<ChartSpec, "data" | "mark" | "facets"> = {},
+    x: FrameGridAxis = { edges: gdp },
+    y: FrameGridAxis = { edges: life },
   ): ChartSpec => {
-    const columns = "edges" in x ? x.edges.length - 1 : x.length;
-    const rows = "edges" in y ? y.edges.length - 1 : y.length;
-    return { ...more, marks: [{ mark: "cell", x, y, values: values(rows, columns) }, ...rules] };
+    const columns = x.edges === undefined ? (x.names?.length ?? 0) : x.edges.length - 1;
+    const rows = y.edges === undefined ? (y.names?.length ?? 0) : y.edges.length - 1;
+    return { data: gridFrame(x, y, values(rows, columns)), mark: { mark: "cell" }, ...more };
   };
 
   it("spans each binned axis from its first edge to its last, as a passed domain, unniced", () => {
@@ -723,21 +681,31 @@ describe("a cell chart's binned scales", () => {
 
   it("pairs a binned axis with a band of names on the other", () => {
     const days = ["Mon", "Tue"];
-    expect(yScale(grid({}, { edges: gdp }, days))).toEqual({
+    expect(yScale(grid({}, { edges: gdp }, { names: days }))).toEqual({
       type: "band",
       rows: days,
       mono: false,
     });
-    const x = xScale(grid({}, ["a", "b", "c"]));
+    const x = xScale(grid({}, { names: ["a", "b", "c"] }));
     expect([x.lo, x.hi]).toEqual([0, 3]);
-    expect(continuous(yScale(grid({}, ["a", "b", "c"]))).lo).toBe(50);
+    expect(continuous(yScale(grid({}, { names: ["a", "b", "c"] }))).lo).toBe(50);
   });
 
   it("places a rule at its value on a binned axis, and off it past the edges", () => {
-    const spec = grid({}, { edges: gdp }, { edges: life }, [
-      { mark: "rule", x: 3_000, label: "a" },
-      { mark: "rule", y: 90, label: "b" },
-    ]);
+    const spec: ChartSpec = {
+      ...grid(),
+      data: {
+        ...(grid().data as NonNullable<ChartSpec["data"]>),
+        refs: [
+          { key: "a", value: 3_000 },
+          { key: "b", value: 90 },
+        ],
+      },
+      refs: [
+        { key: "a", axis: "x" },
+        { key: "b", axis: "y" },
+      ],
+    } as ChartSpec;
     expect(ruleAt(xScale(spec), 3_000)).toEqual({ at: 3_000 });
     const y = continuous(yScale(spec));
     expect([y.lo, y.hi]).toEqual([50, 85]);
@@ -758,12 +726,12 @@ describe("a cell chart's binned scales", () => {
       grid({ y: { type: "log" } }, undefined, { edges: [-1, 2] }),
       RangeError,
     ],
-    ["a linear type on a named y", grid({ y: { type: "linear" } }, undefined, ["a"]), TypeError],
     [
-      "a y rule on a named y",
-      grid({}, undefined, ["a"], [{ mark: "rule", y: 1, label: "a" }]),
+      "a linear type on a named y",
+      grid({ y: { type: "linear" } }, undefined, { names: ["a"] }),
       TypeError,
     ],
+    ["a y rule on a named y", ruled(grid({}, undefined, { names: ["a"] }), "y", 1), TypeError],
   ])("refuses %s", (_, spec, type) => {
     expect(() => {
       xScale(spec);

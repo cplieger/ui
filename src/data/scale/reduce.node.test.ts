@@ -56,6 +56,22 @@ describe("reduce", () => {
     ]);
   });
 
+  it("ends a run before a break inside a column and starts the next at the next column", () => {
+    const xs = [0, 0.2, 0.4, 0.6, 1.2];
+    const ys = [1, 2, 3, 4, 5];
+    expect(reduce(xs, ys, 0, 5, 1, Number.POSITIVE_INFINITY, (i) => i === 2)).toEqual([
+      [
+        { x: 0, y: 1 },
+        { x: 0.2, y: 2 },
+      ],
+      [
+        { x: 1, y: 3 },
+        { x: 1, y: 4 },
+        { x: 1.2, y: 5 },
+      ],
+    ]);
+  });
+
   it("moves a sample after a gap no further than the end it is given", () => {
     expect(reduce([0, 0.5, 0.8], [1, null, 2], 0, 3, 1, 0.8)).toEqual([
       [{ x: 0, y: 1 }],

@@ -29,6 +29,7 @@ const PURE = [
   "/feed",
   "/file",
   "/form",
+  "/frame",
   "/header-status",
   "/held-list",
   "/highlight",
@@ -74,6 +75,7 @@ const PURE = [
   "/tokens",
   "/tooltip",
   "/turn",
+  "/video",
   "/view-transition",
 ];
 

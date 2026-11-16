@@ -5,8 +5,20 @@ import { installAnnouncer } from "../../feedback/announce/announce.js";
 import { spoken } from "../../feedback/test-helpers/spoken.js";
 import { forgetMeasures } from "../scale/measure.js";
 
+import type { ChartFrame } from "./spec.js";
 import { renderChart, type Chart, type ChartSpec } from "./chart.js";
 import { AREA_ROOM } from "./draw.js";
+import {
+  binsFrame,
+  boxes,
+  categories,
+  events,
+  grid as gridFrame,
+  named,
+  points,
+  seriesFrame,
+  tree,
+} from "./test-helpers/frames.js";
 
 const root = document.documentElement;
 const emulates = server.browser === "chromium";
@@ -54,48 +66,43 @@ const time = (minute: number) =>
 const span = (a: number, b: number) => `${time(a)} to ${time(b)}`;
 const nb = "\u00A0";
 
+const mins = (...minutes: number[]) => minutes.map((m) => START + m * MIN);
+
+// `spec` with frame notes keyed by their text.
+const noted = (spec: ChartSpec, ...notes: (readonly [number, string])[]): ChartSpec =>
+  ({
+    ...spec,
+    data: { ...(spec.data as ChartFrame), notes: notes.map(([x, key]) => ({ key, at: x })) },
+  }) as ChartSpec;
+
 const bars: ChartSpec = {
-  x: { type: "time", domain: [START, START + 60 * MIN] },
+  x: { domain: [START, START + 60 * MIN] },
   y: { label: "Posts", unit: { one: "post", other: "posts" } },
-  marks: [
-    {
-      mark: "rect",
-      x1: [0, 15, 30, 45].map((m) => START + m * MIN),
-      x2: [15, 30, 45, 60].map((m) => START + m * MIN),
-      series: [
-        { name: "Announce", y: [12, 3, 5, 2] },
-        { name: "Path", y: [9, 1, 4, 1] },
-      ],
-    },
-  ],
+  data: binsFrame(mins(0, 15, 30, 45), mins(15, 30, 45, 60), [], {
+    series: named(["Announce", [12, 3, 5, 2]], ["Path", [9, 1, 4, 1]]),
+  }),
+  mark: { mark: "rect" },
 };
 
 const step: ChartSpec = {
   x: { type: "time", domain: [START, START + 7 * MIN] },
   y: { label: "Agents" },
-  marks: [
-    {
-      mark: "line",
-      curve: "step",
-      x: Array.from({ length: 8 }, (_, i) => START + i * MIN),
-      series: [
-        { name: "Live", y: [null, null, 4, 4, 4, 10, 10, 10] },
-        { name: "Active", y: [null, null, 1, 1, 2, 2, 2, 2] },
-      ],
-    },
-  ],
+  data: seriesFrame(mins(0, 1, 2, 3, 4, 5, 6, 7), [], {
+    series: named(
+      ["Live", [null, null, 4, 4, 4, 10, 10, 10]],
+      ["Active", [null, null, 1, 1, 2, 2, 2, 2]],
+    ),
+  }),
+  mark: { mark: "line", curve: "step" },
 };
 
-const strip = (rows: { name: string; x: number[] }[]): ChartSpec => ({
-  x: { type: "time", domain: [START, START + 60 * MIN] },
+const strip = (rows: Record<string, number[]>): ChartSpec => ({
+  x: { domain: [START, START + 60 * MIN] },
   y: { type: "band", unit: { one: "agent", other: "agents" } },
-  marks: [{ mark: "dot", unit: { one: "post", other: "posts" }, rows }],
+  data: events(rows),
+  mark: { mark: "dot", unit: { one: "post", other: "posts" } },
 });
-const agents = strip([
-  { name: "lead-ui", x: [10, 20, 40].map((m) => START + m * MIN) },
-  { name: "docs-bot", x: [] },
-  { name: "ha-agent", x: [5, 38].map((m) => START + m * MIN) },
-]);
+const agents = strip({ "lead-ui": mins(10, 20, 40), "docs-bot": [], "ha-agent": mins(5, 38) });
 
 interface Built {
   readonly figure: HTMLElement;
@@ -256,17 +263,9 @@ describe("keys on a stacked column chart", () => {
     key(b.plot, "Home");
     b.chart.update({
       ...bars,
-      marks: [
-        {
-          mark: "rect",
-          x1: [0, 15].map((m) => START + m * MIN),
-          x2: [15, 30].map((m) => START + m * MIN),
-          series: [
-            { name: "Announce", y: [13, 1] },
-            { name: "Path", y: [9, 1] },
-          ],
-        },
-      ],
+      data: binsFrame(mins(0, 15), mins(15, 30), [], {
+        series: named(["Announce", [13, 1]], ["Path", [9, 1]]),
+      }),
     });
     expect(legendText(b)).toBe(`${span(0, 15)} · Announce · 13 · Path · 9 · 22`);
     expect(ring(b)).not.toBe(null);
@@ -315,19 +314,12 @@ describe("keys on a step line", () => {
 
 describe("keys on a stacked area", () => {
   it("focus says the newest sample with its total, Up and Down each layer in series order", async () => {
-    const x = Array.from({ length: 4 }, (_, i) => START + i * MIN);
     const b = build({
       x: { type: "time" },
-      marks: [
-        {
-          mark: "area",
-          x,
-          series: [
-            { name: "Gas", y: [5, 6, 7, 9] },
-            { name: "Wind", y: [1, 2, 3, 1] },
-          ],
-        },
-      ],
+      data: seriesFrame(mins(0, 1, 2, 3), [], {
+        series: named(["Gas", [5, 6, 7, 9]], ["Wind", [1, 2, 3, 1]]),
+      }),
+      mark: { mark: "area" },
     });
     expect(legendText(b)).toBe(`${time(3)} · Gas · 9 · Wind · 1 · 10`);
     b.plot.focus();
@@ -351,12 +343,7 @@ describe("keys on a timeline", () => {
   });
 
   it("focus on a silent first row selects the row", async () => {
-    const b = build(
-      strip([
-        { name: "docs-bot", x: [] },
-        { name: "a", x: [START] },
-      ]),
-    );
+    const b = build(strip({ "docs-bot": [], a: [START] }));
     b.plot.focus();
     await spoken("docs-bot: no posts");
     expect(crosshair(b)).toBe(null);
@@ -381,10 +368,7 @@ describe("keys on a timeline", () => {
 
 describe("notes in the readings", () => {
   it("a bucket's reading adds the note its interval holds, the legend row never", async () => {
-    const b = build({
-      ...bars,
-      marks: [...bars.marks, { mark: "text", x: START + 20 * MIN, y: 4, text: "Deploy" }],
-    });
+    const b = build(noted(bars, [START + 20 * MIN, "Deploy"]));
     b.plot.focus();
     key(b.plot, "Home");
     await spoken(`${span(0, 15)}: Announce 12, Path 9. Total 21.`);
@@ -396,10 +380,7 @@ describe("notes in the readings", () => {
   });
 
   it("on a step line, the change point holding a note's sample reads it", async () => {
-    const b = build({
-      ...step,
-      marks: [...step.marks, { mark: "text", x: START + 3 * MIN, y: 4, text: "Restart" }],
-    });
+    const b = build(noted(step, [START + 3 * MIN, "Restart"]));
     b.plot.focus();
     await spoken(`${time(7)}: Live 10, Active 2.`);
     key(b.plot, "ArrowLeft");
@@ -410,19 +391,15 @@ describe("notes in the readings", () => {
     await spoken(`${time(2)}: Live 4, Active 1. Note: Restart.`);
   });
 
-  it("a silent row's reading adds its note after a full stop, a post's the note nearest it", async () => {
-    const b = build({
-      ...agents,
-      marks: [
-        ...agents.marks,
-        { mark: "text", x: START + 30 * MIN, y: "docs-bot", text: "Paused" },
-        { mark: "text", x: START + 39 * MIN, y: "lead-ui", text: "Release" },
-      ],
-    });
+  // A timeline's reading is a row or a post, and a note names neither.
+  it("a timeline's readings add no note, which sits at its x on the top edge", async () => {
+    const b = build(noted(agents, [START + 30 * MIN, "Paused"], [START + 39 * MIN, "Release"]));
     b.plot.focus();
-    await spoken(`lead-ui: ${time(40)}. Note: Release.`);
+    await spoken(`lead-ui: ${time(40)}.`);
     key(b.plot, "ArrowDown");
-    await spoken("docs-bot: no posts. Note: Paused.");
+    await spoken("docs-bot: no posts");
+    const notes = b.plot.querySelectorAll('[data-part="area"] > [data-part="note"]');
+    expect([...notes].map((n) => n.textContent)).toEqual(["Paused", "Release"]);
   });
 });
 
@@ -508,24 +485,24 @@ describe("a selection at the plot's ends", () => {
       "a line",
       {
         x: {},
-        marks: [{ mark: "line", x: [0, 1, 2, 3], series: [{ name: "Live", y: [4, 9, 2, 7] }] }],
+        data: seriesFrame([0, 1, 2, 3], [], { series: named(["Live", [4, 9, 2, 7]]) }),
+        mark: { mark: "line" },
       },
     ],
     [
       "a line reaching the plot's bottom and top",
       {
         x: {},
-        marks: [{ mark: "line", x: [0, 1, 2, 3], series: [{ name: "Live", y: [0, 9, 2, 10] }] }],
+        data: seriesFrame([0, 1, 2, 3], [], { series: named(["Live", [0, 9, 2, 10]]) }),
+        mark: { mark: "line" },
       },
     ],
     [
       "a dot row",
       {
-        x: { type: "time" },
         y: { type: "band" },
-        marks: [
-          { mark: "dot", rows: [{ name: "lead-ui", x: [0, 10, 20].map((m) => START + m * MIN) }] },
-        ],
+        data: events({ "lead-ui": mins(0, 10, 20) }),
+        mark: { mark: "dot" },
       },
     ],
   ];
@@ -576,16 +553,10 @@ describe("keys and touch on a bar chart", () => {
   const firms: ChartSpec = {
     x: {},
     y: { unit: { one: "company", other: "companies" } },
-    marks: [
-      {
-        mark: "bar",
-        y: ["Acme", "Brill", "Corda"],
-        series: [
-          { name: "Domestic", x: [40, 3, 7] },
-          { name: "International", x: [2, 22, 2] },
-        ],
-      },
-    ],
+    data: categories(["Acme", "Brill", "Corda"], [], {
+      series: named(["Domestic", [40, 3, 7]], ["International", [2, 22, 2]]),
+    }),
+    mark: { mark: "bar" },
   };
   const plotHeight = (b: Built) =>
     Number(b.plot.querySelector('[data-part="area"]')?.getAttribute("height")) - 2 * AREA_ROOM;
@@ -672,16 +643,14 @@ describe("keys and touch on a bar chart", () => {
 describe("keys and touch on a box plot", () => {
   const latency: ChartSpec = {
     y: { unit: { one: "endpoint", other: "endpoints" } },
-    marks: [
-      {
-        mark: "box",
-        y: ["search", "export"],
-        series: [
-          { name: "Before", low: [1, 3], q1: [2, 4], median: [3, 5], q3: [4, 6], high: [5, 9] },
-          { name: "After", low: [1, 2], q1: [2, 3], median: [2, 4], q3: [3, 5], high: [4, 6] },
-        ],
-      },
-    ],
+    data: boxes(
+      ["search", "export"],
+      [
+        { key: "Before", low: [1, 3], q1: [2, 4], median: [3, 5], q3: [4, 6], high: [5, 9] },
+        { key: "After", low: [1, 2], q1: [2, 3], median: [2, 4], q3: [3, 5], high: [4, 6] },
+      ],
+    ),
+    mark: { mark: "box" },
   };
   const plotHeight = (b: Built) =>
     Number(b.plot.querySelector('[data-part="area"]')?.getAttribute("height")) - 2 * AREA_ROOM;
@@ -724,17 +693,10 @@ describe("keys and touch on a box plot", () => {
 
 describe("keys and the pointer on a slope chart", () => {
   const pets: ChartSpec = {
-    marks: [
-      {
-        mark: "slope",
-        x: ["2005", "2015"],
-        series: [
-          { name: "Cats", y: [50, 34] },
-          { name: "Dogs", y: [40, 31] },
-          { name: "Horses", y: [30, null] },
-        ],
-      },
-    ],
+    data: categories(["2005", "2015"], [], {
+      series: named(["Cats", [50, 34]], ["Dogs", [40, 31]], ["Horses", [30, null]]),
+    }),
+    mark: { mark: "slope" },
   };
   const rings = (b: Built) => (ring(b)?.getAttribute("d") ?? "").split("M").length - 1;
   const chips = (b: Built) =>
@@ -803,16 +765,11 @@ describe("keys and the pointer on a scatter plot", () => {
   const world: ChartSpec = {
     x: { label: "GDP per capita", domain: [0, 150] },
     y: { label: "Life expectancy", domain: [50, 90] },
-    marks: [
-      {
-        mark: "scatter",
-        unit: { one: "country", other: "countries" },
-        series: [
-          { name: "Europe", names: ["Albania", "Monaco"], x: [19, 140], y: [79.8, 85.9] },
-          { name: "Africa", names: ["Chad", "Ghana"], x: [1.6, 6.3], y: [53, 64.1] },
-        ],
-      },
-    ],
+    data: points([
+      { key: "Europe", names: ["Albania", "Monaco"], x: [19, 140], y: [79.8, 85.9] },
+      { key: "Africa", names: ["Chad", "Ghana"], x: [1.6, 6.3], y: [53, 64.1] },
+    ]),
+    mark: { mark: "scatter", unit: { one: "country", other: "countries" } },
   };
   const chips = (b: Built) =>
     [...b.legend.querySelectorAll(".cp-chip")].map((c) => c.hasAttribute("data-selected"));
@@ -891,18 +848,12 @@ describe("keys and the pointer on a scatter plot", () => {
 describe("keys, the pointer and touch on a heatmap", () => {
   const grid: ChartSpec = {
     colour: { unit: { one: "post", other: "posts" } },
-    marks: [
-      {
-        mark: "cell",
-        x: ["2 PM", "3 PM", "4 PM", "5 PM"],
-        y: ["Mon", "Tue", "Wed"],
-        values: [
-          [3, 0, 1, 2],
-          [4, null, 6, 7],
-          [8, 9, 10, 11],
-        ],
-      },
-    ],
+    data: gridFrame({ names: ["2 PM", "3 PM", "4 PM", "5 PM"] }, { names: ["Mon", "Tue", "Wed"] }, [
+      [3, 0, 1, 2],
+      [4, null, 6, 7],
+      [8, 9, 10, 11],
+    ]),
+    mark: { mark: "cell" },
   };
   // Cell (row, column)'s middle in plot px: rows 24 px tall, columns sharing the width.
   const mid = (b: Built, row: number, column: number) => ({
@@ -964,20 +915,12 @@ describe("keys, the pointer and touch on a heatmap", () => {
 describe("keys, the pointer and touch on a pie", () => {
   // Germany's land by use, in km²: 51%, 30%, 14%, 3.2% and 2.3% of 357,580.
   const land = (hole = false): ChartSpec => ({
-    marks: [
-      {
-        mark: "pie",
-        hole,
-        unit: { other: "km²" },
-        slices: [
-          { name: "Agriculture", value: 182_637 },
-          { name: "Forest", value: 106_645 },
-          { name: "Housing & traffic", value: 48_631 },
-          { name: "Other land", value: 11_443 },
-          { name: "Water", value: 8224 },
-        ],
-      },
-    ],
+    data: categories(
+      ["Agriculture", "Forest", "Housing & traffic", "Other land", "Water"],
+      [[182_637, 106_645, 48_631, 11_443, 8224]],
+      { unit: "none" },
+    ),
+    mark: { mark: "pie", hole, unit: { other: "km²" } },
   });
   const chips =
     "Agriculture · 51% · Forest · 30% · Housing & traffic · 14% · Other land · 3.2% · Water · 2.3%";
@@ -1057,36 +1000,36 @@ describe("keys, the pointer and touch on a pie", () => {
 describe("keys, the pointer and touch on a treemap", () => {
   // GDP in 2023, bn USD: 62,580 in all, Asia 41%, the Americas 47% and Europe 12%.
   const gdp: ChartSpec = {
-    marks: [
+    data: tree(
       {
-        mark: "tree",
-        unit: { other: "bn USD" },
-        nodes: [
+        groups: [
           {
-            name: "Asia",
+            key: "Asia",
             children: [
-              { name: "China", value: 17_795 },
-              { name: "Japan", value: 4213 },
-              { name: "India", value: 3550 },
+              { key: "China", value: 17_795 },
+              { key: "Japan", value: 4213 },
+              { key: "India", value: 3550 },
             ],
           },
           {
-            name: "Americas",
+            key: "Americas",
             children: [
-              { name: "United States", value: 27_361 },
-              { name: "Brazil", value: 2174 },
+              { key: "United States", value: 27_361 },
+              { key: "Brazil", value: 2174 },
             ],
           },
           {
-            name: "Europe",
+            key: "Europe",
             children: [
-              { name: "Germany", value: 4456 },
-              { name: "France", value: 3031 },
+              { key: "Germany", value: 4456 },
+              { key: "France", value: 3031 },
             ],
           },
         ],
       },
-    ],
+      { unit: "none" },
+    ),
+    mark: { mark: "tree", unit: { other: "bn USD" } },
   };
   const chips = "Asia · 41% · Americas · 47% · Europe · 12%";
   const chosen = (b: Built) =>
@@ -1174,41 +1117,25 @@ describe("keys, the pointer and touch on a treemap", () => {
 
 describe("keys, the pointer and the synced selection in small multiples", () => {
   const months = Array.from({ length: 6 }, (_, i) => Date.UTC(2024, i, 1));
+  // A region's panel, its one series keyed by its name, in percent.
+  const panel = (key: string, x: number[], percent: number[]) => ({
+    key,
+    data: seriesFrame(x, [], {
+      unit: "none",
+      series: named([key, percent.map((v) => v / 100)]),
+    }),
+  });
   const regions: ChartSpec = {
     x: { type: "time", domain: [months[0] ?? 0, months.at(-1) ?? 0] },
     y: { label: "Unemployment", format: "percent" },
-    marks: [],
+    mark: { mark: "line" },
     facets: {
       unit: { one: "region", other: "regions" },
       panels: [
-        {
-          marks: [
-            {
-              mark: "line",
-              x: months,
-              series: [{ name: "North", y: [5, 6, 7, 8, 9, 10].map((v) => v / 100) }],
-            },
-          ],
-        },
-        {
-          marks: [
-            {
-              mark: "line",
-              x: months,
-              series: [{ name: "South", y: [3, 3, 4, 4, 5, 5].map((v) => v / 100) }],
-            },
-          ],
-        },
+        panel("North", months, [5, 6, 7, 8, 9, 10]),
+        panel("South", months, [3, 3, 4, 4, 5, 5]),
         // East starts a month late, so it has no January.
-        {
-          marks: [
-            {
-              mark: "line",
-              x: months.slice(1),
-              series: [{ name: "East", y: [2, 2, 2, 2, 2].map((v) => v / 100) }],
-            },
-          ],
-        },
+        panel("East", months.slice(1), [2, 2, 2, 2, 2]),
       ],
     },
   };
@@ -1329,17 +1256,12 @@ describe("keys, the pointer and the synced selection in small multiples", () => 
     // Under 30rem the bar panels stack in one column, each naming its rows.
     const b = build(
       {
-        marks: [],
+        mark: { mark: "bar" },
         facets: {
           panels: ["Lyon", "Nice"].map((name) => ({
+            key: name,
             name,
-            marks: [
-              {
-                mark: "bar",
-                y: ["Coal", "Gas", "Wind"],
-                series: [{ name: "Share", x: [1, 2, 3] }],
-              },
-            ],
+            data: categories(["Coal", "Gas", "Wind"], [], { series: named(["Share", [1, 2, 3]]) }),
           })),
         },
       },

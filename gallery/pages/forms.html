@@ -102,7 +102,7 @@
         </fieldset>
         <footer>The number is live only while its choice is; focusing it chooses it, and it is never disabled while it has focus.</footer>
       </div>
-      <div class="card" data-new>
+      <div class="card">
         <h2>Switches and segments</h2>
         <div class="cp-form">
           <div class="cp-setting"><div><label class="cp-label" for="f-sw1">Check every night</label><span class="cp-help">At 03:00, when nobody is watching.</span></div><input class="cp-switch" id="f-sw1" type="checkbox" role="switch" checked></div>
@@ -166,7 +166,7 @@
   <section class="g-section" id="files">
     <h2>Files</h2>
     <div class="g-grid">
-      <div class="card" data-new>
+      <div class="card">
         <h2>Drop zone</h2>
         <div class="cp-field">
           <label class="cp-drop"><span class="cp-icon" data-cp-icon="cloud-upload" aria-hidden="true"></span><strong>Drop subtitle files here</strong><span>or <u>choose files</u>, .ass or .srt</span><input type="file" multiple accept=".ass,.srt" data-files="f-files" data-max-size="10485760"></label>
@@ -174,7 +174,7 @@
         </div>
         <footer>The whole area is the file input's label, so a press anywhere opens the picker; a drag over it lifts the icon. The files taken are a compact list, each row its glyph, its name and its size.</footer>
       </div>
-      <div class="card" data-new>
+      <div class="card">
         <h2>Upload with limits</h2>
         <button class="cp-button" type="button" commandfor="d-upload" command="show-modal"><span class="cp-icon" data-cp-icon="upload" aria-hidden="true"></span>Add a file…</button>
         <ul class="cp-list" data-density="compact" id="up-list" aria-label="Uploaded files"></ul>
@@ -207,7 +207,7 @@
         </div>
         <footer>Each term pops in and shrinks away; a term already there shakes instead of doubling.</footer>
       </div>
-      <div class="card" data-new>
+      <div class="card">
         <h2>Pick from suggestions</h2>
         <div class="cp-field">
           <label class="cp-label" for="f-langs">Subtitle languages, in order</label>
@@ -225,7 +225,7 @@
         </div>
         <footer>The combobox pattern: the list narrows as you type, Alt+Down opens it whole, arrows move through it and Enter takes one. A language already chosen leaves the list, and the list holds only real languages, so there is no free text. Three is the limit here, and the field says so.</footer>
       </div>
-      <div class="card" data-new>
+      <div class="card">
         <h2>Tags, with new ones</h2>
         <div class="cp-field">
           <label class="cp-label" for="f-tags">Tags</label>
@@ -241,7 +241,7 @@
         </div>
         <footer>Like the language picker, and each tag says how many entries carry it. Words that match no tag end the list with Add “…”, so Enter takes a match first and a new tag only when nothing matches. Five is the limit.</footer>
       </div>
-      <div class="card" data-new>
+      <div class="card">
         <h2>Recipients, some away</h2>
         <div class="cp-field">
           <label class="cp-label" for="f-recipients">To</label>
@@ -256,7 +256,7 @@
         </div>
         <footer>The To field of a message. A dormant recipient can still be chosen: Dormant ends its row in muted words and is read with the name, and its chip holds the name alone.</footer>
       </div>
-      <div class="card" data-new>
+      <div class="card">
         <h2>One limit across pickers</h2>
         <div class="cp-stack">
           <div class="cp-field">
@@ -321,7 +321,7 @@
         </div>
         <footer>Each field has its own error, shown when you leave it. Type a path without a leading / to see one.</footer>
       </div>
-      <div class="card g-wide" data-new>
+      <div class="card g-wide">
         <h2>Unsaved changes</h2>
         <form class="cp-form" id="f-unsaved" data-unsaved novalidate>
           <div class="cp-notice" data-tone="warning" hidden><span class="cp-icon" data-cp-icon="triangle-alert" aria-hidden="true"></span><span>These settings were saved in another tab at 14:05.</span><button class="cp-button" type="button" data-rebase>Load the latest and keep my changes</button></div>

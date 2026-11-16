@@ -22,6 +22,7 @@
     "./feed": "./src/data/feed/feed.ts",
     "./file": "./src/forms/file/file.ts",
     "./form": "./src/forms/form/form.ts",
+    "./frame": "./src/data/frame/frame.ts",
     "./header-status": "./src/navigation/header-status/header-status.ts",
     "./held-list": "./src/data/held-list/held-list.ts",
     "./highlight": "./src/content/highlight/highlight.ts",
@@ -67,6 +68,7 @@
     "./tokens": "./src/forms/tokens/tokens.ts",
     "./tooltip": "./src/overlays/tooltip/tooltip.ts",
     "./turn": "./src/buttons/turn/turn.ts",
+    "./video": "./src/media/video/video.ts",
     "./view-transition": "./src/core/view-transition/view-transition.ts"
   },
   "publish": {
