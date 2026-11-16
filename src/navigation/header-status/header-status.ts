@@ -418,6 +418,14 @@ function place(parent: Element, kids: readonly Element[]): void {
   });
 }
 
+/** Whether another module wrote this attribute on a node the panel keeps,
+ *  so the patch leaves it: the tooltip sets its anchor in `style` and its
+ *  own `aria-describedby` on a control with none. The panel writes `style`
+ *  only on a copied icon, whose drawing from `@cplieger/ui/icons` always
+ *  has one, and describes only by its own `cp-status-` ids. */
+const foreign = (name: string, value: string): boolean =>
+  name === "style" || (name === "aria-describedby" && !value.startsWith("cp-status-"));
+
 /** Makes `old` read as `fresh`, keeping every node whose tag holds, so a
  *  focused control keeps its focus. A time whose moment holds keeps the
  *  words relative-time keeps current. Returns the node to keep. */
@@ -429,10 +437,11 @@ function patch(old: Element, fresh: Element): Element {
     return old;
   }
   const focused = old === document.activeElement;
-  for (const { name } of [...old.attributes]) {
-    if (!fresh.hasAttribute(name) && !(focused && name === "tabindex")) {
-      old.removeAttribute(name);
+  for (const { name, value } of [...old.attributes]) {
+    if (fresh.hasAttribute(name) || (focused && name === "tabindex") || foreign(name, value)) {
+      continue;
     }
+    old.removeAttribute(name);
   }
   for (const { name, value } of [...fresh.attributes]) {
     if (old.getAttribute(name) === value) {
@@ -606,8 +615,8 @@ export function createHeaderStatus(
     const reason = s.unavailable ?? startRefused.get(s.id);
     const line = `${id}-start-${String(i)}`;
     const about = `${line}-tip`;
-    // The tip's own copy describes the button, so the tooltip, which adds a
-    // description only to a control with none, never fights the patch.
+    // The tip's own copy describes the button, so a reader hears the tip
+    // whether or not the tooltip is showing.
     const describedBy = [reason === undefined ? "" : line, s.tip === undefined ? "" : about];
     // The line and the tip's copy are always there, hidden when empty, so
     // the button is never re-made, which would drop its focus.
@@ -905,7 +914,8 @@ export function createHeaderStatus(
   const render = (): void => {
     const pill: Pill =
       link === "offline" ? { state: "offline", words: w.offline } : pillOf(model, w);
-    writePill(button, link === "lost" ? { ...pill, detail: w.reconnecting } : pill);
+    const shown = link === "lost" ? { ...pill, detail: w.reconnecting } : pill;
+    writePill(button, shown);
     const active = document.activeElement;
     const inside = active instanceof HTMLElement && active !== panel && panel.contains(active);
     const li = inside ? active.closest<HTMLElement>("li[data-cp-key]") : null;
@@ -919,7 +929,7 @@ export function createHeaderStatus(
         after.push(key);
       }
     }
-    renderPanel(pill);
+    renderPanel(shown);
     renderBanner();
     releaseTimes();
     if (!inside || document.activeElement === active) {
@@ -1028,9 +1038,14 @@ export function createHeaderStatus(
     } catch (error) {
       reason = w.startRefused(error);
     }
+    if (ended()) {
+      return;
+    }
     // update() drops the entry of a start that left, so a late answer to
-    // one that left, or to an earlier press, ends here.
-    if (ended() || starting.get(key) !== mine) {
+    // one that left, or to an earlier press, ends here. Its turnWhile
+    // cleared aria-busy, which the render gives back to a press pending.
+    if (starting.get(key) !== mine) {
+      render();
       return;
     }
     starting.delete(key);

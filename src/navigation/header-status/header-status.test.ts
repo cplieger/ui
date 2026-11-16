@@ -3,6 +3,7 @@ import { page } from "vitest/browser";
 
 import { installAnnouncer } from "../../feedback/announce/announce.js";
 import { createIcons } from "../../foundations/icons/icons.js";
+import { installTooltips } from "../../overlays/tooltip/tooltip.js";
 import {
   createHeaderStatus,
   type HeaderStatus,
@@ -259,6 +260,21 @@ describe("the stream", () => {
     expect(said()).toBe("Offline");
     status.update(model({ conditions: [problem("p")] }));
     expect(button.dataset["state"]).toBe("offline");
+  });
+
+  it("heads the panel with Reconnecting… until offline, so a compact pill keeps it in sight", () => {
+    const { panel, status } = mount();
+    status.update(model({ conditions: [warning("w")] }));
+    status.connection("lost");
+    expect(heading(panel)).toBe("1 warning · Reconnecting…");
+    status.update(
+      model({ conditions: [problem("p")], work: [job("Full check", { value: 3, max: 8 })] }),
+    );
+    expect(heading(panel)).toBe("1 problem · Reconnecting…");
+    vi.advanceTimersByTime(10_000);
+    expect(heading(panel)).toMatch(/^Offline since /);
+    status.connection("live");
+    expect(heading(panel)).toBe("1 problem · Full check 3/8");
   });
 
   it("goes back at once when the stream returns, and in time never turns offline", () => {
@@ -1025,6 +1041,19 @@ describe("the running section", () => {
 });
 
 describe("the starts", () => {
+  const pending = () => {
+    const box = { finish: (): void => undefined };
+    const run = vi.fn(
+      () =>
+        new Promise<void>((done) => {
+          box.finish = done;
+        }),
+    );
+    return { box, run };
+  };
+
+  const { icon } = createIcons({ base: "/static/icons/" });
+
   it("writes each start as a small button, first in the panel, patched by id", async () => {
     const { panel, status } = mount();
     panel.showPopover();
@@ -1128,7 +1157,7 @@ describe("the starts", () => {
           refusals.push(reject);
         }),
     );
-    const m = model({ starts: [begin("f", { run })] });
+    const m = model({ starts: [begin("f", { icon: icon("refresh-cw"), turn: true, run })] });
     status.update(m);
     startButton(panel, "f").click();
     status.update(model({}));
@@ -1140,6 +1169,7 @@ describe("the starts", () => {
     await vi.advanceTimersByTimeAsync(0);
     expect(said()).toBe("");
     expect(startButton(panel, "f").textContent).toBe("Starting…");
+    expect(startButton(panel, "f").getAttribute("aria-busy")).toBe("true");
     expect(startLine(panel, "f").hidden).toBe(true);
     status.update(model({}));
     refusals[1]?.(new Error("No budget"));
@@ -1233,18 +1263,6 @@ describe("the starts", () => {
     expect(words(button)).toBe("Quick check 0/8");
   });
 
-  const pending = () => {
-    const box = { finish: (): void => undefined };
-    const run = vi.fn(
-      () =>
-        new Promise<void>((done) => {
-          box.finish = done;
-        }),
-    );
-    return { box, run };
-  };
-
-  const { icon } = createIcons({ base: "/static/icons/" });
   const drawing = (el: Element | null | undefined) =>
     el instanceof HTMLElement ? el.style.getPropertyValue("--cp-icon-image") : undefined;
 
@@ -1373,6 +1391,56 @@ describe("the starts", () => {
     expect(panel.querySelector("[data-cp-tip-toggle]")).toBeNull();
     status.update(model({ startsInfo }));
     expect(panel.querySelector('[data-cp-status="starts"]')).toBeNull();
+  });
+
+  describe("with the tooltip", () => {
+    const tip = () => document.getElementById("cp-tooltip") as HTMLElement;
+    const anchor = (el: HTMLElement) => el.style.getPropertyValue("anchor-name");
+    const moving = (step: number): StatusModel =>
+      model({
+        work: [job("Full check", { value: step, max: 8 })],
+        starts: [begin("q", { label: "Quick check", tip: "Reads the last 48 hours." })],
+        startsInfo: { label: "About the checks", tip: "Quick check reads the last 48 hours." },
+      });
+
+    beforeEach(() => {
+      installTooltips({ signal: life.signal, delay: 10 });
+    });
+
+    it("keeps the info button's tapped tip on it across an update", () => {
+      const { panel, status } = mount();
+      status.update(moving(1));
+      panel.showPopover();
+      const info = panel.querySelector<HTMLElement>("[data-cp-tip-toggle]") as HTMLElement;
+      info.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, pointerType: "touch" }));
+      expect(tip().matches(":popover-open")).toBe(true);
+      const at = anchor(info);
+      expect(at).not.toBe("");
+      expect(info.getAttribute("aria-describedby")).toBe(tip().id);
+      status.update(moving(2));
+      expect(panel.querySelector("[data-cp-tip-toggle]")).toBe(info);
+      expect(anchor(info)).toBe(at);
+      expect(info.getAttribute("aria-describedby")).toBe(tip().id);
+      expect(tip().matches(":popover-open")).toBe(true);
+    });
+
+    it("keeps a start's tip shown to a mouse on it across an update", () => {
+      const { panel, status } = mount();
+      status.update(moving(1));
+      panel.showPopover();
+      const q = startButton(panel, "q");
+      const own = q.getAttribute("aria-describedby");
+      q.dispatchEvent(new PointerEvent("pointerover", { bubbles: true, pointerType: "mouse" }));
+      vi.advanceTimersByTime(10);
+      expect(tip().matches(":popover-open")).toBe(true);
+      const at = anchor(q);
+      expect(at).not.toBe("");
+      status.update(moving(2));
+      expect(startButton(panel, "q")).toBe(q);
+      expect(anchor(q)).toBe(at);
+      expect(q.getAttribute("aria-describedby")).toBe(own);
+      expect(tip().matches(":popover-open")).toBe(true);
+    });
   });
 });
 
