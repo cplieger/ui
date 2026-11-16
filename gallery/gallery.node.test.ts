@@ -4,7 +4,7 @@ import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { extname, join, normalize } from "node:path";
 
-import { chromium, firefox, webkit, type Browser, type BrowserType } from "playwright";
+import { chromium, firefox, webkit, type Browser, type BrowserType, type Page } from "playwright";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { buildGallery, frameNames, pageNames } from "./build.js";
@@ -191,6 +191,69 @@ describe.each(browsers)("the gallery in %s", (name) => {
     });
   }, 60_000);
 
+  /** A wide tab on `page` after index.html, Close pressed once `presses` opened their rows. */
+  const closedAfter = async (page: string, presses: readonly string[], fresh = false) => {
+    const tab = await (browser as Browser).newPage({ viewport: { width: 1280, height: 800 } });
+    if (!fresh) {
+      await tab.goto(`${origin}/index.html`);
+    }
+    await tab.goto(`${origin}/${page}`);
+    await tab.waitForFunction(() => document.querySelector("[data-build]") !== null);
+    const row = (href: string) => tab.locator(`#msg-list a.cp-list-row[href="${href}"]`);
+    // A wait that runs out reports through the expectation that follows it.
+    const detail = (hidden: boolean) =>
+      tab
+        .waitForFunction(
+          (h) => document.querySelector<HTMLElement>("#msg > .cp-detail")?.hidden === h,
+          hidden,
+          { timeout: 5000 },
+        )
+        .catch(() => undefined);
+    for (const href of presses) {
+      await row(href).click();
+      await tab.waitForFunction((h) => location.hash === h, href);
+    }
+    await tab.evaluate(() => {
+      const shown: string[] = [];
+      Object.assign(window, { shownWhileClosing: shown });
+      new MutationObserver((records) => {
+        for (const r of records) {
+          if (r.target instanceof Element && r.target.hasAttribute("aria-current")) {
+            shown.push(r.target.getAttribute("href") ?? "");
+          }
+        }
+      }).observe(document.getElementById("msg-list") ?? document, {
+        subtree: true,
+        attributeFilter: ["aria-current"],
+      });
+    });
+    await tab.locator("#msg > .cp-detail [data-detail-close]").click();
+    await detail(true);
+    const url = new URL(tab.url());
+    const closed = {
+      path: url.pathname,
+      hash: url.hash,
+      shown: await tab.evaluate(
+        () => document.querySelector<HTMLElement>("#msg > .cp-detail")?.hidden === false,
+      ),
+      flashed: await tab.evaluate(
+        () => (window as { shownWhileClosing?: string[] }).shownWhileClosing,
+      ),
+    };
+    return { tab, row, detail, closed };
+  };
+  const opened = (tab: Page, href: string) =>
+    tab.evaluate(
+      (h) => ({
+        shown: document.querySelector<HTMLElement>("#msg > .cp-detail")?.hidden === false,
+        current: document
+          .querySelector(`#msg-list a.cp-list-row[href="${h}"]`)
+          ?.getAttribute("aria-current"),
+      }),
+      href,
+    );
+  const onList = { path: "/messages.html", hash: "", shown: false, flashed: [] };
+
   it.each([
     ["after a second press", "messages.html", ["#c-announce", "#c-kiro-codex"], "#c-announce"],
     [
@@ -199,47 +262,51 @@ describe.each(browsers)("the gallery in %s", (name) => {
       ["#c-marotte"],
       "#c-ui-data",
     ],
+    [
+      "after two presses on a page that loaded on one",
+      "messages.html#c-ui-data",
+      ["#c-marotte", "#c-announce"],
+      "#c-ui-data",
+    ],
   ])(
     "leaves the address on the list when Close shuts a docked conversation %s",
     async (_, page, presses, again) => {
-      const tab = await (browser as Browser).newPage({ viewport: { width: 1280, height: 800 } });
-      await tab.goto(`${origin}/index.html`);
-      await tab.goto(`${origin}/${page}`);
+      const { tab, row, detail, closed } = await closedAfter(page, presses);
+      await tab.goBack();
+      const left = new URL(tab.url()).pathname;
+      await tab.goForward();
       await tab.waitForFunction(() => document.querySelector("[data-build]") !== null);
-      const row = (href: string) => tab.locator(`#msg-list a.cp-list-row[href="${href}"]`);
-      const detail = (hidden: boolean) =>
-        tab.waitForFunction(
-          (h) => document.querySelector<HTMLElement>("#msg > .cp-detail")?.hidden === h,
-          hidden,
-          { timeout: 5000 },
-        );
-      for (const href of presses) {
-        await row(href).click();
-        await tab.waitForFunction((h) => location.hash === h, href);
-      }
-      await tab.locator("#msg > .cp-detail [data-detail-close]").click();
-      await detail(true);
-      const closed = new URL(tab.url()).hash;
       await row(again).click();
-      // A press on a link to the address's own hash opens nothing.
-      await detail(false).catch(() => undefined);
-      const reopened = await tab.evaluate(
-        (h) => ({
-          shown: document.querySelector<HTMLElement>("#msg > .cp-detail")?.hidden === false,
-          current: document
-            .querySelector(`#msg-list a.cp-list-row[href="${h}"]`)
-            ?.getAttribute("aria-current"),
-        }),
-        again,
-      );
+      await detail(false);
+      const reopened = await opened(tab, again);
       await tab.close();
-      expect({ closed, reopened }).toEqual({
-        closed: "",
+      expect({ closed, left, reopened }).toEqual({
+        closed: onList,
+        left: "/index.html",
         reopened: { shown: true, current: "page" },
       });
     },
     60_000,
   );
+
+  it("closes a docked conversation after a press on its own open row", async () => {
+    const fresh = await closedAfter("messages.html#c-ui-data", ["#c-ui-data"], true);
+    await fresh.row("#c-marotte").click();
+    await fresh.detail(false);
+    const next = await opened(fresh.tab, "#c-marotte");
+    await fresh.tab.close();
+
+    const after = await closedAfter("messages.html#c-ui-data", ["#c-ui-data"]);
+    await after.tab.goBack();
+    const left = new URL(after.tab.url()).pathname;
+    await after.tab.close();
+    expect({ fresh: fresh.closed, next, after: after.closed, left }).toEqual({
+      fresh: onList,
+      next: { shown: true, current: "page" },
+      after: onList,
+      left: "/index.html",
+    });
+  }, 60_000);
 
   it.each(pageNames)(
     "runs %s's script to its end inside a sandboxed frame, as a preview tab shows it",

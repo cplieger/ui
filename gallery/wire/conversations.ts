@@ -144,22 +144,26 @@ if (root !== null && list instanceof HTMLUListElement && filters !== null) {
       }),
     );
   }
-  // A conversation a press opened has its own history entry, so Close goes
-  // back one entry, which may still name an earlier conversation; the
-  // hashchange then drops that hash. The entry a page loaded on is the
-  // list's, so closing that one rewrites its address instead.
+  // A conversation a press opened has its own history entry, so Close walks
+  // back to the list's entry: the first that names no conversation, or the
+  // one a wide page loaded on, whose address Close rewrites to the list's.
   const LANDED = "cp-gallery-landed";
+  const landed = () => {
+    const state: unknown = history.state;
+    return typeof state === "object" && state !== null && LANDED in state;
+  };
+  const toList = () => {
+    history.replaceState(null, "", location.pathname + location.search);
+  };
   let closing = false;
   const detail = enhanceListDetail(root, {
     onDismiss: () => {
-      const state: unknown = history.state;
-      const landed = typeof state === "object" && state !== null && LANDED in state;
-      if (byHash() !== undefined && !landed) {
+      if (byHash() !== undefined && !landed()) {
         closing = true;
         history.back();
         return;
       }
-      history.replaceState(null, "", location.pathname + location.search);
+      toList();
       route(null, false);
     },
   });
@@ -204,21 +208,39 @@ if (root !== null && list instanceof HTMLUListElement && filters !== null) {
     title?.blur();
   } else {
     first?.removeAttribute("aria-current");
-    // A press on a link to the address's own hash fires no hashchange.
+    // On a phone the entry it loaded on becomes the list's, so the press
+    // that opens the dialog pushes an entry Close can walk back from.
     if (byHash() !== undefined) {
-      history.replaceState(null, "", location.pathname + location.search);
+      toList();
     }
   }
-  // Back to a hash naming no conversation closes the phone's dialog; wide,
-  // the docked conversation stays, so the layout never loses its detail.
-  // After a Close the address names no conversation, since a press on a
-  // link to the address's own hash would open nothing.
+  // A press on a link to the address's own hash is a same-URL navigation:
+  // it fires no hashchange and replaces its entry, which in Firefox drops
+  // its state (https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate-fragid).
+  // So the page opens that conversation itself and the entry keeps LANDED.
+  document.addEventListener("click", (e) => {
+    const link = e.target instanceof Element ? e.target.closest("a[href]") : null;
+    const plain = e.button === 0 && !(e.metaKey || e.ctrlKey || e.shiftKey || e.altKey);
+    const row = linkOf(byHash());
+    if (link instanceof HTMLAnchorElement && plain && row !== null && link.href === location.href) {
+      e.preventDefault();
+      route(row, false);
+    }
+  });
+  // Any hash naming no conversation, reached by Back or by a link, closes
+  // the phone's dialog; wide, the docked conversation stays, so the layout
+  // never loses its detail. While Close walks back, an entry that still
+  // names a conversation is passed without showing it.
   addEventListener("hashchange", () => {
+    if (closing && byHash() !== undefined) {
+      if (!landed()) {
+        history.back();
+        return;
+      }
+      toList();
+    }
     const forced = closing;
     closing = false;
-    if (forced && byHash() !== undefined) {
-      history.replaceState(null, "", location.pathname + location.search);
-    }
     const row = forced ? null : linkOf(byHash());
     if (row !== null) {
       route(row, false);
