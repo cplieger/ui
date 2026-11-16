@@ -115,10 +115,11 @@ function parentBox(el: Element): Element | null {
   return up instanceof ShadowRoot ? up.host : up instanceof Element ? up : null;
 }
 
-/** `scroll-padding-top` at its used length. Engines return a percentage
- *  unresolved, alone or inside calc(), min() or max(), so such a value is
- *  measured as the height of a box in a block as tall as the scrollport,
- *  its basis (https://drafts.csswg.org/css-scroll-snap-1/#scroll-padding). */
+/** `scroll-padding-top` at its used length in `styled`'s own pixels, for a
+ *  scrollport `port` of them tall. Engines return a percentage unresolved,
+ *  alone or inside calc(), min() or max(), so such a value is measured as
+ *  the height of a box in a block as tall as the scrollport, its basis
+ *  (https://drafts.csswg.org/css-scroll-snap-1/#scroll-padding). */
 function paddingTop(styled: Element, port: number): number {
   const value = getComputedStyle(styled).scrollPaddingTop;
   if (value === "auto") {
@@ -183,16 +184,16 @@ function plan(section: Element): Map<EventTarget, Leg> {
   const margin = parseFloat(getComputedStyle(section).scrollMarginTop) || 0;
   // The section's scroll-margin edge, in screen pixels.
   let top = section.getBoundingClientRect().top - (margin === 0 ? 0 : margin * scaleOf(section));
-  /** `edge` is the box's top in screen pixels; `inset` (its top border) and
-   *  the offsets are in its own, `scale` screen pixels apart. */
+  /** `edge` is the box's top in screen pixels; `inset` (its top border),
+   *  `pad` (its scroll-padding-top) and the offsets are in its own, `scale`
+   *  screen pixels apart. */
   const take = (
     key: EventTarget,
     box: Element,
-    styled: Element,
-    { edge, inset, scale }: { edge: number; inset: number; scale: number },
+    { edge, inset, pad, scale }: { edge: number; inset: number; pad: number; scale: number },
   ): void => {
     const from = box.scrollTop;
-    const want = from + (top - edge) / scale - inset - paddingTop(styled, box.clientHeight);
+    const want = from + (top - edge) / scale - inset - pad;
     const to = Math.max(0, Math.min(want, box.scrollHeight - box.clientHeight));
     legs.set(key, { box, from, to, reach: to });
     top -= (to - from) * scale;
@@ -208,9 +209,10 @@ function plan(section: Element): Map<EventTarget, Leg> {
       overflowY !== "clip" &&
       (at !== document.body || bodyScrolls)
     ) {
-      take(at, at, at, {
+      take(at, at, {
         edge: at.getBoundingClientRect().top,
         inset: at.clientTop,
+        pad: paddingTop(at, at.clientHeight),
         scale: scaleOf(at),
       });
     }
@@ -218,8 +220,15 @@ function plan(section: Element): Map<EventTarget, Leg> {
       return legs;
     }
   }
-  // The viewport's offsets and a rectangle are both in screen pixels.
-  take(document, document.scrollingElement ?? html, html, { edge: 0, inset: 0, scale: 1 });
+  // The viewport's offsets and a rectangle are in screen pixels, the root's
+  // lengths in its own, `zoom` screen pixels apart.
+  const zoom = scaleOf(html);
+  take(document, document.scrollingElement ?? html, {
+    edge: 0,
+    inset: 0,
+    pad: paddingTop(html, html.clientHeight / zoom) * zoom,
+    scale: 1,
+  });
   return legs;
 }
 

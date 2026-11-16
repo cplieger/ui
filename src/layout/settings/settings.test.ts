@@ -14,6 +14,7 @@ afterEach(async () => {
   document.body.replaceChildren();
   document.documentElement.style.scrollBehavior = "";
   document.documentElement.style.scrollPaddingTop = "";
+  document.documentElement.style.zoom = "";
   scrollTo(0, 0);
   // The next case's press must not meet this scroll's late events, and
   // Firefox may still be gliding from a case's smooth scroll.
@@ -906,6 +907,36 @@ describe("enhanceSettings", () => {
     },
   );
 
+  it.each([
+    ["48px", 1.5, 0, "down"],
+    ["48px", 1.5, 0, "up"],
+    ["48px", 0.8, 16, "down"],
+    ["48px", 0.8, 16, "up"],
+    ["calc(10% + 8px)", 1.5, 8, "down"],
+    ["calc(10% + 8px)", 1.5, 8, "up"],
+  ])(
+    "keeps a pressed short category through a jump under the root's scroll-padding-top %s and zoom %s, its margin %spx, %sward",
+    async (padding, zoom, margin, dir) => {
+      const root = document.documentElement;
+      // The scrollport in screen pixels, which a zoom on the root leaves as it is.
+      const port = root.clientHeight;
+      root.style.zoom = String(zoom);
+      root.style.scrollPaddingTop = padding;
+      const { links } = short('<div class="cp-settings"></div>');
+      const checks = document.getElementById("b-chk") as HTMLElement;
+      // Short enough to rest above the band, so only the hold marks it.
+      checks.style.blockSize = "20px";
+      checks.style.scrollMarginTop = `${String(margin)}px`;
+      if (dir === "up") {
+        scrollTo({ top: root.scrollHeight, behavior: "instant" });
+      }
+      await still();
+      // The root's lengths scale by its zoom; 10% of the scrollport does not.
+      const want = padding === "48px" ? (48 + margin) * zoom : port * 0.1 + (8 + margin) * zoom;
+      expect(await pressChecks(links, want)).toBe(1);
+    },
+  );
+
   it("ends the hold when the person's scroll cuts the press's smooth jump short", async () => {
     const { form, links } = page(true);
     enhanceSettings(form, { signal: life.signal });
@@ -1233,19 +1264,14 @@ describe("enhanceSettings on the unsaved-changes guard", () => {
     await vi.waitFor(() => {
       expect(count()).toBe("1 unsaved change");
     });
-    let answer = (): void => undefined;
-    const done = save.run(
-      () =>
-        new Promise<void>((resolve) => {
-          answer = resolve;
-        }),
-    );
+    const { promise, resolve: answer } = Promise.withResolvers<undefined>();
+    const done = save.run(() => promise);
     type(fields[3] as HTMLInputElement, "dark");
     await vi.waitFor(() => {
       expect(count()).toBe("2 unsaved changes");
     });
     guard.saved({ every: "45" });
-    answer();
+    answer(undefined);
     await done;
     expect([bar.hidden, button.getAttribute("data-cp-state")]).toEqual([false, "done"]);
     expect(dots(links)).toEqual(["", "", "Display, unsaved changes"]);
