@@ -42,7 +42,7 @@ An option is the [popup option row](../overlays/menu.md#the-option-row). A muted
 
 ## Options with a cover
 
-An option that starts with a [`.cp-cover`](../design-components.md) is drawn as an entry: its cover flush with the row's start, its title in a `<strong>` over a line of facts in a `<small>`, and the list running edge to edge. Give an `<img>` in the cover `alt=""`, since the title names the entry.
+An option that starts with a [`.cp-cover`](../design-components.md) is drawn as an entry: its cover flush with the row's start, its title in a `<strong>` over a line of facts in a `<small>`, and the list running edge to edge. The covers stack into one strip with square corners and no gap, which only the list's own two corners round. Give an `<img>` in the cover `alt=""`, since the title names the entry.
 
 ```html
 <div class="cp-input-row" id="jump-row">

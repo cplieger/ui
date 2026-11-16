@@ -23,6 +23,7 @@
     "./feed": "./src/data/feed/feed.ts",
     "./file": "./src/forms/file/file.ts",
     "./form": "./src/forms/form/form.ts",
+    "./frame": "./src/data/frame/frame.ts",
     "./header-status": "./src/navigation/header-status/header-status.ts",
     "./held-list": "./src/data/held-list/held-list.ts",
     "./highlight": "./src/content/highlight/highlight.ts",
@@ -57,6 +58,7 @@
     "./search": "./src/forms/search/search.ts",
     "./secret": "./src/forms/secret/secret.ts",
     "./select-panel": "./src/overlays/select-panel/select-panel.ts",
+    "./settings": "./src/layout/settings/settings.ts",
     "./share-bar": "./src/data/share-bar/share-bar.ts",
     "./skeleton": "./src/feedback/skeleton/skeleton.ts",
     "./sparkline": "./src/data/sparkline/sparkline.ts",
@@ -71,6 +73,7 @@
     "./tokens": "./src/forms/tokens/tokens.ts",
     "./tooltip": "./src/overlays/tooltip/tooltip.ts",
     "./turn": "./src/buttons/turn/turn.ts",
+    "./video": "./src/media/video/video.ts",
     "./view-transition": "./src/core/view-transition/view-transition.ts"
   },
   "publish": {

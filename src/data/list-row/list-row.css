@@ -448,8 +448,6 @@ button.cp-list-row[aria-pressed] .cp-badge {
 @media (any-hover: hover) {
   @scope (:root:not([data-pointer="coarse"])) {
     .cp-list-row:not([data-skeleton]):hover {
-      --cp-quiet-hover: var(--cp-fill-hover);
-
       background: var(--cp-list-row-hover, var(--cp-fill));
     }
 

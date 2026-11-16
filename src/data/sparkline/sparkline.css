@@ -35,7 +35,7 @@
 .cp-sparkline path {
   fill: none;
   stroke: currentcolor;
-  stroke-width: 2px;
+  stroke-width: 1.5px;
   stroke-linecap: round;
   stroke-linejoin: round;
   vector-effect: non-scaling-stroke;

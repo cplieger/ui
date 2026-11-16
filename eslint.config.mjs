@@ -6,4 +6,6 @@ export default [
   // The gallery's own versions of the elements whose cards do not run on
   // src/ yet, each deleted as its card moves onto src/.
   { ignores: ["gallery/legacy/**"] },
+  // chartdata's contract, vendored byte for byte by npm run frames:sync.
+  { ignores: ["src/data/frame/contract/**"] },
 ];

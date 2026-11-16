@@ -5,6 +5,7 @@ import { writer, type Format } from "../scale/format.js";
 import { forgetMeasures } from "../scale/measure.js";
 
 import { renderChart, type ChartSpec } from "./chart.js";
+import { categories, grid, seriesFrame } from "./test-helpers/frames.js";
 
 // A sign, maybe a currency sign, before a zero whose separator has only zeros
 // after it: "-0", "−0.00", "-€0.00", "-0%", "+0 ms", never "-0.5", the "-05"
@@ -193,7 +194,8 @@ describe("a chart's numbers", () => {
           check(
             {
               colour: f === undefined ? c : { ...c, format: f },
-              marks: [{ mark: "cell", x: ["a", "b", "c"], y: ["r", "s"], values }],
+              data: grid({ names: ["a", "b", "c"] }, { names: ["r", "s"] }, values),
+              mark: { mark: "cell" },
             },
             lang,
             ["ArrowRight", "ArrowRight", "ArrowDown", "ArrowLeft"],
@@ -223,11 +225,13 @@ describe("a chart's numbers", () => {
                 ...(fy === undefined ? {} : { format: fy }),
                 ...(domain === undefined ? {} : { domain }),
               },
-              marks: [
-                { mark: "line", x, series: [{ name: "A", y }] },
-                { mark: "rule", y: rule, label: "Target" },
-                { mark: "text", x: x[1] ?? 0, y: rule, text: "Peak" },
-              ],
+              data: seriesFrame(x, [y], {
+                refs: [{ key: "target", value: rule }],
+                notes: [{ key: "peak", at: x[1] ?? 0 }],
+              }),
+              mark: { mark: "line", keys: [{ key: "a", name: "A" }] },
+              refs: [{ key: "target", label: "Target" }],
+              notes: [{ key: "peak", text: "Peak" }],
             },
             lang,
             ["ArrowRight", "ArrowRight", "ArrowLeft", "ArrowLeft", "ArrowLeft"],
@@ -248,16 +252,20 @@ describe("a chart's numbers", () => {
           check(
             {
               ...(f === undefined ? {} : { y: { format: f } }),
-              marks: [
-                {
-                  mark: "slope",
-                  x: ["Before", "After"],
-                  series: [
-                    { name: "A", y: [a, b] },
-                    { name: "B", y: [c, d] },
-                  ],
-                },
-              ],
+              data: categories(
+                ["Before", "After"],
+                [
+                  [a, b],
+                  [c, d],
+                ],
+              ),
+              mark: {
+                mark: "slope",
+                keys: [
+                  { key: "a", name: "A" },
+                  { key: "b", name: "B" },
+                ],
+              },
             },
             lang,
             ["ArrowDown", "ArrowDown", "ArrowUp"],

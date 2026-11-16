@@ -30,6 +30,7 @@ const PURE = [
   "/feed",
   "/file",
   "/form",
+  "/frame",
   "/header-status",
   "/held-list",
   "/highlight",
@@ -64,6 +65,7 @@ const PURE = [
   "/search",
   "/secret",
   "/select-panel",
+  "/settings",
   "/share-bar",
   "/skeleton",
   "/sparkline",
@@ -78,6 +80,7 @@ const PURE = [
   "/tokens",
   "/tooltip",
   "/turn",
+  "/video",
   "/view-transition",
 ];
 

@@ -22,7 +22,7 @@ installAnnouncer();
 for (const time of document.querySelectorAll<HTMLTimeElement>("time[data-ago]")) {
   time.dateTime ||= new Date(Date.now() - Number(time.dataset["ago"]) * 1000).toISOString();
   const style = time.dataset["style"];
-  enhanceRelativeTime(time, { style: style === "narrow" || style === "short" ? style : "long" });
+  enhanceRelativeTime(time, style === "long" || style === "short" ? { style } : {});
 }
 
 const dot = document.querySelector<HTMLElement>("[data-dot-demo]");
@@ -413,7 +413,7 @@ if (msgRoot !== null && msgFeed instanceof HTMLOListElement && compose instanceo
     if (preview != null && time != null) {
       preview.textContent = `@gpt: ${arrivals[1]?.body ?? ""}`;
       time.dateTime = new Date().toISOString();
-      enhanceRelativeTime(time, { style: "short" });
+      enhanceRelativeTime(time);
     }
     // The jump says what arrived while the reader is scrolled up; at the
     // end, the arrivals are said here.

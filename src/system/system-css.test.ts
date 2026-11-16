@@ -550,7 +550,7 @@ describe("css/system.css sparkline", () => {
     const path = fourth.querySelector("path") as SVGPathElement;
     expect(getComputedStyle(fourth).color).toBe(slot(4));
     expect(getComputedStyle(path).fill).toBe("none");
-    expect(getComputedStyle(path).strokeWidth).toBe("2px");
+    expect(getComputedStyle(path).strokeWidth).toBe("1.5px");
     expect(getComputedStyle(path).vectorEffect).toBe("non-scaling-stroke");
     const ink = host("");
     ink.style.color = "var(--cp-ink)";
@@ -986,6 +986,22 @@ describe("css/system.css meter", () => {
     expect(getComputedStyle(marks[0] as Element).fontSize).toBe("13px");
   });
 
+  it("rings each tick in the surface it sits on, its ink at 3:1 on that surface, in both themes", () => {
+    for (const t of ["light", "dark"] as const) {
+      for (const surface of ["--cp-surface-page", "--cp-surface-raised"]) {
+        const el = meter('<meter max="100" low="80" high="90" value="95"></meter>');
+        theme(t);
+        el.style.setProperty("--cp-chart-surface", `var(${surface})`);
+        const ring = token(surface);
+        for (const mark of el.querySelectorAll('[data-part="marks"] > span')) {
+          const tick = getComputedStyle(mark, "::before");
+          expect(tick.boxShadow).toBe(`${ring} 0px 0px 0px 1px`);
+          expect(contrast(tick.backgroundColor, ring)).toBeGreaterThanOrEqual(3);
+        }
+      }
+    }
+  });
+
   it("measures marks from the end in a right-to-left page", () => {
     const el = meter('<meter max="100" low="80" value="1"></meter>', "", "rtl");
     const bar = box(el.querySelector('[data-part="bar"]'));
@@ -1023,6 +1039,22 @@ describe("css/system.css ranked bars", () => {
       bar: box(r.querySelector('[data-part="bar"]')),
       fill: r.querySelector('[data-part="bar"] > span'),
     }));
+
+  it("ends a bar column's header where its numbers end, in either direction", () => {
+    for (const dir of ["ltr", "rtl"]) {
+      const table = ranked(row(1000) + row(25), "", dir);
+      const words = document.createRange();
+      words.selectNodeContents(table.querySelector("thead th[data-bar]") as Element);
+      const head = words.getBoundingClientRect();
+      for (const p of parts(table)) {
+        if (dir === "ltr") {
+          expect(Math.abs(head.right - p.number.right)).toBeLessThanOrEqual(1);
+        } else {
+          expect(Math.abs(head.left - p.number.left)).toBeLessThanOrEqual(1);
+        }
+      }
+    }
+  });
 
   it("draws a 6rem bar after each number, the bars on one start, each filled to its share", () => {
     const table = ranked(row(1000) + row(250) + row(1));
@@ -1361,6 +1393,96 @@ describe("css/system.css", () => {
     expect(shown()).toEqual([false, true]);
   });
 
+  it("writes a value set elsewhere in the ink as selectable words, a long one wrapping inside its row", () => {
+    theme("light");
+    const el = build(
+      '<div style="inline-size: 20rem"><div class="cp-setting"><div><span class="cp-label">Data folder</span><span class="cp-help">Changes only at startup.</span></div>' +
+        '<div class="cp-set-elsewhere"><code class="cp-mono">averyveryverylongvaluewithnoplacetobreakatallinsidethisrow</code><span class="cp-chip" data-tone="neutral">from config.yaml</span></div></div>' +
+        '<div class="cp-set-elsewhere"><strong>Sonarr API key</strong><span class="cp-state" data-tone="success">Set</span></div>' +
+        '<span style="color: var(--cp-ink)"></span></div>',
+    );
+    const [line, secret] = [...el.querySelectorAll(".cp-set-elsewhere")] as [
+      HTMLElement,
+      HTMLElement,
+    ];
+    const value = line.querySelector("code") as HTMLElement;
+    const ink = getComputedStyle(el.querySelector("[style^='color']") as Element).color;
+    expect(getComputedStyle(value).color).toBe(ink);
+    expect(getComputedStyle(value).userSelect).not.toBe("none");
+    expect(value.getBoundingClientRect().right).toBeLessThanOrEqual(
+      (el.firstElementChild as Element).getBoundingClientRect().right + 0.5,
+    );
+    const name = getComputedStyle(secret.querySelector("strong") as Element);
+    expect([name.color, name.fontWeight]).toEqual([ink, "500"]);
+  });
+
+  it("sets a button after a choices legend at the end of its line, the boxes under both, the legend still naming the group", () => {
+    theme("light");
+    const el = build(
+      '<fieldset class="cp-choices" style="inline-size: 24rem"><legend class="cp-label" id="ig-l">Embedded subtitles to ignore</legend>' +
+        '<button class="cp-button" data-variant="quiet" data-size="sm" type="button" aria-describedby="ig-l">Reset to default</button>' +
+        '<label class="cp-choice"><input class="cp-checkbox" type="checkbox" checked><span>PGS</span></label>' +
+        '<label class="cp-choice"><input class="cp-checkbox" type="checkbox"><span>ASS</span></label></fieldset>',
+    );
+    const set = el.querySelector("fieldset") as HTMLFieldSetElement;
+    const box = (sel: string) => (set.querySelector(sel) as Element).getBoundingClientRect();
+    const [legend, button, first] = [box("legend"), box("button"), box(".cp-choice")];
+    const second = box(".cp-choice + .cp-choice");
+    const edge = set.getBoundingClientRect();
+    expect(legend.left).toBeCloseTo(edge.left, 0);
+    expect(button.right).toBeCloseTo(edge.right, 0);
+    expect(legend.top + legend.height / 2).toBeCloseTo(button.top + button.height / 2, 0);
+    expect([first.top - button.bottom, second.top - first.bottom]).toEqual([8, 8]);
+    expect(first.width).toBeCloseTo(edge.width, 0);
+    expect(page.getByRole("group", { name: "Embedded subtitles to ignore" }).element()).toBe(set);
+  });
+
+  it("splits a longer set into named groups, each legend quieter than the set's, groups twice a row's gap apart", () => {
+    theme("light");
+    const group = (name: string, boxes: string[]) =>
+      `<fieldset class="cp-choices"><legend>${name}</legend>` +
+      boxes
+        .map(
+          (b) =>
+            `<label class="cp-choice"><input class="cp-checkbox" type="checkbox"><span>${b}</span></label>`,
+        )
+        .join("") +
+      "</fieldset>";
+    const el = build(
+      '<span id="gr-muted" style="color: var(--cp-ink-muted)"></span>' +
+        '<fieldset class="cp-choices" style="inline-size: 24rem"><legend class="cp-label" id="gr-l">Embedded subtitles to ignore</legend>' +
+        '<button class="cp-button" data-variant="quiet" data-size="sm" type="button" aria-describedby="gr-l">Reset to default</button>' +
+        group("Text", ["SRT", "ASS"]) +
+        group("Picture", ["PGS", "VobSub"]) +
+        "</fieldset>",
+    );
+    const set = el.querySelector("fieldset") as HTMLFieldSetElement;
+    const [text, picture] = [...set.querySelectorAll(":scope > fieldset")] as [Element, Element];
+    const rect = (e: Element) => e.getBoundingClientRect();
+    // Where a legend's words start: its box top past its own padding.
+    const words = (g: Element) => {
+      const legend = g.querySelector("legend") as Element;
+      return {
+        top: rect(legend).top + Number.parseFloat(getComputedStyle(legend).paddingTop),
+        bottom: rect(legend).bottom,
+      };
+    };
+    const [t1, t2] = [...text.querySelectorAll(".cp-choice")].map(rect) as [DOMRect, DOMRect];
+    const [p1] = [...picture.querySelectorAll(".cp-choice")].map(rect) as [DOMRect];
+    expect(words(text).top - rect(set.querySelector("button") as Element).bottom).toBe(8);
+    expect([t1.top - words(text).bottom, p1.top - words(picture).bottom]).toEqual([4, 4]);
+    expect(t2.top - t1.bottom).toBe(8);
+    expect(words(picture).top - t2.bottom).toBe(16);
+    const [outer, inner] = [set, text].map((g) =>
+      getComputedStyle(g.querySelector("legend") as Element),
+    );
+    const muted = getComputedStyle(el.querySelector("#gr-muted") as Element).color;
+    expect([inner?.fontSize, inner?.fontWeight, inner?.color]).toEqual(["13px", "500", muted]);
+    expect(outer?.color).not.toBe(muted);
+    expect(page.getByRole("group", { name: "Picture" }).element()).toBe(picture);
+    expect(page.getByRole("group", { name: "Embedded subtitles to ignore" }).element()).toBe(set);
+  });
+
   it("draws the danger glyph for an error written without one, and not twice for one with it", () => {
     theme("light");
     const el = build(
@@ -1589,7 +1711,7 @@ describe("css/system.css", () => {
     panel.hidePopover();
   });
 
-  it("runs a listbox's covered options edge to edge, a title over its facts, 2px apart", () => {
+  it("runs a listbox's covered options edge to edge, a title over its facts, the covers flush", () => {
     theme("light");
     const option = (title: string) =>
       `<li role="option"><span class="cp-cover" data-harmony="2"><span class="cp-icon"></span></span><strong>${title}</strong><small>2023 · TV</small></li>`;
@@ -1610,7 +1732,7 @@ describe("css/system.css", () => {
     expect(Math.round(cover.left - box.left)).toBe(1);
     expect([cover.width, cover.height]).toEqual([32, 48]);
     expect(first.getBoundingClientRect().top - box.top).toBe(1);
-    expect(second.getBoundingClientRect().top - first.getBoundingClientRect().bottom).toBe(2);
+    expect(second.getBoundingClientRect().top - first.getBoundingClientRect().bottom).toBe(0);
     const title = (first.querySelector("strong") as Element).getBoundingClientRect();
     const facts = (first.querySelector("small") as Element).getBoundingClientRect();
     expect(facts.top).toBeGreaterThanOrEqual(title.bottom);
@@ -1657,7 +1779,7 @@ describe("css/system.css", () => {
       '<div class="cp-app"><header class="cp-header"><nav class="cp-nav"><a class="cp-nav-item" href="#a" aria-current="page"><span class="cp-nav-label">Overview</span></a><a class="cp-nav-item" href="#b"><span class="cp-nav-label">Library</span></a></nav></header><main class="cp-main">Main</main></div>',
     );
     const nav = el.querySelector(".cp-nav") as HTMLElement;
-    expect(getComputedStyle(nav).position).toBe("static");
+    expect(getComputedStyle(nav).position).toBe("relative");
     await page.viewport(390, 800);
     expect(getComputedStyle(nav).position).toBe("fixed");
     expect(Math.round(nav.getBoundingClientRect().bottom)).toBe(800);
@@ -2389,6 +2511,62 @@ describe("css/system.css", () => {
     );
   });
 
+  it("turns the categories into the made select on a narrow screen, and pops in only a dot added later", async () => {
+    theme("light");
+    const dot = (added: string) =>
+      `<span data-part="end"><span class="cp-dot" data-tone="accent" aria-hidden="true"${added}></span><span class="cp-visually-hidden">, unsaved changes</span></span>`;
+    const markup =
+      '<div class="cp-settings"><nav class="cp-settings-nav" aria-label="Settings"><ul class="cp-list" data-surface="plain" data-divider="none" data-density="compact">' +
+      `<li><a class="cp-list-row" href="#c" aria-current="location"><span class="cp-cell-stack">Connections</span>${dot("")}</a></li>` +
+      `<li><a class="cp-list-row" href="#l"><span class="cp-cell-stack">Languages</span>${dot(" data-cp-added")}</a></li></ul>` +
+      '<div class="cp-field"><label class="cp-label" for="cat">Category</label><div class="cp-select"><select class="cp-input" id="cat"><option>Connections, unsaved changes</option><option>Languages, unsaved changes</option></select></div></div></nav>' +
+      '<div><div class="cp-setting"><div><label class="cp-label" for="n">Notifications</label></div><input class="cp-switch" id="n" type="checkbox" role="switch"></div></div></div>';
+    await page.viewport(1280, 720);
+    const wide = build(markup);
+    const shown = (el: HTMLElement, sel: string) =>
+      getComputedStyle(el.querySelector(sel) as Element).display !== "none";
+    expect([
+      shown(wide, ".cp-settings-nav > .cp-list"),
+      shown(wide, ".cp-settings-nav > .cp-field"),
+    ]).toEqual([true, false]);
+    const [still, added] = [...wide.querySelectorAll(".cp-dot")].map(
+      (d) => getComputedStyle(d).animationName,
+    );
+    expect([still, added]).toEqual(["none", "cp-token-in"]);
+    const end = (wide.querySelector(".cp-list-row") as Element).getBoundingClientRect().right;
+    const mark = (wide.querySelector(".cp-dot") as Element).getBoundingClientRect();
+    expect(mark.width).toBe(8);
+    expect(end - mark.right).toBe(12);
+    await page.viewport(600, 800);
+    const narrow = build(markup);
+    expect([
+      shown(narrow, ".cp-settings-nav > .cp-list"),
+      shown(narrow, ".cp-settings-nav > .cp-field"),
+    ]).toEqual([false, true]);
+    const select = narrow.querySelector("select") as HTMLSelectElement;
+    const nav = (narrow.querySelector(".cp-settings-nav") as Element).getBoundingClientRect();
+    expect(select.getBoundingClientRect().width).toBeCloseTo(nav.width, 0);
+    expect(nav.bottom).toBeLessThanOrEqual(
+      (narrow.querySelector(".cp-setting") as Element).getBoundingClientRect().top,
+    );
+  });
+
+  it("puts a setting's error on its own line under the row, the control still at the end", () => {
+    theme("light");
+    const el = build(
+      '<div class="cp-panel" style="inline-size: 40rem"><div class="cp-setting"><div><label class="cp-label" for="e">Check every</label><span class="cp-help">In minutes, 5 or more.</span></div>' +
+        '<input class="cp-input" id="e" type="number" aria-invalid="true"><span class="cp-field-error">Enter 5 minutes or more.</span></div></div>',
+    );
+    const row = (el.querySelector(".cp-setting") as Element).getBoundingClientRect();
+    const words = (el.querySelector(".cp-setting > div") as Element).getBoundingClientRect();
+    const input = (el.querySelector("input") as Element).getBoundingClientRect();
+    const error = (el.querySelector(".cp-field-error") as Element).getBoundingClientRect();
+    expect(input.right).toBeCloseTo(row.right, 0);
+    expect(input.top).toBeLessThan(words.bottom);
+    expect(error.top - Math.max(input.bottom, words.bottom)).toBe(8);
+    expect([error.left, error.width]).toEqual([row.left, row.width]);
+  });
+
   it("keeps the save bar in view at the bottom of a long form, and gone while hidden", () => {
     theme("light");
     const el = build(
@@ -2397,6 +2575,35 @@ describe("css/system.css", () => {
     const [shown, gone] = [...el.querySelectorAll(".cp-savebar")].map((n) => getComputedStyle(n));
     expect([shown?.position, shown?.insetBlockEnd]).toEqual(["sticky", "12px"]);
     expect(gone?.display).toBe("none");
+  });
+
+  it("scrolls a field into view clear of the save bar while it shows, and clears nothing once it hides", () => {
+    theme("light");
+    const fields = Array.from(
+      { length: 12 },
+      (_, i) =>
+        `<div class="cp-field"><input class="cp-input" aria-label="Field ${String(i)}"></div>`,
+    ).join("");
+    const el = build(
+      `<div style="block-size: 20rem; overflow-y: auto"><form class="cp-stack">${fields}<div class="cp-savebar"><span>1 unsaved change</span><button class="cp-button" type="reset">Discard</button></div></form></div>`,
+    );
+    const scroller = el.firstElementChild as HTMLElement;
+    const form = el.querySelector("form") as HTMLFormElement;
+    const bar = el.querySelector(".cp-savebar") as HTMLElement;
+    const last = [...form.querySelectorAll("input")].at(-1) as HTMLInputElement;
+    // The scroll a focus or a link runs; WebKit's focus() in a test page
+    // scrolls nothing.
+    last.scrollIntoView({ block: "nearest" });
+    const ring = last.getBoundingClientRect().bottom + 4;
+    expect(ring).toBeLessThanOrEqual(bar.getBoundingClientRect().top);
+    expect(getComputedStyle(bar.querySelector("button") as Element).scrollMarginBlockEnd).toBe(
+      "0px",
+    );
+    form.style.setProperty("--cp-savebar-size", "100px");
+    expect(getComputedStyle(last).scrollMarginBlockEnd).toBe("116px");
+    bar.hidden = true;
+    scroller.scrollTop = 0;
+    expect(getComputedStyle(last).scrollMarginBlockEnd).toBe("0px");
   });
 
   it("keeps an aria-disabled button under the pointer, so a press on it keeps focus", async () => {
@@ -3061,7 +3268,7 @@ describe("css/system.css", () => {
     );
   });
 
-  it("gives a lone row action the width of its column", () => {
+  it("sizes a lone row action to its words, not to its column", () => {
     theme("light");
     const el = build(
       '<table class="cp-table"><tbody>' +
@@ -3070,7 +3277,7 @@ describe("css/system.css", () => {
         "</tbody></table>",
     );
     const [a, b] = [...el.querySelectorAll("button")].map((x) => x.getBoundingClientRect().width);
-    expect(a).toBe(b);
+    expect(a).toBeLessThan(b as number);
   });
 });
 
@@ -3958,6 +4165,25 @@ describe("css/system.css lists, feeds and counts", () => {
     expect(contrast(quiet.color, quiet.backgroundColor)).toBeGreaterThanOrEqual(4.5);
   });
 
+  it("centres a badge's figures on their cap height, the same in every engine", () => {
+    theme("light");
+    const el = build(
+      '<span class="cp-badge">3</span><span class="cp-badge" data-variant="quiet">12</span>',
+    );
+    for (const badge of el.querySelectorAll<HTMLElement>(".cp-badge")) {
+      const baseline = document.createElement("span");
+      baseline.style.cssText = "display: inline-block; inline-size: 1px; block-size: 0";
+      const cap = document.createElement("span");
+      cap.style.cssText = "position: absolute; block-size: 100cap";
+      badge.append(baseline, cap);
+      const box = badge.getBoundingClientRect();
+      const base = baseline.getBoundingClientRect().bottom - box.top;
+      const capHeight = cap.getBoundingClientRect().height / 100;
+      expect(box.height).toBe(20);
+      expect(Math.abs(base - capHeight - (box.height - base))).toBeLessThanOrEqual(1);
+    }
+  });
+
   it.skipIf(!emulates)(
     "outlines a badge in forced colours, where its fill is dropped",
     async () => {
@@ -4021,6 +4247,8 @@ describe("css/system.css lists, feeds and counts", () => {
       HTMLButtonElement,
     ];
     const fill = resolved("var(--cp-fill)", "backgroundColor");
+    const wash = resolved("var(--cp-wash-hover)", "backgroundColor");
+    const washed = resolved("var(--cp-wash-active)", "backgroundColor");
     for (const [more, under] of [
       [inRow, row(el)],
       [inTable, el.querySelector("td") as HTMLElement],
@@ -4029,13 +4257,9 @@ describe("css/system.css lists, feeds and counts", () => {
       more.style.transition = "none";
       await userEvent.hover(more);
       expect(getComputedStyle(under).backgroundColor).toBe(fill);
-      expect(getComputedStyle(more).backgroundColor).toBe(
-        resolved("var(--cp-fill-hover)", "backgroundColor"),
-      );
+      expect(getComputedStyle(more).backgroundColor).toBe(wash);
       more.toggleAttribute("data-cp-pressed", true);
-      expect(getComputedStyle(more).backgroundColor).toBe(
-        resolved("var(--cp-fill-active)", "backgroundColor"),
-      );
+      expect(getComputedStyle(more).backgroundColor).toBe(washed);
       more.disabled = true;
       more.toggleAttribute("data-cp-pressed", false);
       expect(getComputedStyle(more).backgroundColor).toBe(
@@ -4048,12 +4272,47 @@ describe("css/system.css lists, feeds and counts", () => {
     ).firstElementChild as HTMLElement;
     bare.style.transition = "none";
     await userEvent.hover(bare);
-    expect(getComputedStyle(bare).backgroundColor).toBe(fill);
+    expect(getComputedStyle(bare).backgroundColor).toBe(wash);
     bare.toggleAttribute("data-cp-pressed", true);
-    expect(getComputedStyle(bare).backgroundColor).toBe(
-      resolved("var(--cp-fill-active)", "backgroundColor"),
-    );
+    expect(getComputedStyle(bare).backgroundColor).toBe(washed);
     await userEvent.unhover(bare);
+  });
+
+  it("sets a quiet button's hover and press 1.2:1 apart from every surface, in both themes", async () => {
+    root.dataset["pointer"] = "fine";
+    /** `over` painted on `surface`, read back as one opaque sRGB colour. */
+    const on = (surface: string, over: string): string => {
+      const ctx = new OffscreenCanvas(1, 1).getContext("2d") as OffscreenCanvasRenderingContext2D;
+      ctx.fillStyle = surface;
+      ctx.fillRect(0, 0, 1, 1);
+      ctx.fillStyle = over;
+      ctx.fillRect(0, 0, 1, 1);
+      const [r = 0, g = 0, b = 0] = ctx.getImageData(0, 0, 1, 1).data;
+      return `rgb(${String(r)}, ${String(g)}, ${String(b)})`;
+    };
+    for (const t of ["light", "dark"] as const) {
+      theme(t);
+      for (const surface of ["page", "raised", "sunken", "overlay"]) {
+        const box = build(
+          `<div style="background: var(--cp-surface-${surface})"><button class="cp-button" data-variant="quiet" type="button" aria-label="Copy"><span class="cp-icon"></span></button></div>`,
+        );
+        const ground = getComputedStyle(box.firstElementChild as Element).backgroundColor;
+        const b = box.querySelector("button") as HTMLButtonElement;
+        b.style.transition = "none";
+        await userEvent.hover(b);
+        const hover = getComputedStyle(b).backgroundColor;
+        b.toggleAttribute("data-cp-pressed", true);
+        const press = getComputedStyle(b).backgroundColor;
+        await userEvent.unhover(b);
+        const base = on(ground, "transparent");
+        expect(contrast(on(ground, hover), base), `${t} ${surface} hover`).toBeGreaterThanOrEqual(
+          1.2,
+        );
+        expect(contrast(on(ground, press), base), `${t} ${surface} press`).toBeGreaterThan(
+          contrast(on(ground, hover), base),
+        );
+      }
+    }
   });
 
   it("ends a row that opens a page with its chevron, which turns to face right to left", () => {
@@ -5319,34 +5578,81 @@ describe("css/system.css data tables", () => {
     );
   });
 
-  it("writes a caption small and muted at the table's start", () => {
+  it("draws no title inside a table: a caption keeps the table's own type", () => {
     theme("light");
     const el = build(
-      '<table class="cp-table"><caption>Library, 1 to 4 of 412 entries</caption></table>',
+      '<table class="cp-table"><caption>Library</caption><tbody><tr><td>Mushishi</td></tr></tbody></table>',
     );
-    const caption = getComputedStyle(el.querySelector("caption") as Element);
-    expect([caption.color, caption.textAlign]).toEqual([resolve("var(--cp-ink-muted)"), "start"]);
-    expect(caption.fontSize).toBe(
-      getComputedStyle(host("", { style: "font-size: var(--cp-text-xs)" })).fontSize,
-    );
+    const [caption, cell] = ["caption", "td"].map((s) =>
+      getComputedStyle(el.querySelector(s) as Element),
+    ) as [CSSStyleDeclaration, CSSStyleDeclaration];
+    expect(caption.fontSize).toBe(cell.fontSize);
+    expect(caption.color).toBe(cell.color);
   });
 
-  it("sizes a title cell's cover to its row less 1px each side, in a cell or a row's header", () => {
+  it("hugs a number column and a bar column to their widest cell, the text column taking the rest", () => {
     theme("light");
+    const el = build(
+      '<table class="cp-table" style="inline-size: 800px"><thead><tr><th data-col="num">Slot</th><th>Name</th><th data-bar>Sent</th><th data-col="num">Size</th></tr></thead>' +
+        '<tbody><tr><td data-col="num">1</td><td>On the best</td><td data-bar><data value="9">9</data></td><td data-col="num">33.0 GB</td></tr>' +
+        '<tr><td data-col="num">12</td><td>Missing</td><td data-bar><data value="3">3</data></td><td data-col="num">1.4 GB</td></tr></tbody></table>',
+    );
+    const head = [...el.querySelectorAll("thead th")] as HTMLElement[];
+    for (const i of [0, 2, 3]) {
+      const th = head[i] as HTMLElement;
+      const cs = getComputedStyle(th);
+      const pad = parseFloat(cs.paddingInlineStart) + parseFloat(cs.paddingInlineEnd);
+      const widest = Math.max(
+        ...[...el.querySelectorAll(`tr > :nth-child(${String(i + 1)})`)].map((c) => {
+          const words = document.createRange();
+          words.selectNodeContents(c);
+          return words.getBoundingClientRect().width;
+        }),
+      );
+      expect(th.getBoundingClientRect().width).toBeLessThanOrEqual(widest + pad + 1);
+    }
+    expect((head[1] as HTMLElement).getBoundingClientRect().width).toBeGreaterThan(500);
+  });
+
+  it("centres a one-line cell in a two-line row, and never breaks a number or a date", () => {
+    theme("light");
+    const el = build(
+      '<table class="cp-table" style="inline-size: 200px"><tbody><tr><td><div class="cp-cell-stack">Frieren<span class="cp-meta">TV, 2023</span></div></td>' +
+        '<td data-col="num">1.4 GB</td><td><time datetime="2023-10-20">2023-10-20</time></td></tr></tbody></table>',
+    );
+    const [, size, added] = [...el.querySelectorAll("td")] as HTMLElement[];
+    const row = (el.querySelector("tr") as Element).getBoundingClientRect();
+    for (const cell of [size, added]) {
+      const words = document.createRange();
+      words.selectNodeContents(cell as HTMLElement);
+      expect(new Set([...words.getClientRects()].map((r) => Math.round(r.bottom))).size).toBe(1);
+      const box = words.getBoundingClientRect();
+      expect(Math.abs(box.top + box.height / 2 - (row.top + row.height / 2))).toBeLessThanOrEqual(
+        1,
+      );
+    }
+  });
+
+  it("insets a title cell's 2:3 cover 6px from its row's edges, in a cell or a row's header", () => {
+    theme("light");
+    root.dataset["pointer"] = "fine";
     const cell = (tag: "td" | "th") =>
       `<tr><${tag}><div class="cp-title-cell"><span class="cp-cover" data-harmony="4"><span class="cp-icon" data-cp-icon="tv"></span></span>` +
       `<div class="cp-cell-stack"><a href="#t">Mushishi</a><span class="cp-meta">TV, 2005</span></div></div></${tag}></tr>`;
     const el = build(`<table class="cp-table"><tbody>${cell("td")}${cell("th")}</tbody></table>`);
+    const radius = getComputedStyle(
+      host("", { style: "border-radius: var(--cp-radius-control)" }),
+    ).borderStartStartRadius;
     for (const row of el.querySelectorAll("tr")) {
       const cover = row.querySelector(".cp-cover") as Element;
       const box = cover.getBoundingClientRect();
-      expect([box.width, box.height]).toEqual([36, 54]);
-      expect(getComputedStyle(row.cells[0] as Element).paddingBlockStart).toBe("1px");
-      expect(getComputedStyle(cover).borderStartStartRadius).toBe(
-        getComputedStyle(
-          host("", { style: "border-radius: calc(var(--cp-radius-control) - 0.125rem)" }),
-        ).borderStartStartRadius,
-      );
+      const cs = getComputedStyle(row.cells[0] as Element);
+      expect([box.width, box.height]).toEqual([32, 48]);
+      expect([cs.paddingBlockStart, cs.paddingBlockEnd]).toEqual(["6px", "6px"]);
+      expect(
+        (row.cells[0] as Element).getBoundingClientRect().height - box.height,
+      ).toBeLessThanOrEqual(13);
+      expect(getComputedStyle(cover).borderStartStartRadius).toBe(radius);
       expect((cover.querySelector(".cp-icon") as Element).getBoundingClientRect().width).toBe(16);
     }
   });
@@ -5740,7 +6046,7 @@ describe("css/system.css data tables", () => {
     const list = el.querySelector("dl") as Element;
     const [dt, dd] = [list.querySelector("dt"), list.querySelector("dd")] as Element[];
     const style = getComputedStyle(list);
-    expect([style.rowGap, style.columnGap, style.margin]).toEqual(["8px", "20px", "0px"]);
+    expect([style.rowGap, style.columnGap, style.margin]).toEqual(["4px", "20px", "0px"]);
     expect(getComputedStyle(dt as Element).color).toBe(resolve("var(--cp-ink-muted)"));
     expect(getComputedStyle(dd as Element).margin).toBe("0px");
     expect((dd as Element).getBoundingClientRect().top).toBe(

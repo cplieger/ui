@@ -1,0 +1,176 @@
+<div class="cp-app">
+  <main
+    class="cp-main"
+    id="main"
+    tabindex="-1"
+  >
+    <div class="cp-heading-row"><h1>Settings</h1></div>
+    <div class="cp-settings">
+      <nav
+        class="cp-settings-nav"
+        aria-label="Settings"
+      >
+        <ul
+          class="cp-list"
+          data-surface="plain"
+          data-divider="none"
+          data-density="compact"
+        >
+          <li>
+            <a
+              class="cp-list-row"
+              href="#fs-connections"
+              ><span class="cp-cell-stack">Connections</span></a
+            >
+          </li>
+          <li>
+            <a
+              class="cp-list-row"
+              href="#fs-checks"
+              ><span class="cp-cell-stack">Checks</span></a
+            >
+          </li>
+          <li>
+            <a
+              class="cp-list-row"
+              href="#fs-display"
+              ><span class="cp-cell-stack">Display</span></a
+            >
+          </li>
+        </ul>
+      </nav>
+      <form
+        class="cp-stack"
+        action="#"
+        novalidate
+      >
+        <section
+          class="cp-stack"
+          id="fs-connections"
+          aria-labelledby="fs-connections-h"
+        >
+          <h2 id="fs-connections-h">Connections</h2>
+          <div class="cp-panel">
+            <div class="cp-setting">
+              <div>
+                <label
+                  class="cp-label"
+                  for="fs-sonarr"
+                  >Sonarr address</label
+                ><span class="cp-help">With its port.</span>
+              </div>
+              <input
+                class="cp-input"
+                id="fs-sonarr"
+                type="url"
+                value="http://sonarr:8989"
+                spellcheck="false"
+              />
+            </div>
+            <div class="cp-setting">
+              <div>
+                <label
+                  class="cp-label"
+                  for="fs-radarr"
+                  >Radarr address</label
+                ><span class="cp-help">With its port.</span>
+              </div>
+              <input
+                class="cp-input"
+                id="fs-radarr"
+                type="url"
+                value="http://radarr:7878"
+                spellcheck="false"
+              />
+            </div>
+          </div>
+        </section>
+        <section
+          class="cp-stack"
+          id="fs-checks"
+          aria-labelledby="fs-checks-h"
+        >
+          <h2 id="fs-checks-h">Checks</h2>
+          <div class="cp-panel">
+            <div class="cp-setting">
+              <div>
+                <label
+                  class="cp-label"
+                  for="fs-night"
+                  >Check every night</label
+                ><span class="cp-help">At 03:00, when nobody is watching.</span>
+              </div>
+              <input
+                class="cp-switch"
+                id="fs-night"
+                type="checkbox"
+                role="switch"
+                checked
+              />
+            </div>
+            <div class="cp-setting">
+              <div>
+                <label
+                  class="cp-label"
+                  for="fs-every"
+                  >Check every</label
+                ><span class="cp-help">In minutes, 5 or more.</span>
+              </div>
+              <input
+                class="cp-input"
+                id="fs-every"
+                type="number"
+                min="5"
+                value="30"
+              />
+            </div>
+          </div>
+        </section>
+        <section
+          class="cp-stack"
+          id="fs-display"
+          aria-labelledby="fs-display-h"
+        >
+          <h2 id="fs-display-h">Display</h2>
+          <div class="cp-panel">
+            <div class="cp-setting">
+              <div>
+                <label
+                  class="cp-label"
+                  for="fs-name"
+                  >Display name</label
+                ><span class="cp-help">Shown on your sessions.</span>
+              </div>
+              <input
+                class="cp-input"
+                id="fs-name"
+                value="Christophe"
+              />
+            </div>
+          </div>
+        </section>
+        <div
+          class="cp-savebar"
+          role="group"
+          aria-label="Unsaved changes"
+          hidden
+        >
+          <span data-part="count"></span>
+          <button
+            class="cp-button"
+            type="reset"
+          >
+            Discard
+          </button>
+          <button
+            class="cp-button"
+            data-variant="primary"
+            type="submit"
+          >
+            Save changes
+          </button>
+        </div>
+      </form>
+    </div>
+  </main>
+</div>

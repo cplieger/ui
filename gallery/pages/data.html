@@ -11,10 +11,10 @@
     <div class="g-grid">
       <div class="card g-wide" data-new>
         <h2>Sort, select, act</h2>
+        <h3 id="g-table-title" tabindex="-1">Library</h3>
         <section class="cp-batchbar" data-batch="rows" data-total="412" aria-label="Selected entries" hidden><span class="cp-batch-count">0 selected</span><button class="cp-button" data-variant="quiet" data-size="sm" type="button" data-batch-every hidden>Select all 412 entries</button><button class="cp-button" data-size="sm" type="button" data-batch-clear>Clear</button><button class="cp-button" data-variant="primary" data-size="sm" type="button" data-batch-action="Grab"><span class="cp-icon" data-cp-icon="download" aria-hidden="true"></span><span class="cp-icon" data-cp-icon="spinner-arc" data-part="busy" aria-hidden="true"></span><span class="cp-icon" data-cp-icon="check" data-part="done" aria-hidden="true"></span><span class="cp-roll">Grab 0</span></button></section>
-        <div class="cp-panel" data-flush>
-          <table class="cp-table" id="g-table">
-            <caption tabindex="-1">Library, 1 to 4 of 412 entries</caption>
+        <div class="cp-panel" data-flush role="region" tabindex="0" aria-labelledby="g-table-title">
+          <table class="cp-table" id="g-table" aria-labelledby="g-table-title">
             <thead><tr>
               <th data-col="select"><label><input class="cp-checkbox" type="checkbox" data-select-all="rows" aria-label="Select all 4 entries on this page"></label></th>
               <th aria-sort="ascending"><button class="cp-sort" type="button">Title</button></th>
@@ -40,7 +40,7 @@
         <div class="g-row-inline g-gap-top"><button class="cp-button" data-size="sm" type="button" data-load="g-table"><span class="cp-icon" data-cp-icon="refresh-cw" aria-hidden="true"></span>Show loading</button></div>
         <footer>The title is the row's link, with a thumbnail beside it. Each row has a Grab with its word and a ⋯ menu; their names add the title. Grab answers in place with Save's cycle: busy as Grabbing…, then green as the check draws and it reads Grabbed, then it fades back. A header sorts its column, names the order a press applies, and the rows glide to their places. The header box selects this page; once all of it is selected, the bar offers all 412. Bulk actions carry their count, and Escape clears the selection. Size, then Verdict, step aside as the table narrows.</footer>
       </div>
-      <div class="card" data-new>
+      <div class="card">
         <h2>Active filters and the count</h2>
         <div class="cp-active-filters" data-count="af-count" data-total="412">
           <span class="cp-token" data-value="Verdict: Not the best"><span>Verdict: Not the best</span><button type="button" aria-label="Remove Verdict: Not the best"></button></span>
@@ -86,7 +86,7 @@
         <ul class="cp-list" id="ls-sample" aria-label="Library"></ul>
         <footer>Every list is this one element, and its attributes set what all its rows look like: the height (compact as a rail's filters, regular, or tall for posters, each sizing the row's image), surface, dividers and lines. A row is one link or one toggle, or it holds a title link and one worded action or a ⋯ menu at its end. A link row that is open, a toggle that is on and a chosen option share one selected look, the wash in the accent's darkest ink, and a quiet count turns solid with it. Click a link to open it, or a toggle to turn it on or off.</footer>
       </div>
-      <div class="card" data-new>
+      <div class="card">
         <h2>People</h2>
         <ul class="cp-list">
           <li><a class="cp-list-row" href="#lists" aria-current="true"><span class="cp-avatar" data-harmony="1">CP</span><span class="cp-cell-stack">Christophe<small>Owner, signed in now</small></span><span class="cp-icon" data-cp-icon="chevron-right" aria-hidden="true"></span></a></li>
@@ -95,7 +95,7 @@
         </ul>
         <footer>Initials on a harmony colour, chosen by the name so each person keeps theirs. The whole row is the link.</footer>
       </div>
-      <div class="card" data-new>
+      <div class="card">
         <h2>Long names</h2>
         <ul class="cp-list">
           <li><div class="cp-list-row"><span class="cp-icon" data-cp-icon="folder" aria-hidden="true"></span><span class="cp-cell-stack"><span class="cp-truncate" tabindex="0" data-cp-tip-toggle data-cp-tip="/media/anime/Frieren Beyond Journey's End (2023) [tvdb-424536]/Season 01">/media/anime/Frieren Beyond Journey's End (2023) [tvdb-424536]/Season 01</span><small>28 files</small></span></div></li>
@@ -111,7 +111,7 @@
         </ul>
         <footer>Component libraries list a file or attachment row; subflux's subtitles are exactly that. Its name in mono, then language, format, size and age, and a real download link.</footer>
       </div>
-      <div class="card" data-new>
+      <div class="card">
         <h2>Language order</h2>
         <ol class="cp-list cp-reorder" data-reorder aria-label="Audio languages, first is preferred">
           <li data-name="Japanese"><div class="cp-list-row"><span data-part="handle" aria-hidden="true"><span class="cp-icon" data-cp-icon="grip-vertical"></span></span><span data-part="rank">1</span><span class="cp-cell-stack">Japanese<small>Original audio</small></span><span data-part="move"><button class="cp-button" data-variant="quiet" data-size="sm" type="button" data-move="up" aria-label="Move Japanese up" data-cp-tip="Move Japanese up"><span class="cp-icon" data-cp-icon="arrow-up" aria-hidden="true"></span></button><button class="cp-button" data-variant="quiet" data-size="sm" type="button" data-move="down" aria-label="Move Japanese down" data-cp-tip="Move Japanese down"><span class="cp-icon" data-cp-icon="arrow-down" aria-hidden="true"></span></button></span></div></li>
@@ -120,7 +120,7 @@
         </ol>
         <footer>Move up and Move down move an item with a single press, and focus stays on the button pressed; a handle drags it, and Alt with an arrow moves it from the keyboard. The others slide aside and the new place is announced. A dragged row lifts with the overlay shadow, and its handle takes the full hit area under a finger.</footer>
       </div>
-      <div class="card g-wide" data-new>
+      <div class="card g-wide">
         <h2>Ordered cards</h2>
         <ol class="cp-stack cp-reorder" data-reorder aria-label="Subtitle providers, first is asked first">
           <li data-name="OpenSubtitles">
@@ -164,9 +164,9 @@
       </div>
       <div class="card g-wide" data-new>
         <h2>A table that holds its place</h2>
-        <div class="cp-panel" data-flush>
-          <table class="cp-table">
-            <caption>Library, the worst verdict first</caption>
+        <h3 id="hold-library-title">Library, the worst verdict first</h3>
+        <div class="cp-panel" data-flush role="region" tabindex="0" aria-labelledby="hold-library-title">
+          <table class="cp-table" aria-labelledby="hold-library-title">
             <thead><tr><th>Copy</th><th>Verdict</th><th>Grab</th></tr></thead>
             <tbody id="hold-library">
               <tr data-copy="ping-pong" data-verdict="missing"><td><div class="cp-cell-stack"><a href="#lists">Ping Pong the Animation</a><span class="cp-meta">Sonarr, TV, 2014</span></div></td><td><span class="cp-chip" data-tone="danger"><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span>Missing</span></td><td><span class="cp-meta">None</span></td></tr>
@@ -196,7 +196,7 @@
         <div class="cp-cluster"><button class="cp-button" data-size="sm" type="button" data-hold-live="hold-steps"><span class="cp-icon" data-cp-icon="play" aria-hidden="true"></span>Start live changes</button></div>
         <footer>A log oldest first lets each new row in at once, since it goes in below the reader and moves nothing they see. A row that goes in out of view is counted on a line pinned to the window's end, “2 newer rows · Show”: Show goes to the newest row and moves focus to it, and the count goes once the reader scrolls there. Start the live changes, which run one full check, then scroll the page up until the log's end is below the window.</footer>
       </div>
-        <div class="card g-wide" data-new>
+        <div class="card g-wide">
           <h2>A long list</h2>
         <div class="g-row-inline"><div class="cp-search g-grow"><input class="cp-input" id="v-filter" type="search" placeholder="Filter titles" aria-label="Filter titles"><button class="cp-button" data-variant="quiet" type="button" aria-label="Clear"></button></div><span id="v-count"></span><button class="cp-button" type="button" data-live-update="v-list">Live update</button></div>
         <ul class="cp-list g-gap-top" id="v-list" data-virtual aria-label="Titles"></ul>
@@ -248,10 +248,9 @@
     <h2>Figures and shares</h2>
     <div class="g-grid">
       <div class="card g-wide" data-new>
-        <h2>Series colours</h2>
-        <div class="cp-panel" data-flush>
-          <table class="cp-table" data-series-contrast>
-            <caption class="g-sr">The nine series colours and their contrast on each surface</caption>
+        <h2 id="series-title">Series colours</h2>
+        <div class="cp-panel" data-flush role="region" tabindex="0" aria-labelledby="series-title">
+          <table class="cp-table" data-series-contrast aria-labelledby="series-title">
             <thead><tr><th data-col="num">Slot</th><th>On a chip, with its swatch</th><th data-col="num">On the page</th><th data-col="num">On a panel</th><th data-col="num">Sunken</th><th data-col="num">In a popover</th></tr></thead>
             <tbody>
               <tr><td data-col="num">1</td><td><span class="cp-chip" data-series="1"><span class="cp-swatch"></span>On the best</span></td><td data-col="num" data-on="page"></td><td data-col="num" data-on="raised"></td><td data-col="num" data-on="sunken"></td><td data-col="num" data-on="overlay"></td></tr>
@@ -268,7 +267,7 @@
         </div>
         <footer>Nine slots for categories in data, turned from the accent as the harmony colours are: data-series puts a chip, a swatch or any element that reads a tone on one. Odd slots are bright and even ones deep, so neighbours differ in lightness under every colour-vision deficiency, and each holds 3:1 on the page, a panel, a sunken surface and a popover, measured here in the current theme. Change the hue in the bar below and every slot follows. The verdicts are a release tracker's, most common first.</footer>
       </div>
-      <div class="card g-wide" data-new>
+      <div class="card g-wide">
         <h2>Share bar</h2>
         <section class="cp-panel" aria-labelledby="share-h">
           <div class="cp-heading-row">
@@ -276,8 +275,7 @@
             <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" data-share-toggle="verdict-share" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
           </div>
           <div class="cp-share" id="verdict-share">
-            <table class="cp-table">
-              <caption class="cp-visually-hidden">Copies by verdict</caption>
+            <table class="cp-table" aria-labelledby="share-h">
               <thead><tr><th scope="col">Verdict</th><th scope="col" data-col="num">Copies</th></tr></thead>
               <tbody>
                 <tr data-series="1"><th scope="row"><a href="#figures"><span class="cp-icon" data-cp-icon="shield-check" aria-hidden="true"></span>On the best</a></th><td data-col="num"><data value="402">402</data></td></tr>
@@ -297,10 +295,9 @@
         <footer>One segment per verdict, sized by its share, with the surface showing through a 2px gap; a mouse or a tap on a segment shows its words, count and share. The legend chips are the links, each with its swatch, glyph, words and count; a reader also hears its share, and focus or a mouse shows the segment's tip on it. Table view shows the same numbers as a table, which is also what a page without the script shows. Grab 20 upgrades moves twenty copies from Not listed to On the best, and the bar follows the table.</footer>
       </div>
       <div class="card g-wide" data-new>
-        <h2>Sparkline</h2>
-        <div class="cp-panel" data-flush>
-          <table class="cp-table">
-            <caption class="g-sr">A message server and its members, sampled each minute</caption>
+        <h2 id="spark-title">Sparkline</h2>
+        <div class="cp-panel" data-flush role="region" tabindex="0" aria-labelledby="spark-title">
+          <table class="cp-table" aria-labelledby="spark-title">
             <thead><tr><th scope="col">Measure</th><th scope="col">Last 6 hours</th></tr></thead>
             <tbody>
               <tr><th scope="row">Live members</th><td><span class="cp-sparkline" data-series="1" data-spark="live"></span></td></tr>
@@ -322,17 +319,18 @@
           <button class="cp-figure" type="button" data-tone="neutral" aria-expanded="false" aria-controls="refused-posts" data-figure-count="refused"><span data-part="label">Refused posts</span> <span data-part="value"><data value="0">0</data></span></button>
           <button class="cp-figure" type="button" data-tone="warning" aria-expanded="false" aria-controls="failed-pushes"><span data-part="label">Failed pushes</span> <span data-part="value"><data value="3">3</data></span></button>
         </div>
-        <section class="cp-panel g-gap-top" id="refused-posts" aria-label="Refused posts" hidden>
+        <section class="cp-panel g-gap-top" id="refused-posts" aria-labelledby="refused-h" hidden>
+          <h3 id="refused-h">Refused posts in the last 6 hours</h3>
           <p class="cp-meta" data-figure-empty="refused">No post was refused in the last 6 hours.</p>
-          <table class="cp-table" data-figure-list="refused" hidden>
-            <caption class="cp-visually-hidden">Refused posts in the last 6 hours</caption>
+          <table class="cp-table" data-figure-list="refused" aria-labelledby="refused-h" hidden>
             <thead><tr><th scope="col">Time</th><th scope="col">Thread</th><th scope="col">Reason</th></tr></thead>
             <tbody><tr><td><time datetime="14:21">14:21</time></td><td class="cp-mono">/releases</td><td>The body is over 64&nbsp;KiB.</td></tr></tbody>
           </table>
         </section>
-        <section class="cp-panel g-gap-top" data-flush id="failed-pushes" aria-label="Failed pushes" hidden>
-          <table class="cp-table">
-            <caption class="cp-visually-hidden">Failed pushes in the last 6 hours</caption>
+        <section class="g-gap-top" id="failed-pushes" aria-labelledby="failed-h" hidden>
+          <h3 id="failed-h">Failed pushes in the last 6 hours</h3>
+          <div class="cp-panel" data-flush role="region" tabindex="0" aria-labelledby="failed-h">
+          <table class="cp-table" aria-labelledby="failed-h">
             <thead><tr><th scope="col">Time</th><th scope="col">Member</th><th scope="col">Reason</th></tr></thead>
             <tbody>
               <tr><td><time datetime="13:02">13:02</time></td><td>@ada</td><td>The connection closed before the push.</td></tr>
@@ -340,6 +338,7 @@
               <tr><td><time datetime="14:05">14:05</time></td><td>@ada</td><td>The connection closed before the push.</td></tr>
             </tbody>
           </table>
+          </div>
         </section>
         <div class="g-row-inline g-gap-top"><button class="cp-button" type="button" data-spark-tick>Next minute</button><button class="cp-button" type="button" data-figure-refuse="refused">Refuse a post</button></div>
         <footer>A number now under its label, with its unit on its baseline. Live members carries its last six hours as a sparkline in its slot. Oldest unread is past its hour, so it takes the warning tone with the tone's glyph, and a reader hears "over an hour". Refused posts and Failed pushes are buttons that open the events behind their count: neutral at 0, in the warning tone with a count. Refuse a post turns the first from 0 to 1 and back.</footer>
@@ -355,10 +354,9 @@
         <footer>A native meter against its ceiling, marked at 80% and 90%. Past the first mark the fill turns to the warning tone and past the second to danger, each with its glyph before the words, which say the value and the mark it passed. Add 30 GB and Free 150 GB move it.</footer>
       </div>
       <div class="card g-wide" data-new>
-        <h2>Ranked table</h2>
-        <div class="cp-panel" data-flush>
-          <table class="cp-table" data-ranked>
-            <caption class="g-sr">Who posts and reads, in the last 6 hours, by posts sent</caption>
+        <h2 id="ranked-title">Ranked table</h2>
+        <div class="cp-panel" data-flush role="region" tabindex="0" aria-labelledby="ranked-title">
+          <table class="cp-table" data-ranked aria-labelledby="ranked-title">
             <thead><tr><th scope="col">Member</th><th scope="col" data-bar="posts">Sent</th><th scope="col" data-bar="posts">Read</th><th scope="col" data-col="num">Longest wait</th><th scope="col" data-col="num">Turns held</th></tr></thead>
             <tbody>
               <tr><th scope="row"><a href="#figures">@ada</a></th><td data-bar="posts"><data value="148">148</data></td><td data-bar="posts" data-series="2"><data value="96">96</data></td><td data-col="num">3&nbsp;min</td><td data-col="num">4</td></tr>
@@ -383,12 +381,12 @@
         <div class="cp-grid" style="--cp-grid-min: 12rem">
           <a class="cp-figure" href="#cards"><span data-part="label"><span class="cp-icon" data-cp-icon="arrow-up" aria-hidden="true"></span>New upgrades</span><span data-part="value"><data class="cp-roll" data-kind="number" id="odo" value="33">33</data></span><span class="cp-cluster" data-gap="tight"><span class="cp-chip" data-tone="warning">3 new</span><span class="cp-chip" data-tone="neutral">Kept from 03:00</span></span></a>
           <a class="cp-figure" href="#cards"><span data-part="label">Missing</span><span data-part="value"><data value="9">9</data></span><span class="cp-cluster" data-gap="tight"><span class="cp-chip" data-tone="neutral">Unchanged</span></span></a>
-          <a class="cp-figure" href="#cards"><span data-part="label">Last check</span><span data-part="value"><time data-ago="360" data-style="narrow"></time></span><span class="cp-cluster" data-gap="tight"><span class="cp-chip" data-tone="success">All answered</span></span></a>
+          <a class="cp-figure" href="#cards"><span data-part="label">Last check</span><span data-part="value"><time data-ago="360"></time></span><span class="cp-cluster" data-gap="tight"><span class="cp-chip" data-tone="success">All answered</span></span></a>
         </div>
         <div class="g-row-inline g-gap-top"><button class="cp-button" type="button" data-roll-figure="odo">Run a check</button></div>
         <footer>A card link is a figure that is a link: the whole box is one link, named in reading order (glyph, label, figure, badges), at one width for every card. A leading glyph tells the groups apart, and the badges are a cluster of any number of chips, as New upgrades shows with a count from an earlier pass beside its new count. A time is the narrow form, "6m ago". A figure that changes while the page is open rolls to its new value, as Run a check shows. A card holds no button: an action such as Run now lives on the page the card opens.</footer>
       </div>
-      <div class="card g-wide" data-new>
+      <div class="card g-wide">
         <h2>Media cards</h2>
         <ul class="cp-list" data-layout="grid" aria-label="Library">
           <li><a class="cp-list-row" href="#cards"><span class="cp-cover" data-harmony="2"><span class="cp-icon" data-cp-icon="tv" aria-hidden="true"></span><span class="cp-chip" data-tone="success"><span class="cp-icon" data-cp-icon="circle-check" aria-hidden="true"></span>Best</span></span><span class="cp-cell-stack"><strong>Frieren: Beyond Journey's End</strong><small>2023, 28 episodes</small></span></a></li>
@@ -398,7 +396,7 @@
         </ul>
         <footer>Where the covers carry the meaning, a list laid out as a grid of tiles, <code>data-layout="grid"</code>. A cover is the work's own image; without one, the stand-in is a harmony colour and the kind's glyph. The cover grows a little under a mouse, and the focus ring goes round it.</footer>
       </div>
-      <div class="card" data-new>
+      <div class="card">
         <h2>Segmented meter</h2>
         <div class="cp-meter"><div data-part="bar"><meter data-series="1" max="12" value="12" aria-label="English" aria-describedby="lang-words">12 of 12</meter><meter data-series="2" max="12" value="3" aria-label="French" aria-describedby="lang-words">3 of 12</meter></div><small data-part="words" id="lang-words">English 12 of 12 · French 3 of 12 · 2 pinned</small></div>
         <footer>One segment per target, filled in its share. The sentence is the meter's meaning and its text alternative; the colour is a second channel.</footer>
@@ -409,7 +407,7 @@
   <section class="g-section" id="steps">
     <h2>Progress and work</h2>
     <div class="g-grid">
-      <div class="card" data-new>
+      <div class="card">
         <h2>Step track</h2>
         <ol class="cp-track" aria-label="Grab progress, Frieren Season 1">
           <li data-state="done">Found<span class="cp-visually-hidden">, done</span></li>
@@ -429,7 +427,7 @@
         <p class="g-gap-top">In a table row: <button class="cp-track-compact" type="button" data-cp-tip="Step 3 of 4: Found, Sent, Downloading, Imported" data-cp-tip-toggle aria-label="Downloading, 42 %"><span class="cp-icon" data-cp-icon="download" aria-hidden="true"></span>Downloading</button></p>
         <footer>Four named steps, each done, current or to come, in words for a screen reader as well as by fill; the current step's bar fills as it goes, and its percentage is read out, not shown. The kept form goes grey and says when it was true. The compact form shows the current step and puts the rest in a tooltip.</footer>
       </div>
-      <div class="card" data-new>
+      <div class="card">
         <h2>A batched action</h2>
         <button class="cp-button" data-variant="primary" type="button" data-batch-total="248" data-batch-size="100" data-report="batch-report"><span class="cp-icon" data-cp-icon="captions" aria-hidden="true"></span><span class="cp-icon" data-cp-icon="spinner-arc" data-part="busy" aria-hidden="true"></span><span class="cp-roll">Start the first 100</span></button>
         <div class="cp-batch-report" id="batch-report"><p>248 episodes need subtitles.</p></div>
@@ -444,7 +442,7 @@
         </ul>
         <footer>What, where as a link, how far, the phase, and Stop. An ended job drops its bar and Stop, and keeps its outcome at its end and its cause under its scope. Show all 5 running adds the other jobs before the foot, moves focus to the first one's link, and goes.</footer>
       </div>
-      <div class="card g-wide" data-new>
+      <div class="card g-wide">
         <h2>Problems</h2>
         <ul class="cp-list">
           <li><div class="cp-list-row" data-lines="wrap"><span class="cp-icon" data-cp-icon="triangle-alert" data-tone="warning" aria-hidden="true"></span><div><p>OpenSubtitles refused the API key, so 18 episodes are waiting.</p><time data-ago="5400"></time></div><a href="#steps">Fix the key</a></div></li>

@@ -16,7 +16,8 @@ export interface Point {
  * maximum and exit per run, in sample order. A column of four samples or fewer
  * keeps them all. After a gap, the samples that share a column with the run
  * before it move to the next column's start, so a gap narrower than a column
- * still breaks the path by one column, though never past `end`.
+ * still breaks the path by one column, though never past `end`. A run also
+ * ends before each sample `breaks` holds, as at a gap.
  */
 export function reduce(
   xs: ArrayLike<number>,
@@ -25,6 +26,7 @@ export function reduce(
   to: number,
   width: number,
   end = Number.POSITIVE_INFINITY,
+  breaks: (i: number) => boolean = () => false,
 ): Point[][] {
   const runs: Point[][] = [];
   let run: Point[] = [];
@@ -53,17 +55,24 @@ export function reduce(
     column = [];
   };
 
+  const endRun = (): void => {
+    if (column.length > 0 || run.length > 0) {
+      flush();
+      runs.push(run);
+      run = [];
+      after = col;
+      col = Number.NaN;
+    }
+  };
+
   for (let i = from; i < to; i++) {
     const y = ys[i] ?? null;
     if (y === null || Number.isNaN(y)) {
-      if (column.length > 0 || run.length > 0) {
-        flush();
-        runs.push(run);
-        run = [];
-        after = col;
-        col = Number.NaN;
-      }
+      endRun();
       continue;
+    }
+    if (breaks(i)) {
+      endRun();
     }
     let x = xs[i] ?? 0;
     let c = Math.floor(x / width);

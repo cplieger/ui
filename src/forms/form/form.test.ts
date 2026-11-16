@@ -171,3 +171,213 @@ describe("a form not yet in the document", () => {
     expect(error.hidden).toBe(true);
   });
 });
+
+function settings(): {
+  form: HTMLFormElement;
+  summary: HTMLElement;
+  notice: HTMLElement;
+  name: HTMLInputElement;
+  every: HTMLInputElement;
+  sources: HTMLElement;
+  alerts: HTMLElement;
+} {
+  // Static test markup, never caller text. The categories after the first
+  // are hidden until their nav link is pressed, as an app shows one at a time.
+  document.body.setHTMLUnsafe(
+    '<nav><a href="#account">Account and security</a><a href="#sources">Sources</a><a href="#alerts">Alerts</a></nav>' +
+      '<form class="cp-form" novalidate>' +
+      '<div class="cp-notice" data-variant="banner" hidden><div data-part="body"></div></div>' +
+      '<div class="cp-notice" data-tone="danger" hidden><div data-part="body"></div></div>' +
+      '<section id="account" aria-labelledby="account-h"><h2 id="account-h">Account and security</h2>' +
+      '<div class="cp-field"><label class="cp-label" for="name">Display name</label><input class="cp-input" id="name"></div></section>' +
+      '<section id="sources" hidden><h2>Sources</h2>' +
+      '<section aria-label="Sonarr"><div class="cp-field"><label class="cp-label" for="every">Check every</label><input class="cp-input" id="every"></div></section></section>' +
+      '<section id="alerts" aria-label="Alerts" hidden><h2>When to tell you</h2>' +
+      '<details><summary>More</summary><div class="cp-field"><label class="cp-label" for="quiet">Quiet hours</label><input class="cp-input" id="quiet"></div></details></section>' +
+      "</form>",
+  );
+  for (const a of document.querySelectorAll("nav a")) {
+    a.addEventListener("click", (e) => {
+      e.preventDefault();
+      for (const s of document.querySelectorAll<HTMLElement>("form > section")) {
+        s.hidden = `#${s.id}` !== a.getAttribute("href");
+      }
+    });
+  }
+  const form = document.querySelector("form") as HTMLFormElement;
+  const [notice, summary] = [...form.querySelectorAll<HTMLElement>(".cp-notice")] as [
+    HTMLElement,
+    HTMLElement,
+  ];
+  return {
+    form,
+    summary,
+    notice,
+    name: form.querySelector("#name") as HTMLInputElement,
+    every: form.querySelector("#every") as HTMLInputElement,
+    sources: form.querySelector("#sources") as HTMLElement,
+    alerts: form.querySelector("#alerts") as HTMLElement,
+  };
+}
+
+const items = (summary: HTMLElement) =>
+  [...summary.querySelectorAll("li")].map((li) => li.textContent);
+
+describe("reportErrors across sections", () => {
+  it("names a field by its outermost section and its label", () => {
+    const { form, summary, name, every } = settings();
+    reportErrors(
+      form,
+      [
+        { field: name, message: "Enter a name." },
+        { field: every, message: "Enter 5 minutes or more." },
+      ],
+      { summary, heading },
+    );
+    expect(items(summary)).toEqual(["Account and security: Display name", "Sources: Check every"]);
+  });
+
+  it("links an error to its control in another category, opening that category first", async () => {
+    const { form, summary, name, every, sources } = settings();
+    reportErrors(
+      form,
+      [
+        { field: name, message: "Enter a name." },
+        { field: every, message: "Enter 5 minutes or more." },
+      ],
+      { summary, heading },
+    );
+    await userEvent.click(summary.querySelectorAll("a")[1] as HTMLAnchorElement);
+    expect(sources.hidden).toBe(false);
+    expect(document.activeElement).toBe(every);
+  });
+
+  it("opens a closed details around the control as well as its category", async () => {
+    const { form, summary, name, alerts } = settings();
+    const quiet = form.querySelector("#quiet") as HTMLInputElement;
+    reportErrors(
+      form,
+      [
+        { field: name, message: "Enter a name." },
+        { field: quiet, message: "End after it starts." },
+      ],
+      { summary, heading },
+    );
+    expect(items(summary)[1]).toBe("Alerts: Quiet hours");
+    await userEvent.click(summary.querySelectorAll("a")[1] as HTMLAnchorElement);
+    expect([alerts.hidden, (alerts.querySelector("details") as HTMLDetailsElement).open]).toEqual([
+      false,
+      true,
+    ]);
+    expect(document.activeElement).toBe(quiet);
+  });
+
+  it("opens the category of a lone field's error and focuses the field, the summary hidden", () => {
+    const { form, summary, every, sources } = settings();
+    reportErrors(form, [{ field: every, message: "Enter 5 minutes or more." }], {
+      summary,
+      heading,
+    });
+    expect(sources.hidden).toBe(false);
+    expect(document.activeElement).toBe(every);
+    expect(summary.hidden).toBe(true);
+  });
+
+  it("opens a closed details inside a hidden category for a lone field's error", () => {
+    const { form, summary, alerts } = settings();
+    const quiet = form.querySelector("#quiet") as HTMLInputElement;
+    reportErrors(form, [{ field: quiet, message: "End after it starts." }], { summary, heading });
+    expect([alerts.hidden, (alerts.querySelector("details") as HTMLDetailsElement).open]).toEqual([
+      false,
+      true,
+    ]);
+    expect(document.activeElement).toBe(quiet);
+  });
+
+  it("lists an error with no control under its section's link, which focuses the section's heading", async () => {
+    const { form, summary, sources } = settings();
+    reportErrors(form, [{ section: sources, message: "Two sources use one address." }], {
+      summary,
+      heading,
+    });
+    expect(summary.hidden).toBe(false);
+    expect(document.activeElement).toBe(summary);
+    expect(summary.querySelector("strong")?.textContent).toBe(
+      "1 fields need a fix before this saves",
+    );
+    expect(items(summary)).toEqual(["Sources: Two sources use one address."]);
+    const a = summary.querySelector("a") as HTMLAnchorElement;
+    expect([a.textContent, a.getAttribute("href")]).toEqual(["Sources", "#sources"]);
+    await userEvent.click(a);
+    const h = sources.querySelector("h2") as HTMLElement;
+    expect([sources.hidden, document.activeElement]).toEqual([false, h]);
+    expect(h.getAttribute("tabindex")).toBe("-1");
+    h.blur();
+    expect(h.hasAttribute("tabindex")).toBe(false);
+  });
+
+  it("gives a section with no id one, so its link has somewhere to go", () => {
+    const { form, summary, every } = settings();
+    const sonarr = every.closest("section") as HTMLElement;
+    reportErrors(form, [{ section: sonarr, message: "Sonarr did not answer." }], {
+      summary,
+      heading,
+    });
+    const a = summary.querySelector("a") as HTMLAnchorElement;
+    expect(sonarr.id).not.toBe("");
+    expect([a.textContent, a.getAttribute("href")]).toEqual(["Sonarr", `#${sonarr.id}`]);
+  });
+
+  it("shows a document's own error in the notice and focuses it when it is the only one", () => {
+    const { form, summary, notice } = settings();
+    reportErrors(form, [{ message: "These settings changed on another device." }], {
+      summary,
+      heading,
+      notice,
+    });
+    expect([notice.hidden, notice.textContent, summary.hidden]).toEqual([
+      false,
+      "These settings changed on another device.",
+      true,
+    ]);
+    expect(document.activeElement).toBe(notice);
+    reportErrors(form, [], { summary, heading, notice });
+    expect(notice.hidden).toBe(true);
+  });
+
+  it("lists every document error in the notice, and the field beside it in the summary", () => {
+    const { form, summary, notice, name } = settings();
+    reportErrors(
+      form,
+      [
+        { message: "Saved elsewhere." },
+        { field: name, message: "Enter a name." },
+        { message: "Reload first." },
+      ],
+      { summary, heading, notice },
+    );
+    expect([...notice.querySelectorAll("li")].map((li) => li.textContent)).toEqual([
+      "Saved elsewhere.",
+      "Reload first.",
+    ]);
+    expect([summary.hidden, items(summary), document.activeElement]).toEqual([
+      false,
+      ["Account and security: Display name"],
+      summary,
+    ]);
+    expect(summary.querySelector("strong")?.textContent).toBe(
+      "1 fields need a fix before this saves",
+    );
+  });
+
+  it("lists a document's error as a plain item of the summary when there is no notice", () => {
+    const { form, summary, notice } = settings();
+    reportErrors(form, [{ message: "The server refused the save." }], { summary, heading });
+    expect([summary.hidden, items(summary), summary.querySelectorAll("a").length]).toEqual([
+      false,
+      ["The server refused the save."],
+      0,
+    ]);
+    expect(notice.hidden).toBe(true);
+  });
+});

@@ -8,7 +8,14 @@
 import { writer } from "../scale/format.js";
 import { lowerBound, upperBound } from "../scale/reduce.js";
 
-import { dotGroups, dotRadius, scatterAt, snap, type DotGroup, type Frame } from "./geometry.js";
+import {
+  dotGroups,
+  dotRadius,
+  scatterAt,
+  snap,
+  type DotGroup,
+  type Projection,
+} from "./geometry.js";
 import { boxGrid, pointGrid, type Grid } from "./grid.js";
 import type { Layout } from "./layout.js";
 import { noteJoin, type Join } from "./notes.js";
@@ -121,7 +128,7 @@ const PAGE_ROWS = 10;
 const bandRows = (model: Model): number => (model.y.type === "band" ? model.y.rows.length : 0);
 
 /** A bucket's drawn extent in plot px, low to high, before its insets. */
-function bucketSpan(m: RectModel, i: number, f: Frame): readonly [number, number] {
+function bucketSpan(m: RectModel, i: number, f: Projection): readonly [number, number] {
   const a = f.xAt(Math.max(m.x1[i] ?? 0, f.x.drawnLo));
   const b = f.xAt(Math.min(m.x2[i] ?? 0, f.x.hi));
   return a <= b ? [a, b] : [b, a];
@@ -132,7 +139,6 @@ function bucketSpan(m: RectModel, i: number, f: Frame): readonly [number, number
 interface Orders {
   readonly dots: readonly DotRef[];
   readonly x: readonly number[];
-  readonly y: readonly number[];
   readonly byX: readonly number[];
   readonly byY: readonly number[];
   /** Each dot's place in `byX` and in `byY`. */
@@ -176,7 +182,7 @@ function orders(m: ScatterModel): Orders {
   byY.forEach((d, p) => {
     rankY[d] = p;
   });
-  o = { dots, x, y, byX, byY, rankX, rankY, base };
+  o = { dots, x, byX, byY, rankX, rankY, base };
   ordersOf.set(m, o);
   return o;
 }
@@ -304,7 +310,7 @@ function along(
   if (stops.length === 0) {
     return undefined;
   }
-  const reverse = lay.frame.x.reverse;
+  const reverse = lay.projection.x.reverse;
   const forward = (k: Key) => (k === "ArrowRight" || k === "End" || k === "PageDown") !== reverse;
   const after = () => stops[upperBound(stops, hi)];
   const before = () => stops[lowerBound(stops, lo) - 1];
@@ -430,7 +436,7 @@ function moveScatter(
     return dotSelection(o, o.byY[(o.rankY[d] ?? 0) + (key === "ArrowUp" ? 1 : -1)]);
   }
   const places = Array.from({ length: o.byX.length }, (_, p) => p);
-  const px = (p: number) => lay.frame.xAt(o.x[o.byX[p] ?? 0] ?? 0);
+  const px = (p: number) => lay.projection.xAt(o.x[o.byX[p] ?? 0] ?? 0);
   const at = o.rankX[d] ?? 0;
   const p = along(places, at, at, key, px, lay);
   return p === undefined ? undefined : dotSelection(o, o.byX[p]);
@@ -455,7 +461,7 @@ function moveCell(
   }
   const xs = lay.cells?.xs ?? [];
   if ((key === "PageUp" || key === "PageDown") && "names" in m.x) {
-    const rightward = (key === "PageDown") !== lay.frame.x.reverse;
+    const rightward = (key === "PageDown") !== lay.projection.x.reverse;
     const column = Math.min(
       Math.max(sel.column + (rightward ? PAGE_ROWS : -PAGE_ROWS), 0),
       columns - 1,
@@ -611,7 +617,7 @@ function spanOf(edges: readonly number[], v: number): number {
 }
 
 /** A selection's position along x on the plot, in px. */
-function selectionPx(model: Model, sel: Selection, f: Frame): number | undefined {
+function selectionPx(model: Model, sel: Selection, f: Projection): number | undefined {
   const m = model.primary;
   if (sel.kind === "rect" && m?.kind === "rect") {
     const [a, b] = bucketSpan(m, sel.i, f);
@@ -653,7 +659,7 @@ export interface Navigator {
 }
 
 export function navigator(model: Model, lay: Layout): Navigator {
-  const f = lay.frame;
+  const f = lay.projection;
   const m = model.primary;
   const cache = new Map<number, DotGroup[]>();
   const groups = (r: number): DotGroup[] => {
@@ -1105,7 +1111,7 @@ export function spoken(
 // The stop `sel` stands on: a pointer on a step curve's held sample stands on
 // the stop holding it, which is where `noteJoin` joins a note.
 function stopOf(model: Model, sel: Selection): number | undefined {
-  if (sel.kind === "rect" || sel.kind === "slope") {
+  if (sel.kind === "rect") {
     return sel.i;
   }
   if (sel.kind !== "line" && sel.kind !== "area") {
@@ -1116,23 +1122,9 @@ function stopOf(model: Model, sel: Selection): number | undefined {
 }
 
 const joins = (j: Join, sel: Selection, stop: number | undefined): boolean =>
-  j.kind === "stop"
-    ? stop === j.i
-    : j.kind === "post"
-      ? sel.kind === "dot" && sel.row === j.row && j.i >= sel.from && j.i < sel.to
-      : j.kind === "dot"
-        ? sel.kind === "scatter" && sel.series === j.series && sel.i === j.i
-        : j.kind === "cell"
-          ? sel.kind === "cell" && sel.row === j.row && sel.column === j.column
-          : j.kind === "day"
-            ? sel.kind === "day" && sel.i === j.i
-            : (sel.kind === "row" ||
-                sel.kind === "bar" ||
-                sel.kind === "point" ||
-                sel.kind === "box") &&
-              sel.row === j.row;
+  j.kind === "stop" ? stop === j.i : sel.kind === "day" && sel.i === j.i;
 
-/** Each note joining `sel`'s stop through `words.noteReading`, in spec order. */
+/** Each note joining `sel`'s stop through `words.noteReading`, in frame order. */
 function noteReadings(model: Model, sel: Selection, words: Words): string {
   const out: string[] = [];
   const stop = stopOf(model, sel);

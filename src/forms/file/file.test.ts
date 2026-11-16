@@ -1,9 +1,9 @@
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 
 import { installAnnouncer } from "../../feedback/announce/announce.js";
 import { showError } from "../form/form.js";
-import { enhanceFiles, fileSize } from "./file.js";
+import { enhanceFiles, fileSize, uploadFile, type UploadResult } from "./file.js";
 
 let life = new AbortController();
 
@@ -217,6 +217,205 @@ describe("enhanceFiles", () => {
   });
 });
 
+/** A send whose answers the test gives, one per call. */
+function server(): {
+  send: (f: File, signal: AbortSignal) => Promise<UploadResult>;
+  answer: (result: UploadResult | Error) => void;
+  calls: AbortSignal[];
+} {
+  const waiting: ((result: UploadResult | Error) => void)[] = [];
+  const calls: AbortSignal[] = [];
+  return {
+    calls,
+    send: (_f, signal) => {
+      calls.push(signal);
+      return new Promise((resolve, reject) => {
+        waiting.push((r) => {
+          if (r instanceof Error) {
+            reject(r);
+          } else {
+            resolve(r);
+          }
+        });
+      });
+    },
+    answer: (result) => {
+      waiting.shift()?.(result);
+    },
+  };
+}
+
+function uploads(): HTMLElement {
+  const list = document.createElement("ul");
+  list.className = "cp-list";
+  list.dataset["density"] = "compact";
+  list.setAttribute("aria-label", "Uploaded files");
+  document.body.append(list);
+  return list;
+}
+
+const said = (politeness: "polite" | "assertive") => () =>
+  document.querySelector(`[aria-live="${politeness}"]`)?.textContent;
+
+describe("uploadFile", () => {
+  it("lists the file Uploading…, then Uploaded, and says so politely", async () => {
+    installAnnouncer({ signal: life.signal });
+    const list = uploads();
+    const { send, answer, calls } = server();
+    const item = uploadFile(list, file("Frieren.S01E05.en.ass"), send, { signal: life.signal });
+    const row = item.querySelector(":scope > .cp-list-row") as HTMLElement;
+    const state = row.querySelector('[data-part="end"] > .cp-state') as HTMLElement;
+    expect([
+      item.parentElement,
+      row.tabIndex,
+      row.querySelector(".cp-cell-stack")?.firstChild?.textContent,
+      row.querySelector(".cp-cell-stack > small")?.textContent,
+      row.querySelector('[data-part="end"]')?.childNodes.length,
+      state.dataset["cpState"],
+      state.textContent,
+      calls.length,
+    ]).toEqual([list, -1, "Frieren.S01E05.en.ass", "2\u00a0KB", 1, "busy", "Uploading…", 1]);
+    answer({ ok: true });
+    await expect.poll(() => state.dataset["cpState"]).toBe("done");
+    expect([
+      state.textContent,
+      row.querySelector("button"),
+      row.querySelector("small")?.textContent,
+    ]).toEqual(["Uploaded", null, "2\u00a0KB"]);
+    await expect.poll(said("polite")).toBe("Frieren.S01E05.en.ass uploaded");
+  });
+
+  it("shows a failure's reason in place of the size with Retry, keeps the failure while Retry runs, and focuses the row once it is uploaded", async () => {
+    installAnnouncer({ signal: life.signal });
+    const list = uploads();
+    const { send, answer, calls } = server();
+    const row = uploadFile(list, file("a.ass"), send, { signal: life.signal })
+      .firstElementChild as HTMLElement;
+    const state = row.querySelector(".cp-state") as HTMLElement;
+    answer({ ok: false, message: "The server did not answer." });
+    await expect.poll(() => state.dataset["cpState"]).toBe("failed");
+    const retry = row.querySelector(":scope > button.cp-button") as HTMLButtonElement;
+    expect([
+      state.textContent,
+      row.querySelector(".cp-cell-stack > small")?.textContent,
+      retry.getAttribute("aria-label"),
+      retry.dataset["size"],
+      retry.querySelector(".cp-roll")?.textContent,
+      retry.previousElementSibling?.getAttribute("data-part"),
+    ]).toEqual(["Not uploaded", "The server did not answer.", "Retry a.ass", "sm", "Retry", "end"]);
+    await expect.poll(said("assertive")).toBe("a.ass not uploaded. The server did not answer.");
+    retry.focus();
+    retry.click();
+    await expect.poll(() => calls.length).toBe(2);
+    expect([state.dataset["cpState"], row.querySelector("small")?.textContent]).toEqual([
+      "failed",
+      "The server did not answer.",
+    ]);
+    retry.click();
+    expect(calls.length).toBe(2);
+    answer({ ok: true });
+    await expect.poll(() => state.dataset["cpState"]).toBe("done");
+    expect([
+      row.contains(retry),
+      document.activeElement,
+      row.querySelector("small")?.textContent,
+    ]).toEqual([false, row, "2\u00a0KB"]);
+  });
+
+  it("puts a second failure's reason in place with Retry back at rest", async () => {
+    const list = uploads();
+    const { send, answer } = server();
+    const row = uploadFile(list, file("a.ass"), send, { signal: life.signal })
+      .firstElementChild as HTMLElement;
+    answer({ ok: false, message: "The server did not answer." });
+    await expect.poll(() => row.querySelector("button")).not.toBeNull();
+    const retry = row.querySelector("button") as HTMLButtonElement;
+    retry.click();
+    answer({ ok: false, message: "The disk is full." });
+    await expect.poll(() => row.querySelector("small")?.textContent).toBe("The disk is full.");
+    await expect.poll(() => retry.hasAttribute("data-cp-state")).toBe(false);
+    expect([row.querySelectorAll("button").length, row.querySelectorAll("small").length]).toEqual([
+      1, 1,
+    ]);
+  });
+
+  it("offers no Retry for a final failure", async () => {
+    const list = uploads();
+    const { send, answer } = server();
+    const row = uploadFile(list, file("a.ass"), send, { signal: life.signal })
+      .firstElementChild as HTMLElement;
+    answer({ ok: false, message: "Only UTF-8 files can be read.", final: true });
+    await expect.poll(() => row.querySelector(".cp-state")?.textContent).toBe("Not uploaded");
+    expect([row.querySelector("small")?.textContent, row.querySelector("button")]).toEqual([
+      "Only UTF-8 files can be read.",
+      null,
+    ]);
+  });
+
+  it("drops Retry when a retry fails for good", async () => {
+    const list = uploads();
+    const { send, answer } = server();
+    const row = uploadFile(list, file("a.ass"), send, { signal: life.signal })
+      .firstElementChild as HTMLElement;
+    answer(new TypeError("Failed to fetch"));
+    await expect.poll(() => row.querySelector("button")).not.toBeNull();
+    expect(row.querySelector("small")?.textContent).toBe("The upload did not finish.");
+    const retry = row.querySelector("button") as HTMLButtonElement;
+    retry.focus();
+    retry.click();
+    answer({ ok: false, message: "The file is gone from the server's queue.", final: true });
+    await expect.poll(() => row.querySelector("button")).toBeNull();
+    expect(document.activeElement).toBe(row);
+  });
+
+  it("takes the app's words", async () => {
+    installAnnouncer({ signal: life.signal });
+    const list = uploads();
+    const { send, answer } = server();
+    const row = uploadFile(list, file("a.ass"), send, {
+      signal: life.signal,
+      words: {
+        uploading: "Envoi…",
+        failed: "Non envoyé",
+        failedWhy: "L'envoi n'a pas abouti.",
+        retry: "Réessayer",
+        retryFor: (n) => `Réessayer ${n}`,
+        saidFailed: (n, why) => `${n} : ${why}`,
+      },
+    }).firstElementChild as HTMLElement;
+    expect(row.querySelector(".cp-state")?.textContent).toBe("Envoi…");
+    answer(new Error("boom"));
+    await expect
+      .poll(() => row.querySelector("button")?.getAttribute("aria-label"))
+      .toBe("Réessayer a.ass");
+    expect([
+      row.querySelector(".cp-state")?.textContent,
+      row.querySelector(".cp-roll")?.textContent,
+    ]).toEqual(["Non envoyé", "Réessayer"]);
+    await expect.poll(said("assertive")).toBe("a.ass : L'envoi n'a pas abouti.");
+  });
+
+  it("aborts the send in flight and leaves the row as it was once its signal aborts", async () => {
+    const list = uploads();
+    const { send, answer, calls } = server();
+    const row = uploadFile(list, file("a.ass"), send, { signal: life.signal })
+      .firstElementChild as HTMLElement;
+    life.abort();
+    expect(calls[0]?.aborted).toBe(true);
+    answer({ ok: true });
+    await new Promise((r) => setTimeout(r, 20));
+    expect(row.querySelector(".cp-state")?.getAttribute("data-cp-state")).toBe("busy");
+  });
+
+  it("neither lists nor sends once its signal has aborted", () => {
+    const list = uploads();
+    const send = vi.fn<(f: File, s: AbortSignal) => Promise<UploadResult>>();
+    life.abort();
+    uploadFile(list, file("a.ass"), send, { signal: life.signal });
+    expect([list.children.length, send.mock.calls.length]).toEqual([0, 0]);
+  });
+});
+
 describe("a file field's list, drawn by the stylesheet", () => {
   let sheet: HTMLLinkElement;
 
@@ -263,5 +462,35 @@ describe("a file field's list, drawn by the stylesheet", () => {
     const name = row.querySelector(".cp-cell-stack") as Element;
     expect(row.scrollWidth).toBe(row.clientWidth);
     expect(name.getBoundingClientRect().height).toBeGreaterThan(40);
+  });
+  it("draws a failed upload's reason under its name, its state's glyph, and Retry after the end, with room for the name at a phone's width", async () => {
+    const list = uploads();
+    list.style.inlineSize = "20rem";
+    const { send, answer } = server();
+    const row = uploadFile(list, file("Frieren.S01E05.en.ass"), send, { signal: life.signal })
+      .firstElementChild as HTMLElement;
+    answer({ ok: false, message: "The server did not answer." });
+    await expect.poll(() => row.querySelector("button")).not.toBeNull();
+    const box = (sel: string): DOMRect =>
+      (row.querySelector(sel) as Element).getBoundingClientRect();
+    const name = box(".cp-cell-stack");
+    const reason = box(".cp-cell-stack > small");
+    const end = box('[data-part="end"]');
+    const retry = box(":scope > button");
+    expect(reason.top).toBeGreaterThan(name.top + 10);
+    expect(end.left).toBeGreaterThan(name.right - 1);
+    expect(retry.left).toBeGreaterThan(end.right - 1);
+    expect(retry.right).toBeLessThanOrEqual(row.getBoundingClientRect().right);
+    expect(name.width).toBeGreaterThan(64);
+    const glyph = getComputedStyle(row.querySelector(".cp-state") as Element, "::before");
+    expect([glyph.content, decodeURIComponent(glyph.maskImage)]).toEqual([
+      '""',
+      expect.stringContaining("m15 9-6 6"),
+    ]);
+    const icons = [...row.querySelectorAll("button > .cp-icon")].map(
+      (i) => getComputedStyle(i).display,
+    );
+    expect(icons[0]).not.toBe("none");
+    expect(icons[1]).toBe("none");
   });
 });

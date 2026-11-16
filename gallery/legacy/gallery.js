@@ -1,5 +1,4 @@
 import { announce } from "@cplieger/ui/announce";
-import { clearError, reportErrors, showError } from "@cplieger/ui/form";
 import { toast } from "@cplieger/ui/toast";
 
 // The gallery's own behaviour for the cards that do not run on src/ yet, in plain DOM.
@@ -782,22 +781,6 @@ for (const host of $$("[data-ladder]")) {
   }
 }
 
-// ------------------------------------------------------- form validation
-// The gallery's own checks for Add a source; the library shows what they
-// find, and typed values stay.
-for (const form of $$("form.cp-form:not([data-sign-in])")) {
-  const summary = $("#f-summary", form);
-  if (!summary) continue;
-  form.addEventListener("submit", (e) => {
-    e.preventDefault();
-    const errors = $$("[required]", form)
-      .filter((f) => !f.value.trim() || (f.type === "url" && !/^https?:\/\/\S+/.test(f.value)))
-      .map((field) => ({ field, message: field.type === "url" ? "Enter the address, starting with http:// or https://." : "Paste the key from Sonarr." }));
-    reportErrors(form, errors, { summary, heading: (n) => `${n} fields need a fix before this saves` });
-    if (errors.length === 0) toast({ kind: "success", title: "Source added" });
-  });
-}
-
 // ------------------------------------------------------- settings nav
 // The category in view is the current one; a press scrolls to it.
 const snav = $(".cp-settings-nav");
@@ -815,126 +798,6 @@ if (snav) {
 }
 
 // ===================================================== pieces for app screens
-
-// ------------------------------------------------------ master and detail
-// The route opens the panel, so Back closes it. Wide: docked beside the
-// list, its heading focused. Narrow: the same content in a modal dialog.
-// Escape or Close goes back, and focus returns to the row's link.
-for (const md of $$("[data-md]")) {
-  const dock = $(".g-dock", md);
-  const dialog = document.getElementById(md.dataset.md);
-  const content = $(".g-dock-content", dock);
-  const wide = matchMedia("(width >= 64rem)");
-  let opener = null;
-  const render = () => {
-    const m = /^#md\/(.+)$/.exec(location.hash);
-    if (!m) {
-      dock.hidden = true;
-      if (dialog.open) dialog.close();
-      opener?.focus();
-      return;
-    }
-    const link = $(`a[href="#md/${m[1]}"]`, md);
-    opener = link;
-    for (const a of $$("a[href^='#md/']", md)) a.toggleAttribute("aria-current", a === link);
-    $$(".g-md-title").forEach((h) => (h.textContent = link.dataset.title));
-    $$(".g-md-meta").forEach((p) => (p.textContent = link.dataset.meta));
-    if (wide.matches) {
-      if (dialog.open) dialog.close();
-      dock.append(content);
-      dock.hidden = false;
-      $("h3", dock).focus();
-    } else {
-      dock.hidden = true;
-      $(".g-body", dialog).append(content);
-      if (!dialog.open) dialog.showModal();
-    }
-  };
-  addEventListener("hashchange", render);
-  wide.addEventListener("change", render);
-  for (const b of $$("[data-md-close]")) b.addEventListener("click", () => history.back());
-  dialog.addEventListener("cancel", (e) => {
-    e.preventDefault();
-    history.back();
-  });
-  render();
-}
-
-// ------------------------------------------------------------ pair rows
-// A path must start with /, said once the field is left. main.ts runs the
-// rows.
-for (const ed of $$("[data-pairs]")) {
-  ed.addEventListener("focusout", (e) => {
-    const f = e.target;
-    if (!f.matches("input")) return;
-    if (f.value.trim() !== "" && !f.value.startsWith("/")) {
-      showError(f, "Start with /");
-    } else {
-      clearError(f);
-    }
-  });
-}
-
-// ---------------------------------------------------------- upload dialog
-for (const d of $$("[data-upload]")) {
-  d.addEventListener("close", () => {
-    if (d.returnValue !== "upload") return;
-    const row = document.getElementById(d.dataset.upload);
-    row.hidden = false;
-    $(".g-up-state", row).replaceChildren(el("span", { class: "loader load-twirl g-toast-load", "aria-hidden": "true" }, el("span")), " Uploading…");
-    setTimeout(() => {
-      $(".g-up-state", row).replaceChildren(icon("circle-check"), " Uploaded");
-      announce("Subtitle file uploaded");
-    }, 1500);
-  });
-}
-
-// ------------------------------------------------------------- video
-// Our controls over the native element: play and pause, a seek bar with
-// the times, and one caption track the timing preview re-renders.
-for (const p of $$(".g-player")) {
-  const v = $("video", p);
-  const seek = $(".g-seek", p);
-  const play = $("[data-play]", p);
-  const time = $(".g-time-label", p);
-  const offset = document.getElementById(p.dataset.offset);
-  const t = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
-  let base = null;
-  const track = v.textTracks[0];
-  v.addEventListener("loadedmetadata", () => {
-    seek.max = String(v.duration);
-    time.textContent = `${t(0)} / ${t(v.duration)}`;
-    track.mode = "showing";
-  });
-  v.addEventListener("timeupdate", () => {
-    seek.value = String(v.currentTime);
-    seek.dispatchEvent(new Event("input"));
-    time.textContent = `${t(v.currentTime)} / ${t(v.duration || 0)}`;
-  });
-  seek.addEventListener("change", () => (v.currentTime = Number(seek.value)));
-  play.addEventListener("click", () => (v.paused ? v.play() : v.pause()));
-  v.addEventListener("play", () => {
-    play.querySelector(".cp-icon").dataset.cpIcon = "pause";
-    play.setAttribute("aria-label", "Pause");
-  });
-  v.addEventListener("pause", () => {
-    play.querySelector(".cp-icon").dataset.cpIcon = "play";
-    play.setAttribute("aria-label", "Play");
-  });
-  // The timing preview: every cue moves by the offset, and the caption on
-  // screen redraws at once.
-  offset?.addEventListener("change", (e) => {
-    const by = Number(e.target.value.replace("\u2212", "-")) || 0;
-    const cues = [...(track.cues ?? [])];
-    base ??= cues.map((c) => [c.startTime, c.endTime]);
-    cues.forEach((c, i) => {
-      c.startTime = Math.max(0, base[i][0] + by);
-      c.endTime = Math.max(0.1, base[i][1] + by);
-    });
-    track.mode = "hidden";
-    track.mode = "showing";
-  });
-}
 
 // --------------------------------------------- settings across sections
 // A dot on each category with unsaved changes, in the nav and the select; a
@@ -1035,7 +898,7 @@ for (const [n, host] of $$(".g-shell[data-frame-name]").entries()) {
 
 // ===================================================== motion helpers
 // A dialog's exit: Chromium animates it in CSS (overlay and display allow
-// discrete); an engine that cannot gets the same fade or slide in script
+// discrete); an engine that cannot gets the same fade in script
 // before the dialog really closes.
 if (!CSS.supports("overlay", "auto")) {
   for (const d of $$("dialog.g-dialog")) {
@@ -1044,10 +907,8 @@ if (!CSS.supports("overlay", "auto")) {
       if (!d.open || d.dataset.leaving !== undefined) return;
       if (reduced()) return close.call(d, value);
       d.dataset.leaving = "";
-      const sheet = d.classList.contains("g-sheet");
-      const rtl = getComputedStyle(d).direction === "rtl";
-      const frames = sheet ? [{ translate: "0 0" }, { translate: rtl ? "-100% 0" : "100% 0" }] : [{ opacity: 1, scale: 1 }, { opacity: 0, scale: 0.96 }];
-      d.animate(frames, { duration: sheet ? 280 : 160, easing: "cubic-bezier(0.4, 0, 1, 1)", fill: "forwards" }).onfinish = (e) => {
+      const frames = [{ opacity: 1, scale: 1 }, { opacity: 0, scale: 0.96 }];
+      d.animate(frames, { duration: 160, easing: "cubic-bezier(0.4, 0, 1, 1)", fill: "forwards" }).onfinish = (e) => {
         delete d.dataset.leaving;
         close.call(d, value);
         e.target.cancel();

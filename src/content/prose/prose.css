@@ -193,7 +193,7 @@
   padding: var(--cp-space-2) var(--cp-space-3);
   border-block-end: var(--cp-line-w) solid var(--cp-line);
   text-align: start;
-  vertical-align: top;
+  vertical-align: middle;
 }
 
 .cp-prose :where(th) {
@@ -210,6 +210,12 @@
  * wider than its box sits at its min-content, a word a line. */
 .cp-prose :where(td[data-cp-wrap]) {
   min-inline-size: 12em;
+}
+
+/* A short cell, such as a size or a date, never breaks from its unit or at
+ * its hyphens; the region scrolls instead. */
+.cp-prose :where(td[data-cp-line]) {
+  white-space: nowrap;
 }
 
 /* anywhere counts every character toward a cell's min-content, which would

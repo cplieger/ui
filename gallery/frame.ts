@@ -6,8 +6,11 @@
  * frame's document.
  */
 
+import { guardChanges } from "@cplieger/ui/form";
 import { createIcons } from "@cplieger/ui/icons";
+import { enhancePill } from "@cplieger/ui/pill";
 import { applyPointerTier, installPointerTier } from "@cplieger/ui/pointer";
+import { enhanceSettings } from "@cplieger/ui/settings";
 
 applyPointerTier();
 installPointerTier();
@@ -43,6 +46,11 @@ if (parent !== window) {
   parent.postMessage("frame:ready", "*");
 }
 
+// The bottom bar's selection slides as an app's router moves aria-current.
+for (const nav of document.querySelectorAll<HTMLElement>(".cp-header > .cp-nav")) {
+  enhancePill(nav);
+}
+
 // A press on a destination shows its screen here, where an app would load it.
 const heading = document.querySelector("h1");
 for (const item of document.querySelectorAll<HTMLAnchorElement>(".cp-nav-item")) {
@@ -58,5 +66,15 @@ for (const item of document.querySelectorAll<HTMLAnchorElement>(".cp-nav-item"))
     if (heading !== null) {
       heading.textContent = item.querySelector(".cp-nav-label")?.textContent ?? "";
     }
+  });
+}
+
+for (const form of document.querySelectorAll<HTMLFormElement>(".cp-settings form")) {
+  const settings = enhanceSettings(form);
+  const guard = guardChanges(form, { onChange: settings.paint });
+  settings.paint(guard.changes());
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    guard.saved();
   });
 }

@@ -7,7 +7,7 @@
 
 /** A band of the viewport in px; empty when its bottom is at or above its
  *  top. */
-export interface Band {
+interface Band {
   readonly top: number;
   readonly bottom: number;
 }

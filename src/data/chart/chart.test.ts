@@ -5,6 +5,17 @@ import { forgetMeasures } from "../scale/measure.js";
 
 import { renderChart, type Chart, type ChartOptions, type ChartSpec } from "./chart.js";
 import { AREA_ROOM } from "./draw.js";
+import type { ChartFrame } from "./spec.js";
+import {
+  binsFrame,
+  categories,
+  events,
+  grid,
+  named,
+  points,
+  seriesFrame,
+  tree as treeFrame,
+} from "./test-helpers/frames.js";
 
 const root = document.documentElement;
 const MIN = 60_000;
@@ -41,24 +52,19 @@ afterEach(() => {
 
 const per = <T>(n: number, f: (i: number) => T): T[] => Array.from({ length: n }, (_, i) => f(i));
 const starts = per(4, (i) => START + i * 15 * MIN);
+const x2s = starts.map((s) => s + 15 * MIN);
 
+const hour = {
+  x: { domain: [START, START + 60 * MIN] },
+  y: { label: "Posts", unit: { one: "post", other: "posts" } },
+} as const;
 const bars = (
   a: readonly (number | null)[],
   b: readonly (number | null)[] = [1, 1, 1, 1],
 ): ChartSpec => ({
-  x: { type: "time", domain: [START, START + 60 * MIN] },
-  y: { label: "Posts", unit: { one: "post", other: "posts" } },
-  marks: [
-    {
-      mark: "rect",
-      x1: starts,
-      x2: starts.map((s) => s + 15 * MIN),
-      series: [
-        { name: "Announce", y: a },
-        { name: "Path", y: b },
-      ],
-    },
-  ],
+  ...hour,
+  data: binsFrame(starts, x2s, [], { series: named(["Announce", a], ["Path", b]) }),
+  mark: { mark: "rect" },
 });
 const full = bars([3, 5, 2, 4]);
 const other = bars([9, 9, 9, 9]);
@@ -66,10 +72,7 @@ const nothing: ChartSpec = {
   ...bars([0, 0, 0, 0], [0, 0, 0, 0]),
   empty: "No posts in this range.",
 };
-const broken = {
-  ...full,
-  marks: [{ mark: "rect", x1: [2, 1], x2: [3, 4], series: [] }],
-} as ChartSpec;
+const broken: ChartSpec = { ...hour, data: binsFrame([2, 1], [3, 4], []), mark: { mark: "rect" } };
 
 interface Built {
   readonly figure: HTMLElement;
@@ -717,9 +720,10 @@ describe("the table view toggle", () => {
     expect(get(b.figure, "table")?.hidden).toBe(false);
     expect(get(b.figure, "plot")?.hidden).toBe(true);
     expect(get(b.figure, "legend")?.hidden).toBe(true);
-    expect(get(b.figure, "table")?.querySelector("caption")?.textContent).toBe(
-      "Posts by thread kind",
-    );
+    const shown = get(b.figure, "table")?.querySelector("table");
+    expect(shown?.caption).toBeNull();
+    const by = document.getElementById(shown?.getAttribute("aria-labelledby") ?? "");
+    expect(by?.textContent).toBe("Posts by thread kind");
     expect(document.activeElement).toBe(b.toggle);
     b.toggle.click();
     expect(b.toggle.getAttribute("aria-pressed")).toBe("false");
@@ -761,15 +765,13 @@ describe("the table view on update", () => {
   const timed = (n: number, from: number, y: (i: number) => number): ChartSpec => {
     const x1 = per(n, (i) => START + (from + i) * 15 * MIN);
     return {
-      x: { type: "time" },
-      marks: [
-        {
-          mark: "rect",
-          x1,
-          x2: x1.map((s) => s + 15 * MIN),
-          series: [{ name: "Posts", y: per(n, y) }],
-        },
-      ],
+      data: binsFrame(
+        x1,
+        x1.map((s) => s + 15 * MIN),
+        [],
+        { series: named(["Posts", per(n, y)]) },
+      ),
+      mark: { mark: "rect" },
     };
   };
   const rows = (b: Built) => [...(get(b.figure, "table")?.querySelectorAll("tbody tr") ?? [])];
@@ -823,15 +825,8 @@ describe("the table view on update", () => {
 
   it("writes a pie's Total row in the foot, its cells rewritten in place on update", () => {
     const pie = (forest: number): ChartSpec => ({
-      marks: [
-        {
-          mark: "pie",
-          slices: [
-            { name: "Agriculture", value: 182_637 },
-            { name: "Forest", value: forest },
-          ],
-        },
-      ],
+      data: categories(["Agriculture", "Forest"], [[182_637, forest]]),
+      mark: { mark: "pie" },
     });
     const b = build();
     const chart = start(pie(106_645), b);
@@ -857,18 +852,16 @@ describe("the table view on update", () => {
 
   it("writes a treemap's groups in a tbody each, kept and moved by name on update", () => {
     const tree = (groups: readonly (readonly [string, number])[]): ChartSpec => ({
-      marks: [
-        {
-          mark: "tree",
-          nodes: groups.map(([name, value]) => ({
-            name,
-            children: [
-              { name: "A", value },
-              { name: "B", value: 1 },
-            ],
-          })),
-        },
-      ],
+      data: treeFrame({
+        groups: groups.map(([key, value]) => ({
+          key,
+          children: [
+            { key: "A", value },
+            { key: "B", value: 1 },
+          ],
+        })),
+      }),
+      mark: { mark: "tree" },
     });
     const b = build();
     const chart = start(
@@ -915,15 +908,9 @@ describe("the table view on update", () => {
 
 describe("the drawing under update and resize", () => {
   const counts = (top: number): ChartSpec => ({
-    x: { type: "time", domain: [START, START + 60 * MIN] },
-    marks: [
-      {
-        mark: "rect",
-        x1: starts,
-        x2: starts.map((s) => s + 15 * MIN),
-        series: [{ name: "Posts", y: [1, 2, top, 3] }],
-      },
-    ],
+    x: { domain: [START, START + 60 * MIN] },
+    data: binsFrame(starts, x2s, [], { series: named(["Posts", [1, 2, top, 3]]) }),
+    mark: { mark: "rect" },
   });
   const plotLeft = (b: Built) =>
     Number(get(b.figure, "plot")?.querySelector('[data-part="area"]')?.getAttribute("x")) +
@@ -949,14 +936,12 @@ describe("the drawing under update and resize", () => {
 
   const steps: ChartSpec = {
     x: { type: "time", domain: [START, START + 3 * MIN] },
-    marks: [
-      {
-        mark: "line",
-        curve: "step",
-        x: per(4, (i) => START + i * MIN),
-        series: [{ name: "Live", y: [4, 4, 6, 6] }],
-      },
-    ],
+    data: seriesFrame(
+      per(4, (i) => START + i * MIN),
+      [],
+      { series: named(["Live", [4, 4, 6, 6]]) },
+    ),
+    mark: { mark: "line", curve: "step" },
   };
   const area = (b: Built) =>
     get(b.figure, "plot")?.querySelector('[data-part="area"]') as SVGSVGElement;
@@ -982,17 +967,10 @@ describe("the drawing under update and resize", () => {
       start(
         {
           x: {},
-          marks: [
-            {
-              mark: "point",
-              y: ["Doctorate"],
-              link,
-              series: [
-                { name: "Women", x: [128_700] },
-                { name: "Men", x: [163_500] },
-              ],
-            },
-          ],
+          data: categories(["Doctorate"], [], {
+            series: named(["Women", [128_700]], ["Men", [163_500]]),
+          }),
+          mark: { mark: "point", link },
         },
         b,
       );
@@ -1023,12 +1001,10 @@ describe("the drawing under update and resize", () => {
     const gdp = [27.4, 17.8, 4.5, 4.2, 3.7, 3.3, 3, 2.2, 2.1, 1.7, 1.4, 1.2, 1.1, 0.9, 0.5, 0.3];
     const moved = gdp.map((v, i) => (i === 0 ? v * 0.4 : i === 1 ? v * 2.5 : v));
     const tree = (values: readonly number[], prefix = "C"): ChartSpec => ({
-      marks: [
-        {
-          mark: "tree",
-          nodes: values.map((value, i) => ({ name: `${prefix}${String(i)}`, value })),
-        },
-      ],
+      data: treeFrame({
+        parts: values.map((value, i) => ({ key: `${prefix}${String(i)}`, value })),
+      }),
+      mark: { mark: "tree" },
     });
     const tiles = (b: Built) =>
       b.figure.querySelector('svg [data-part="tree"] path')?.getAttribute("d") ?? "";
@@ -1069,17 +1045,11 @@ describe("the drawing under update and resize", () => {
       {
         x: { type: "log", label: "Payload of the request", format: "duration" },
         y: { label: "Response time of the request", format: "duration" },
-        marks: [
-          {
-            mark: "cell",
-            x: { edges: [1_000, 2_000, 5_000] },
-            y: { edges: [100_000, 200_000, 500_000] },
-            values: [
-              [1, 2],
-              [3, 4],
-            ],
-          },
-        ],
+        data: grid({ edges: [1, 2, 5] }, { edges: [100, 200, 500] }, [
+          [1, 2],
+          [3, 4],
+        ]),
+        mark: { mark: "cell" },
       },
       b,
     );
@@ -1093,12 +1063,14 @@ describe("the drawing under update and resize", () => {
 });
 
 describe("the notes", () => {
-  const noted = (...notes: [number, number, string][]): ChartSpec => ({
-    ...full,
-    marks: [...full.marks, ...notes.map(([x, y, text]) => ({ mark: "text" as const, x, y, text }))],
+  // Frame notes keyed by their text.
+  const noted = (...notes: [number, string][]): ChartSpec => ({
+    ...hour,
+    data: { ...(full.data as ChartFrame), notes: notes.map(([at, key]) => ({ key, at })) },
+    mark: full.mark,
   });
-  const one = noted([starts[1] ?? 0, 4, "Deploy"]);
-  const two = noted([starts[1] ?? 0, 4, "Deploy"], [starts[2] ?? 0, 2, "Rollback"]);
+  const one = noted([starts[1] ?? 0, "Deploy"]);
+  const two = noted([starts[1] ?? 0, "Deploy"], [starts[2] ?? 0, "Rollback"]);
   const svgNotes = (b: Built) =>
     [...b.figure.querySelectorAll('svg [data-part="note"] text')].map((t) => t.textContent);
   const markers = (b: Built) =>
@@ -1126,7 +1098,7 @@ describe("the notes", () => {
 
   it("numbers every note when two would overlap, on a wide figure", () => {
     const b = build({ width: 600 });
-    start(noted([starts[1] ?? 0, 4, "Deploy"], [starts[1] ?? 0, 4, "Same place"]), b);
+    start(noted([starts[1] ?? 0, "Deploy"], [starts[1] ?? 0, "Same place"]), b);
     expect(markers(b)).toEqual(["1", "2"]);
     expect(listed(b)).toEqual(["Deploy", "Same place"]);
   });
@@ -1178,13 +1150,8 @@ describe("a face that loads after the drawing", () => {
   const strip: ChartSpec = {
     x: { type: "time", domain: [START, START + 60 * MIN] },
     y: { type: "band" },
-    marks: [
-      {
-        mark: "dot",
-        unit: { one: "post", other: "posts" },
-        rows: [{ name: "lead-ui-agent", x: [START + 10 * MIN] }],
-      },
-    ],
+    data: events({ "lead-ui-agent": [START + 10 * MIN] }),
+    mark: { mark: "dot", unit: { one: "post", other: "posts" } },
   };
   const plotLeft = (b: Built) =>
     Number(get(b.figure, "plot")?.querySelector('[data-part="area"]')?.getAttribute("x")) +
@@ -1232,35 +1199,26 @@ describe("a face that loads after the drawing", () => {
 });
 
 describe("a scatter plot's notes with the table view on from the start", () => {
-  it("writes the note at the dot it joins in the summary and after the table, the plot never laid out", () => {
+  it("writes a note at its x measure in the summary and after the table, the plot never laid out", () => {
     const b = build({ pressed: true });
     const chart = start(
       {
         x: { label: "GDP per capita" },
         y: { label: "Life expectancy" },
-        marks: [
-          {
-            mark: "scatter",
-            series: [
-              {
-                name: "Europe",
-                names: ["Albania", "Monaco"],
-                x: [18_920, 140_000],
-                y: [79.8, 85.9],
-              },
-            ],
-          },
-          { mark: "text", x: 140_000, y: 85.9, text: "A city-state" },
-        ],
+        data: points(
+          [{ key: "Europe", names: ["Albania", "Monaco"], x: [18_920, 140_000], y: [79.8, 85.9] }],
+          { notes: [{ key: "A city-state", at: 140_000 }] },
+        ),
+        mark: { mark: "scatter" },
       },
       b,
     );
     expect(get(b.figure, "plot")?.hidden).toBe(true);
     expect(get(b.figure, "plot")?.querySelector("svg")?.childElementCount).toBe(0);
     expect(get(b.figure, "table")?.querySelector('[data-part="after"]')?.textContent).toBe(
-      "Monaco: A city-state.",
+      "GDP per capita 140,000: A city-state.",
     );
-    expect(chart.summary.endsWith(" Monaco: A city-state.")).toBe(true);
+    expect(chart.summary.endsWith(" GDP per capita 140,000: A city-state.")).toBe(true);
     const rows = [...(get(b.figure, "table")?.querySelectorAll("tbody th") ?? [])];
     expect(rows.map((th) => th.querySelector("bdi")?.textContent)).toEqual(["Albania", "Monaco"]);
   });
@@ -1271,17 +1229,17 @@ describe("small multiples' panels", () => {
   const regions = (names: readonly string[]): ChartSpec => ({
     x: { type: "time", domain: [months[0] ?? 0, months.at(-1) ?? 0] },
     y: { format: "percent" },
-    marks: [{ mark: "rule", y: 0.05, label: "Target" }],
+    mark: { mark: "line" },
+    refs: [{ key: "Target" }],
     facets: {
       unit: { one: "region", other: "regions" },
       panels: names.map((name, k) => ({
-        marks: [
-          {
-            mark: "line",
-            x: months,
-            series: [{ name, y: months.map((_, i) => 0.03 + 0.001 * i * (k + 1)) }],
-          },
-        ],
+        key: name,
+        data: seriesFrame(months, [], {
+          unit: "none",
+          series: named([name, months.map((_, i) => 0.03 + 0.001 * i * (k + 1))]),
+          refs: [{ key: "Target", value: 0.05 }],
+        }),
       })),
     },
   });
@@ -1382,21 +1340,20 @@ describe("small multiples' panels", () => {
   it("lists every panel's numbered notes once under the grid, numbered on across the panels", async () => {
     const b = build({ width: 600 });
     const spec = regions(["North", "South", "East"]);
-    const noted: ChartSpec = {
+    const noted = {
       ...spec,
       facets: {
         ...spec.facets,
         panels: (spec.facets?.panels ?? []).map((p, k) => ({
-          marks: [
-            ...p.marks,
-            ...(k === 1
-              ? []
-              : [{ mark: "text" as const, x: months[3] ?? 0, y: 0.04, text: `Note ${String(k)}` }]),
-          ],
+          ...p,
+          data: {
+            ...p.data,
+            notes: k === 1 ? [] : [{ key: `Note ${String(k)}`, at: months[3] ?? 0 }],
+          },
         })),
       },
     };
-    const chart = start(noted, b);
+    const chart = start(noted as ChartSpec, b);
     const markers = () =>
       [...b.figure.querySelectorAll('svg [data-part="marker"] text')].map((t) => t.textContent);
     const listed = () =>
@@ -1413,28 +1370,22 @@ describe("small multiples' panels", () => {
 
   // Coal and gas per country, in 15-minute buckets: a per-category form.
   const countries = (shape: "bars" | "area"): ChartSpec => ({
-    ...full,
+    ...hour,
+    mark: { mark: "rect", shape },
     facets: {
-      panels: [
-        ["Germany", 2],
-        ["France", 1],
-      ].map(([name, k]) => ({
-        name: String(name),
-        marks: [
-          {
-            mark: "rect",
-            shape,
-            x1: starts,
-            x2: starts.map((s) => s + 15 * MIN),
-            series: [
-              { name: "Coal", y: starts.map(() => 2 * Number(k)) },
-              { name: "Gas", y: starts.map(() => Number(k)) },
-            ],
-          },
-        ],
+      panels: (
+        [
+          ["Germany", 2],
+          ["France", 1],
+        ] as const
+      ).map(([name, k]) => ({
+        key: name,
+        name,
+        data: binsFrame(starts, x2s, [], {
+          series: named(["Coal", starts.map(() => 2 * k)], ["Gas", starts.map(() => k)]),
+        }),
       })),
     },
-    marks: [],
   });
   const box = (svg: SVGSVGElement, part: string) =>
     (svg.querySelector(`[data-part="${part}"]`) as SVGGraphicsElement).getBBox();
@@ -1468,13 +1419,14 @@ describe("small multiples' panels", () => {
   ] as const)(
     "draws no end labels in %s panels, so each plot reaches its panel's right edge",
     (mark, part) => {
-      const series = [
-        { name: "Gas", y: [3, 4, 5, 4] },
-        { name: "Wind", y: [1, 2, 2, 3] },
-      ];
+      const data = seriesFrame(starts, [], {
+        series: named(["Gas", [3, 4, 5, 4]], ["Wind", [1, 2, 2, 3]]),
+      });
+      const x = { type: "time", domain: [START, START + 45 * MIN] } as const;
       const lone: ChartSpec = {
-        x: { type: "time", domain: [START, START + 45 * MIN] },
-        marks: [{ mark, x: starts, series }],
+        x,
+        data,
+        mark: { mark },
       };
       const alone = build({ width: 600 });
       start(lone, alone);
@@ -1483,14 +1435,9 @@ describe("small multiples' panels", () => {
       const b = build({ width: 600 });
       start(
         {
-          ...lone,
-          marks: [],
-          facets: {
-            panels: ["North", "South"].map((name) => ({
-              name,
-              marks: [{ mark, x: starts, series }],
-            })),
-          },
+          x,
+          mark: { mark },
+          facets: { panels: ["North", "South"].map((name) => ({ key: name, name, data })) },
         },
         b,
       );
@@ -1511,22 +1458,19 @@ describe("small multiples' panels", () => {
 
   // The same three sources per country: the per-category form of a bar panel.
   const mixes: ChartSpec = {
-    marks: [],
+    mark: { mark: "bar" },
     facets: {
       unit: { one: "country", other: "countries" },
-      panels: [
-        ["Germany", [26, 15, 31]],
-        ["France", [1, 7, 9]],
-        ["Spain", [2, 18, 24]],
-      ].map(([name, x]) => ({
-        name: String(name),
-        marks: [
-          {
-            mark: "bar" as const,
-            y: ["Coal", "Gas", "Wind"],
-            series: [{ name: "Share", x: x as number[] }],
-          },
-        ],
+      panels: (
+        [
+          ["Germany", [26, 15, 31]],
+          ["France", [1, 7, 9]],
+          ["Spain", [2, 18, 24]],
+        ] as const
+      ).map(([name, x]) => ({
+        key: name,
+        name,
+        data: categories(["Coal", "Gas", "Wind"], [], { series: named(["Share", x]) }),
       })),
     },
   };
@@ -1546,23 +1490,20 @@ describe("small multiples' panels", () => {
   });
 
   it("draws a pie in each panel as wide as its plot, with no outside labels or leaders", () => {
-    const slices = (k: number) => [
-      { name: "Coal", value: 3 + k },
-      { name: "Gas", value: 2 },
-      { name: "Wind", value: 1 },
-    ];
+    const slices = (k: number) => categories(["Coal", "Gas", "Wind"], [[3 + k, 2, 1]]);
     const alone = build({ width: 600 });
-    start({ marks: [{ mark: "pie", slices: slices(0) }] }, alone);
+    start({ data: slices(0), mark: { mark: "pie" } }, alone);
     const lone = get(alone.figure, "plot")?.querySelector("svg") as SVGSVGElement;
     expect(lone.querySelectorAll('[data-part="end"] > text').length).toBeGreaterThan(0);
     const b = build({ width: 600 });
     start(
       {
-        marks: [],
+        mark: { mark: "pie" },
         facets: {
           panels: [0, 1, 2].map((k) => ({
+            key: String(2022 + k),
             name: String(2022 + k),
-            marks: [{ mark: "pie" as const, slices: slices(k) }],
+            data: slices(k),
           })),
         },
       },
@@ -1584,21 +1525,17 @@ describe("small multiples' panels", () => {
     const b = build({ width: 600 });
     start(
       {
-        marks: [],
+        mark: { mark: "cell" },
         facets: {
-          panels: [
-            ["Low", 10],
-            ["High", 100],
-          ].map(([name, top]) => ({
-            name: String(name),
-            marks: [
-              {
-                mark: "cell" as const,
-                x: ["Mon", "Tue"],
-                y: ["Night"],
-                values: [[0, Number(top)]],
-              },
-            ],
+          panels: (
+            [
+              ["Low", 10],
+              ["High", 100],
+            ] as const
+          ).map(([name, top]) => ({
+            key: name,
+            name,
+            data: grid({ names: ["Mon", "Tue"] }, { names: ["Night"] }, [[0, top]]),
           })),
         },
       },
@@ -1636,12 +1573,17 @@ describe("instants at the calendar unit every x value falls on", () => {
   // Paris is UTC+1 in winter and UTC+2 from late March to late October, so
   // the 1st of April to October is at 10 PM UTC the day before.
   const months = per(60, (i) => Date.UTC(2020, i, 1) - (i % 12 >= 3 && i % 12 <= 9 ? 2 : 1) * HR);
-  const monthly: ChartSpec = {
+  const scales = {
     x: { type: "time", domain: [months[0] ?? 0, months[59] ?? 0] },
     y: { label: "Unemployment", format: "percent" },
-    marks: [
-      { mark: "line", x: months, series: [{ name: "North", y: per(60, (i) => 0.05 + i / 2000) }] },
-    ],
+  } as const;
+  const monthly: ChartSpec = {
+    ...scales,
+    data: seriesFrame(months, [], {
+      unit: "none",
+      series: named(["North", per(60, (i) => 0.05 + i / 2000)]),
+    }),
+    mark: { mark: "line" },
   };
   const summary = (b: Built) =>
     b.figure.querySelector('figcaption > [data-part="summary"]')?.textContent ?? "";
@@ -1657,13 +1599,19 @@ describe("instants at the calendar unit every x value falls on", () => {
 
   it("names each panel's range in months", () => {
     const b = build();
-    const line = (name: string) => ({
-      marks: [{ mark: "line" as const, x: months, series: [{ name, y: per(60, () => 0.05) }] }],
+    const line = (key: string) => ({
+      key,
+      data: seriesFrame(months, [], { unit: "none", series: named([key, per(60, () => 0.05)]) }),
     });
-    start({ ...monthly, marks: [], facets: { panels: [line("North"), line("South")] } }, b, {
-      locale: "en",
-      timeZone: TZ,
-    });
+    start(
+      {
+        ...scales,
+        mark: { mark: "line" },
+        facets: { panels: [line("North"), line("South")] },
+      },
+      b,
+      { locale: "en", timeZone: TZ },
+    );
     const frames = b.figure.querySelectorAll('[data-part="frame"]');
     expect(frames[1]?.getAttribute("aria-label")).toMatch(
       /^South: Line chart, .*Jan 2020 to Dec 2024$/u,
@@ -1676,16 +1624,11 @@ describe("instants at the calendar unit every x value falls on", () => {
     const b = build();
     start(
       {
-        x: { type: "time" },
         y: { label: "Posts" },
-        marks: [
-          {
-            mark: "rect",
-            x1: days.slice(0, 7),
-            x2: days.slice(1),
-            series: [{ name: "Posts", y: per(7, (i) => i + 1) }],
-          },
-        ],
+        data: binsFrame(days.slice(0, 7), days.slice(1), [], {
+          series: named(["Posts", per(7, (i) => i + 1)]),
+        }),
+        mark: { mark: "rect" },
       },
       b,
       { locale: "en", timeZone: TZ },
@@ -1706,9 +1649,8 @@ describe("instants at the calendar unit every x value falls on", () => {
       {
         x: { type: "time" },
         y: { label: "Members" },
-        marks: [
-          { mark: "line", x: years, series: [{ name: "Members", y: per(10, (i) => 100 + i) }] },
-        ],
+        data: seriesFrame(years, [], { series: named(["Members", per(10, (i) => 100 + i)]) }),
+        mark: { mark: "line" },
       },
       b,
       { locale: "en", timeZone: TZ },
@@ -1718,13 +1660,9 @@ describe("instants at the calendar unit every x value falls on", () => {
 
   it("keeps the minute when one x value falls inside a day", () => {
     const b = build();
-    const note = {
-      mark: "text" as const,
-      x: Date.UTC(2023, 1, 14, 13, 30),
-      y: 0.06,
-      text: "Strike",
-    };
-    start({ ...monthly, marks: [...monthly.marks, note] }, b, { locale: "en", timeZone: TZ });
+    const note = { key: "Strike", at: Date.UTC(2023, 1, 14, 13, 30) };
+    const data = { ...(monthly.data as ChartFrame), notes: [note] };
+    start({ ...monthly, data }, b, { locale: "en", timeZone: TZ });
     expect(summary(b)).toMatch(/^Jan 1, 2020, 12:00\sAM to Dec 1, 2024, 12:00\sAM\. /u);
   });
 });

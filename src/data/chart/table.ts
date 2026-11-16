@@ -958,28 +958,29 @@ function syncBodies(table: HTMLTableElement, t: TableModel, named: boolean): voi
 }
 
 /**
- * Shows `t` in `panel`, the chart's `.cp-panel`, its caption `title`. A
- * table with the same columns keeps its rows: changed cells are rewritten
- * in place, new rows inserted and rows that left removed.
+ * Shows `t` in `panel`, the chart's `.cp-panel`, the table named by the
+ * element `titleId` names, the chart's title. A table with the same columns
+ * keeps its rows: changed cells are rewritten in place, new rows inserted
+ * and rows that left removed.
  */
-export function syncTable(panel: HTMLElement, t: TableModel, title: string, named: boolean): void {
+export function syncTable(
+  panel: HTMLElement,
+  t: TableModel,
+  titleId: string,
+  named: boolean,
+): void {
   let table = panel.querySelector("table");
   if (table?.dataset["head"] !== headSignature(t)) {
     table = document.createElement("table");
     table.className = "cp-table";
     table.dataset["head"] = headSignature(t);
-    const caption = table.createCaption();
-    caption.textContent = title;
+    table.setAttribute("aria-labelledby", titleId);
     writeHead(table, t);
     // Filled before it is shown, so its rows cost no layout.
     syncBodies(table, t, named);
     panel.querySelector("table")?.remove();
     panel.prepend(table);
   } else {
-    const caption = table.caption;
-    if (caption !== null && caption.textContent !== title) {
-      caption.textContent = title;
-    }
     syncBodies(table, t, named);
   }
   syncFoot(table, t.foot, named);

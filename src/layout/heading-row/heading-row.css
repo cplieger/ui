@@ -1,0 +1,75 @@
+/* A heading row: a title block, then the .cp-toolbar of what the page or
+ * section can do. A leading .cp-cover makes it an item's hero. */
+.cp-heading-row {
+  container: cp-heading / inline-size;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  justify-content: space-between;
+  gap: var(--cp-space-3) var(--cp-space-6);
+  margin-block-end: var(--cp-space-5);
+}
+
+.cp-heading-row > :is(:first-child, .cp-cover + *) {
+  flex: 1 1 18rem;
+  min-inline-size: 0;
+}
+
+/* The poster leads and the title block starts at its top. The toolbar
+ * stays level with the title, since the block beside a poster runs long. */
+.cp-heading-row:has(> .cp-cover:first-child) {
+  align-items: start;
+}
+
+.cp-heading-row > .cp-cover:first-child {
+  flex: none;
+  inline-size: 7rem;
+}
+
+/* Beside the poster the block keeps 18rem of words, so the flex wrap puts
+ * it under the poster once the row is narrower than the poster, its gap
+ * and 18rem, and a toolbar that does not fit beside the words takes its
+ * own line. */
+.cp-heading-row > .cp-cover:first-child + * {
+  flex: 1 1 0;
+  min-inline-size: min(18rem, 100%);
+}
+
+/* A title's line of facts sits close under it, read as one block. */
+.cp-heading-row > :is(:first-child, .cp-cover + *) > :is(h1, h2, h3) + p {
+  margin-block-start: var(--cp-space-1);
+}
+
+/* The title in its own language: the app sets its lang. */
+.cp-heading-row > :is(:first-child, .cp-cover + *) > [data-part="alt-title"] {
+  margin-block-start: 0.125rem;
+  color: var(--cp-ink-muted);
+}
+
+.cp-heading-row > :is(:first-child, .cp-cover + *) > [data-part="alt-title"] + p {
+  margin-block-start: var(--cp-space-2);
+}
+
+/* The hero's groups after its facts: the state lines, the links, the chips. */
+.cp-heading-row
+  > :is(:first-child, .cp-cover + *)
+  > :is(ul.cp-stack, nav.cp-cluster, div.cp-cluster) {
+  margin-block-start: var(--cp-space-3);
+}
+
+.cp-heading-row > .cp-toolbar {
+  flex: 0 1 auto;
+  justify-content: end;
+}
+
+@container cp-heading (width < 40rem) {
+  .cp-heading-row > .cp-toolbar {
+    flex: 1 1 100%;
+    justify-content: start;
+  }
+
+  .cp-heading-row > .cp-toolbar > .cp-input {
+    flex: 1 1 8rem;
+    min-inline-size: 0;
+  }
+}
