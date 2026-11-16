@@ -44,14 +44,6 @@
   gap: var(--cp-space-1);
 }
 
-/* The caption names the table and its range. */
-.cp-table > caption {
-  padding: var(--cp-space-3) var(--cp-space-3) var(--cp-space-1);
-  color: var(--cp-ink-muted);
-  font-size: var(--cp-text-xs);
-  text-align: start;
-}
-
 /* A sortable header's button (@cplieger/ui/table). Its arrow shows on the
  * sorted column and turns over for descending. */
 .cp-sort {
@@ -96,9 +88,8 @@ th[aria-sort="descending"] > .cp-sort::after {
   }
 }
 
-/* The title cell: a .cp-cover beside the title and its line. The cover
- * fills its row less 1px each side, so pictures in stacked rows
- * sit 2px apart; the words keep their own padding. */
+/* The title cell: a .cp-cover beside the title and its line, inset by the
+ * shared cover tokens, so the row takes the cover's height. */
 .cp-title-cell {
   display: flex;
   align-items: center;
@@ -106,17 +97,16 @@ th[aria-sort="descending"] > .cp-sort::after {
 }
 
 .cp-table :is(td, th):has(> .cp-title-cell) {
-  padding-block: 1px;
+  padding-block: var(--cp-cover-inset);
 }
 
 .cp-title-cell > .cp-cell-stack {
-  padding-block: var(--cp-space-2);
+  padding-block: 0;
 }
 
 .cp-title-cell > .cp-cover {
   flex: none;
-  inline-size: 2.25rem;
-  border-radius: calc(var(--cp-radius-control) - 0.125rem);
+  inline-size: var(--cp-cover-row-w);
 }
 
 .cp-title-cell > .cp-cover > .cp-icon {
@@ -135,9 +125,21 @@ th[aria-sort="descending"] > .cp-sort::after {
   background: var(--cp-surface-raised);
 }
 
+/* A number column, and a bar column (ranked-bars), hugs its widest cell, as
+ * the actions column does, so the text columns take the table's leftover
+ * width. A number or a date never breaks from its unit or at its hyphens. */
 .cp-table [data-col="num"] {
+  inline-size: 1%;
   text-align: end;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.cp-table [data-bar] {
+  inline-size: 1%;
+}
+
+.cp-table :is(td, th) time {
   white-space: nowrap;
 }
 
@@ -193,10 +195,6 @@ th[aria-sort="descending"] > .cp-sort::after {
   margin-inline-end: auto;
   font-weight: var(--cp-weight-strong);
   font-variant-numeric: tabular-nums;
-}
-
-.cp-table [data-col="actions"] > .cp-button:only-child {
-  inline-size: 100%;
 }
 
 .cp-table [data-col="actions"] {
@@ -289,8 +287,6 @@ th[aria-sort="descending"] > .cp-sort::after {
     }
 
     .cp-table tbody tr:hover :is(td, th) {
-      --cp-quiet-hover: var(--cp-fill-hover);
-
       background: var(--cp-fill);
     }
 

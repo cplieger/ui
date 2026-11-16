@@ -55,7 +55,8 @@
   mask: url("../icons/svg/x.svg") center / contain no-repeat;
 }
 
-.cp-rules [data-add-target]:empty::before {
+/* As specific as the × rule above and later in the file, so + wins on the add. */
+.cp-rules [data-part] [data-add-target]:empty::before {
   mask-image: url("../icons/svg/plus.svg");
 }
 

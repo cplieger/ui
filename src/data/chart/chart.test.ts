@@ -720,9 +720,10 @@ describe("the table view toggle", () => {
     expect(get(b.figure, "table")?.hidden).toBe(false);
     expect(get(b.figure, "plot")?.hidden).toBe(true);
     expect(get(b.figure, "legend")?.hidden).toBe(true);
-    expect(get(b.figure, "table")?.querySelector("caption")?.textContent).toBe(
-      "Posts by thread kind",
-    );
+    const shown = get(b.figure, "table")?.querySelector("table");
+    expect(shown?.caption).toBeNull();
+    const by = document.getElementById(shown?.getAttribute("aria-labelledby") ?? "");
+    expect(by?.textContent).toBe("Posts by thread kind");
     expect(document.activeElement).toBe(b.toggle);
     b.toggle.click();
     expect(b.toggle.getAttribute("aria-pressed")).toBe("false");
