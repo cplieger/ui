@@ -586,7 +586,7 @@ describe("facets: the grid", () => {
     expect(grid(lines(3), 1000).columns).toBe(3);
     const phone = grid(lines(6), 288);
     expect(phone.columns).toBe(2);
-    const widths = phone.panels.map((p) => p.lay.frame.width);
+    const widths = phone.panels.map((p) => p.lay.projection.width);
     expect(new Set(widths).size).toBe(1);
     expect(phone.gutter + 2 * ((widths[0] ?? 0) + 2) + 16).toBeLessThanOrEqual(288);
     expect(widths[0]).toBeGreaterThanOrEqual(112);
@@ -595,7 +595,7 @@ describe("facets: the grid", () => {
 
   it("gives every panel the default panel height", () => {
     for (const p of grid(lines(4), 600).panels) {
-      expect(p.lay.frame.height).toBe(PANEL_HEIGHT);
+      expect(p.lay.projection.height).toBe(PANEL_HEIGHT);
     }
   });
 
@@ -615,7 +615,7 @@ describe("facets: the grid", () => {
     expect(at.map((p) => p.x)).toEqual([false, false, false, true, true]);
     expect(at.map((p) => p.ticks)).toEqual([false, false, false, true, true]);
     const [first, second] = g.panels;
-    expect(second?.lay.height).toBe((second?.lay.top ?? 0) + (second?.lay.frame.height ?? 0));
+    expect(second?.lay.height).toBe((second?.lay.top ?? 0) + (second?.lay.projection.height ?? 0));
     expect(first?.lay.left).toBe(g.gutter);
   });
 
@@ -669,7 +669,7 @@ describe("facets: the grid", () => {
       // Two to a row on a phone: (288 - 16) / 2, less each plot's border.
       expect(phone.columns).toBe(2);
       for (const p of phone.panels) {
-        expect(p.lay.frame.width).toBe(134);
+        expect(p.lay.projection.width).toBe(134);
         expect(2 * (p.lay.pie?.r ?? 0)).toBe(134);
         expect(p.lay.endLabels).toEqual([]);
         expect(p.lay.leaders).toEqual([]);
@@ -681,7 +681,7 @@ describe("facets: the grid", () => {
 
     it("take a passed height as each pie's plot height", () => {
       const p = grid(pies(2, { height: 100 }), 1000).panels[0];
-      expect(p?.lay.frame.height).toBe(100);
+      expect(p?.lay.projection.height).toBe(100);
       expect(2 * (p?.lay.pie?.r ?? 0)).toBe(100);
     });
   });
@@ -712,7 +712,7 @@ describe("facets: the grid", () => {
     const g = grid(dots, 600);
     expect(g.columns).toBe(3);
     for (const p of g.panels) {
-      expect(p.lay.frame.width).toBeGreaterThanOrEqual(112);
+      expect(p.lay.projection.width).toBeGreaterThanOrEqual(112);
     }
   });
 

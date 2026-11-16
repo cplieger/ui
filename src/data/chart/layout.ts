@@ -37,7 +37,7 @@ import {
   SCATTER_RADIUS,
   snap,
   type DayGrid,
-  type Frame,
+  type Projection,
   type Panel,
 } from "./geometry.js";
 import {
@@ -57,7 +57,7 @@ import {
 } from "./model.js";
 import { dayFormat, dayPlace, foldSize, monthFirst, weekCount, weekRow } from "./calendar.js";
 import { MARKER_RADIUS, NOTE_REM, notePoint, placeNote, wrapNote, type Box } from "./notes.js";
-import { rimPoint, sliceAngles, type PieFrame } from "./pie.js";
+import { rimPoint, sliceAngles, type Disc } from "./pie.js";
 import { lastSample, lastStack, partAmount, samplePart } from "./readout.js";
 import type { Continuous } from "./scales.js";
 import { resquarify, squarify, type Row } from "./treemap.js";
@@ -115,7 +115,7 @@ export interface TreeKept {
 }
 
 /** A treemap on the plot, in plot px, edges snapped to device px. */
-interface TreeFrame {
+interface TreeTiles {
   /** Each part's tile in part order; undefined for a 0 or no data, which
    *  draws none. */
   readonly tiles: readonly (Box | undefined)[];
@@ -141,7 +141,7 @@ export interface Layout {
   /** The plot's box in the SVG. */
   readonly left: number;
   readonly top: number;
-  readonly frame: Frame;
+  readonly projection: Projection;
   readonly xAxis: Axis;
   /** A continuous y's axis; absent on a band and on a slope, which draws none. */
   readonly yAxis: Axis | undefined;
@@ -155,12 +155,12 @@ export interface Layout {
   /** A calendar's days on the plot. */
   readonly days: DayGrid | undefined;
   /** A pie's circle on the plot. */
-  readonly pie: PieFrame | undefined;
+  readonly pie: Disc | undefined;
   /** A donut's total in its hole, in plot px: `words.total` over the value;
    *  absent when the value is wider than the hole less 16 px. */
   readonly hole: { readonly label: Text; readonly total: Text } | undefined;
   /** A treemap's tiles on the plot. */
-  readonly tree: TreeFrame | undefined;
+  readonly tree: TreeTiles | undefined;
   /** A whole bar's thickness, which a group's thinner bars derive from
    *  (`barBlock`); 0 without a bar mark. */
   readonly bar: number;
@@ -296,13 +296,13 @@ function endTexts(
 function notesOf(
   model: Model,
   metrics: Metrics,
-  frame: Frame,
+  projection: Projection,
   rows: Layout["rows"],
   rowEnd: (row: number) => number,
   dayPoint?: (t: number) => { readonly x: number; readonly y: number } | undefined,
 ): Note[] {
   const out: Note[] = [];
-  const max = Math.min(NOTE_REM * metrics.rem, frame.width);
+  const max = Math.min(NOTE_REM * metrics.rem, projection.width);
   model.marks.forEach((m, mark) => {
     const at = m.kind === "text" ? notePoint(model, m) : undefined;
     if (m.kind !== "text" || at === undefined) {
@@ -312,12 +312,12 @@ function notesOf(
     if (dayPoint !== undefined && day === undefined) {
       return;
     }
-    const x = day?.x ?? (at.x === undefined ? rowEnd(at.y) : frame.xAt(at.x));
-    const y = day?.y ?? (m.row ? (rows[at.y]?.y ?? 0) : frame.yAt(at.y));
+    const x = day?.x ?? (at.x === undefined ? rowEnd(at.y) : projection.xAt(at.x));
+    const y = day?.y ?? (m.row ? (rows[at.y]?.y ?? 0) : projection.yAt(at.y));
     const texts = wrapNote(m.text, max, metrics.measure.text);
     const w = widestOf(texts, metrics.measure.text);
     const h = texts.length * metrics.lineHeight;
-    const placed = placeNote(x, y, m.side, w, h, frame.width, frame.height);
+    const placed = placeNote(x, y, m.side, w, h, projection.width, projection.height);
     const { box, side } = placed;
     const [tx, anchor] =
       side === "left"
@@ -625,15 +625,15 @@ function slopeLayout(
     y: lineHeight / 2,
     anchor: c === 0 ? "start" : "end",
   }));
-  const frame: Frame = { width: plotW, height, dpr, yAt, x: model.x, xAt };
-  const notes = notesOf(model, metrics, frame, [], () => 0);
+  const projection: Projection = { width: plotW, height, dpr, yAt, x: model.x, xAt };
+  const notes = notesOf(model, metrics, projection, [], () => 0);
   return {
     width,
     // Half a label's line under the plot holds a label at its bottom edge.
     height: top + height + Math.ceil(lineHeight / 2),
     left: axisW,
     top,
-    frame,
+    projection,
     xAxis: { lo: 0, hi: 1, at: xAt, ticks: [] },
     yAxis: undefined,
     rows: [],
@@ -727,7 +727,7 @@ function calendarLayout(
       anchor: "end" as const,
     })),
   );
-  const frame: Frame = {
+  const projection: Projection = {
     width: plotW,
     height,
     dpr,
@@ -738,7 +738,7 @@ function calendarLayout(
   const notes = notesOf(
     model,
     metrics,
-    frame,
+    projection,
     [],
     () => 0,
     (t) => {
@@ -755,7 +755,7 @@ function calendarLayout(
     height,
     left: axisW,
     top: 0,
-    frame,
+    projection,
     xAxis: { lo: model.x.lo, hi: model.x.hi, at: (v) => v, ticks: [] },
     yAxis: undefined,
     rows: [],
@@ -821,7 +821,7 @@ function pieLayout(
     Math.max(right, slices.length - right) * step <= height;
   const column = labelled ? Math.min(PIE_COLUMN_REM * metrics.rem, PIE_COLUMN * chart) : 0;
   const r = Math.max(0, Math.min(height, width - 2 * column)) / 2;
-  const p: PieFrame = { cx: width / 2, cy: height / 2, r, inner: m.hole ? r / 2 : 0 };
+  const p: Disc = { cx: width / 2, cy: height / 2, r, inner: m.hole ? r / 2 : 0 };
   const endLabels: Text[] = [];
   const leaders: Leader[] = [];
   for (const side of labelled ? [1, -1] : []) {
@@ -874,13 +874,13 @@ function pieLayout(
       };
     }
   }
-  const frame: Frame = { width, height, dpr, yAt: (v) => v, x: model.x, xAt: (v) => v };
+  const projection: Projection = { width, height, dpr, yAt: (v) => v, x: model.x, xAt: (v) => v };
   return {
     width,
     height,
     left: 0,
     top: 0,
-    frame,
+    projection,
     xAxis: { lo: 0, hi: 1, at: (v) => v, ticks: [] },
     yAxis: undefined,
     rows: [],
@@ -1044,13 +1044,13 @@ function treeLayout(
       labels.push({ text: value, x, y: y + lineHeight, anchor: "start", series: i });
     }
   });
-  const frame: Frame = { width, height, dpr, yAt: (v) => v, x: model.x, xAt: (v) => v };
+  const projection: Projection = { width, height, dpr, yAt: (v) => v, x: model.x, xAt: (v) => v };
   return {
     width,
     height,
     left: 0,
     top: 0,
-    frame,
+    projection,
     xAxis: { lo: 0, hi: 1, at: (v) => v, ticks: [] },
     yAxis: undefined,
     rows: [],
@@ -1488,7 +1488,7 @@ export function layout(
     };
   });
 
-  const frame: Frame = {
+  const projection: Projection = {
     width: plotW,
     height,
     dpr,
@@ -1519,13 +1519,13 @@ export function layout(
     const label = labelEnds.find((e) => e.row === row && e.value === reach.hi);
     return (label?.edge ?? xAx.at(held(reach.hi))) + (reverse ? -END_GAP : END_GAP);
   };
-  const notes = notesOf(model, metrics, frame, rows, rowEnd);
+  const notes = notesOf(model, metrics, projection, rows, rowEnd);
   return {
     width,
     height: top + height + bottom,
     left,
     top,
-    frame,
+    projection,
     xAxis: xAx,
     yAxis: yAx,
     rows,

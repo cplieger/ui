@@ -126,10 +126,10 @@ describe("a note in the layout", () => {
     );
     const [note] = l.notes;
     expect(note?.mark).toBe(1);
-    expect(note?.point).toEqual({ x: l.frame.xAt(1_350_000), y: l.frame.yAt(6) });
+    expect(note?.point).toEqual({ x: l.projection.xAt(1_350_000), y: l.projection.yAt(6) });
     expect(note?.lines.map((t) => t.text)).toEqual(["Deploy of the new feed", "reader at last"]);
     expect(note?.lines.every((t) => t.anchor === "middle" && t.x === note.point.x)).toBe(true);
-    expect(note?.box.bottom).toBe(l.frame.yAt(6) - 4);
+    expect(note?.box.bottom).toBe(l.projection.yAt(6) - 4);
     expect(note?.lines[1]?.y).toBe((note?.box.bottom ?? 0) - 17 / 2);
   });
 
@@ -140,7 +140,7 @@ describe("a note in the layout", () => {
         { mark: "text", x: 1_350_000, y: 5, text: "Right", side: "right" },
       ]),
     );
-    const x = l.frame.xAt(1_350_000);
+    const x = l.projection.xAt(1_350_000);
     expect(l.notes.map((n) => [n.lines[0]?.anchor, n.lines[0]?.x])).toEqual([
       ["end", x - 4],
       ["start", x + 4],
@@ -152,9 +152,9 @@ describe("a note in the layout", () => {
       posts([{ mark: "text", x: 900_000, y: 4, text: "a b c d e f g h i j k l" }]),
       160,
     );
-    expect(l.frame.width).toBeLessThan(192);
+    expect(l.projection.width).toBeLessThan(192);
     for (const t of l.notes[0]?.lines ?? []) {
-      expect(width(t.text)).toBeLessThanOrEqual(l.frame.width);
+      expect(width(t.text)).toBeLessThanOrEqual(l.projection.width);
     }
   });
 
@@ -182,7 +182,7 @@ describe("a note in the layout", () => {
         { mark: "text", x: 300_000, y: "bo", text: "First reply", side: "right" },
       ],
     });
-    expect(l.notes[0]?.point).toEqual({ x: l.frame.xAt(300_000), y: l.rows[1]?.y });
+    expect(l.notes[0]?.point).toEqual({ x: l.projection.xAt(300_000), y: l.rows[1]?.y });
   });
 
   it("is flipped below a point at the plot's top", () => {
@@ -364,7 +364,7 @@ describe("a note off an inferred y domain", () => {
 
   it("is not drawn in the room the axis rounds its top up to, as it joins nothing there", () => {
     const l = lay(spec(2.8));
-    expect(l.frame.yAt(2.8)).toBeGreaterThanOrEqual(0);
+    expect(l.projection.yAt(2.8)).toBeGreaterThanOrEqual(0);
     expect(l.notes).toEqual([]);
     expect(joined(spec(2.8))).toEqual([null]);
   });
@@ -450,7 +450,7 @@ describe("a note on bar and point rows", () => {
   it("sits along its row at its x and joins the row", () => {
     const spec = bars({}, {}, { mark: "text", x: 30, y: "Facebook", text: "Best" });
     const l = lay(spec);
-    expect(l.notes[0]?.point).toEqual({ x: l.frame.xAt(30), y: l.rows[1]?.y });
+    expect(l.notes[0]?.point).toEqual({ x: l.projection.xAt(30), y: l.rows[1]?.y });
     expect(joined(spec)).toEqual([{ kind: "row", row: 1 }]);
   });
 
@@ -463,7 +463,7 @@ describe("a note on bar and point rows", () => {
       ],
     };
     const l = lay(spec);
-    expect(l.notes[0]?.point).toEqual({ x: l.frame.xAt(50), y: l.rows[1]?.y });
+    expect(l.notes[0]?.point).toEqual({ x: l.projection.xAt(50), y: l.rows[1]?.y });
     expect(joined(spec)).toEqual([{ kind: "row", row: 1 }]);
   });
 
@@ -482,28 +482,28 @@ describe("a note on bar and point rows", () => {
 
   it("points past the last panel's bar and its label under a split", () => {
     const l = lay(bars({ arrange: "split" }));
-    const last = l.frame.panels?.[1];
+    const last = l.projection.panels?.[1];
     expect(l.notes[0]?.point).toEqual({ x: (last?.at(43) ?? 0) + past, y: l.rows[1]?.y });
     // Every panel keeps a marker's 10 px past the widest bar's point, so it
     // stands on the plot; with no room right of it the note turns left.
-    expect((l.notes[0]?.point.x ?? 0) + 10).toBeCloseTo(l.frame.width);
-    expect((l.frame.panels?.[0]?.right ?? 0) - (l.frame.panels?.[0]?.at(43) ?? 0)).toBeCloseTo(
-      past + 10,
-    );
+    expect((l.notes[0]?.point.x ?? 0) + 10).toBeCloseTo(l.projection.width);
+    expect(
+      (l.projection.panels?.[0]?.right ?? 0) - (l.projection.panels?.[0]?.at(43) ?? 0),
+    ).toBeCloseTo(past + 10);
     expect(l.notes[0]?.box.right).toBeCloseTo((l.notes[0]?.point.x ?? 0) - 4);
   });
 
   it("leaves the plot's ends alone without a note at a row's end", () => {
     const l = lay(bars({ arrange: "split" }, {}, { mark: "rule", x: 10, label: "Aim" }));
-    const last = l.frame.panels?.[1];
+    const last = l.projection.panels?.[1];
     expect((last?.at(43) ?? 0) + 4 + 15).toBeCloseTo(last?.right ?? 0);
   });
 
   it("points past the last panel's bar alone with labels off, and leftward on a reversed x", () => {
     const off = lay(bars({ arrange: "split", labels: false }));
-    expect(off.notes[0]?.point.x).toBe((off.frame.panels?.[1]?.at(43) ?? 0) + 4);
+    expect(off.notes[0]?.point.x).toBe((off.projection.panels?.[1]?.at(43) ?? 0) + 4);
     const reversed = lay(bars({ arrange: "split" }, { reverse: true }));
-    const last = reversed.frame.panels?.[1];
+    const last = reversed.projection.panels?.[1];
     expect(last?.leftward).toBe(true);
     expect(reversed.notes[0]?.point.x).toBe((last?.at(43) ?? 0) - past);
   });
@@ -512,28 +512,28 @@ describe("a note on bar and point rows", () => {
     const split = bars({ arrange: "split", labels: false }, { domain: [0, 40] });
     // Facebook's Weekly 43 is cut at 40.
     const l = lay(split);
-    const last = l.frame.panels?.[1];
+    const last = l.projection.panels?.[1];
     expect(l.notes[0]?.point.x).toBeCloseTo((last?.at(40) ?? 0) + 4);
     expect(l.notes[0]?.point.x).toBeLessThanOrEqual(last?.right ?? Number.NaN);
     const folded = lay(split, 479);
-    expect(folded.notes[0]?.point.x).toBeCloseTo(folded.frame.xAt(40) + 4);
+    expect(folded.notes[0]?.point.x).toBeCloseTo(folded.projection.xAt(40) + 4);
   });
 
   it("points past the farthest bar of the folded row under 30rem", () => {
     const l = lay(bars({ arrange: "split" }), 479);
-    expect(l.frame.panels).toBeUndefined();
+    expect(l.projection.panels).toBeUndefined();
     // Numbered under 30rem, the marker still stands at the row's end.
     expect(l.numbered).toBe(true);
-    expect(l.notes[0]?.point.x).toBeCloseTo(l.frame.xAt(43) + past);
+    expect(l.notes[0]?.point.x).toBeCloseTo(l.projection.xAt(43) + past);
   });
 
   it("points past the right side's bar under a mirror, whichever series takes it", () => {
     const l = lay(bars({ arrange: "mirror" }));
     // Facebook's right side is Weekly's 43.
-    expect(l.notes[0]?.point.x).toBe((l.frame.panels?.[1]?.at(43) ?? 0) + past);
+    expect(l.notes[0]?.point.x).toBe((l.projection.panels?.[1]?.at(43) ?? 0) + past);
     const reversed = lay(bars({ arrange: "mirror" }, { reverse: true }));
     // "20" is Daily's label, which takes the right side on a reversed x.
-    const right = reversed.frame.panels?.[0];
+    const right = reversed.projection.panels?.[0];
     expect(right?.leftward).toBe(false);
     expect(reversed.notes[0]?.point.x).toBe((right?.at(20) ?? 0) + past);
   });
@@ -542,12 +542,12 @@ describe("a note on bar and point rows", () => {
     const more = { arrange: "diverge", left: 1 } as const;
     const l = lay(bars(more));
     // Daily's 20 lies left of 0, Weekly's 43 right of it.
-    expect(l.notes[0]?.point.x).toBe(l.frame.xAt(43) + 4);
+    expect(l.notes[0]?.point.x).toBe(l.projection.xAt(43) + 4);
     const reversed = lay(bars(more, { reverse: true }));
-    expect(reversed.notes[0]?.point.x).toBe(reversed.frame.xAt(-20) + 4);
+    expect(reversed.notes[0]?.point.x).toBe(reversed.projection.xAt(-20) + 4);
     // The axis ends a marker's room short of the plot's right edge.
     const ends = l.xAxis.ticks.map((t) => t.at);
-    expect(Math.max(...ends)).toBeLessThanOrEqual(l.frame.width - 14 + 1e-6);
+    expect(Math.max(...ends)).toBeLessThanOrEqual(l.projection.width - 14 + 1e-6);
   });
 
   it("joins its row's reading, whole or one part, and writes the row's name as its at", () => {
@@ -590,8 +590,8 @@ describe("a note on a slope", () => {
     );
     const l = lay(spec);
     expect(l.notes.map((n) => n.point)).toEqual([
-      { x: 0, y: l.frame.yAt(50) },
-      { x: l.frame.width, y: l.frame.yAt(31) },
+      { x: 0, y: l.projection.yAt(50) },
+      { x: l.projection.width, y: l.projection.yAt(31) },
     ]);
     expect(joined(spec)).toEqual([
       { kind: "stop", i: 0 },
@@ -855,7 +855,7 @@ describe("a note on a box plot", () => {
 
   it("sits along its row at its x and joins the row", () => {
     const l = lay(boxes(release));
-    expect(l.notes[0]?.point).toEqual({ x: l.frame.xAt(6), y: l.rows[1]?.y });
+    expect(l.notes[0]?.point).toEqual({ x: l.projection.xAt(6), y: l.rows[1]?.y });
     expect(joined(boxes(release))).toEqual([{ kind: "row", row: 1 }]);
   });
 

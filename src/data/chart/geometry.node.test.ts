@@ -32,7 +32,7 @@ import {
   scatterPaths,
   slopeEnds,
   slopePaths,
-  type Frame,
+  type Projection,
 } from "./geometry.js";
 import {
   chartModel,
@@ -53,7 +53,7 @@ import { tableModel } from "./table.js";
 import { ladder } from "./test-helpers/frames.js";
 import { chartWords } from "./words.js";
 
-function frame(model: Model, width: number, height: number, yHi: number, dpr = 1): Frame {
+function projection(model: Model, width: number, height: number, yHi: number, dpr = 1): Projection {
   const { x } = model;
   const xAt = x.reverse
     ? position(x.type, x.drawnLo, x.hi, width, 0)
@@ -94,7 +94,7 @@ function buckets(n: number, values: (i: number) => number | null = () => 1): Cha
 describe("rect geometry", () => {
   it("draws 72 buckets in 276 px about 2.8 px wide and 1 px apart", () => {
     const m = model(buckets(72));
-    const f = frame(m, 276, 200, 1, 3);
+    const f = projection(m, 276, 200, 1, 3);
     const edges = rectOf(m).shown.map((i) => bucketEdges(rectOf(m), i, f));
     const widths = edges.map((e) => e.right - e.left);
     const mean = widths.reduce((a, b) => a + b) / widths.length;
@@ -106,7 +106,7 @@ describe("rect geometry", () => {
 
   it("lets buckets touch when a gap would leave under 1 px of bar", () => {
     const m = model(buckets(200));
-    const f = frame(m, 276, 200, 1, 2);
+    const f = projection(m, 276, 200, 1, 2);
     const edges = rectOf(m).shown.map((i) => bucketEdges(rectOf(m), i, f));
     for (let i = 1; i < edges.length; i++) {
       expect(edges[i]?.left).toBe(edges[i - 1]?.right);
@@ -132,7 +132,7 @@ describe("rect geometry", () => {
     };
     const m = model(spec);
     // 1 px per post.
-    const [a, b, c, d] = rectPaths(rectOf(m), frame(m, 100, 300, 300)).map(boxes);
+    const [a, b, c, d] = rectPaths(rectOf(m), projection(m, 100, 300, 300)).map(boxes);
     expect(a?.[0]).toMatchObject({ top: 200, bottom: 300 });
     expect(b?.[0]).toMatchObject({ top: 150, bottom: 199 });
     expect(c?.[0]).toMatchObject({ top: 149, bottom: 150 });
@@ -158,7 +158,7 @@ describe("rect geometry", () => {
     };
     const m = model(spec);
     // 200 px for the whole of each bucket: 3/4 and 1/4 of 40, then 5 of 5.
-    const [a, b] = rectPaths(rectOf(m), frame(m, 30, 200, 1)).map(boxes);
+    const [a, b] = rectPaths(rectOf(m), projection(m, 30, 200, 1)).map(boxes);
     const heights = (list: typeof a) =>
       list?.map(({ left, top, bottom }) => ({ left, top, bottom }));
     expect(heights(a)).toEqual([
@@ -186,14 +186,14 @@ describe("rect geometry", () => {
       ],
     };
     const m = model(spec);
-    const [a, b, c, d] = rectPaths(rectOf(m), frame(m, 100, 100, 10));
+    const [a, b, c, d] = rectPaths(rectOf(m), projection(m, 100, 100, 10));
     expect([a, b, c]).toEqual(["", "", ""]);
     expect(boxes(d ?? "")[0]).toMatchObject({ top: 0, bottom: 100 });
   });
 
   it("never writes a height below 0, and a stack's top is its total", () => {
     const m = model(buckets(20, (i) => (i % 3) * 0.3));
-    const f = frame(m, 200, 3, 1);
+    const f = projection(m, 200, 3, 1);
     for (const box of boxes(rectPaths(rectOf(m), f)[0] ?? "")) {
       expect(box.bottom).toBeGreaterThan(box.top);
     }
@@ -212,7 +212,7 @@ describe("rect geometry", () => {
       ],
     };
     const t = model(two);
-    expect(boxes(rectPaths(rectOf(t), frame(t, 10, 240, 12))[1] ?? "")[0]?.top).toBe(0);
+    expect(boxes(rectPaths(rectOf(t), projection(t, 10, 240, 12))[1] ?? "")[0]?.top).toBe(0);
   });
 
   it("cuts a rect crossing each end of a passed domain at the plot's edge and leaves out one wholly outside", () => {
@@ -220,7 +220,7 @@ describe("rect geometry", () => {
     const m = model({ ...spec, x: { domain: [1.5, 4.5] } });
     const rect = rectOf(m);
     expect(rect.shown).toEqual([1, 2, 3, 4]);
-    const f = frame(m, 300, 100, 1, 2);
+    const f = projection(m, 300, 100, 1, 2);
     expect(bucketEdges(rect, 1, f)).toEqual({ left: 0, right: 50 - 0.5 });
     expect(bucketEdges(rect, 4, f)).toEqual({ left: 250 + 0.5, right: 300 });
   });
@@ -240,7 +240,7 @@ describe("rect geometry", () => {
     };
     const m = model(spec);
     expect(m.x.drawnLo).toBe(0.5);
-    const f = frame(m, 276, 200, 1, 1);
+    const f = projection(m, 276, 200, 1, 1);
     const under = bucketEdges(rectOf(m), 0, f);
     const next = bucketEdges(rectOf(m), 1, f);
     expect(under.left).toBe(0);
@@ -293,7 +293,7 @@ function spaces(subs: { left: number; right: number }[][]): { between: number; i
 describe("grouped column geometry", () => {
   // dpr 100 snaps to the hundredth of a px, so the widths below are the design's.
   const edgesOf = (m: Model, width: number) => {
-    const f = frame(m, width, 100, 3, 100);
+    const f = projection(m, width, 100, 3, 100);
     return rectOf(m).shown.map((i) => groupEdges(rectOf(m), i, f));
   };
 
@@ -376,7 +376,7 @@ describe("grouped column geometry", () => {
         },
       ],
     });
-    const [a, b, c] = rectPaths(rectOf(m), frame(m, 100, 100, 10, 100)).map(boxes);
+    const [a, b, c] = rectPaths(rectOf(m), projection(m, 100, 100, 10, 100)).map(boxes);
     // A 12.5 px inset a side and 1 px gaps leave (100 − 25 − 2) ÷ 3 px each.
     const w = 73 / 3;
     expect(a?.[0]).toEqual({ left: 12.5, top: 0, right: expect.closeTo(12.5 + w, 2), bottom: 100 });
@@ -446,7 +446,7 @@ describe("step area geometry", () => {
       ],
     );
     // 100 px a bucket, 10 px a unit.
-    const [a, b] = rectPaths(rectOf(m), frame(m, 400, 100, 10)).map(outlines);
+    const [a, b] = rectPaths(rectOf(m), projection(m, 400, 100, 10)).map(outlines);
     expect(a).toEqual([
       [
         [0, 100],
@@ -497,7 +497,7 @@ describe("step area geometry", () => {
         { name: "b", y: [0.2] },
       ],
     );
-    const [, b] = rectPaths(rectOf(m), frame(m, 100, 100, 10)).map(outlines);
+    const [, b] = rectPaths(rectOf(m), projection(m, 100, 100, 10)).map(outlines);
     expect(b?.[0]?.slice(0, 2)).toEqual([
       [0, 50],
       [0, 48],
@@ -508,7 +508,7 @@ describe("step area geometry", () => {
     const m = area([0, 1, 3, 4, 5, 6], [{ name: "a", y: [1, 1, 1, null, 1, 0] }], {
       x2: [1, 2, 4, 5, 6, 7],
     });
-    const [a] = rectPaths(rectOf(m), frame(m, 700, 100, 1)).map(outlines);
+    const [a] = rectPaths(rectOf(m), projection(m, 700, 100, 1)).map(outlines);
     expect(a?.map((o) => [o[0]?.[0], Math.max(...o.map((p) => p[0]))])).toEqual([
       [0, 200],
       [300, 400],
@@ -519,7 +519,7 @@ describe("step area geometry", () => {
   it("lets buckets touch with no inset, so 72 on 276 px fill the plot edge to edge", () => {
     const x1 = Array.from({ length: 72 }, (_, i) => i);
     const m = area(x1, [{ name: "a", y: x1.map(() => 1) }]);
-    const f = frame(m, 276, 200, 1, 3);
+    const f = projection(m, 276, 200, 1, 3);
     const edges = rectOf(m).shown.map((i) => bucketEdges(rectOf(m), i, f));
     expect(edges[0]?.left).toBe(0);
     expect(edges.at(-1)?.right).toBe(276);
@@ -533,7 +533,7 @@ describe("step area geometry", () => {
     const m = area([0, 1, 2, 3, 4, 5], [{ name: "a", y: [1, 1, 1, 1, 1, 1] }], {
       domain: [1.5, 4.5],
     });
-    const [a] = rectPaths(rectOf(m), frame(m, 300, 100, 1)).map(outlines);
+    const [a] = rectPaths(rectOf(m), projection(m, 300, 100, 1)).map(outlines);
     expect(a).toEqual([
       [
         [0, 100],
@@ -552,7 +552,7 @@ describe("step area geometry", () => {
         { mark: "rect", shape: "area", x1: [0, 1], x2: [1, 2], series: [{ name: "a", y: [1, 2] }] },
       ],
     });
-    const [a] = rectPaths(rectOf(m), frame(m, 200, 100, 2)).map(outlines);
+    const [a] = rectPaths(rectOf(m), projection(m, 200, 100, 2)).map(outlines);
     expect(a).toEqual([
       [
         [200, 100],
@@ -580,7 +580,7 @@ describe("step area geometry", () => {
         },
       ],
     });
-    const [a] = rectPaths(rectOf(m), frame(m, 276, 200, 1)).map(outlines);
+    const [a] = rectPaths(rectOf(m), projection(m, 276, 200, 1)).map(outlines);
     expect(a).toEqual([
       [
         [0, 200],
@@ -601,7 +601,7 @@ describe("step area geometry", () => {
       ],
       { arrange: "share" },
     );
-    const [a, b] = rectPaths(rectOf(m), frame(m, 300, 100, 1)).map(outlines);
+    const [a, b] = rectPaths(rectOf(m), projection(m, 300, 100, 1)).map(outlines);
     expect(a?.map((o) => o.map((p) => p[1]))).toEqual([
       [100, 75, 75, 100, 100],
       [100, 50, 50, 100, 100],
@@ -630,13 +630,13 @@ describe("line geometry", () => {
 
   it("cuts a straight line at each end of the domain at its value there", () => {
     const m = model(ramp("linear"));
-    const d = linePath(lineOf(m), 0, frame(m, 200, 300, 30));
+    const d = linePath(lineOf(m), 0, projection(m, 200, 300, 30));
     expect(points(d)).toEqual([[0, 250, 50, 200, 150, 100, 200, 50]]);
   });
 
   it("holds a step line's value to the edge from the last sample before it", () => {
     const m = model(ramp("step"));
-    const d = linePath(lineOf(m), 0, frame(m, 200, 300, 30));
+    const d = linePath(lineOf(m), 0, projection(m, 200, 300, 30));
     expect(points(d)).toEqual([[0, 300, 50, 300, 50, 200, 150, 200, 150, 100, 200, 100]]);
   });
 
@@ -651,7 +651,7 @@ describe("line geometry", () => {
         },
       ],
     });
-    const d = linePath(lineOf(m), 0, frame(m, 400, 100, 4));
+    const d = linePath(lineOf(m), 0, projection(m, 400, 100, 4));
     expect(points(d)).toEqual([
       [0, 75, 100, 50],
       [300, 0, 300, 0],
@@ -664,7 +664,7 @@ describe("line geometry", () => {
       y: { type: "log" },
       marks: [{ mark: "line", x: [0, 1, 2, 3], series: [{ name: "a", y: [2, 0, 8, -1] }] }],
     });
-    const f: Frame = { ...frame(m, 300, 100, 1), yAt: position("log", 2, 8, 100, 0) };
+    const f: Projection = { ...projection(m, 300, 100, 1), yAt: position("log", 2, 8, 100, 0) };
     expect(points(linePath(lineOf(m), 0, f))).toEqual([
       [0, 100, 0, 100],
       [200, 0, 200, 0],
@@ -680,7 +680,7 @@ describe("line geometry", () => {
       x: { type: "log", domain: [1, 100] },
       marks: [{ mark: "line", x: [0, 10, 100], series: [{ name: "a", y: [1, 2, 3] }] }],
     });
-    const d = linePath(lineOf(m), 0, frame(m, 200, 300, 3));
+    const d = linePath(lineOf(m), 0, projection(m, 200, 300, 3));
     expect(points(d)).toEqual([[100, 100, 200, 0]]);
   });
 
@@ -691,7 +691,7 @@ describe("line geometry", () => {
         { mark: "line", x: [0, 10, 100], curve: "step", series: [{ name: "a", y: [5, 2, 3] }] },
       ],
     });
-    const d = linePath(lineOf(m), 0, frame(m, 200, 300, 6));
+    const d = linePath(lineOf(m), 0, projection(m, 200, 300, 6));
     expect(points(d)).toEqual([[0, 50, 100, 50, 100, 200, 200, 200, 200, 150]]);
   });
 
@@ -706,7 +706,7 @@ describe("line geometry", () => {
     // On 425 px, 100 px tall up to 5: 3 sits at 40, 4 at 20 and 5 at 0.
     const drawn = (spec: ChartSpec) => {
       const m = model(spec);
-      return points(linePath(lineOf(m), 0, frame(m, 425, 100, 5)));
+      return points(linePath(lineOf(m), 0, projection(m, 425, 100, 5)));
     };
 
     it("ends a step line on its last change", () => {
@@ -736,7 +736,7 @@ describe("line geometry", () => {
         { mark: "line", x: [0, 999, 999.5, 1_000], series: [{ name: "a", y: [1, 2, null, 3] }] },
       ],
     });
-    const runs = points(linePath(lineOf(m), 0, frame(m, 424.6, 300, 3)));
+    const runs = points(linePath(lineOf(m), 0, projection(m, 424.6, 300, 3)));
     expect(runs).toHaveLength(2);
     expect(runs[1]).toEqual([424.6, 0, 424.6, 0]);
   });
@@ -749,7 +749,7 @@ describe("line geometry", () => {
       y: { zero: false },
       marks: [{ mark: "line", x, series: [{ name: "a", y }] }],
     });
-    const f: Frame = { ...frame(m, 276, 100, 1), yAt: (v) => 50 - v };
+    const f: Projection = { ...projection(m, 276, 100, 1), yAt: (v) => 50 - v };
     const pts = points(linePath(lineOf(m), 0, f))[0] ?? [];
     const ys = pts.filter((_, k) => k % 2 === 1);
     expect(Math.min(...ys)).toBe(0);
@@ -762,7 +762,7 @@ describe("line geometry", () => {
       x: { reverse: true },
       marks: [{ mark: "line", x: [0, 1], series: [{ name: "a", y: [0, 1] }] }],
     });
-    expect(points(linePath(lineOf(m), 0, frame(m, 100, 100, 1)))).toEqual([[100, 100, 0, 0]]);
+    expect(points(linePath(lineOf(m), 0, projection(m, 100, 100, 1)))).toEqual([[100, 100, 0, 0]]);
   });
 });
 
@@ -789,7 +789,7 @@ describe("area geometry", () => {
   });
   const drawn = (spec: ChartSpec, width: number, yHi: number) => {
     const m = model(spec);
-    return areaPaths(areaOf(m), frame(m, width, 100, yHi)).map(shapes);
+    return areaPaths(areaOf(m), projection(m, width, 100, yHi)).map(shapes);
   };
 
   it("fills the first layer from the baseline and the next from its top, 1 px above it", () => {
@@ -895,7 +895,7 @@ describe("area geometry", () => {
     const n = 4_320;
     const spike = (at: number) => Array.from({ length: n }, (_, i) => (i === at ? 20 : 10));
     const m = model(stack([spike(1_000), spike(2_000), spike(3_000)]));
-    const paths = areaPaths(areaOf(m), frame(m, 276, 100, 100));
+    const paths = areaPaths(areaOf(m), projection(m, 276, 100, 100));
     const [a, b, c] = paths.map((d) => shapes(d)[0] ?? []);
     for (const pts of [a, b, c]) {
       expect((pts ?? []).length / 2).toBeLessThan(2 * 4 * 277);
@@ -931,7 +931,7 @@ describe("dot geometry", () => {
     }
     const row = dots.rows[0];
     expect(row).toMatchObject({ from: 0, to: 4 });
-    const f = frame(m, 400, 24, 1);
+    const f = projection(m, 400, 24, 1);
     const groups = dotGroups(row ?? { name: "", x: [], from: 0, to: 0 }, f);
     expect(groups).toEqual([
       { at: 10, from: 0, to: 3 },
@@ -953,7 +953,7 @@ describe("bars", () => {
         },
       ],
     });
-  const barFrame = (m: Model, lo: number, hi: number, width = 100): Frame => ({
+  const barProjection = (m: Model, lo: number, hi: number, width = 100): Projection => ({
     width,
     height: 48,
     dpr: 1,
@@ -965,7 +965,7 @@ describe("bars", () => {
 
   it("draws each bar from 0 to its value, centred on its row", () => {
     const m = barModel([[40, 100]]);
-    const f = barFrame(m, 0, 100);
+    const f = barProjection(m, 0, 100);
     expect(barSegments(barOf(m), 0, f, 12, 16)).toEqual([
       { left: 0, right: 40, top: 4, bottom: 20 },
     ]);
@@ -977,7 +977,7 @@ describe("bars", () => {
   it("cuts a bar at a passed domain's end, short of the room past it", () => {
     const m = barModel([[57.4, -30]]);
     // The domain [-10, 50] maps to 20 to 80 px, room for labels either side.
-    const f = { ...barFrame(m, -10, 50), xAt: position("linear", -10, 50, 20, 80) };
+    const f = { ...barProjection(m, -10, 50), xAt: position("linear", -10, 50, 20, 80) };
     expect(barSegments(barOf(m), 0, f, 12, 16)).toEqual([
       { left: 30, right: 80, top: 4, bottom: 20 },
     ]);
@@ -988,7 +988,7 @@ describe("bars", () => {
 
   it("draws a negative value leftward from 0, and nothing for 0 or a gap", () => {
     const m = barModel([[-20, 0, null]]);
-    const f = barFrame(m, -50, 50);
+    const f = barProjection(m, -50, 50);
     expect(barSegments(barOf(m), 0, f, 12, 16)).toEqual([
       { left: 30, right: 50, top: 4, bottom: 20 },
     ]);
@@ -1015,7 +1015,7 @@ describe("bars", () => {
           },
         ],
       });
-    const f = barFrame(spec(), -50, 50);
+    const f = barProjection(spec(), -50, 50);
     expect(barPaths(barOf(spec(4)), [12, 36, 60], 16, f)).toEqual([
       { slot: 3, d: "M50 4H70V20H50Z" },
       { slot: 4, d: "M40 28H50V44H40Z" },
@@ -1035,7 +1035,7 @@ describe("bars", () => {
       [20, 2],
       [-10, null],
     ]);
-    const f = barFrame(m, -20, 80);
+    const f = barProjection(m, -20, 80);
     const at = (v: number) => f.xAt(v);
     expect(barSegments(barOf(m), 0, f, 12, 16)).toEqual([
       { left: at(0), right: at(30), top: 4, bottom: 20 },
@@ -1067,7 +1067,7 @@ describe("bars", () => {
 
   it("groups series as 12 px bars one under another, 1 px apart, each from 0", () => {
     const m = grouped([[30], [-10], [null], [20]]);
-    const f = barFrame(m, -20, 80);
+    const f = barProjection(m, -20, 80);
     const at = (v: number) => f.xAt(v);
     // Four 12 px bars and three 1 px gaps are 51 px, centred on the row's 30.
     expect(barBlock(barOf(m), 16)).toBe(51);
@@ -1096,7 +1096,7 @@ describe("bars", () => {
         },
       ],
     });
-    const f = barFrame(m, 0, 1, 200);
+    const f = barProjection(m, 0, 1, 200);
     expect(barSegments(barOf(m), 0, f, 12, 16)).toEqual([
       { left: 0, right: 150, top: 4, bottom: 20 },
       { left: 151, right: 200, top: 4, bottom: 20 },
@@ -1109,7 +1109,7 @@ describe("bars", () => {
     const m = grouped([[40]]);
     expect(barOf(m).arrange).toBe("stack");
     expect(barBlock(barOf(m), 16)).toBe(16);
-    expect(barSegments(barOf(m), 0, barFrame(m, 0, 100), 12, 16)).toEqual([
+    expect(barSegments(barOf(m), 0, barProjection(m, 0, 100), 12, 16)).toEqual([
       { left: 0, right: 40, top: 4, bottom: 20 },
     ]);
   });
@@ -1127,8 +1127,8 @@ describe("bars", () => {
       ],
     });
   // Two 92 px panels 16 px apart, each 0 to 50 along its first 80 px.
-  const panelled = (m: Model): Frame => ({
-    ...barFrame(m, 0, 50, 200),
+  const panelled = (m: Model): Projection => ({
+    ...barProjection(m, 0, 50, 200),
     panels: [0, 108].map((left) => ({
       left,
       right: left + 92,
@@ -1156,7 +1156,7 @@ describe("bars", () => {
 
   it("folds a split with no panels into 12 px bars one under another, as a group", () => {
     const m = split([[25], [50]]);
-    const f = barFrame(m, 0, 50, 100);
+    const f = barProjection(m, 0, 50, 100);
     // Two 12 px bars and the 1 px between them are 25 px, centred on the row's 30.
     expect(barBlock(barOf(m), 16)).toBe(25);
     expect(barSegments(barOf(m), 0, f, 30, 16)).toEqual([
@@ -1184,7 +1184,7 @@ describe("bars", () => {
   it("stacks the left series leftward from the centre's half, the rest rightward, each beyond another 1 px short", () => {
     const m = diverging([[10], [15], [20], [30], [25]], 2, true);
     // 0 at 40 px, 1 px a unit: the centre spans -10 to 10.
-    const f = barFrame(m, -40, 70, 110);
+    const f = barProjection(m, -40, 70, 110);
     expect(barSegments(barOf(m), 0, f, 12, 16)).toEqual([
       { left: 5, right: 14, top: 4, bottom: 20 },
       { left: 15, right: 29, top: 4, bottom: 20 },
@@ -1205,7 +1205,7 @@ describe("bars", () => {
       1,
       false,
     );
-    const f = barFrame(m, -10, 50, 60);
+    const f = barProjection(m, -10, 50, 60);
     expect(barSegments(barOf(m), 0, f, 12, 16)).toEqual([
       { left: 0, right: 10, top: 4, bottom: 20 },
       { left: 11, right: 30, top: 4, bottom: 20 },
@@ -1222,7 +1222,7 @@ describe("bars", () => {
 
   it("starts both sides at 0 when the centre series has no value", () => {
     const m = diverging([[10], [null], [30]], 1, true);
-    const f = barFrame(m, -10, 50, 60);
+    const f = barProjection(m, -10, 50, 60);
     expect(barSegments(barOf(m), 0, f, 12, 16)).toEqual([
       { left: 0, right: 10, top: 4, bottom: 20 },
       undefined,
@@ -1233,7 +1233,7 @@ describe("bars", () => {
   it("draws one series split as a plain bar", () => {
     const m = split([[40]]);
     expect(barOf(m).arrange).toBe("stack");
-    expect(barSegments(barOf(m), 0, barFrame(m, 0, 100), 12, 16)).toEqual([
+    expect(barSegments(barOf(m), 0, barProjection(m, 0, 100), 12, 16)).toEqual([
       { left: 0, right: 40, top: 4, bottom: 20 },
     ]);
   });
@@ -1255,8 +1255,8 @@ describe("bars", () => {
     });
     // Two 96 px sides either side of an 8 px spine, each 0 to 50 along 80 px.
     const along = position("linear", 0, 50, 0, 80);
-    const f: Frame = {
-      ...barFrame(m, 0, 50, 200),
+    const f: Projection = {
+      ...barProjection(m, 0, 50, 200),
       panels: [
         { left: 0, right: 96, leftward: true, at: (v: number) => 96 - along(v) },
         { left: 104, right: 200, leftward: false, at: (v: number) => 104 + along(v) },
@@ -1285,7 +1285,7 @@ describe("points", () => {
       ],
     });
   const pointOf = (m: Model) => m.marks[0] as PointModel;
-  const pointFrame = (m: Model, lo: number, hi: number, dpr = 1): Frame => ({
+  const pointProjection = (m: Model, lo: number, hi: number, dpr = 1): Projection => ({
     width: 200,
     height: 48,
     dpr,
@@ -1299,7 +1299,7 @@ describe("points", () => {
       [40, 50],
       [60, 45],
     ]);
-    const f = pointFrame(m, 40, 60);
+    const f = pointProjection(m, 40, 60);
     expect(pointPaths(pointOf(m), [12, 36], f)).toEqual([
       "M0 12.5h0M100 36.5h0",
       "M200 12.5h0M50 36.5h0",
@@ -1308,7 +1308,7 @@ describe("points", () => {
 
   it("draws no dot for a gap, nor outside a passed domain", () => {
     const m = pointModel({ domain: [40, 60] }, [[null, 39, 60, 61]]);
-    const f = pointFrame(m, 40, 60);
+    const f = pointProjection(m, 40, 60);
     expect(pointPaths(pointOf(m), [12, 36, 60, 84], f)).toEqual(["M200 60.5h0"]);
     expect([0, 1, 2, 3].map((i) => pointAt(pointOf(m), 0, i, f))).toEqual([
       undefined,
@@ -1320,7 +1320,7 @@ describe("points", () => {
 
   it("snaps each dot to device pixels", () => {
     const m = pointModel({}, [[40, 40.3, 60]]);
-    const f = pointFrame(m, 40, 60, 2);
+    const f = pointProjection(m, 40, 60, 2);
     expect(pointAt(pointOf(m), 0, 1, f)).toBe(3);
     expect(pointPaths(pointOf(m), [12.2, 36, 60], f)[0]).toBe("M0 12.5h0M3 36.5h0M200 60.5h0");
   });
@@ -1333,7 +1333,7 @@ describe("points", () => {
 
   it("joins each row's two drawn dots for a range, none where either is a gap", () => {
     const m = pointModel({}, linkRows);
-    const f = pointFrame(m, 40, 60);
+    const f = pointProjection(m, 40, 60);
     expect(rangePath(pointOf(m), ys, f)).toBe(
       "M0 12.5H100M200 36.5H50M100 60.5H117M100 84.5H118M50 132.5H50",
     );
@@ -1341,7 +1341,7 @@ describe("points", () => {
 
   it("draws an arrow from the first dot's edge to an 8 px head at the second's, either way", () => {
     const m = pointModel({}, linkRows);
-    const f = pointFrame(m, 40, 60);
+    const f = pointProjection(m, 40, 60);
     const { shafts, heads } = arrowPaths(pointOf(m), ys, f);
     // Rows 0 and 1 run right and left; row 2's centres stand 17 px apart, too
     // close for a head, and row 3's 18 px, a head with no shaft.
@@ -1374,7 +1374,7 @@ describe("an x rule on bar rows", () => {
       x: {},
       marks: [{ mark: "bar", y: ["a"], series: [{ name: "a", x: [50] }] }],
     });
-    expect(ruleXs(25, frame(m, 200, 24, 1))).toEqual([100]);
+    expect(ruleXs(25, projection(m, 200, 24, 1))).toEqual([100]);
   });
 
   it("draws in every panel at its value, in series order", () => {
@@ -1385,24 +1385,24 @@ describe("an x rule on bar rows", () => {
       leftward: false,
       at: (v: number) => left + v * 2,
     }));
-    expect(ruleXs(10, { ...frame(m, 200, 24, 1), panels })).toEqual([20, 128]);
+    expect(ruleXs(10, { ...projection(m, 200, 24, 1), panels })).toEqual([20, 128]);
   });
 
   it("draws at its distance either side of a diverging 0, once at 0", () => {
     const m = diverging();
     // The rule's 30 widens both sides: -30 to 40 over 140 px, 2 px a unit.
     expect([m.x.lo, m.x.hi]).toEqual([-30, 40]);
-    const f = frame(m, 140, 24, 1);
+    const f = projection(m, 140, 24, 1);
     expect(ruleXs(30, f)).toEqual([0, 120]);
     expect(ruleXs(0, f)).toEqual([60]);
   });
 
   it("leaves out the side a passed domain does not hold", () => {
     const m = diverging([-20, 50]);
-    expect(ruleXs(30, frame(m, 140, 24, 1))).toEqual([100]);
+    expect(ruleXs(30, projection(m, 140, 24, 1))).toEqual([100]);
     expect(m.marks[1]).toMatchObject({ place: { at: 30 } });
     const out = diverging([-40, 20]);
-    expect(ruleXs(30, frame(out, 120, 24, 1))).toEqual([20]);
+    expect(ruleXs(30, projection(out, 120, 24, 1))).toEqual([20]);
     // Its right-hand value lies off the axis, its left one on it, so it is drawn.
     expect(out.marks[1]).toMatchObject({ place: { at: 30 } });
     const neither = diverging([-20, 20]);
@@ -1425,7 +1425,7 @@ describe("slope geometry", () => {
     ],
   });
   const slopeOf = m.marks[0] as SlopeModel;
-  const f = frame(m, 200, 100, 50);
+  const f = projection(m, 200, 100, 50);
 
   it("sets each end at its column's edge of the plot and its value's height", () => {
     expect(slopeEnds(slopeOf, 0, f)).toEqual([
@@ -1463,7 +1463,7 @@ describe("scatter geometry", () => {
     ],
   });
   const scatterOf = m.marks[0] as ScatterModel;
-  const f = frame(m, 100, 100, 100);
+  const f = projection(m, 100, 100, 100);
   const circle = (cx: number, cy: number) =>
     `M${String(cx - 4)} ${String(cy)}a4 4 0 1 0 8 0a4 4 0 1 0 -8 0Z`;
 
@@ -1501,7 +1501,7 @@ describe("small multiples' context", () => {
   it("draws every other panel's line as its panel would, in one path", () => {
     const m = model(panels("line"));
     const [north, south, east] = primaries(m) as LineModel[];
-    const f = frame(m, 100, 100, 100);
+    const f = projection(m, 100, 100, 100);
     expect(contextPath([south as LineModel, east as LineModel], f)).toBe(
       linePath(south as LineModel, 0, f) + linePath(east as LineModel, 0, f),
     );
@@ -1511,7 +1511,7 @@ describe("small multiples' context", () => {
   it("draws every other panel's dots as 2 px circles, a dot it does not show left out", () => {
     const m = model(panels("scatter"));
     const [, south] = primaries(m) as ScatterModel[];
-    const f = frame(m, 100, 100, 100);
+    const f = projection(m, 100, 100, 100);
     const dot = (cx: number, cy: number) =>
       `M${String(cx - 2)} ${String(cy)}a2 2 0 1 0 4 0a2 2 0 1 0 -4 0Z`;
     expect(contextPath([south as ScatterModel], f)).toBe(dot(10, 90) + dot(90, 50));
@@ -1541,7 +1541,7 @@ describe("bubble geometry", () => {
     ],
   });
   const bubbleOf = m.marks[0] as ScatterModel;
-  const f = { ...frame(m, 100, 100, 100), bubble: 24 };
+  const f = { ...projection(m, 100, 100, 100), bubble: 24 };
 
   it("sizes each bubble's area by its r from 0, at least 1 px wide, and a 0 as nothing", () => {
     expect(dotRadius(bubbleOf, 0, 1, f)).toBe(24);
@@ -1582,7 +1582,7 @@ describe("bubble geometry", () => {
     });
     // A has a 10 px radius and B a 5 px one, 15.5 px apart: only their outlines meet.
     const paths = bubblePaths(pair.marks[0] as ScatterModel, {
-      ...frame(pair, 100, 100, 100),
+      ...projection(pair, 100, 100, 100),
       bubble: 10,
     });
     expect(paths.map((p) => (p.d.match(/Z/g) ?? []).length)).toEqual([2, 1]);
@@ -1692,7 +1692,7 @@ describe("box geometry", () => {
     });
   const boxOf = (m: Model) => m.marks[0] as BoxModel;
   // x 0 to 100 over 200 px: 2 px a unit.
-  const boxFrame = (m: Model, dpr = 1): Frame => ({
+  const boxProjection = (m: Model, dpr = 1): Projection => ({
     width: 200,
     height: 48,
     dpr,
@@ -1703,7 +1703,7 @@ describe("box geometry", () => {
 
   it("draws a 16 px box from q1 to q3, cut 1 px either side of a 2 px median tick 3 px past it", () => {
     const m = boxModel([[0, 20, 50, 70, 100]]);
-    const { series, medians } = boxPaths(boxOf(m), [12], boxFrame(m));
+    const { series, medians } = boxPaths(boxOf(m), [12], boxProjection(m));
     expect(series).toEqual([
       {
         slot: 3,
@@ -1717,7 +1717,7 @@ describe("box geometry", () => {
 
   it("keeps the tick where the median meets a quartile, and draws no whisker of length 0", () => {
     const m = boxModel([[20, 20, 20, 70, 70]]);
-    const { series, medians } = boxPaths(boxOf(m), [12], boxFrame(m));
+    const { series, medians } = boxPaths(boxOf(m), [12], boxProjection(m));
     expect(series[0]?.boxes).toBe("M42 4H140V20H42Z");
     expect(series[0]?.whiskers).toBe("");
     expect(medians).toBe("M39 1H41V23H39Z");
@@ -1725,14 +1725,14 @@ describe("box geometry", () => {
 
   it("draws hollow outliers of radius 3 on the centre line, once a device px, none off the domain", () => {
     const m = boxModel([[20, 30, 40, 50, 60]], { outliers: [[5, 5.2, 90, 120]], domain: [0, 100] });
-    const out = boxPaths(boxOf(m), [12], boxFrame(m)).series[0]?.outliers;
+    const out = boxPaths(boxOf(m), [12], boxProjection(m)).series[0]?.outliers;
     const arcs = "a3 3 0 1 0 6 0a3 3 0 1 0 -6 0Z";
     expect(out).toBe(`M7 12${arcs}M177 12${arcs}`);
   });
 
   it("holds a box crossing a passed domain's end to it", () => {
     const m = boxModel([[-10, 0, 30, 120, 130]], { domain: [10, 100] });
-    const f: Frame = { ...boxFrame(m), xAt: position("linear", 10, 100, 0, 180) };
+    const f: Projection = { ...boxProjection(m), xAt: position("linear", 10, 100, 0, 180) };
     expect(boxSegment(boxOf(m), 0, 0, f, 12)).toEqual({ left: 0, right: 180, top: 4, bottom: 20 });
     expect(boxPaths(boxOf(m), [12], f).series[0]?.whiskers).toBe("");
   });
@@ -1742,9 +1742,9 @@ describe("box geometry", () => {
       [null, null, null, null, null],
       [0, 10, 20, 30, 40],
     ]);
-    const { series } = boxPaths(boxOf(m), [12, 36], boxFrame(m));
+    const { series } = boxPaths(boxOf(m), [12, 36], boxProjection(m));
     expect(series[0]?.boxes).toBe("M20 28H38V44H20ZM42 28H60V44H42Z");
-    expect(boxSegment(boxOf(m), 0, 0, boxFrame(m), 12)).toBeUndefined();
+    expect(boxSegment(boxOf(m), 0, 0, boxProjection(m), 12)).toBeUndefined();
   });
 
   it("sets several series' 10 px boxes in 16 px sub-rows, in series order from the top", () => {
@@ -1752,7 +1752,7 @@ describe("box geometry", () => {
     expect(boxBlock(boxOf(m))).toBe(32);
     expect(boxAcross(boxOf(m), 0, 20)).toEqual({ cy: 12, thick: 10 });
     expect(boxAcross(boxOf(m), 1, 20)).toEqual({ cy: 28, thick: 10 });
-    const { series } = boxPaths(boxOf(m), [20], boxFrame(m));
+    const { series } = boxPaths(boxOf(m), [20], boxProjection(m));
     expect(series.map((p) => [p.slot, p.whiskers])).toEqual([
       [3, "M0 12H40M140 12H200"],
       [4, "M0 28H40M140 28H200"],
@@ -1761,7 +1761,7 @@ describe("box geometry", () => {
 
   it("snaps edges and the centre line to device pixels", () => {
     const m = boxModel([[0, 20.3, 50, 70, 100]]);
-    expect(boxSegment(boxOf(m), 0, 0, boxFrame(m, 2), 12.2)).toEqual({
+    expect(boxSegment(boxOf(m), 0, 0, boxProjection(m, 2), 12.2)).toEqual({
       left: 40.5,
       right: 140,
       top: 4,

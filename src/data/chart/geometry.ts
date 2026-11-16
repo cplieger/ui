@@ -11,7 +11,7 @@ import { reduce, upperBound, type Point } from "../scale/reduce.js";
 
 import { dayPlace, type Weeks } from "./calendar.js";
 import { classOf } from "./classes.js";
-import { rimPoint, sliceAngles, TURN, type PieFrame } from "./pie.js";
+import { rimPoint, sliceAngles, TURN, type Disc } from "./pie.js";
 import {
   barsApart,
   barLengths,
@@ -45,7 +45,7 @@ export const snap = (v: number, dpr: number): number => Math.round(v * dpr) / dp
 export const num = (v: number): string => String(Math.round(v * 100) / 100);
 
 /** The plot's size, its device pixel ratio, and its scales mapped to px. */
-export interface Frame {
+export interface Projection {
   readonly width: number;
   readonly height: number;
   readonly dpr: number;
@@ -82,7 +82,7 @@ const GAP_MIN = 3;
 export function bucketEdges(
   m: RectModel,
   i: number,
-  f: Frame,
+  f: Projection,
 ): { readonly left: number; readonly right: number } {
   const s = bucketSpan(m, i, f);
   let { left, right } = s;
@@ -95,7 +95,7 @@ export function bucketEdges(
 
 // Bucket `i`'s px cut at the plot's ends, and which side was cut at the
 // domain's end, where there is no neighbour to leave a gap for.
-function bucketSpan(m: RectModel, i: number, f: Frame) {
+function bucketSpan(m: RectModel, i: number, f: Projection) {
   const x1 = m.x1[i] ?? 0;
   const x2 = m.x2[i] ?? 0;
   const a = f.xAt(Math.max(x1, f.x.drawnLo));
@@ -126,7 +126,7 @@ const SUB_MIN = 2;
 export function groupEdges(
   m: RectModel,
   i: number,
-  f: Frame,
+  f: Projection,
 ): { readonly left: number; readonly right: number }[] {
   const s = bucketSpan(m, i, f);
   const n = m.series.length;
@@ -157,7 +157,7 @@ export function groupEdges(
  * top stays at its total. Under shape "area" each run of touching buckets
  * is one shape instead (`stepAreaPaths`).
  */
-export function rectPaths(m: RectModel, f: Frame): string[] {
+export function rectPaths(m: RectModel, f: Projection): string[] {
   if (m.shape === "area") {
     return stepAreaPaths(m, f);
   }
@@ -238,7 +238,7 @@ function outline(run: readonly Step[]): string {
  * one closed shape, stacked as `rectPaths` stacks bars and flush at each
  * shared edge. A 0, a `null` or a gap in x ends the run.
  */
-function stepAreaPaths(m: RectModel, f: Frame): string[] {
+function stepAreaPaths(m: RectModel, f: Projection): string[] {
   const paths = m.series.map(() => "");
   const runs: Step[][] = m.series.map(() => []);
   const end = (k: number) => {
@@ -299,7 +299,7 @@ function cut(points: readonly Point[], width: number): Point[] {
 // The samples a path reads (those inside the domain and the one beyond each
 // end) and each one's px along u, which runs left to right whichever way x
 // does, for the reduction.
-function placed(m: SampleModel, f: Frame) {
+function placed(m: SampleModel, f: Projection) {
   // A log x cannot place a sample at or below 0: a straight line then starts
   // at its first sample inside the domain, and a step line holds that
   // sample's value from just left of the plot, where u is -1.
@@ -339,7 +339,7 @@ function piece(run: readonly Point[], step: boolean, width: number): Point[] {
  * next sample when `m.step`, cut where the plot ends, broken at each gap. A
  * lone sample is a zero-length segment, which a round cap draws as a dot.
  */
-export function linePath(m: LineModel, s: number, f: Frame): string {
+export function linePath(m: LineModel, s: number, f: Projection): string {
   const ys = m.series[s]?.y ?? [];
   const { from, to, us, flip } = placed(m, f);
   const runs = reduce(us, ys, from, to, 1 / f.dpr, f.width);
@@ -394,7 +394,7 @@ function columnsOf(
  * edge below it, raised by the 1 px gap in each column where the layer is at
  * least 3 px tall at every sample and stands on a stack above 0.
  */
-export function areaPaths(m: AreaModel, f: Frame): string[] {
+export function areaPaths(m: AreaModel, f: Projection): string[] {
   const { from, to, us, flip } = placed(m, f);
   const w = 1 / f.dpr;
   const tops: (number | null)[][] = m.series.map(() => []);
@@ -521,7 +521,7 @@ export interface Segment {
 // The px a bar may fill along `at`: the domain's span, so a bar crossing a
 // passed domain's end is cut there, short of the room kept for value labels
 // and notes, where its label then sits.
-function barSpan(f: Frame, at: (v: number) => number): readonly [number, number] {
+function barSpan(f: Projection, at: (v: number) => number): readonly [number, number] {
   const [a, b] = [at(f.x.lo), at(f.x.hi)];
   return [Math.min(a, b), Math.max(a, b)];
 }
@@ -537,7 +537,7 @@ function barSpan(f: Frame, at: (v: number) => number): readonly [number, number]
 export function barSegments(
   m: BarModel,
   i: number,
-  f: Frame,
+  f: Projection,
   cy: number,
   thick: number,
 ): (Segment | undefined)[] {
@@ -605,7 +605,7 @@ export function barSegments(
 function divergeSegments(
   m: BarModel,
   i: number,
-  f: Frame,
+  f: Projection,
   top: number,
   bottom: number,
 ): (Segment | undefined)[] {
@@ -659,7 +659,12 @@ interface BarPath {
  *  rectangle (`barSegments`) on the bar centred at that row's `ys` entry,
  *  then for a series whose `below` slot is not its own a path of its
  *  segments below 0 in that slot. */
-export function barPaths(m: BarModel, ys: readonly number[], thick: number, f: Frame): BarPath[] {
+export function barPaths(
+  m: BarModel,
+  ys: readonly number[],
+  thick: number,
+  f: Projection,
+): BarPath[] {
   const paths = m.series.map(() => ["", ""]);
   ys.forEach((cy, i) => {
     barSegments(m, i, f, cy, thick).forEach((g, k) => {
@@ -690,7 +695,7 @@ export interface DotGroup {
 
 /** The drawn dots of `row`: its dots inside the domain, those that fall in
  *  one device pixel column drawn once. */
-export function dotGroups(row: DotRowModel, f: Frame): DotGroup[] {
+export function dotGroups(row: DotRowModel, f: Projection): DotGroup[] {
   const groups: DotGroup[] = [];
   let column = Number.NaN;
   for (let i = row.from; i < row.to; i++) {
@@ -724,7 +729,7 @@ export const POINT_RADIUS = 5;
 
 /** Series `k`'s dot in row `i` of `m`: its centre's px along x, snapped to
  *  device px, or undefined at a gap or outside the domain. */
-export function pointAt(m: PointModel, k: number, i: number, f: Frame): number | undefined {
+export function pointAt(m: PointModel, k: number, i: number, f: Projection): number | undefined {
   const v = m.series[k]?.x[i] ?? null;
   return v === null || v < f.x.lo || v > f.x.hi ? undefined : snap(f.xAt(v), f.dpr);
 }
@@ -732,7 +737,7 @@ export function pointAt(m: PointModel, k: number, i: number, f: Frame): number |
 /** One path per series of `m` in series order, each row's dot a zero-length
  *  segment on the row's line at that row's `ys` entry, so a later series'
  *  dot lies over an earlier one where they meet. */
-export function pointPaths(m: PointModel, ys: readonly number[], f: Frame): string[] {
+export function pointPaths(m: PointModel, ys: readonly number[], f: Projection): string[] {
   return m.series.map((_, k) =>
     ys
       .map((cy, i) => {
@@ -749,7 +754,7 @@ const ARROW_HEAD = 8;
 
 // Each row's two drawn dots of `m` with their row's line, in series order;
 // none where either is not drawn.
-function linked(m: PointModel, ys: readonly number[], f: Frame) {
+function linked(m: PointModel, ys: readonly number[], f: Projection) {
   const out: { a: number; b: number; y: number }[] = [];
   ys.forEach((cy, i) => {
     const a = pointAt(m, 0, i, f);
@@ -762,7 +767,7 @@ function linked(m: PointModel, ys: readonly number[], f: Frame) {
 }
 
 /** A range plot's links, a line between each row's two drawn dots. */
-export const rangePath = (m: PointModel, ys: readonly number[], f: Frame): string =>
+export const rangePath = (m: PointModel, ys: readonly number[], f: Projection): string =>
   linked(m, ys, f)
     .map(({ a, b, y }) => `M${num(a)} ${num(y)}H${num(b)}`)
     .join("");
@@ -773,7 +778,7 @@ export const rangePath = (m: PointModel, ys: readonly number[], f: Frame): strin
 export function arrowPaths(
   m: PointModel,
   ys: readonly number[],
-  f: Frame,
+  f: Projection,
 ): { shafts: string; heads: string } {
   let shafts = "";
   let heads = "";
@@ -796,7 +801,7 @@ export const SLOPE_RADIUS = 4;
 
 /** Series `k`'s two ends of slope `m`, left then right, in plot px: its
  *  columns at the plot's edges, each `undefined` at a `null` end. */
-export function slopeEnds(m: SlopeModel, k: number, f: Frame): (Point | undefined)[] {
+export function slopeEnds(m: SlopeModel, k: number, f: Projection): (Point | undefined)[] {
   return [0, 1].map((c) => {
     const v = m.series[k]?.y[c] ?? null;
     return v === null ? undefined : { x: f.xAt(c), y: f.yAt(v) };
@@ -805,7 +810,7 @@ export function slopeEnds(m: SlopeModel, k: number, f: Frame): (Point | undefine
 
 /** Each series of `m` in series order: its line between its two ends, none
  *  with a `null` end, and its ends as zero-length segments. */
-export function slopePaths(m: SlopeModel, f: Frame): { lines: string[]; ends: string[] } {
+export function slopePaths(m: SlopeModel, f: Projection): { lines: string[]; ends: string[] } {
   const lines: string[] = [];
   const ends: string[] = [];
   m.series.forEach((_, k) => {
@@ -829,7 +834,7 @@ export const SCATTER_RADIUS = 4;
 
 /** Dot `i` of series `k` of `m`, its centre in plot px; undefined for a
  *  dot `m` does not show. */
-export function scatterAt(m: ScatterModel, k: number, i: number, f: Frame): Point | undefined {
+export function scatterAt(m: ScatterModel, k: number, i: number, f: Projection): Point | undefined {
   const s = m.series[k];
   const x = s?.x[i] ?? null;
   const y = s?.y[i] ?? null;
@@ -844,7 +849,12 @@ export const BUBBLE_RADIUS_NARROW = 12;
 /** The radius of dot `i` of series `k` of `m`: a plain dot's, or a
  *  bubble's, its area proportional to its r from 0 (Plot's square-root
  *  scale), at least 0.5 px above 0 so it draws 1 px wide, and none at 0. */
-export function dotRadius(m: ScatterModel, k: number, i: number, f: Pick<Frame, "bubble">): number {
+export function dotRadius(
+  m: ScatterModel,
+  k: number,
+  i: number,
+  f: Pick<Projection, "bubble">,
+): number {
   if (m.size === undefined) {
     return SCATTER_RADIUS;
   }
@@ -873,7 +883,7 @@ export interface BubblePath {
  * lies with its fill over the larger bubbles under it, as one element per
  * bubble would, in a few elements: each element's styles cost the page.
  */
-export function bubblePaths(m: ScatterModel, f: Frame): BubblePath[] {
+export function bubblePaths(m: ScatterModel, f: Projection): BubblePath[] {
   const paths: { slot: number; circles: string[] }[] = [];
   // Per slot, its paths' indices, ascending.
   const bySlot = new Map<number, number[]>();
@@ -929,7 +939,7 @@ export function bubblePaths(m: ScatterModel, f: Frame): BubblePath[] {
  *  the app's order. Inside one path every fill paints before any stroke
  *  (https://www.w3.org/TR/SVG2/painting.html#PaintOrderProperty), so a
  *  series' outlines all lie over its fills, and a later series over it. */
-export function scatterPaths(m: ScatterModel, f: Frame): string[] {
+export function scatterPaths(m: ScatterModel, f: Projection): string[] {
   return m.series.map((_, k) =>
     (m.shown[k] ?? [])
       .map((i) => {
@@ -943,10 +953,10 @@ export function scatterPaths(m: ScatterModel, f: Frame): string[] {
 /** A context dot's radius, half a scatter dot's, so it reads as background. */
 const CONTEXT_RADIUS = 2;
 
-/** Small multiples' context behind a panel on frame `f`, the chart's scales
+/** Small multiples' context behind a panel on projection `f`, the chart's scales
  *  in that panel's px: every series of `others`, the other panels' marks,
  *  as one path, lines as drawn and dots at `CONTEXT_RADIUS`. */
-export function contextPath(others: readonly (LineModel | ScatterModel)[], f: Frame): string {
+export function contextPath(others: readonly (LineModel | ScatterModel)[], f: Projection): string {
   const out: string[] = [];
   const dot = arcs(CONTEXT_RADIUS);
   for (const m of others) {
@@ -1089,7 +1099,7 @@ export function boxSegment(
   m: BoxModel,
   k: number,
   i: number,
-  f: Frame,
+  f: Projection,
   cy: number,
 ): Segment | undefined {
   const b = m.series[k]?.boxes[i] ?? null;
@@ -1125,7 +1135,7 @@ const rect = (l: number, r: number, t: number, b: number): string =>
 export function boxPaths(
   m: BoxModel,
   ys: readonly number[],
-  f: Frame,
+  f: Projection,
 ): { series: BoxPaths[]; medians: string } {
   const [lo, hi] = barSpan(f, f.xAt);
   const at = (v: number) => snap(clamp(f.xAt(v), lo, hi), f.dpr);
@@ -1184,7 +1194,7 @@ export const upright = (x: number, height: number, dpr: number): string =>
   `M${num(snap(x, dpr) + 0.5)} 0V${num(height)}`;
 
 /** A 2 px rule across the plot at x `at`, or along it at y `at`. */
-export const rulePath = (axis: "x" | "y", at: number, f: Frame): string =>
+export const rulePath = (axis: "x" | "y", at: number, f: Projection): string =>
   axis === "x"
     ? `M${num(snap(at, f.dpr))} 0V${num(f.height)}`
     : `M0 ${num(snap(at, f.dpr))}H${num(f.width)}`;
@@ -1192,7 +1202,7 @@ export const rulePath = (axis: "x" | "y", at: number, f: Frame): string =>
 /** The px an x rule at `value` draws at: in every panel, in series order;
  *  at its distance either side of a diverging axis's 0, each inside the
  *  domain; or once. */
-export function ruleXs(value: number, f: Pick<Frame, "x" | "xAt" | "panels">): number[] {
+export function ruleXs(value: number, f: Pick<Projection, "x" | "xAt" | "panels">): number[] {
   if (f.panels !== undefined) {
     return f.panels.map((p) => p.at(value));
   }
@@ -1217,7 +1227,7 @@ const arcTo = (r: number, large: boolean, clockwise: boolean, to: { x: number; y
 
 // The whole circle as two half arcs, a donut's hole drawn the other way so
 // the nonzero fill leaves it open.
-function wholePie(p: PieFrame): string {
+function wholePie(p: Disc): string {
   const ring = (r: number, clockwise: boolean) => {
     const top = { x: p.cx, y: p.cy - r };
     const bottom = { x: p.cx, y: p.cy + r };
@@ -1228,7 +1238,7 @@ function wholePie(p: PieFrame): string {
 
 // A slice whose arc at the rim is under 2 px is too thin to keep 1 px beside
 // its gaps, and a circle no wider than the gap has no rim to move an edge on.
-const sliceGap = (p: PieFrame, span: number): number =>
+const sliceGap = (p: Disc, span: number): number =>
   p.r * span < 4 * HALF_GAP || p.r <= HALF_GAP ? 0 : HALF_GAP;
 
 /**
@@ -1237,14 +1247,14 @@ const sliceGap = (p: PieFrame, span: number): number =>
  * keep 1 px beside its gaps, keeps its edges and touches its neighbours; a
  * slice of the whole turn is the whole circle.
  */
-export function slicePath(p: PieFrame, from: number, to: number): string {
+export function slicePath(p: Disc, from: number, to: number): string {
   return to - from >= TURN ? wholePie(p) : sliceOutline(p, from, to, sliceGap(p, to - from));
 }
 
 /** The ring's path round the slice `slicePath` draws, 1 px inside its edges,
  *  so its 2 px stroke stays on the slice; a slice too thin to hold it
  *  takes it on its own edges. */
-export function sliceRing(p: PieFrame, from: number, to: number): string {
+export function sliceRing(p: Disc, from: number, to: number): string {
   const r = p.r - 1;
   const inner = p.inner > 0 ? p.inner + 1 : 0;
   const shrunk = { ...p, r, inner };
@@ -1260,7 +1270,7 @@ export function sliceRing(p: PieFrame, from: number, to: number): string {
 }
 
 // The slice from `from` to `to` on `p`, its straight edges each moved `g` into it.
-function sliceOutline(p: PieFrame, from: number, to: number, g: number): string {
+function sliceOutline(p: Disc, from: number, to: number, g: number): string {
   const span = to - from;
   const d = p.r > 0 ? Math.asin(g / p.r) : 0;
   const outer = `M${pt(rimPoint(p, from + d, p.r))}${arcTo(p.r, span - 2 * d > Math.PI, true, rimPoint(p, to - d, p.r))}`;
@@ -1283,7 +1293,7 @@ function sliceOutline(p: PieFrame, from: number, to: number, g: number): string 
 }
 
 /** Each slice `m` draws on `p`, with its slot. */
-export const piePaths = (m: PieModel, p: PieFrame): { slot: number; d: string }[] =>
+export const piePaths = (m: PieModel, p: Disc): { slot: number; d: string }[] =>
   sliceAngles(m).map((s) => ({
     slot: m.slices[s.index]?.slot ?? 1,
     d: slicePath(p, s.from, s.to),

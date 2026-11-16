@@ -334,7 +334,7 @@ describe("area keys", () => {
   });
 
   it("selects the nearest sample under the pointer", () => {
-    const px = b.lay.frame.xAt(START + 1.4 * MIN);
+    const px = b.lay.projection.xAt(START + 1.4 * MIN);
     expect(b.nav.pick(px, 0)).toEqual({ kind: "area", i: 1, part: undefined });
   });
 });
@@ -349,7 +349,7 @@ describe("Page keys", () => {
   const b = built(spec);
   const ticks = b.lay.xAxis.ticks.map((t) => t.at);
   const room = (ticks[1] ?? 0) - (ticks[0] ?? 0);
-  const px = (i: number) => b.lay.frame.xAt(START + i * MIN);
+  const px = (i: number) => b.lay.projection.xAt(START + i * MIN);
 
   it("go to the nearest stop at least one x tick away, and to the end past the last tick", () => {
     expect(ticks.length).toBeGreaterThan(2);
@@ -462,7 +462,7 @@ describe("timeline keys", () => {
 describe("the pointer", () => {
   it("selects the bucket under it, or the nearest from a gap or past the ends", () => {
     const b = built(stacked());
-    const f = b.lay.frame;
+    const f = b.lay.projection;
     const at = (v: number) => f.xAt(START + v * MIN);
     expect(b.nav.pick(at(20), 0)).toEqual({ kind: "rect", i: 1, part: undefined });
     expect(b.nav.pick(at(30) + 0.2, f.height)).toEqual({ kind: "rect", i: 2, part: undefined });
@@ -472,7 +472,7 @@ describe("the pointer", () => {
 
   it("selects the nearest sample, at both ends of a binary search", () => {
     const b = built(step);
-    const f = b.lay.frame;
+    const f = b.lay.projection;
     expect(b.nav.pick(-10, 0)).toEqual({ kind: "line", i: 0, part: undefined });
     expect(b.nav.pick(f.width + 10, 0)).toEqual({ kind: "line", i: 7, part: undefined });
     expect(b.nav.pick(f.xAt(START + 3.4 * MIN), 0)).toEqual({
@@ -494,7 +494,7 @@ describe("the pointer", () => {
         { name: "docs-bot", x: [] },
       ]),
     );
-    const f = b.lay.frame;
+    const f = b.lay.projection;
     const dot = f.xAt(START + 10 * MIN);
     expect(b.nav.pick(dot + 39, 12)).toEqual({ kind: "dot", row: 0, from: 0, to: 1 });
     expect(b.nav.pick(dot + 41, 12)).toEqual({ kind: "row", row: 0 });
@@ -506,7 +506,7 @@ describe("the pointer", () => {
     const b = built(
       timeline([{ name: "lead-ui", x: [10, 30, 50].map((m) => START + m * MIN) }], true),
     );
-    const f = b.lay.frame;
+    const f = b.lay.projection;
     const at = (m: number) => f.xAt(START + m * MIN);
     expect(at(10)).toBeGreaterThan(at(50));
     expect(b.nav.pick(at(10), 12)).toEqual({ kind: "dot", row: 0, from: 0, to: 1 });
@@ -526,8 +526,8 @@ describe("the pointer", () => {
       140,
     );
     // 80 px of gutter leave 60 px for the hour, a px a minute, so the three posts share one.
-    expect(b.lay.frame.width).toBe(60);
-    const sel = b.nav.pick(b.lay.frame.xAt(START + 40 * MIN), 12);
+    expect(b.lay.projection.width).toBe(60);
+    const sel = b.nav.pick(b.lay.projection.xAt(START + 40 * MIN), 12);
     expect(sel).toEqual({ kind: "dot", row: 0, from: 0, to: 3 });
     expect(spoken(b.model, sel as Selection, words, false)).toBe(
       `lead-ui: 3\u00A0posts, ${span(40, 40)}.`,
@@ -783,7 +783,7 @@ describe("bar keys", () => {
 describe("the pointer on a bar chart", () => {
   it("selects the row under it anywhere across the plot's width, or the nearest past the ends", () => {
     const b = built(ages);
-    const w = b.lay.frame.width;
+    const w = b.lay.projection.width;
     expect(b.nav.pick(0, 24 * 1.5)).toEqual(bar(1));
     expect(b.nav.pick(w, 24 * 1.5)).toEqual(bar(1));
     expect(b.nav.pick(w / 2, 24 * 0.9)).toEqual(bar(0));
@@ -913,7 +913,7 @@ describe("point keys, pointer and words", () => {
 
   it("selects the row under the pointer across the plot, by tap only, with no crosshair", () => {
     const b = built(degrees());
-    expect(b.nav.pick(b.lay.frame.width, 24 * 1.5)).toEqual(point(1));
+    expect(b.nav.pick(b.lay.projection.width, 24 * 1.5)).toEqual(point(1));
     expect(b.nav.pick(0, -10)).toEqual(point(0));
     expect(b.nav.pick(0, 24 * 9)).toEqual(point(2));
     expect(built(degrees(), 300).nav.pick(10, 38 * 1.1)).toEqual(point(1));
@@ -1008,9 +1008,9 @@ describe("slope keys, pointer and words", () => {
 
   it("selects the nearer column anywhere in the plot's height, by drag too", () => {
     const b = built(pets());
-    const w = b.lay.frame.width;
+    const w = b.lay.projection.width;
     expect(b.nav.pick(w / 2 - 1, 0)).toEqual(column(0));
-    expect(b.nav.pick(w / 2 + 1, b.lay.frame.height)).toEqual(column(1));
+    expect(b.nav.pick(w / 2 + 1, b.lay.projection.height)).toEqual(column(1));
     expect(b.nav.pick(-20, 100)).toEqual(column(0));
     expect(b.nav.pick(w + 20, 100)).toEqual(column(1));
     expect(b.nav.crosshair(column(0))).toBe(0);
@@ -1192,7 +1192,7 @@ describe("scatter keys, pointer and words", () => {
 
   it("points at the dot whose edge is nearest within 40 px, taps only, with no crosshair along x", () => {
     const b = built(world());
-    const f = b.lay.frame;
+    const f = b.lay.projection;
     const at = (x: number, y: number) => ({ x: f.xAt(x), y: f.yAt(y) });
     const c = at(1.6, 53);
     expect(b.nav.pick(c.x, c.y)).toEqual(chad);
@@ -1217,7 +1217,7 @@ describe("scatter keys, pointer and words", () => {
         },
       ],
     });
-    const f = b.lay.frame;
+    const f = b.lay.projection;
     expect(b.nav.pick(f.xAt(1), f.yAt(1))).toEqual(dot(1, 1));
     const solo = built({
       x: { label: "x" },
@@ -1226,7 +1226,9 @@ describe("scatter keys, pointer and words", () => {
         { mark: "scatter", series: [{ name: "a", names: ["a1", "a2"], x: [1, 1], y: [1, 1] }] },
       ],
     });
-    expect(solo.nav.pick(solo.lay.frame.xAt(1), solo.lay.frame.yAt(1))).toEqual(dot(0, 1));
+    expect(solo.nav.pick(solo.lay.projection.xAt(1), solo.lay.projection.yAt(1))).toEqual(
+      dot(0, 1),
+    );
   });
 
   it("says a dot's name, its series and both measures", () => {
@@ -1586,7 +1588,7 @@ describe("box keys", () => {
     const b = built(latency());
     const y = (r: number) => b.lay.rows[r]?.y ?? 0;
     expect(b.nav.pick(1, y(1))).toEqual(box(1));
-    expect(b.nav.pick(b.lay.frame.width - 1, y(2))).toEqual(box(2));
+    expect(b.nav.pick(b.lay.projection.width - 1, y(2))).toEqual(box(2));
     expect(b.nav.drags).toBe(false);
   });
 

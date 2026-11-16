@@ -135,7 +135,7 @@ function texts(part: string, list: readonly Text[], mono = false): SVGElement {
 
 // A note's numbered marker at its point, moved in by up to AREA_ROOM px at
 // the plot's edge so the area's clip never cuts the circle.
-function marker(note: Note, f: Layout["frame"]): SVGElement {
+function marker(note: Note, f: Layout["projection"]): SVGElement {
   const r = MARKER_RADIUS;
   const inside = (v: number, hi: number) =>
     Math.min(Math.max(v, r - AREA_ROOM), Math.max(hi + AREA_ROOM - r, r - AREA_ROOM));
@@ -160,7 +160,7 @@ function plotArea(
   lay: Layout,
   others: readonly (LineModel | ScatterModel)[],
 ): SVGElement {
-  const f = lay.frame;
+  const f = lay.projection;
   const w = num(f.width + 2 * AREA_ROOM);
   const h = num(f.height + 2 * AREA_ROOM);
   const area = svgEl("svg", {
@@ -449,7 +449,7 @@ export function drawPlot(
   others: readonly (LineModel | ScatterModel)[] = [],
 ): void {
   const from = lay.clip === true ? lay.left : 0;
-  const width = lay.clip === true ? lay.frame.width : lay.width;
+  const width = lay.clip === true ? lay.projection.width : lay.width;
   svg.setAttribute("width", num(width));
   svg.setAttribute("height", num(lay.height));
   svg.setAttribute("viewBox", `${num(from)} 0 ${num(width)} ${num(lay.height)}`);
@@ -458,13 +458,13 @@ export function drawPlot(
   const band = primary?.kind === "cell" && "names" in primary.x;
   const ticks = svgEl("path", {
     "data-part": "ticks",
-    transform: `translate(${num(lay.left)} ${num(lay.top + lay.frame.height)})`,
+    transform: `translate(${num(lay.left)} ${num(lay.top + lay.projection.height)})`,
     d:
       band || lay.ticks === false
         ? ""
         : tickPath(
             lay.xAxis.ticks.map((t) => t.at),
-            lay.frame.dpr,
+            lay.projection.dpr,
           ),
   });
   const plot = plotArea(model, lay, others);
@@ -509,7 +509,7 @@ const outset = (g: Segment): string =>
  *  row's boxes or the chosen one, a scatter's dot, a drawn slice, a tree's
  *  drawn tile, or a group's rectangle. */
 function ringPath(model: Model, lay: Layout, sel: Selection, nav: Navigator): string {
-  const f = lay.frame;
+  const f = lay.projection;
   const m = model.primary;
   if (sel.kind === "rect" && m?.kind === "rect") {
     if (m.arrange === "group") {
@@ -647,7 +647,7 @@ function ringPath(model: Model, lay: Layout, sel: Selection, nav: Navigator): st
 // the y axis, each ending at the dot's edge so neither crosses it.
 function scatterHair(model: Model, lay: Layout, sel: Selection): string {
   const m = model.primary;
-  const f = lay.frame;
+  const f = lay.projection;
   if (sel.kind !== "scatter" || m?.kind !== "scatter") {
     return "";
   }
@@ -722,7 +722,7 @@ export function drawSelection(
   const s = m?.kind === "slope" && chosen !== undefined ? m.series[chosen] : undefined;
   if (m?.kind === "slope" && s !== undefined) {
     // The chosen series lies over the others where lines cross.
-    const { lines, ends } = slopePaths({ ...m, series: [s] }, lay.frame);
+    const { lines, ends } = slopePaths({ ...m, series: [s] }, lay.projection);
     const slot = String(s.slot);
     const line = svgEl("g", { "data-part": "slope" });
     line.append(svgEl("path", { "data-series": slot, d: lines[0] ?? "" }));
@@ -733,8 +733,10 @@ export function drawSelection(
   const at = nav.crosshair(sel);
   const hair = at === undefined ? scatterHair(model, lay, sel) : "";
   if (at !== undefined) {
-    const x = num(snap(at, lay.frame.dpr) + 0.5);
-    g.append(svgEl("path", { "data-part": "crosshair", d: `M${x} 0V${num(lay.frame.height)}` }));
+    const x = num(snap(at, lay.projection.dpr) + 0.5);
+    g.append(
+      svgEl("path", { "data-part": "crosshair", d: `M${x} 0V${num(lay.projection.height)}` }),
+    );
   } else if (hair !== "") {
     g.append(svgEl("path", { "data-part": "crosshair", d: hair }));
   }
@@ -833,7 +835,7 @@ function roundDown(v: number): number {
  */
 export function sizeKey(model: Model, lay: Layout): HTMLElement | undefined {
   const m = model.primary;
-  const largest = lay.frame.bubble;
+  const largest = lay.projection.bubble;
   if (m?.kind !== "scatter" || m.size === undefined || largest === undefined) {
     return undefined;
   }

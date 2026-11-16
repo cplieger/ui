@@ -129,7 +129,7 @@ export function facetLayout(
       gutter: edge,
       lay: {
         ...full,
-        height: axis ? full.height : top + full.frame.height,
+        height: axis ? full.height : top + full.projection.height,
         yLabels: edge ? full.yLabels : [],
         xLabels: axis ? full.xLabels : [],
         // A title above the plot is y's, said once; one below it is x's.

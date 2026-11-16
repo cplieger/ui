@@ -69,7 +69,7 @@ describe("a stack's totals", () => {
         throw new Error("no area");
       }
       const lay = layout(model, words, metrics, 800, { axis: 0, label: 0 });
-      expect(areaPaths(area, lay.frame)).toHaveLength(SERIES);
+      expect(areaPaths(area, lay.projection)).toHaveLength(SERIES);
       expect(generatedSummary(model, words)).not.toBe("");
       expect(tableModel(model, words).rows).toHaveLength(SAMPLES);
       expect(reads()).toBeLessThanOrEqual(MOST_READS);
@@ -94,7 +94,7 @@ describe("a stack's totals", () => {
       throw new Error("no rect");
     }
     const lay = layout(model, words, metrics, 800, { axis: 0, label: 0 });
-    expect(rectPaths(rect, lay.frame)).toHaveLength(SERIES);
+    expect(rectPaths(rect, lay.projection)).toHaveLength(SERIES);
     expect(generatedSummary(model, words)).not.toBe("");
     expect(tableModel(model, words).rows).toHaveLength(SAMPLES);
     expect(reads()).toBeLessThanOrEqual(MOST_READS);

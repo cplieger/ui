@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { slicePath, sliceRing } from "./geometry.js";
 import { chartModel, type PieModel } from "./model.js";
-import { shareWriter, sliceAngles, TURN, type PieFrame } from "./pie.js";
+import { shareWriter, sliceAngles, TURN, type Disc } from "./pie.js";
 import type { ChartSpec } from "./spec.js";
 
 const pie = (values: readonly (number | null)[], hole = false): PieModel => {
@@ -22,7 +22,7 @@ const pie = (values: readonly (number | null)[], hole = false): PieModel => {
   return m;
 };
 
-const frame: PieFrame = { cx: 120, cy: 120, r: 100, inner: 0 };
+const disc: Disc = { cx: 120, cy: 120, r: 100, inner: 0 };
 
 // The path's points, in order: every pair of numbers after a command, an
 // arc's end its last two.
@@ -40,7 +40,7 @@ function points(d: string): { x: number; y: number }[] {
 }
 
 // The distance from `p` to the line through the centre at angle `a`.
-const fromEdge = (p: { x: number; y: number }, a: number, f = frame): number =>
+const fromEdge = (p: { x: number; y: number }, a: number, f = disc): number =>
   Math.abs((p.x - f.cx) * Math.cos(a) + (p.y - f.cy) * Math.sin(a));
 
 describe("sliceAngles", () => {
@@ -64,7 +64,7 @@ describe("slicePath", () => {
   it("moves each straight edge 0.5 px into the slice, as wide at the rim as at the centre", () => {
     const from = 0.3;
     const to = 1.6;
-    const [start, end, apex] = points(slicePath(frame, from, to));
+    const [start, end, apex] = points(slicePath(disc, from, to));
     // The rim's ends lie on the circle, each 0.5 px off its edge.
     for (const [p, a] of [
       [start, from],
@@ -80,19 +80,19 @@ describe("slicePath", () => {
 
   it("keeps its edges where its rim is under 2 px, touching its neighbours", () => {
     const span = 1.9 / 100;
-    const [start, end, apex] = points(slicePath(frame, 1, 1 + span));
+    const [start, end, apex] = points(slicePath(disc, 1, 1 + span));
     expect(fromEdge(start ?? { x: 0, y: 0 }, 1)).toBeLessThan(0.01);
     expect(fromEdge(end ?? { x: 0, y: 0 }, 1 + span)).toBeLessThan(0.01);
     expect(apex).toEqual({ x: 120, y: 120 });
     // 2.1 px of rim keeps its gaps.
-    const [kept] = points(slicePath(frame, 1, 1 + 2.1 / 100));
+    const [kept] = points(slicePath(disc, 1, 1 + 2.1 / 100));
     expect(fromEdge(kept ?? { x: 0, y: 0 }, 1)).toBeCloseTo(0.5, 1);
   });
 
   it("stops each edge 0.5 px from the centre past a half turn, joined round it", () => {
     const from = 0.2;
     const to = 0.2 + 4;
-    const d = slicePath(frame, from, to);
+    const d = slicePath(disc, from, to);
     const [, , end, start] = points(d);
     for (const p of [end, start]) {
       expect(Math.hypot((p?.x ?? 0) - 120, (p?.y ?? 0) - 120)).toBeCloseTo(0.5, 1);
@@ -104,7 +104,7 @@ describe("slicePath", () => {
   });
 
   it("draws a donut's slice to its inner arc, 0.5 px off each edge there too", () => {
-    const f = { ...frame, inner: 50 };
+    const f = { ...disc, inner: 50 };
     const d = slicePath(f, 1, 2);
     const [, , inEnd, inStart] = points(d);
     for (const [p, a] of [
@@ -120,7 +120,7 @@ describe("slicePath", () => {
 
   it("closes a donut's slice too thin for its inner arc at the edges' meeting point, outside the hole", () => {
     // 3 px of rim keeps its gaps, which meet 33 px out, past a 20 px hole.
-    const f = { ...frame, inner: 20 };
+    const f = { ...disc, inner: 20 };
     const span = 0.03;
     const [, , apex] = points(slicePath(f, 1, 1 + span));
     const out = Math.hypot((apex?.x ?? 0) - 120, (apex?.y ?? 0) - 120);
@@ -129,17 +129,17 @@ describe("slicePath", () => {
   });
 
   it("draws a slice of the whole turn as the whole circle, a donut's hole open", () => {
-    expect(slicePath(frame, 0, TURN)).toBe("M120 20A100 100 0 1 1 120 220A100 100 0 1 1 120 20Z");
-    expect(slicePath({ ...frame, inner: 50 }, 0, TURN)).toBe(
+    expect(slicePath(disc, 0, TURN)).toBe("M120 20A100 100 0 1 1 120 220A100 100 0 1 1 120 20Z");
+    expect(slicePath({ ...disc, inner: 50 }, 0, TURN)).toBe(
       "M120 20A100 100 0 1 1 120 220A100 100 0 1 1 120 20ZM120 70A50 50 0 1 0 120 170A50 50 0 1 0 120 70Z",
     );
   });
 
   it("draws a numeric path on a circle too small to hold the 0.5 px gap", () => {
     for (const f of [
-      { ...frame, r: 0.4 },
-      { ...frame, r: 0.4, inner: 0.2 },
-      { ...frame, r: 0 },
+      { ...disc, r: 0.4 },
+      { ...disc, r: 0.4, inner: 0.2 },
+      { ...disc, r: 0 },
     ]) {
       const d = slicePath(f, 0, 6);
       expect(d).not.toContain("NaN");
@@ -152,7 +152,7 @@ describe("sliceRing", () => {
   it("runs 1 px inside the slice's edges, so its 2 px stroke stays on the slice", () => {
     const from = 0.3;
     const to = 1.6;
-    const [start, end, apex] = points(sliceRing(frame, from, to));
+    const [start, end, apex] = points(sliceRing(disc, from, to));
     // On a circle 1 px inside the rim, each 1.5 px off its edge: the slice's 0.5 and 1 more.
     for (const [p, a] of [
       [start, from],
@@ -166,7 +166,7 @@ describe("sliceRing", () => {
   });
 
   it("runs 1 px outside a donut's hole", () => {
-    const f = { ...frame, inner: 50 };
+    const f = { ...disc, inner: 50 };
     const [, , inEnd, inStart] = points(sliceRing(f, 1, 2));
     for (const [p, a] of [
       [inEnd, 2],
@@ -178,15 +178,15 @@ describe("sliceRing", () => {
   });
 
   it("stops 1.5 px from the centre past a half turn", () => {
-    const [, , end, start] = points(sliceRing(frame, 0.2, 4.2));
+    const [, , end, start] = points(sliceRing(disc, 0.2, 4.2));
     for (const p of [end, start]) {
       expect(Math.hypot((p?.x ?? 0) - 120, (p?.y ?? 0) - 120)).toBeCloseTo(1.5, 1);
     }
   });
 
   it("rings the whole circle 1 px inside it, a donut's hole 1 px outside", () => {
-    expect(sliceRing(frame, 0, TURN)).toBe("M120 21A99 99 0 1 1 120 219A99 99 0 1 1 120 21Z");
-    expect(sliceRing({ ...frame, inner: 50 }, 0, TURN)).toBe(
+    expect(sliceRing(disc, 0, TURN)).toBe("M120 21A99 99 0 1 1 120 219A99 99 0 1 1 120 21Z");
+    expect(sliceRing({ ...disc, inner: 50 }, 0, TURN)).toBe(
       "M120 21A99 99 0 1 1 120 219A99 99 0 1 1 120 21ZM120 69A51 51 0 1 0 120 171A51 51 0 1 0 120 69Z",
     );
   });
@@ -194,7 +194,7 @@ describe("sliceRing", () => {
   it("rings a slice too thin to hold it on the slice's own edges", () => {
     // 2.5 px of rim: edges 1.5 px in would leave the ring no arc at the 99 px rim.
     const span = 2.5 / 100;
-    expect(sliceRing(frame, 1, 1 + span)).toBe(slicePath(frame, 1, 1 + span));
+    expect(sliceRing(disc, 1, 1 + span)).toBe(slicePath(disc, 1, 1 + span));
   });
 });
 

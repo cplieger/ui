@@ -222,7 +222,7 @@ describe("the marks", () => {
     expect(path).toHaveLength(23);
     const a = announce?.[5] ?? [];
     const c = direct?.[5] ?? [];
-    const base = d.lay.frame.yAt(0);
+    const base = d.lay.projection.yAt(0);
     expect(a[3]).toBeCloseTo(base, 6);
     expect(c[3]).toBeCloseTo(base, 6);
     // Announce 4 stands 4 times as tall as Direct 1, each from the baseline.
@@ -252,8 +252,8 @@ describe("the marks", () => {
         g.slice(1).map(Number),
       );
     const [announce, path, direct] = series(d, "rect").map(boxes);
-    const top = d.lay.frame.yAt(1);
-    const base = d.lay.frame.yAt(0);
+    const top = d.lay.projection.yAt(1);
+    const base = d.lay.projection.yAt(0);
     // Bucket 0: Announce 3, Path 2 and Direct 1 of 6, so a half, a third and a sixth.
     const h = base - top;
     expect(direct?.[0]?.[1]).toBeCloseTo(top, 1);
@@ -290,7 +290,7 @@ describe("the marks", () => {
         token(p, `var(--cp-series-${p.dataset["series"] ?? ""})`),
       );
     }
-    const f = d.lay.frame;
+    const f = d.lay.projection;
     const nav = navigator(d.model, d.lay);
     drawSelection(d.svg, d.model, d.lay, { kind: "rect", i: 5, part: undefined }, nav);
     const ring = d.svg.querySelector('[data-part="ring"]')?.getAttribute("d") ?? "";
@@ -326,7 +326,7 @@ describe("the marks", () => {
       // The gap at sample 30 breaks both layers.
       expect((p.getAttribute("d")?.match(/Z/g) ?? []).length).toBe(2);
     }
-    const f = d.lay.frame;
+    const f = d.lay.projection;
     const nav = navigator(d.model, d.lay);
     const ring = (part: number | undefined, i = 10) => {
       drawSelection(d.svg, d.model, d.lay, { kind: "area", i, part }, nav);
@@ -361,7 +361,7 @@ describe("the marks", () => {
       },
       600,
     );
-    const f = d.lay.frame;
+    const f = d.lay.projection;
     const nav = navigator(d.model, d.lay);
     const ring = (i: number) => {
       drawSelection(d.svg, d.model, d.lay, { kind: "area", i, part: undefined }, nav);
@@ -433,9 +433,9 @@ describe("the marks", () => {
     for (const p of series(d, "rect")) {
       const box = p.getBBox();
       expect(box.x).toBeGreaterThanOrEqual(0);
-      expect(box.x + box.width).toBeLessThanOrEqual(d.lay.frame.width + 1e-6);
+      expect(box.x + box.width).toBeLessThanOrEqual(d.lay.projection.width + 1e-6);
     }
-    expect(Number(area.getAttribute("width"))).toBe(d.lay.frame.width + 2 * AREA_ROOM);
+    expect(Number(area.getAttribute("width"))).toBe(d.lay.projection.width + 2 * AREA_ROOM);
     expect(Number(area.getAttribute("x"))).toBe(d.lay.left - AREA_ROOM);
   });
 
@@ -550,8 +550,8 @@ describe("the page's measures", () => {
   });
 
   it("takes a 240 px plot, or 200 px under 30rem", () => {
-    expect(draw(stacked, 600).lay.frame.height).toBe(240);
-    expect(draw(stacked, 400).lay.frame.height).toBe(200);
+    expect(draw(stacked, 600).lay.projection.height).toBe(240);
+    expect(draw(stacked, 400).lay.projection.height).toBe(200);
   });
 
   it("gives the plot pan-y pinch-zoom and a transparent 1 px border", () => {
@@ -692,7 +692,7 @@ describe("notes", () => {
     expect(lines.length).toBeGreaterThan(1);
     const box = d.lay.notes[0]?.box;
     for (const t of lines) {
-      expect(Number(t.getAttribute("x"))).toBeCloseTo(d.lay.frame.xAt(9_000_000), 1);
+      expect(Number(t.getAttribute("x"))).toBeCloseTo(d.lay.projection.xAt(9_000_000), 1);
       expect(t.getAttribute("text-anchor")).toBe("middle");
       const cs = getComputedStyle(t);
       expect(cs.fill).toBe(token(t, "var(--cp-ink)"));
@@ -734,8 +734,8 @@ describe("notes", () => {
     const circle = first?.querySelector("path") as SVGPathElement;
     const b = circle.getBBox();
     expect(b.width).toBeCloseTo(20, 0);
-    expect(b.x + b.width / 2).toBeCloseTo(d.lay.frame.xAt(9_000_000), 1);
-    expect(b.y + b.height / 2).toBeCloseTo(d.lay.frame.yAt(6), 1);
+    expect(b.x + b.width / 2).toBeCloseTo(d.lay.projection.xAt(9_000_000), 1);
+    expect(b.y + b.height / 2).toBeCloseTo(d.lay.projection.yAt(6), 1);
     expect(getComputedStyle(circle).fill).toBe(token(circle, "var(--cp-ink)"));
     const number = first?.querySelector("text") as Element;
     expect(getComputedStyle(number).fill).toBe(token(number, "var(--cp-surface-page)"));
@@ -769,7 +769,7 @@ describe("notes", () => {
     const d = draw(noted([{ mark: "text", x: 0, y: 0, text: "Start" }]), 320);
     const b = (d.svg.querySelector('[data-part="marker"] path') as SVGPathElement).getBBox();
     expect(b.x).toBeGreaterThanOrEqual(-AREA_ROOM - 0.01);
-    expect(b.y + b.height).toBeLessThanOrEqual(d.lay.frame.height + AREA_ROOM + 0.01);
+    expect(b.y + b.height).toBeLessThanOrEqual(d.lay.projection.height + AREA_ROOM + 0.01);
   });
 });
 
@@ -1261,7 +1261,7 @@ describe("a bar chart", () => {
     const paths = [...d.svg.querySelectorAll('[data-part="bar"] > path')];
     expect(paths.map((p) => p.getAttribute("data-series"))).toEqual(["1", "3"]);
     const [up, down] = paths.map((p) => (p as SVGPathElement).getBBox());
-    const zero = d.lay.frame.xAt(0);
+    const zero = d.lay.projection.xAt(0);
     expect(up?.x).toBeCloseTo(zero);
     expect((down?.x ?? 0) + (down?.width ?? 0)).toBeCloseTo(zero);
     expect(getComputedStyle(paths[1] as Element).fill).not.toBe(
@@ -1297,11 +1297,11 @@ describe("a bar chart", () => {
     drawSelection(d.svg, d.model, d.lay, { kind: "bar", row: 1, part: undefined }, nav);
     const ring = (d.svg.querySelector('[data-part="ring"]') as SVGPathElement).getBBox();
     const cy = d.lay.rows[1]?.y ?? 0;
-    const end = d.lay.frame.xAt(54.5);
+    const end = d.lay.projection.xAt(54.5);
     // The outline runs 1 px outside the bar on every side, in plot px.
     expect(ring.y).toBeCloseTo(cy - d.lay.bar / 2 - 1, 1);
     expect(ring.height).toBeCloseTo(d.lay.bar + 2, 1);
-    expect(ring.x).toBeCloseTo(d.lay.frame.xAt(0) - 1, 1);
+    expect(ring.x).toBeCloseTo(d.lay.projection.xAt(0) - 1, 1);
     expect(ring.x + ring.width).toBeCloseTo(end + 1, 1);
     expect(d.svg.querySelector('[data-part="crosshair"]')).toBeNull();
     const names = [...d.svg.querySelectorAll('[data-part="y"] > text')];
@@ -1343,10 +1343,10 @@ describe("a bar chart", () => {
     drawSelection(d.svg, d.model, d.lay, { kind: "bar", row: 0, part: undefined }, nav);
     expect(ringBox().y).toBeCloseTo(cy - 12.5 - 1, 0);
     expect(ringBox().height).toBeCloseTo(25 + 2, 0);
-    expect(ringBox().x + ringBox().width).toBeCloseTo(d.lay.frame.xAt(51.1) + 1, 1);
+    expect(ringBox().x + ringBox().width).toBeCloseTo(d.lay.projection.xAt(51.1) + 1, 1);
     drawSelection(d.svg, d.model, d.lay, { kind: "bar", row: 0, part: 1 }, nav);
     expect(ringBox().height).toBeCloseTo(12 + 2, 0);
-    expect(ringBox().x + ringBox().width).toBeCloseTo(d.lay.frame.xAt(48.4) + 1, 1);
+    expect(ringBox().x + ringBox().width).toBeCloseTo(d.lay.projection.xAt(48.4) + 1, 1);
   });
 
   const split: ChartSpec = {
@@ -1370,7 +1370,7 @@ describe("a bar chart", () => {
     expect(heads.map((t) => t.textContent)).toEqual(["Daily", "Weekly"]);
     const muted = getComputedStyle(d.svg.querySelector('[data-part="y"] > text') as Element).fill;
     expect(getComputedStyle(heads[0] as Element).fill).toBe(muted);
-    const panels = d.lay.frame.panels ?? [];
+    const panels = d.lay.projection.panels ?? [];
     const paths = [...d.svg.querySelectorAll<SVGPathElement>('[data-part="bar"] > path')];
     expect(paths.map((p) => p.getAttribute("data-series"))).toEqual(["1", "3"]);
     const [daily, weekly] = paths.map((p) => p.getBBox());
@@ -1405,7 +1405,7 @@ describe("a bar chart", () => {
       ],
     };
     const d = draw(pyramid, 320);
-    const [male, female] = d.lay.frame.panels ?? [];
+    const [male, female] = d.lay.projection.panels ?? [];
     const paths = [...d.svg.querySelectorAll<SVGPathElement>('[data-part="bar"] > path')];
     expect(paths.map((p) => p.getAttribute("data-series"))).toEqual(["1", "3"]);
     const [left, right] = paths.map((p) => p.getBBox());
@@ -1430,13 +1430,13 @@ describe("a bar chart", () => {
 
   it("folds a split on a phone into bars one under another, with no heads", () => {
     const d = draw(split, 320);
-    expect(d.lay.frame.panels).toBeUndefined();
+    expect(d.lay.projection.panels).toBeUndefined();
     expect(d.svg.querySelector('[data-part="head"]')?.childElementCount).toBe(0);
     const [daily, weekly] = [
       ...d.svg.querySelectorAll<SVGPathElement>('[data-part="bar"] > path'),
     ].map((p) => p.getBBox());
-    expect(daily?.x).toBeCloseTo(d.lay.frame.xAt(0));
-    expect(weekly?.x).toBeCloseTo(d.lay.frame.xAt(0));
+    expect(daily?.x).toBeCloseTo(d.lay.projection.xAt(0));
+    expect(weekly?.x).toBeCloseTo(d.lay.projection.xAt(0));
     expect(weekly?.y ?? 0).toBeGreaterThan(daily?.y ?? 0);
   });
 
@@ -1447,11 +1447,11 @@ describe("a bar chart", () => {
       return [...path.matchAll(/M([\d.]+) /gu)].map((m) => Number(m[1]));
     };
     const panelled = draw({ ...split, marks: [...split.marks, aim] }, 600);
-    const panels = panelled.lay.frame.panels ?? [];
-    expect(xs(panelled)).toEqual(panels.map((p) => snap(p.at(10), panelled.lay.frame.dpr)));
+    const panels = panelled.lay.projection.panels ?? [];
+    expect(xs(panelled)).toEqual(panels.map((p) => snap(p.at(10), panelled.lay.projection.dpr)));
     expect(panelled.svg.querySelectorAll('[data-part="rule-label"] text')).toHaveLength(1);
     const folded = draw({ ...split, marks: [...split.marks, aim] }, 320);
-    expect(xs(folded)).toEqual([snap(folded.lay.frame.xAt(10), folded.lay.frame.dpr)]);
+    expect(xs(folded)).toEqual([snap(folded.lay.projection.xAt(10), folded.lay.projection.dpr)]);
     const likert = draw(
       {
         x: {},
@@ -1471,7 +1471,7 @@ describe("a bar chart", () => {
       },
       600,
     );
-    const f = likert.lay.frame;
+    const f = likert.lay.projection;
     expect(xs(likert)).toEqual([snap(f.xAt(-10), f.dpr), snap(f.xAt(10), f.dpr)]);
   });
 
@@ -1481,7 +1481,7 @@ describe("a bar chart", () => {
     const first = d.svg.querySelector('[data-part="y"] > text');
     expect(first?.getAttribute("text-anchor")).toBe("start");
     // An 18 px name line, 2 px, then a 24 px row: 44 px at 13 px text.
-    expect(d.lay.frame.height).toBe(3 * 44);
+    expect(d.lay.projection.height).toBe(3 * 44);
   });
 });
 
@@ -1540,11 +1540,11 @@ describe("a box plot", () => {
     expect(grid).toMatch(/^M[\d.]+ 0V/u);
     expect(d.svg.querySelector('[data-part="rows"]')).toBeNull();
     expect(d.svg.querySelector('[data-part="value"]')).toBeNull();
-    expect(d.lay.frame.height).toBe(3 * 24);
+    expect(d.lay.projection.height).toBe(3 * 24);
     // 40 to 4,000 nices down to 0 on a linear x, so the zero line stands there.
     expect(d.lay.xAxis.lo).toBe(0);
     expect(d.svg.querySelector('[data-part="zero"]')?.getAttribute("d")).toBe(
-      `M${String(snap(d.lay.frame.xAt(0), 1) + 0.5)} 0V72`,
+      `M${String(snap(d.lay.projection.xAt(0), 1) + 0.5)} 0V72`,
     );
     const log = draw({ ...latency(1), x: { type: "log", label: "Latency" } }, 600);
     expect(log.svg.querySelector('[data-part="zero"]')).toBeNull();
@@ -1562,7 +1562,7 @@ describe("a box plot", () => {
     expect(ring(1).match(/M/g)).toHaveLength(1);
     const m = d.model.marks[0];
     const box =
-      m?.kind === "box" ? boxSegment(m, 1, 1, d.lay.frame, d.lay.rows[1]?.y ?? 0) : undefined;
+      m?.kind === "box" ? boxSegment(m, 1, 1, d.lay.projection, d.lay.rows[1]?.y ?? 0) : undefined;
     expect(box).toBeDefined();
     const { left, top, right, bottom } = box ?? { left: 0, top: 0, right: 0, bottom: 0 };
     expect(ring(1)).toBe(
@@ -1580,7 +1580,7 @@ describe("a box plot", () => {
     );
     const rule = d.svg.querySelector('[data-part="area"] > [data-part="rule"]');
     expect(rule?.getAttribute("d")).toBe(
-      `M${num(snap(d.lay.frame.xAt(1000), 1))} 0V${num(d.lay.frame.height)}`,
+      `M${num(snap(d.lay.projection.xAt(1000), 1))} 0V${num(d.lay.projection.height)}`,
     );
   });
 
@@ -1789,7 +1789,7 @@ describe("a point chart", () => {
     for (const p of paths) {
       const box = p.getBBox({ stroke: true });
       expect(box.x).toBeGreaterThanOrEqual(1.99);
-      expect(box.x + box.width).toBeLessThanOrEqual(d.lay.frame.width - 1.99);
+      expect(box.x + box.width).toBeLessThanOrEqual(d.lay.projection.width - 1.99);
     }
   });
 
@@ -1802,7 +1802,7 @@ describe("a point chart", () => {
     expect(d.svg.querySelector('[data-part="x"]')?.childElementCount).toBeGreaterThan(0);
     const zeroed = draw(ages({ zero: true }), 600);
     const zero = zeroed.svg.querySelector('[data-part="zero"]')?.getAttribute("d") ?? "";
-    expect(zero).toBe(`M${String(snap(zeroed.lay.frame.xAt(0), 1) + 0.5)} 0V72`);
+    expect(zero).toBe(`M${String(snap(zeroed.lay.projection.xAt(0), 1) + 0.5)} 0V72`);
     const ticks = zeroed.lay.xAxis.ticks.filter((t) => t.value !== 0);
     expect(
       zeroed.svg.querySelector('[data-part="grid"]')?.getAttribute("d")?.match(/M/g),
@@ -1816,7 +1816,7 @@ describe("a point chart", () => {
     const ring = d.svg.querySelector('[data-part="ring"]') as SVGPathElement;
     expect(ring.getAttribute("d")?.match(/M/g)).toHaveLength(2);
     const box = ring.getBBox();
-    const [male, female] = [d.lay.frame.xAt(54.5), d.lay.frame.xAt(60.4)];
+    const [male, female] = [d.lay.projection.xAt(54.5), d.lay.projection.xAt(60.4)];
     expect(box.x).toBeCloseTo(male - 6, 0);
     expect(box.x + box.width).toBeCloseTo(female + 6, 0);
     expect(box.height).toBeCloseTo(12, 1);
@@ -1860,7 +1860,7 @@ describe("a point chart", () => {
     expect([style.strokeWidth, style.fill]).toEqual(["4px", "none"]);
     expect(style.stroke).toBe(token(link, "var(--cp-border-strong)"));
     const box = link.getBBox();
-    const f = d.lay.frame;
+    const f = d.lay.projection;
     expect(box.x).toBeCloseTo(snap(f.xAt(48.4), f.dpr), 5);
     expect(box.x + box.width).toBeCloseTo(snap(f.xAt(60.4), f.dpr), 5);
     expect(d.svg.querySelector('[data-part="arrow"]')).toBeNull();
@@ -1869,7 +1869,7 @@ describe("a point chart", () => {
   it("points an arrow from the first dot to an 8 px head at the second's edge, dropped when they crowd", () => {
     // Monaco's dots stand under 18 px apart, so only they draw.
     const d = draw(linked("arrow", [50, 54.6, 55]), 600);
-    const f = d.lay.frame;
+    const f = d.lay.projection;
     const shaft = d.svg.querySelector('[data-part="arrow"]') as SVGPathElement;
     const head = d.svg.querySelector('[data-part="arrowhead"]') as SVGPathElement;
     expect(f.xAt(54.6) - f.xAt(54.5)).toBeLessThan(18);
@@ -1894,7 +1894,7 @@ describe("a point chart", () => {
       "start",
     );
     // An 18 px name line, 2 px, the 10 px dots and 8 px: 38 px at 13 px text.
-    expect(d.lay.frame.height).toBe(3 * 38);
+    expect(d.lay.projection.height).toBe(3 * 38);
   });
 });
 
@@ -1932,7 +1932,7 @@ describe("a slope chart", () => {
     for (const p of ends) {
       const box = p.getBBox({ stroke: true });
       expect(box.x).toBeGreaterThanOrEqual(-AREA_ROOM);
-      expect(box.x + box.width).toBeLessThanOrEqual(d.lay.frame.width + AREA_ROOM);
+      expect(box.x + box.width).toBeLessThanOrEqual(d.lay.projection.width + AREA_ROOM);
     }
     for (const part of ["x", "y", "titles"]) {
       expect(d.svg.querySelector(`[data-part="${part}"]`)?.childElementCount).toBe(0);
@@ -1942,7 +1942,7 @@ describe("a slope chart", () => {
     }
     // The y rule runs across both columns.
     expect(d.svg.querySelector('[data-part="rule"]')?.getAttribute("d")).toBe(
-      `M0 ${String(snap(d.lay.frame.yAt(45), 1))}H${String(d.lay.frame.width)}`,
+      `M0 ${String(snap(d.lay.projection.yAt(45), 1))}H${String(d.lay.projection.width)}`,
     );
   });
 
@@ -1964,7 +1964,7 @@ describe("a slope chart", () => {
     const plotLeft = d.lay.left;
     const box = label.getBBox();
     expect(box.x + box.width).toBeCloseTo(plotLeft - 8, 0);
-    expect(box.y + box.height / 2).toBeCloseTo(d.lay.top + d.lay.frame.yAt(50), 0);
+    expect(box.y + box.height / 2).toBeCloseTo(d.lay.top + d.lay.projection.yAt(50), 0);
   });
 
   it("joins a label moved off its dot to it by a 1 px muted leader under the dots", () => {
@@ -2032,8 +2032,8 @@ describe("a scatter plot", () => {
       const box = p.getBBox({ stroke: true });
       expect(box.x).toBeGreaterThanOrEqual(0);
       expect(box.y).toBeGreaterThanOrEqual(0);
-      expect(box.x + box.width).toBeLessThanOrEqual(d.lay.frame.width);
-      expect(box.y + box.height).toBeLessThanOrEqual(d.lay.frame.height);
+      expect(box.x + box.width).toBeLessThanOrEqual(d.lay.projection.width);
+      expect(box.y + box.height).toBeLessThanOrEqual(d.lay.projection.height);
     }
   });
 
@@ -2052,7 +2052,7 @@ describe("a scatter plot", () => {
       ],
     });
     const [europe, africa] = series(d, "scatter");
-    const f = d.lay.frame;
+    const f = d.lay.projection;
     const [a, b, c] = [50, 51, 52].map((v) => f.xAt(v));
     const cy = f.yAt(50);
     // B and C overlap: between their centres the pointer finds Africa's dot.
@@ -2073,7 +2073,7 @@ describe("a scatter plot", () => {
 
   it("draws gridlines at both axes' ticks and a zero line on each linear axis that holds 0", () => {
     const zeroed = draw(countries({ zero: true }, { zero: true }));
-    const f = zeroed.lay.frame;
+    const f = zeroed.lay.projection;
     const grid = zeroed.svg.querySelector('[data-part="grid"]')?.getAttribute("d") ?? "";
     const xTicks = zeroed.lay.xAxis.ticks.filter((t) => t.value !== 0);
     const yTicks = zeroed.lay.yAxis?.ticks.filter((t) => t.value !== 0) ?? [];
@@ -2107,7 +2107,7 @@ describe("a scatter plot", () => {
         },
       ],
     });
-    const f = d.lay.frame;
+    const f = d.lay.projection;
     drawSelection(
       d.svg,
       d.model,
@@ -2138,7 +2138,7 @@ describe("a scatter plot", () => {
 
   it("draws a gridline at every tick of a log axis and no zero line there", () => {
     const d = draw(countries({ type: "log" }, { zero: true }));
-    const f = d.lay.frame;
+    const f = d.lay.projection;
     const grid = d.svg.querySelector('[data-part="grid"]')?.getAttribute("d") ?? "";
     for (const t of d.lay.xAxis.ticks) {
       expect(grid).toContain(upright(t.at, f.height, f.dpr));
@@ -2173,7 +2173,7 @@ describe("a bubble chart", () => {
   };
   it("paints the bubbles largest first across the series, so a small one lies on top", () => {
     const d = draw(world);
-    const f = d.lay.frame;
+    const f = d.lay.projection;
     const paths = series(d, "scatter");
     // Nepal's size of 0 draws no dot; Laos, inside Germany, paints after it.
     expect(paths.map((p) => p.dataset["series"])).toEqual(["2", "3"]);
@@ -2199,7 +2199,7 @@ describe("a bubble chart", () => {
 
   it("rings a selected bubble 1 px outside its edge, its rules ending there", () => {
     const d = draw(world);
-    const f = d.lay.frame;
+    const f = d.lay.projection;
     drawSelection(
       d.svg,
       d.model,
@@ -2348,7 +2348,7 @@ describe("a heatmap's selection and colour key", () => {
     const ring = d.svg.querySelector('[data-part="ring"]')?.getAttribute("d") ?? "";
     const [x0, y0] = ring.slice(1).split(/[ H]/u).map(Number);
     const fill =
-      d.lay.cells === undefined ? undefined : cellBox(d.lay.cells, 1, 2, d.lay.frame.dpr);
+      d.lay.cells === undefined ? undefined : cellBox(d.lay.cells, 1, 2, d.lay.projection.dpr);
     expect([x0, y0]).toEqual([(fill?.left ?? 0) - 1, (fill?.top ?? 0) - 1]);
     expect(d.svg.querySelector('[data-part="crosshair"]')).toBeNull();
     const selected = [...d.svg.querySelectorAll("text[data-selected]")].map((t) => t.textContent);

@@ -70,10 +70,10 @@ const line = (y: (number | null)[][]): ChartSpec => ({
 describe("rule labels", () => {
   it("lays the read histogram's rules on the 276 px phone plot: the median runs right, the 95th percentile ends at its rule on the second line", () => {
     const l = lay(readDelays(42, 1_087), 80 + 276, { axisGroup: 80 });
-    expect(l.frame.width).toBe(276);
+    expect(l.projection.width).toBe(276);
     const [median, p95] = l.ruleLabels;
     expect(median?.text).toBe(`Median ${writer("duration", "en")(42)}`);
-    expect(median?.x).toBeCloseTo(80 + l.frame.xAt(42), 6);
+    expect(median?.x).toBeCloseTo(80 + l.projection.xAt(42), 6);
     expect(p95?.x).toBe(80);
     expect(p95?.y).toBeGreaterThan(median?.y ?? 0);
     // The y title shares the band's first line, so the band is two lines tall.
@@ -123,7 +123,7 @@ describe("gutters", () => {
     expect(l.gutters.axis).toBe(80);
     expect(l.rows[0]?.name.endsWith("…")).toBe(true);
     expect(face.text(l.rows[0]?.name ?? "")).toBeLessThanOrEqual(72);
-    expect(l.frame.height).toBe(2 * 24);
+    expect(l.projection.height).toBe(2 * 24);
     expect(l.rows.map((r) => r.y)).toEqual([12, 36]);
   });
 
@@ -135,7 +135,7 @@ describe("gutters", () => {
     const l = lay(spec, 600, { labelGroup: 80 });
     expect(l.gutters.label).toBe(80);
     expect(l.endLabels).toEqual([]);
-    expect(l.left + l.frame.width).toBe(600 - 80);
+    expect(l.left + l.projection.width).toBe(600 - 80);
   });
 });
 
@@ -152,7 +152,7 @@ describe("end labels", () => {
     const widest = Math.max(face.number("s0 5"), face.number("s1 3"));
     expect(l.gutters.label).toBe(Math.ceil(widest + 8));
     for (const e of l.endLabels) {
-      expect(e.x).toBe(l.left + l.frame.width + 8);
+      expect(e.x).toBe(l.left + l.projection.width + 8);
     }
   });
 
@@ -208,7 +208,7 @@ describe("end labels", () => {
     const l = lay({ ...line([[1, 5]]), x: { reverse: true } }, 600);
     expect(l.left).toBe(l.gutters.label);
     expect(l.endLabels[0]).toMatchObject({ x: l.left - 8, anchor: "end" });
-    expect(l.yLabels[0]).toMatchObject({ x: l.left + l.frame.width + 8, anchor: "start" });
+    expect(l.yLabels[0]).toMatchObject({ x: l.left + l.projection.width + 8, anchor: "start" });
   });
 });
 
@@ -237,9 +237,9 @@ describe("an area's end labels", () => {
     );
     expect(l.endLabels.map((e) => e.text)).toEqual(["s1 60", "s0 40"]);
     const [upper, lower] = l.endLabels;
-    expect(lower?.y).toBeCloseTo(l.top + l.frame.yAt(20), 6);
-    expect(upper?.y).toBeCloseTo(l.top + l.frame.yAt(70), 6);
-    expect(lower?.x).toBe(l.left + l.frame.width + 8);
+    expect(lower?.y).toBeCloseTo(l.top + l.projection.yAt(20), 6);
+    expect(upper?.y).toBeCloseTo(l.top + l.projection.yAt(70), 6);
+    expect(lower?.x).toBe(l.left + l.projection.width + 8);
   });
 
   it("writes shares under share, the middle of each share's thickness on the 0 to 1 axis", () => {
@@ -254,8 +254,8 @@ describe("an area's end labels", () => {
       480,
     );
     expect(l.endLabels.map((e) => e.text)).toEqual(["s1 75%", "s0 25%"]);
-    expect(l.endLabels[1]?.y).toBeCloseTo(l.top + l.frame.yAt(0.125), 6);
-    expect(l.endLabels[0]?.y).toBeCloseTo(l.top + l.frame.yAt(0.625), 6);
+    expect(l.endLabels[1]?.y).toBeCloseTo(l.top + l.projection.yAt(0.125), 6);
+    expect(l.endLabels[0]?.y).toBeCloseTo(l.top + l.projection.yAt(0.625), 6);
   });
 
   it("moves thin layers' labels apart, the lower one down", () => {
@@ -270,7 +270,7 @@ describe("an area's end labels", () => {
     const ys = l.endLabels.map((e) => e.y);
     expect(l.endLabels.map((e) => e.text)).toEqual(["s2 98", "s1 1", "s0 1"]);
     expect((ys[2] ?? 0) - (ys[1] ?? 0)).toBe(17);
-    expect(ys[1]).toBeCloseTo(l.top + l.frame.yAt(1.5), 6);
+    expect(ys[1]).toBeCloseTo(l.top + l.projection.yAt(1.5), 6);
   });
 
   it("draws none with no whole stack, nor under 30rem", () => {
@@ -284,9 +284,9 @@ describe("an area's end labels", () => {
 describe("the plot's height", () => {
   it("is the spec's height, or the page's default", () => {
     const spec = line([[1, 2]]);
-    expect(lay(spec, 600).frame.height).toBe(240);
-    expect(lay(spec, 600, { height: 200 }).frame.height).toBe(200);
-    expect(lay({ ...spec, height: 120 }, 600).frame.height).toBe(120);
+    expect(lay(spec, 600).projection.height).toBe(240);
+    expect(lay(spec, 600, { height: 200 }).projection.height).toBe(200);
+    expect(lay({ ...spec, height: 120 }, 600).projection.height).toBe(120);
   });
 });
 
@@ -325,7 +325,7 @@ describe("a bar chart", () => {
 
   it("sets a row of --cp-chart-row per category, its name in the gutter, from 30rem up", () => {
     const l = lay(countries, 600);
-    expect(l.frame.height).toBe(3 * 24);
+    expect(l.projection.height).toBe(3 * 24);
     expect(l.bar).toBe(16);
     expect(l.rows.map((r) => r.y)).toEqual([12, 36, 60]);
     expect(l.gutters.axis).toBe(7.5 * "Holy See".length + 8);
@@ -336,7 +336,7 @@ describe("a bar chart", () => {
     const l = lay(countries, 479);
     expect(l.gutters.axis).toBe(0);
     expect(l.left).toBe(0);
-    expect(l.frame.height).toBe(3 * 44);
+    expect(l.projection.height).toBe(3 * 44);
     // The name's 18 px line, 2 px, then the 16 px bar centred in the row's 24 px.
     expect(l.rows.map((r) => r.y)).toEqual([28, 72, 116]);
     expect(l.yLabels[1]).toEqual({ text: "Monaco", x: 0, y: 44 + 9, anchor: "start" });
@@ -361,10 +361,10 @@ describe("a bar chart", () => {
     expect(holy).toMatchObject({ text: "+57.4", anchor: "start", y: 12 });
     expect(japan).toMatchObject({ text: "-9", anchor: "end", y: 60 });
     // "+57.4" and "-9" with their gaps leave the plot at both ends.
-    expect(l.frame.xAt(57.4) + 4 + 5 * 7.5).toBeCloseTo(l.frame.width);
-    expect(l.frame.xAt(-9) - 4 - 2 * 7.5).toBeCloseTo(0);
-    expect(holy?.x).toBeCloseTo(l.frame.xAt(57.4) + 4);
-    expect(l.height).toBe(l.top + l.frame.height);
+    expect(l.projection.xAt(57.4) + 4 + 5 * 7.5).toBeCloseTo(l.projection.width);
+    expect(l.projection.xAt(-9) - 4 - 2 * 7.5).toBeCloseTo(0);
+    expect(holy?.x).toBeCloseTo(l.projection.xAt(57.4) + 4);
+    expect(l.height).toBe(l.top + l.projection.height);
   });
 
   it("labels a stack's total at the end of its whole bar, none for a row of gaps", () => {
@@ -385,7 +385,7 @@ describe("a bar chart", () => {
       600,
     );
     expect(l.valueLabels.map((t) => t.text)).toEqual(["5"]);
-    expect(l.valueLabels[0]?.x).toBeCloseTo(l.frame.xAt(5) + 4);
+    expect(l.valueLabels[0]?.x).toBeCloseTo(l.projection.xAt(5) + 4);
   });
 
   it("signs a diverging bar's labels and keeps the widest label's room on each side", () => {
@@ -404,8 +404,8 @@ describe("a bar chart", () => {
     );
     expect(l.valueLabels.map((t) => t.text)).toEqual(["+16%", "0%", "-14%"]);
     // 7.5 px a character and the 4 px gap: "+16%" on the right, "-14%" on the left.
-    expect(l.frame.xAt(-0.143) - 4 - 4 * 7.5).toBeCloseTo(0);
-    expect(l.frame.xAt(0.16) + 4 + 4 * 7.5).toBeCloseTo(l.frame.width);
+    expect(l.projection.xAt(-0.143) - 4 - 4 * 7.5).toBeCloseTo(0);
+    expect(l.projection.xAt(0.16) + 4 + 4 * 7.5).toBeCloseTo(l.projection.width);
     expect(l.valueLabels[2]).toMatchObject({ anchor: "end" });
   });
 
@@ -420,15 +420,15 @@ describe("a bar chart", () => {
     });
     const high = lay(one([0, 50], [57.4, 49.8]), 600);
     expect(high.valueLabels.map((t) => t.text)).toEqual(["57.4", "49.8"]);
-    expect(high.valueLabels[0]?.x).toBeCloseTo(high.frame.xAt(50) + 4);
+    expect(high.valueLabels[0]?.x).toBeCloseTo(high.projection.xAt(50) + 4);
     const low = lay(one([-10, 50], [-30, 20]), 600);
     expect(low.valueLabels[0]).toMatchObject({ text: "-30", anchor: "end" });
-    expect(low.valueLabels[0]?.x).toBeCloseTo(low.frame.xAt(-10) - 4);
+    expect(low.valueLabels[0]?.x).toBeCloseTo(low.projection.xAt(-10) - 4);
     for (const l of [high, low]) {
       for (const t of l.valueLabels) {
         const [a = 0, b = 0] = span(t);
         expect(a).toBeGreaterThanOrEqual(-1e-6);
-        expect(b).toBeLessThanOrEqual(l.frame.width + 1e-6);
+        expect(b).toBeLessThanOrEqual(l.projection.width + 1e-6);
       }
     }
   });
@@ -452,13 +452,13 @@ describe("a bar chart", () => {
   it("makes a grouped row its 12 px bars, the 1 px between them and 8 px, from 30rem up", () => {
     const l = lay(sexes, 600);
     // 3 × 12 + 2 + 8 = 46 px a row, the bars' block centred in it.
-    expect(l.frame.height).toBe(2 * 46);
+    expect(l.projection.height).toBe(2 * 46);
     expect(l.rows.map((r) => r.y)).toEqual([23, 69]);
   });
 
   it("puts a grouped row's name above its bars under 30rem, 18 + 2 + 38 + 8 px a row", () => {
     const l = lay(sexes, 479);
-    expect(l.frame.height).toBe(2 * 66);
+    expect(l.projection.height).toBe(2 * 66);
     expect(l.rows.map((r) => r.y)).toEqual([18 + 2 + 19, 66 + 18 + 2 + 19]);
   });
 
@@ -466,14 +466,14 @@ describe("a bar chart", () => {
     const l = lay(sexes, 600);
     expect(l.valueLabels.map((t) => t.text)).toEqual(["49.8", "51.1", "48.4", "48.4", "-3"]);
     const [combined, female, male, , below] = l.valueLabels;
-    expect(combined?.x).toBeCloseTo(l.frame.xAt(49.8) + 4);
-    expect(female?.x).toBeCloseTo(l.frame.xAt(51.1) + 4);
+    expect(combined?.x).toBeCloseTo(l.projection.xAt(49.8) + 4);
+    expect(female?.x).toBeCloseTo(l.projection.xAt(51.1) + 4);
     // Each label sits across its own 12 px bar: the block runs 4 to 42 in the first row.
     expect([combined?.y, female?.y, male?.y]).toEqual([10, 23, 36]);
     expect(below).toMatchObject({ anchor: "end", y: 46 + 36 });
-    expect(below?.x).toBeCloseTo(l.frame.xAt(-3) - 4);
+    expect(below?.x).toBeCloseTo(l.projection.xAt(-3) - 4);
     // x reaches the largest single value, not a row's sum.
-    expect(l.frame.xAt(51.1) + 4 + 4 * 7.5).toBeCloseTo(l.frame.width);
+    expect(l.projection.xAt(51.1) + 4 + 4 * 7.5).toBeCloseTo(l.projection.width);
   });
 
   it("draws an x axis with its ticks and title when labels are off", () => {
@@ -486,7 +486,7 @@ describe("a bar chart", () => {
     expect(l.xAxis.ticks.map((t) => t.value)).toContain(0);
     expect(l.xLabels.length).toBeGreaterThan(0);
     expect(l.titles.map((t) => t.text)).toEqual(["Years"]);
-    expect(l.frame.xAt(0)).toBe(0);
+    expect(l.projection.xAt(0)).toBe(0);
   });
 
   it("draws a 100% chart's x axis in percent across the whole plot, with no value labels", () => {
@@ -509,7 +509,7 @@ describe("a bar chart", () => {
     expect(l.xLabels.at(0)?.text).toBe("0%");
     expect(l.xLabels.at(-1)?.text).toBe("100%");
     expect(l.titles.map((t) => t.text)).toEqual(["Answers"]);
-    expect([l.frame.xAt(0), l.frame.xAt(1)]).toEqual([0, l.frame.width]);
+    expect([l.projection.xAt(0), l.projection.xAt(1)]).toEqual([0, l.projection.width]);
   });
 
   const survey = (more: Partial<NonNullable<ChartSpec["x"]>> = {}, labels = true): ChartSpec => ({
@@ -533,8 +533,8 @@ describe("a bar chart", () => {
     const l = lay(survey(), 600);
     // "Instagram" and its pad make a 76 px gutter, so the 524 px plot holds
     // three 164 px panels and two 16 px gaps.
-    expect(l.frame.width).toBe(524);
-    const panels = l.frame.panels ?? [];
+    expect(l.projection.width).toBe(524);
+    const panels = l.projection.panels ?? [];
     expect(panels.map((p) => [p.left, p.right])).toEqual([
       [0, 164],
       [180, 344],
@@ -544,7 +544,7 @@ describe("a bar chart", () => {
     for (const p of panels) {
       expect(p.at(20) - p.at(0)).toBeCloseTo(panels[0]?.at(20) ?? 0);
     }
-    expect(l.frame.height).toBe(2 * 24);
+    expect(l.projection.height).toBe(2 * 24);
     expect(l.bar).toBe(16);
     // The heads take one line above the plot.
     expect(l.top).toBe(17 + 4);
@@ -557,7 +557,7 @@ describe("a bar chart", () => {
 
   it("writes each bar's value inside its panel, every panel ending short by the widest label", () => {
     const l = lay(survey(), 600);
-    const panels = l.frame.panels ?? [];
+    const panels = l.projection.panels ?? [];
     expect(l.valueLabels.map((t) => t.text)).toEqual(["34", "8", "7", "20", "43"]);
     const [daily, weekly, , , most] = l.valueLabels;
     expect(daily).toMatchObject({ x: (panels[0]?.at(34) ?? 0) + 4, y: 12, anchor: "start" });
@@ -586,7 +586,7 @@ describe("a bar chart", () => {
       ],
     };
     const l = lay(spec, 600);
-    const panels = l.frame.panels ?? [];
+    const panels = l.projection.panels ?? [];
     expect(l.valueLabels.map((t) => t.text)).toEqual(["43", "8"]);
     l.valueLabels.forEach((t, k) => {
       const [a = 0, b = 0] = span(t);
@@ -595,7 +595,7 @@ describe("a bar chart", () => {
     });
     expect(l.valueLabels[0]?.x).toBeCloseTo((panels[0]?.at(30) ?? 0) + 4);
     const bars = chartModel(spec, "en", "UTC").marks[0] as BarModel;
-    const [daily] = barSegments(bars, 0, l.frame, l.rows[0]?.y ?? 0, l.bar);
+    const [daily] = barSegments(bars, 0, l.projection, l.rows[0]?.y ?? 0, l.bar);
     expect(daily?.right).toBeCloseTo(panels[0]?.at(30) ?? Number.NaN);
   });
 
@@ -620,15 +620,15 @@ describe("a bar chart", () => {
 
   it("folds the panels into one under 30rem, each row's bars one under another, with no heads", () => {
     const l = lay(survey(), 479);
-    expect(l.frame.panels).toBeUndefined();
+    expect(l.projection.panels).toBeUndefined();
     expect(l.heads).toEqual([]);
     expect(l.top).toBe(0);
     // A name's 18 px line, 2 px, three 12 px bars with 1 px between, and 8 px.
-    expect(l.frame.height).toBe(2 * (18 + 2 + 38 + 8));
+    expect(l.projection.height).toBe(2 * (18 + 2 + 38 + 8));
     const [daily, weekly, never] = l.valueLabels;
     expect([daily?.y, weekly?.y, never?.y]).toEqual([20 + 6, 20 + 19, 20 + 32]);
-    expect(daily?.x).toBeCloseTo(l.frame.xAt(34) + 4);
-    expect(l.frame.xAt(43) + 4 + 2 * 7.5).toBeCloseTo(l.frame.width);
+    expect(daily?.x).toBeCloseTo(l.projection.xAt(34) + 4);
+    expect(l.projection.xAt(43) + 4 + 2 * 7.5).toBeCloseTo(l.projection.width);
   });
 
   it("repeats the x axis in every panel when labels are off", () => {
@@ -640,14 +640,14 @@ describe("a bar chart", () => {
     expect(l.xLabels.length % 3).toBe(0);
     expect(l.titles.map((t) => t.text)).toEqual(["Answers"]);
     const top = Math.max(...l.xAxis.ticks.map((t) => t.value));
-    for (const p of l.frame.panels ?? []) {
+    for (const p of l.projection.panels ?? []) {
       expect(p.at(top)).toBeLessThanOrEqual(p.right + 1e-6);
     }
   });
 
   it("lays the panels right to left on a reversed x, each bar from its panel's right edge", () => {
     const l = lay(survey({ reverse: true }), 600);
-    const panels = l.frame.panels ?? [];
+    const panels = l.projection.panels ?? [];
     expect(panels.map((p) => p.left)).toEqual([360, 180, 0]);
     expect(panels.map((p) => p.at(0))).toEqual([524, 344, 164]);
     expect(l.heads[0]).toMatchObject({ text: "Daily", x: l.left + 524, anchor: "end" });
@@ -674,8 +674,8 @@ describe("a bar chart", () => {
     const l = lay(pyramid(), 600);
     // "45-50" and its pad make a 46 px gutter, so the 554 px plot holds two
     // 273 px sides and the spine.
-    expect(l.frame.width).toBe(554);
-    const panels = l.frame.panels ?? [];
+    expect(l.projection.width).toBe(554);
+    const panels = l.projection.panels ?? [];
     expect(panels.map((p) => [p.left, p.right, p.leftward])).toEqual([
       [0, 273, true],
       [281, 554, false],
@@ -685,7 +685,7 @@ describe("a bar chart", () => {
       (panels[1]?.at(20) ?? 0) - (panels[1]?.at(0) ?? 0),
     );
     // Rows keep 24 px, their bars the row less 2 px.
-    expect(l.frame.height).toBe(2 * 24);
+    expect(l.projection.height).toBe(2 * 24);
     expect(l.bar).toBe(22);
     expect(l.top).toBe(17 + 4);
     expect(l.heads).toEqual([
@@ -696,7 +696,7 @@ describe("a bar chart", () => {
 
   it("writes each side's values at its bars' outer ends, both sides keeping the widest label's room", () => {
     const l = lay(pyramid(), 600);
-    const panels = l.frame.panels ?? [];
+    const panels = l.projection.panels ?? [];
     expect(l.valueLabels.map((t) => t.text)).toEqual(["12", "20", "40", "36"]);
     const [, , male, female] = l.valueLabels;
     expect(male).toMatchObject({ x: (panels[0]?.at(40) ?? 0) - 4, y: 36, anchor: "end" });
@@ -710,8 +710,8 @@ describe("a bar chart", () => {
   it("keeps a mirror's names in the gutter and its 24 px rows on a phone", () => {
     const l = lay(pyramid(), 320);
     expect(l.left).toBe(46);
-    expect(l.frame.height).toBe(2 * 24);
-    expect(l.frame.panels).toHaveLength(2);
+    expect(l.projection.height).toBe(2 * 24);
+    expect(l.projection.panels).toHaveLength(2);
     expect(l.yLabels.map((t) => [t.text, t.x, t.anchor])).toEqual([
       ["90+", 38, "end"],
       ["45-50", 38, "end"],
@@ -724,7 +724,7 @@ describe("a bar chart", () => {
     expect(zeros).toEqual([273, 281]);
     expect(l.xLabels.every((t) => !t.text.startsWith("-"))).toBe(true);
     const top = Math.max(...l.xAxis.ticks.map((t) => t.value));
-    const [male, female] = l.frame.panels ?? [];
+    const [male, female] = l.projection.panels ?? [];
     const at = (v: number) => l.xAxis.ticks.filter((t) => t.value === v).map((t) => t.at);
     expect(at(top)).toEqual([male?.at(top), female?.at(top)]);
     expect(male?.at(top)).toBeGreaterThanOrEqual(-1e-6);
@@ -733,7 +733,7 @@ describe("a bar chart", () => {
 
   it("sets the first side on the right on a reversed x", () => {
     const l = lay(pyramid({ reverse: true }), 600);
-    const panels = l.frame.panels ?? [];
+    const panels = l.projection.panels ?? [];
     expect(panels.map((p) => [p.left, p.leftward])).toEqual([
       [281, false],
       [0, true],
@@ -760,7 +760,7 @@ describe("a point chart", () => {
 
   it("sets a row of --cp-chart-row per category, its name in the gutter, from 30rem up", () => {
     const l = lay(ages(), 600);
-    expect(l.frame.height).toBe(3 * 24);
+    expect(l.projection.height).toBe(3 * 24);
     expect(l.rows.map((r) => r.y)).toEqual([12, 36, 60]);
     expect(l.bar).toBe(0);
     expect(l.gutters.axis).toBe(7.5 * "Holy See".length + 8);
@@ -770,7 +770,7 @@ describe("a point chart", () => {
   it("puts each name above its dots under 30rem, 38 px a row and no gutter", () => {
     const l = lay(ages(), 479);
     expect(l.gutters.axis).toBe(0);
-    expect(l.frame.height).toBe(3 * 38);
+    expect(l.projection.height).toBe(3 * 38);
     // The name's 18 px line, 2 px, then the 10 px dots and 8 px.
     expect(l.rows.map((r) => r.y)).toEqual([25, 63, 101]);
     expect(l.yLabels[1]).toEqual({ text: "Monaco", x: 0, y: 38 + 9, anchor: "start" });
@@ -779,29 +779,33 @@ describe("a point chart", () => {
   it("draws an x axis 7 px inside each end with its title, and no value labels", () => {
     const l = lay(ages(), 600);
     expect(l.valueLabels).toEqual([]);
-    expect(l.frame.xAt(l.xAxis.lo)).toBeCloseTo(7);
-    expect(l.frame.xAt(l.xAxis.hi)).toBeCloseTo(l.frame.width - 7);
+    expect(l.projection.xAt(l.xAxis.lo)).toBeCloseTo(7);
+    expect(l.projection.xAt(l.xAxis.hi)).toBeCloseTo(l.projection.width - 7);
     expect(l.xAxis.lo).toBeLessThanOrEqual(48.4);
     expect(l.xAxis.lo).toBeGreaterThan(0);
     for (const t of l.xAxis.ticks) {
-      expect(t.at).toBeCloseTo(l.frame.xAt(t.value));
+      expect(t.at).toBeCloseTo(l.projection.xAt(t.value));
       const box = t.label?.box;
       if (box !== undefined) {
         expect(box.start).toBeGreaterThanOrEqual(7);
-        expect(box.end).toBeLessThanOrEqual(l.frame.width - 7);
+        expect(box.end).toBeLessThanOrEqual(l.projection.width - 7);
       }
     }
     expect(l.xLabels.length).toBeGreaterThan(1);
     expect(l.titles).toContainEqual(
-      expect.objectContaining({ text: "Median age", x: l.left + l.frame.width, anchor: "end" }),
+      expect.objectContaining({
+        text: "Median age",
+        x: l.left + l.projection.width,
+        anchor: "end",
+      }),
     );
-    expect(l.height).toBeGreaterThan(l.top + l.frame.height);
+    expect(l.height).toBeGreaterThan(l.top + l.projection.height);
   });
 
   it("runs a reversed x from the right, still 7 px inside each end", () => {
     const l = lay(ages({ reverse: true }), 600);
-    expect(l.frame.xAt(l.xAxis.lo)).toBeCloseTo(l.frame.width - 7);
-    expect(l.frame.xAt(l.xAxis.hi)).toBeCloseTo(7);
+    expect(l.projection.xAt(l.xAxis.lo)).toBeCloseTo(l.projection.width - 7);
+    expect(l.projection.xAt(l.xAxis.hi)).toBeCloseTo(7);
   });
 });
 
@@ -828,7 +832,7 @@ describe("an x rule's label on bar rows", () => {
 
   it("starts at its line in the first panel under a split, above the heads", () => {
     const l = lay(ruled("split"), 600);
-    const first = l.frame.panels?.[0];
+    const first = l.projection.panels?.[0];
     expect(l.ruleLabels[0]).toMatchObject({ text: "Aim 10", x: l.left + (first?.at(10) ?? 0) });
     expect(l.ruleLabels[0]?.y).toBeLessThan(l.heads[0]?.y ?? 0);
     expect(l.top).toBe(2 * 17 + 4);
@@ -836,29 +840,29 @@ describe("an x rule's label on bar rows", () => {
 
   it("starts at the folded chart's one line under 30rem", () => {
     const l = lay(ruled("split"), 479);
-    expect(l.ruleLabels[0]?.x).toBeCloseTo(l.left + l.frame.xAt(10));
+    expect(l.ruleLabels[0]?.x).toBeCloseTo(l.left + l.projection.xAt(10));
   });
 
   it("starts at its right-hand line under a mirror, whichever way x runs", () => {
     const l = lay(ruled("mirror"), 600);
-    expect(l.ruleLabels[0]?.x).toBe(l.left + (l.frame.panels?.[1]?.at(10) ?? 0));
+    expect(l.ruleLabels[0]?.x).toBe(l.left + (l.projection.panels?.[1]?.at(10) ?? 0));
     const reversed = lay(ruled("mirror", { reverse: true }), 600);
     expect(reversed.ruleLabels[0]?.x).toBe(
-      reversed.left + (reversed.frame.panels?.[0]?.at(10) ?? 0),
+      reversed.left + (reversed.projection.panels?.[0]?.at(10) ?? 0),
     );
   });
 
   it("starts at its right-hand line under a diverge, at +10 or on a reversed x at -10", () => {
     const l = lay(ruled("diverge"), 600);
-    expect(l.ruleLabels[0]?.x).toBeCloseTo(l.left + l.frame.xAt(10));
+    expect(l.ruleLabels[0]?.x).toBeCloseTo(l.left + l.projection.xAt(10));
     const reversed = lay(ruled("diverge", { reverse: true }), 600);
-    expect(reversed.ruleLabels[0]?.x).toBeCloseTo(reversed.left + reversed.frame.xAt(-10));
-    expect(reversed.frame.xAt(-10)).toBeGreaterThan(reversed.frame.xAt(10));
+    expect(reversed.ruleLabels[0]?.x).toBeCloseTo(reversed.left + reversed.projection.xAt(-10));
+    expect(reversed.projection.xAt(-10)).toBeGreaterThan(reversed.projection.xAt(10));
   });
 
   it("starts at its one line on a stacked bar chart", () => {
     const l = lay(ruled(undefined), 600);
-    expect(l.ruleLabels[0]).toMatchObject({ text: "Aim 10", x: l.left + l.frame.xAt(10) });
+    expect(l.ruleLabels[0]).toMatchObject({ text: "Aim 10", x: l.left + l.projection.xAt(10) });
   });
 });
 
@@ -913,8 +917,8 @@ describe("a slope chart", () => {
     const l = lay(pets, 480);
     // "Horses 30" and "Horses 39" are the widest labels, 67.5 px, and the 8 px pad.
     expect(l.gutters).toEqual({ axis: 76, label: 76 });
-    expect(l.frame.width).toBe(480 - 76 - 76);
-    expect([l.frame.xAt(0), l.frame.xAt(1)]).toEqual([0, 328]);
+    expect(l.projection.width).toBe(480 - 76 - 76);
+    expect([l.projection.xAt(0), l.projection.xAt(1)]).toEqual([0, 328]);
     expect(l.heads).toEqual([
       { text: "2005", x: 76, y: 8.5, anchor: "start" },
       { text: "2015", x: 76 + 328, y: 8.5, anchor: "end" },
@@ -928,7 +932,7 @@ describe("a slope chart", () => {
   it("labels each end with its name and value at its dot's height, ending 8 px off the plot", () => {
     const l = lay(pets, 480);
     // y runs from 0 to 50 down the 240 px plot.
-    expect([l.frame.yAt(50), l.frame.yAt(0)]).toEqual([0, 240]);
+    expect([l.projection.yAt(50), l.projection.yAt(0)]).toEqual([0, 240]);
     const y = (v: number) => expect.closeTo(21 + 240 - (v / 50) * 240, 9);
     expect(l.endLabels).toEqual([
       { text: "Cats 50", x: 68, y: y(50), anchor: "end", series: 0 },
@@ -954,7 +958,7 @@ describe("a slope chart", () => {
     ]);
     // "50" is 15 px and the pad; "Horses 39" 67.5 px and the pad.
     expect(l.gutters).toEqual({ axis: 23, label: 76 });
-    expect(l.frame.width).toBe(320 - 23 - 76);
+    expect(l.projection.width).toBe(320 - 23 - 76);
   });
 
   it("moves crowded labels apart around their mean and joins those moved past 4 px to their dots", () => {
@@ -972,7 +976,7 @@ describe("a slope chart", () => {
     expect(right.map((e) => e.y - 21)).toEqual(
       [mean - 18, mean, mean + 18].map((v) => expect.closeTo(v, 6)),
     );
-    const edge = 76 + l.frame.width;
+    const edge = 76 + l.projection.width;
     expect(l.leaders).toEqual([
       {
         from: { x: edge, y: expect.closeTo(21 + dot(34), 9) },
@@ -990,8 +994,8 @@ describe("a slope chart", () => {
       Array.from({ length: 20 }, (_, k) => [k, k] as const),
       [],
     );
-    expect(lay(many, 600).frame.height).toBe(360);
-    expect(lay(slope([[1, 2]], ["a"], { height: 400 }), 600).frame.height).toBe(400);
+    expect(lay(many, 600).projection.height).toBe(360);
+    expect(lay(slope([[1, 2]], ["a"], { height: 400 }), 600).projection.height).toBe(400);
   });
 
   it("cuts a name so each gutter stays within 30 % of the chart", () => {
@@ -1037,11 +1041,11 @@ describe("a scatter's layout", () => {
   it("runs both axes 6 px inside the plot, so a dot and its ring at a domain's end draw whole", () => {
     const l = lay(countries, 600);
     // The ring reaches 2 px past a 4 px dot.
-    expect(l.frame.xAt(0)).toBeCloseTo(6, 6);
-    expect(l.frame.xAt(100)).toBeCloseTo(l.frame.width - 6, 6);
-    expect(l.frame.yAt(90)).toBeCloseTo(6, 6);
-    expect(l.frame.yAt(50)).toBeCloseTo(l.frame.height - 6, 6);
-    expect(l.frame.height).toBe(240);
+    expect(l.projection.xAt(0)).toBeCloseTo(6, 6);
+    expect(l.projection.xAt(100)).toBeCloseTo(l.projection.width - 6, 6);
+    expect(l.projection.yAt(90)).toBeCloseTo(6, 6);
+    expect(l.projection.yAt(50)).toBeCloseTo(l.projection.height - 6, 6);
+    expect(l.projection.height).toBe(240);
     // The ticks and their labels move with the axes.
     expect(l.xAxis.ticks[0]?.at).toBeCloseTo(6, 6);
     expect(l.yAxis?.ticks.find((t) => t.value === 90)?.at).toBeCloseTo(6, 6);
@@ -1061,16 +1065,16 @@ describe("a scatter's layout", () => {
       ],
     });
     const wide = lay(sized([100, 25]), 600);
-    expect(wide.frame.bubble).toBe(24);
+    expect(wide.projection.bubble).toBe(24);
     // The largest bubble, at the domain's high end, and its ring's 2 px.
-    expect(wide.frame.xAt(0)).toBeCloseTo(26, 6);
-    expect(wide.frame.yAt(50)).toBeCloseTo(wide.frame.height - 26, 6);
+    expect(wide.projection.xAt(0)).toBeCloseTo(26, 6);
+    expect(wide.projection.yAt(50)).toBeCloseTo(wide.projection.height - 26, 6);
     const narrow = lay(sized([100, 25]), 300);
-    expect(narrow.frame.bubble).toBe(12);
-    expect(narrow.frame.xAt(0)).toBeCloseTo(14, 6);
+    expect(narrow.projection.bubble).toBe(12);
+    expect(narrow.projection.xAt(0)).toBeCloseTo(14, 6);
     // The largest drawn bubble is a quarter of the domain's area: half its radius.
-    expect(lay(sized([25, 0]), 600).frame.xAt(0)).toBeCloseTo(14, 6);
-    expect(lay(countries, 600).frame.bubble).toBeUndefined();
+    expect(lay(sized([25, 0]), 600).projection.xAt(0)).toBeCloseTo(14, 6);
+    expect(lay(countries, 600).projection.bubble).toBeUndefined();
   });
 
   it("titles y above its gutter and x under its ticks at the right end", () => {
@@ -1079,7 +1083,7 @@ describe("a scatter's layout", () => {
       ["Life expectancy", "start"],
       ["GDP per capita", "end"],
     ]);
-    expect(l.titles[1]?.x).toBe(l.left + l.frame.width);
+    expect(l.titles[1]?.x).toBe(l.left + l.projection.width);
   });
 });
 
@@ -1093,7 +1097,7 @@ describe("a cell chart's layout", () => {
 
   it("gives each row the band's row height with its name in the y gutter", () => {
     const l = lay(week(), 400);
-    expect(l.frame.height).toBe(7 * 24);
+    expect(l.projection.height).toBe(7 * 24);
     expect(l.yAxis).toBeUndefined();
     expect(l.yLabels.map((t) => [t.text, t.y - l.top, t.anchor])).toEqual(
       days.map((d, r) => [d, (r + 0.5) * 24, "end"]),
@@ -1114,7 +1118,7 @@ describe("a cell chart's layout", () => {
 
   it("runs a reversed x's columns right to left", () => {
     const l = lay(week({ reverse: true }), 400);
-    expect(l.cells?.xs[0]).toBeCloseTo(l.frame.width, 6);
+    expect(l.cells?.xs[0]).toBeCloseTo(l.projection.width, 6);
     expect(l.cells?.xs[24]).toBeCloseTo(0, 6);
   });
 
@@ -1122,7 +1126,7 @@ describe("a cell chart's layout", () => {
     // 369 px over 24 columns is 15.4 px a column, under two-digit labels and their 8 px gap.
     const wide = lay(week(), 400);
     expect(wide.xLabels.map((t) => t.text)).toEqual(hours.filter((_, h) => h % 2 === 0));
-    const middle = (c: number) => wide.left + ((c + 0.5) * wide.frame.width) / 24;
+    const middle = (c: number) => wide.left + ((c + 0.5) * wide.projection.width) / 24;
     expect(wide.xLabels[1]?.x).toBeCloseTo(middle(2), 6);
     // 119 px is 5 px a column: every 2nd is 10 px apart, every 5th 25 px.
     expect(lay(week(), 150).xLabels.map((t) => t.text)).toEqual(["0", "5", "10", "15", "20"]);
@@ -1133,7 +1137,7 @@ describe("a cell chart's layout", () => {
   it("titles x under its labels at the plot's right end", () => {
     const l = lay(week({ label: "Hour" }), 400);
     expect(l.titles.map((t) => [t.text, t.x, t.anchor])).toEqual([
-      ["Hour", l.left + l.frame.width, "end"],
+      ["Hour", l.left + l.projection.width, "end"],
     ]);
   });
 });
@@ -1165,7 +1169,7 @@ describe("a binned cell chart's layout", () => {
     const xs = l.cells?.xs ?? [];
     expect(xs).toHaveLength(4);
     expect(xs[0]).toBe(0);
-    expect(xs[3]).toBe(l.frame.width);
+    expect(xs[3]).toBe(l.projection.width);
     // On a log x, 1,000 to 2,000 and 5,000 to 10,000 are the same width.
     expect((xs[1] ?? 0) - (xs[0] ?? 0)).toBeCloseTo((xs[3] ?? 0) - (xs[2] ?? 0), 6);
     expect(l.xLabels.length).toBeGreaterThan(0);
@@ -1173,7 +1177,7 @@ describe("a binned cell chart's layout", () => {
 
   it("runs a binned y's rows up from the plot's bottom at its edges, in the plot's height", () => {
     const l = lay(binned(["a", "b"], life), 400);
-    expect(l.frame.height).toBe(240);
+    expect(l.projection.height).toBe(240);
     const ys = l.cells?.ys ?? [];
     expect(ys).toHaveLength(8);
     ys.forEach((y, r) => {
@@ -1185,19 +1189,21 @@ describe("a binned cell chart's layout", () => {
 
   it("keeps a passed height while every bin is a row tall, and grows past it until the thinnest is", () => {
     // Seven bins of 168 px are a row each.
-    expect(lay(binned(["a"], life, { height: 168 }), 400).frame.height).toBe(168);
+    expect(lay(binned(["a"], life, { height: 168 }), 400).projection.height).toBe(168);
     // Seven bins of 120 px would be 17 px: a 24 px row takes 168.
-    expect(lay(binned(["a"], life, { height: 120 }), 400).frame.height).toBe(168);
+    expect(lay(binned(["a"], life, { height: 120 }), 400).projection.height).toBe(168);
     // Twelve equal bins of 240 px would be 20 px.
     const twelve = Array.from({ length: 13 }, (_, i) => 20 + 5 * i);
-    expect(lay(binned(["a"], twelve), 400).frame.height).toBe(12 * 24);
+    expect(lay(binned(["a"], twelve), 400).projection.height).toBe(12 * 24);
   });
 
   it("grows by the thinnest bin on the scale, not the bin count", () => {
     // 0 to 1 is a fortieth of 0 to 40, so it takes 24 × 40 px.
-    expect(lay(binned(["a"], [0, 1, 40]), 400).frame.height).toBe(960);
+    expect(lay(binned(["a"], [0, 1, 40]), 400).projection.height).toBe(960);
     // On a log y, 1 to 10 and 10 to 100 are halves: 240 px holds them.
-    expect(lay(binned(["a"], [1, 10, 100], { y: { type: "log" } }), 400).frame.height).toBe(240);
+    expect(lay(binned(["a"], [1, 10, 100], { y: { type: "log" } }), 400).projection.height).toBe(
+      240,
+    );
   });
 
   it("titles a binned y above the plot, as a continuous y", () => {
@@ -1227,7 +1233,7 @@ describe("a box plot", () => {
 
   it("sets a 24 px row per category with one series, its name in the gutter, from 30rem up", () => {
     const l = lay(latency(), 600);
-    expect(l.frame.height).toBe(4 * 24);
+    expect(l.projection.height).toBe(4 * 24);
     expect(l.rows.map((r) => r.y)).toEqual([12, 36, 60, 84]);
     expect(l.gutters.axis).toBe(7.5 * "health".length + 8);
     expect(l.valueLabels).toEqual([]);
@@ -1236,7 +1242,7 @@ describe("a box plot", () => {
 
   it("grows a row by a 16 px sub-row per series, 8 px to spare", () => {
     const l = lay(latency(2), 600);
-    expect(l.frame.height).toBe(4 * 40);
+    expect(l.projection.height).toBe(4 * 40);
     expect(l.rows.map((r) => r.y)).toEqual([20, 60, 100, 140]);
   });
 
@@ -1258,7 +1264,7 @@ describe("a box plot", () => {
       600,
     );
     // 5 × 12 + 4 + 8 px a row.
-    expect(grouped.frame.height).toBe(500 * 72);
+    expect(grouped.projection.height).toBe(500 * 72);
     const v = ones(625);
     const boxes = lay(
       {
@@ -1274,22 +1280,22 @@ describe("a box plot", () => {
       600,
     );
     // 4 × 16 + 8 px a row.
-    expect(boxes.frame.height).toBe(625 * 72);
+    expect(boxes.projection.height).toBe(625 * 72);
   });
 
   it("puts each name above its boxes under 30rem: 44 px a row with one series, 60 with two", () => {
     const one = lay(latency(), 320);
     expect(one.gutters.axis).toBe(0);
-    expect(one.frame.height).toBe(176);
+    expect(one.projection.height).toBe(176);
     expect(one.rows[0]?.y).toBe(18 + 2 + 8);
     expect(one.yLabels[1]).toEqual({ text: "export", x: 0, y: 44 + 9, anchor: "start" });
-    expect(lay(latency(2), 320).frame.height).toBe(240);
+    expect(lay(latency(2), 320).projection.height).toBe(240);
   });
 
   it("runs x 4 px inside each end, so an outlier at the domain's end draws whole", () => {
     const l = lay(latency(), 600);
-    expect(l.frame.xAt(l.xAxis.lo)).toBeCloseTo(4);
-    expect(l.frame.xAt(l.xAxis.hi)).toBeCloseTo(l.frame.width - 4);
+    expect(l.projection.xAt(l.xAxis.lo)).toBeCloseTo(4);
+    expect(l.projection.xAt(l.xAxis.hi)).toBeCloseTo(l.projection.width - 4);
   });
 });
 
