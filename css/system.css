@@ -6964,6 +6964,7 @@ th[aria-sort="descending"] > .cp-sort::after {
  * glyph shows until the image has loaded, or while there is none. */
 .cp-cover {
   position: relative;
+  isolation: isolate;
   display: grid;
   place-items: center;
   aspect-ratio: 2 / 3;
@@ -6988,8 +6989,11 @@ th[aria-sort="descending"] > .cp-sort::after {
   color: var(--cp-harmony-4-on);
 }
 
+/* The glyph's mask makes it a stacking context, which would paint it over
+ * an <img> written before it; the order of the two is the app's. */
 .cp-cover > img {
   position: absolute;
+  z-index: 1;
   inset: 0;
   inline-size: 100%;
   block-size: 100%;
@@ -7002,6 +7006,7 @@ th[aria-sort="descending"] > .cp-sort::after {
 
 .cp-cover > .cp-chip {
   position: absolute;
+  z-index: 2;
   inset-block-start: var(--cp-space-2);
   inset-inline-start: var(--cp-space-2);
 }
@@ -7010,6 +7015,45 @@ th[aria-sort="descending"] > .cp-sort::after {
   .cp-cover {
     border: var(--cp-line-w) solid CanvasText;
   }
+}
+
+/* A video under the library's controls (@cplieger/ui/video): the native
+ * element 16:9 on black, its captions on a dark plate, then a bar of play
+ * and pause, the seek bar and both times. */
+.cp-video {
+  display: grid;
+  gap: var(--cp-space-2);
+  max-inline-size: 40rem;
+}
+
+.cp-video > video {
+  inline-size: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--cp-radius-surface);
+  background: oklch(0% 0 0deg);
+}
+
+.cp-video > video::cue {
+  background: oklch(0% 0 0deg / 70%);
+  color: oklch(100% 0 0deg);
+  font-family: var(--cp-font-body);
+}
+
+.cp-video > [data-part="bar"] {
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-3);
+  font-size: var(--cp-text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.cp-video > [data-part="bar"] > .cp-range {
+  flex: 1;
+  min-inline-size: 0;
+}
+
+.cp-video [data-part="time"] {
+  white-space: nowrap;
 }
 
 /* A list: rows on one raised surface, a line between them. */
@@ -8322,6 +8366,8 @@ div.cp-list-foot {
   gap: var(--cp-space-2);
 }
 
+/* A heading row: a title block, then the .cp-toolbar of what the page or
+ * section can do. A leading .cp-cover makes it an item's hero. */
 .cp-heading-row {
   container: cp-heading / inline-size;
   display: flex;
@@ -8332,14 +8378,51 @@ div.cp-list-foot {
   margin-block-end: var(--cp-space-5);
 }
 
-.cp-heading-row > :first-child {
+.cp-heading-row > :is(:first-child, .cp-cover + *) {
   flex: 1 1 18rem;
   min-inline-size: 0;
 }
 
+/* The poster leads and the title block starts at its top. The toolbar
+ * stays level with the title, since the block beside a poster runs long. */
+.cp-heading-row:has(> .cp-cover:first-child) {
+  align-items: start;
+}
+
+.cp-heading-row > .cp-cover:first-child {
+  flex: none;
+  inline-size: 7rem;
+}
+
+/* Beside the poster the block keeps 18rem of words, so the flex wrap puts
+ * it under the poster once the row is narrower than the poster, its gap
+ * and 18rem, and a toolbar that does not fit beside the words takes its
+ * own line. */
+.cp-heading-row > .cp-cover:first-child + * {
+  flex: 1 1 0;
+  min-inline-size: min(18rem, 100%);
+}
+
 /* A title's line of facts sits close under it, read as one block. */
-.cp-heading-row > :first-child > :is(h1, h2, h3) + p {
+.cp-heading-row > :is(:first-child, .cp-cover + *) > :is(h1, h2, h3) + p {
   margin-block-start: var(--cp-space-1);
+}
+
+/* The title in its own language: the app sets its lang. */
+.cp-heading-row > :is(:first-child, .cp-cover + *) > [data-part="alt-title"] {
+  margin-block-start: 0.125rem;
+  color: var(--cp-ink-muted);
+}
+
+.cp-heading-row > :is(:first-child, .cp-cover + *) > [data-part="alt-title"] + p {
+  margin-block-start: var(--cp-space-2);
+}
+
+/* The hero's groups after its facts: the state lines, the links, the chips. */
+.cp-heading-row
+  > :is(:first-child, .cp-cover + *)
+  > :is(ul.cp-stack, nav.cp-cluster, div.cp-cluster) {
+  margin-block-start: var(--cp-space-3);
 }
 
 .cp-heading-row > .cp-toolbar {
@@ -8433,9 +8516,9 @@ div.cp-list-foot {
 }
 
 /* List and detail: a list with the chosen entry's detail docked beside it
- * once the box is wide enough, and the same detail in a modal dialog below
- * that. enhanceListDetail (@cplieger/ui/list-detail) moves the detail; the
- * app's route opens and closes it, so Back closes it. */
+ * once the box is wide enough, and the same detail in a full-height sheet
+ * below that. enhanceListDetail (@cplieger/ui/list-detail) moves the detail;
+ * the app's route opens and closes it, so Back closes it. */
 .cp-list-detail {
   --cp-detail-w: minmax(18rem, 24rem);
 
@@ -8499,6 +8582,20 @@ div.cp-list-foot {
   border-radius: var(--cp-radius-surface);
   background: var(--cp-surface-raised);
   animation: cp-detail-in var(--cp-dur-medium) var(--cp-ease-out);
+}
+
+/* In the sheet the detail is as tall as the sheet, so its body scrolls
+ * inside it and a feed's foot stays at the sheet's end. The dialog's own
+ * header and body padding space it there, as in a form dialog. */
+.cp-detail-dialog > .cp-detail {
+  block-size: 100%;
+  gap: 0;
+}
+
+/* A context scrolls in the sheet as the body does, so it keeps the body's
+ * 4px above its first control for a focus ring its overflow would clip. */
+.cp-detail-dialog > .cp-detail > .cp-context {
+  padding-block-start: var(--cp-space-1);
 }
 
 .cp-detail-body {
@@ -12236,12 +12333,20 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
   --cp-icon-image: url("../icons/svg/octagon-alert.svg");
 }
 
+:where(.cp) .cp-icon:where([data-cp-icon="pause"]) {
+  --cp-icon-image: url("../icons/svg/pause.svg");
+}
+
 :where(.cp) .cp-icon:where([data-cp-icon="pin"]) {
   --cp-icon-image: url("../icons/svg/pin.svg");
 }
 
 :where(.cp) .cp-icon:where([data-cp-icon="pin-filled"]) {
   --cp-icon-image: url("../icons/svg/pin-filled.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="play"]) {
+  --cp-icon-image: url("../icons/svg/play.svg");
 }
 
 :where(.cp) .cp-icon:where([data-cp-icon="plus"]) {

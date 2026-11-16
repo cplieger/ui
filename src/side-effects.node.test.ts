@@ -74,6 +74,7 @@ const PURE = [
   "/tokens",
   "/tooltip",
   "/turn",
+  "/video",
   "/view-transition",
 ];
 
