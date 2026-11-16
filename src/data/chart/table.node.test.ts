@@ -1,11 +1,23 @@
 import { describe, expect, it } from "vitest";
 
+import type { FrameNote, FrameRef, FrameSeries, FrameTreePart } from "../frame/frame.js";
 import { writer } from "../scale/format.js";
 
 import { chartModel, stepStops, type LineModel, type Model } from "./model.js";
-import type { ChartSpec, Mark } from "./spec.js";
+import type { ChartFrame, ChartSpec } from "./spec.js";
 import { namedRows, tableModel, type TableModel } from "./table.js";
-import { ladder } from "./test-helpers/frames.js";
+import {
+  binsFrame,
+  boxes,
+  calendar as calendarFrame,
+  categories,
+  events,
+  grid,
+  ladder,
+  points,
+  seriesFrame,
+  tree,
+} from "./test-helpers/frames.js";
 import { chartWords } from "./words.js";
 
 const TZ = "Europe/Paris";
@@ -20,6 +32,28 @@ const time = (t: number) =>
 const dur = (seconds: number) => writer("duration", "en")(seconds);
 const model = (spec: ChartSpec): Model => chartModel(spec, "en", TZ);
 const per = <T>(n: number, f: (i: number) => T): T[] => Array.from({ length: n }, (_, i) => f(i));
+
+type Values = readonly (number | null)[];
+type Panel = NonNullable<ChartSpec["facets"]>["panels"][number];
+// Series keyed by their names, in order.
+const named = (...series: (readonly [string, Values])[]): FrameSeries[] =>
+  series.map(([key, values]) => ({ key, values: [...values] }));
+// `frame` with refs and notes keyed by their words.
+const marked = <F extends ChartFrame>(
+  frame: F,
+  refs: readonly (readonly [string, number])[] = [],
+  notes: readonly (readonly [number, string])[] = [],
+): F => ({
+  ...frame,
+  ...(refs.length === 0 ? {} : { refs: refs.map(([key, value]): FrameRef => ({ key, value })) }),
+  ...(notes.length === 0 ? {} : { notes: notes.map(([at, key]): FrameNote => ({ key, at })) }),
+});
+// A part of a tree frame, no data for null.
+const part = (key: string, value: number | null): FrameTreePart =>
+  value === null ? { key } : { key, value };
+// A categories frame of `names` and its named series.
+const rows = (names: readonly string[], ...series: (readonly [string, Values])[]) =>
+  categories(names, [], { series: named(...series) });
 
 // Each part as text, an instant as `<time datetime>text`.
 const text = (parts: TableModel["rows"][number]["head"]) =>
@@ -36,15 +70,14 @@ describe("the table of bars across days", () => {
   const starts = per(3, (i) => from + i * 60 * MIN);
   const t = tableModel(
     model({
-      x: { type: "time", domain: [from - 2 * 24 * 60 * MIN, from + 180 * MIN] },
-      marks: [
-        {
-          mark: "rect",
-          x1: starts,
-          x2: starts.map((s) => s + 60 * MIN),
-          series: [{ name: "Posts", y: [1, 2, 3] }],
-        },
-      ],
+      data: binsFrame(
+        starts,
+        starts.map((s) => s + 60 * MIN),
+        [],
+        { series: named(["Posts", [1, 2, 3]]) },
+      ),
+      mark: { mark: "rect" },
+      x: { domain: [from - 2 * 24 * 60 * MIN, from + 180 * MIN] },
     }),
     words,
   );
@@ -73,20 +106,15 @@ describe("the table of stacked columns", () => {
   const starts = per(4, (i) => START - 30 * MIN + i * 60 * MIN);
   const t = tableModel(
     model({
-      x: { type: "time", domain: [START, START + 210 * MIN] },
+      data: binsFrame(
+        starts,
+        starts.map((s) => s + 60 * MIN),
+        [],
+        { open: true, series: named(["Announce", [1, 2, 3, 4]], ["Path", [5, null, 7, 8]]) },
+      ),
+      mark: { mark: "rect" },
+      x: { domain: [START, START + 210 * MIN] },
       y: { label: "Posts" },
-      marks: [
-        {
-          mark: "rect",
-          x1: starts,
-          x2: starts.map((s) => s + 60 * MIN),
-          open: true,
-          series: [
-            { name: "Announce", y: [1, 2, 3, 4] },
-            { name: "Path", y: [5, null, 7, 8] },
-          ],
-        },
-      ],
     }),
     words,
   );
@@ -116,19 +144,14 @@ describe("the table of grouped columns", () => {
   const starts = per(2, (i) => START + i * 60 * MIN);
   const t = tableModel(
     model({
-      x: { type: "time", domain: [START, START + 120 * MIN] },
-      marks: [
-        {
-          mark: "rect",
-          arrange: "group",
-          x1: starts,
-          x2: starts.map((s) => s + 60 * MIN),
-          series: [
-            { name: "Announce", y: [1, 2] },
-            { name: "Path", y: [5, null] },
-          ],
-        },
-      ],
+      data: binsFrame(
+        starts,
+        starts.map((s) => s + 60 * MIN),
+        [],
+        { series: named(["Announce", [1, 2]], ["Path", [5, null]]) },
+      ),
+      mark: { mark: "rect", arrange: "group" },
+      x: { domain: [START, START + 120 * MIN] },
     }),
     words,
   );
@@ -149,19 +172,14 @@ describe("the table of columns stacked to 100%", () => {
   const starts = per(3, (i) => START + i * 60 * MIN);
   const t = tableModel(
     model({
-      x: { type: "time", domain: [START, START + 180 * MIN] },
-      marks: [
-        {
-          mark: "rect",
-          arrange: "share",
-          x1: starts,
-          x2: starts.map((s) => s + 60 * MIN),
-          series: [
-            { name: "Announce", y: [1, 0, 1200] },
-            { name: "Path", y: [3, 0, null] },
-          ],
-        },
-      ],
+      data: binsFrame(
+        starts,
+        starts.map((s) => s + 60 * MIN),
+        [],
+        { series: named(["Announce", [1, 0, 1200]], ["Path", [3, 0, null]]) },
+      ),
+      mark: { mark: "rect", arrange: "share" },
+      x: { domain: [START, START + 180 * MIN] },
     }),
     words,
   );
@@ -181,22 +199,19 @@ describe("the table of a histogram", () => {
   const edges = ladder();
   const t = tableModel(
     model({
-      x: {
-        type: "log",
-        format: "duration",
-        label: "Time from post to read",
-        domain: [1, edges.at(-1) ?? 0],
-      },
-      marks: [
-        {
-          mark: "rect",
-          x1: edges.slice(0, -1),
-          x2: edges.slice(1),
-          series: [{ name: "Reads", y: edges.slice(1).map(() => 1) }],
-        },
-        { mark: "rule", x: 42, label: "Median" },
-        { mark: "rule", x: 18 * 60, label: "95th percentile" },
-      ],
+      data: marked(
+        binsFrame(edges.slice(0, -1), edges.slice(1), [], {
+          axis: "value",
+          unit: "seconds",
+          series: named(["Reads", edges.slice(1).map(() => 1)]),
+        }),
+        [
+          ["Median", 42],
+          ["95th percentile", 18 * 60],
+        ],
+      ),
+      mark: { mark: "rect" },
+      x: { type: "log", label: "Time from post to read", domain: [1, edges.at(-1) ?? 0] },
     }),
     words,
   );
@@ -219,18 +234,14 @@ describe("the table of a histogram", () => {
 describe("the table of a step line", () => {
   const x = per(10, (i) => START + i * MIN);
   const spec: ChartSpec = {
+    data: seriesFrame(x, [], {
+      series: named(
+        ["Live", [null, null, null, 4, 4, 4, 10, 10, 10, 10]],
+        ["Active", [null, null, null, 0, 0, 2, 2, 2, 2, 6]],
+      ),
+    }),
+    mark: { mark: "line", curve: "step" },
     x: { type: "time", domain: [START, END] },
-    marks: [
-      {
-        mark: "line",
-        curve: "step",
-        x,
-        series: [
-          { name: "Live", y: [null, null, null, 4, 4, 4, 10, 10, 10, 10] },
-          { name: "Active", y: [null, null, null, 0, 0, 2, 2, 2, 2, 6] },
-        ],
-      },
-    ],
   };
   const m = model(spec);
 
@@ -254,31 +265,24 @@ describe("the table of a step line", () => {
   });
 
   it("lists every sample of a straight line", () => {
-    const straight = model({
-      ...spec,
-      marks: [{ ...(spec.marks[0] as Extract<Mark, { mark: "line" }>), curve: "linear" }],
-    });
+    const straight = model({ ...spec, mark: { mark: "line", curve: "linear" } });
     expect(tableModel(straight, words).rows).toHaveLength(10);
   });
 });
 
 describe("the table of a stacked area", () => {
   const x = per(7, (i) => START + i * MIN);
-  const spec = (more: Partial<Extract<Mark, { mark: "area" }>> = {}): ChartSpec => ({
-    x: { type: "time", domain: [START, START + 6 * MIN] },
-    marks: [
-      {
-        mark: "area",
-        x,
-        series: [
-          { name: "Gas", y: [990, 1_310, 1_100, 1_000, 1_204, 1_204, 1_204] },
-          { name: "Wind", y: [410, 600, 1_020, null, 980, 980, 980] },
-          { name: "Solar", y: [500, 790, 300, 200, 412, 412, 412] },
-        ],
-        ...more,
-      },
-    ],
-  });
+  const layers = named(
+    ["Gas", [990, 1_310, 1_100, 1_000, 1_204, 1_204, 1_204]],
+    ["Wind", [410, 600, 1_020, null, 980, 980, 980]],
+    ["Solar", [500, 790, 300, 200, 412, 412, 412]],
+  );
+  const spec = (mark: object = {}, series = layers): ChartSpec =>
+    ({
+      data: seriesFrame(x, [], { series }),
+      mark: { mark: "area", ...mark },
+      x: { type: "time", domain: [START, START + 6 * MIN] },
+    }) as ChartSpec;
 
   it("heads a column per layer and a Total, and lists every sample, a gap's total as No data", () => {
     const t = tableModel(model(spec()), words);
@@ -292,7 +296,7 @@ describe("the table of a stacked area", () => {
   it("lists a stepped area's change points and no Total for one series", () => {
     const stepped = tableModel(model(spec({ curve: "step" })), words);
     expect(stepped.rows.map((r) => r.key)).toEqual([0, 1, 2, 3, 4, 6].map((i) => String(x[i])));
-    const one = tableModel(model(spec({ series: [{ name: "Gas", y: per(7, () => 1) }] })), words);
+    const one = tableModel(model(spec({}, named(["Gas", per(7, () => 1)]))), words);
     expect(one.columns.map((c) => c.text)).toEqual(["Gas"]);
   });
 });
@@ -301,18 +305,11 @@ describe("the table of an area stacked to 100%", () => {
   const x = per(3, (i) => START + i * MIN);
   const t = tableModel(
     model({
+      data: seriesFrame(x, [], {
+        series: named(["Gas", [0, 1_500, 700]], ["Wind", [0, 500, null]]),
+      }),
+      mark: { mark: "area", arrange: "share" },
       x: { type: "time", domain: [START, START + 2 * MIN] },
-      marks: [
-        {
-          mark: "area",
-          x,
-          arrange: "share",
-          series: [
-            { name: "Gas", y: [0, 1_500, 700] },
-            { name: "Wind", y: [0, 500, null] },
-          ],
-        },
-      ],
     }),
     words,
   );
@@ -331,18 +328,10 @@ describe("the table of a timeline", () => {
   const posts = [START + 10 * MIN, START + 10 * MIN, START + 90 * MIN];
   const t = tableModel(
     model({
-      x: { type: "time", domain: [START, END] },
+      data: events({ "lead-ui": posts, "docs-bot": [], late: [END + MIN] }),
+      mark: { mark: "dot" },
+      x: { domain: [START, END] },
       y: { type: "band", label: "Agent" },
-      marks: [
-        {
-          mark: "dot",
-          rows: [
-            { name: "lead-ui", x: posts },
-            { name: "docs-bot", x: [] },
-            { name: "late", x: [END + MIN] },
-          ],
-        },
-      ],
     }),
     words,
   );
@@ -362,23 +351,19 @@ describe("the table of a timeline", () => {
 });
 
 describe("the notes after the table", () => {
-  it("follow the rules, each its x and text, and none leaves the sentence out", () => {
+  it("follow the refs, each its x and text, and none leaves the sentence out", () => {
     const x = per(3, (i) => START + i * MIN);
-    const line = (more: Mark[]): ChartSpec => ({
+    const line = (
+      refs: readonly (readonly [string, number])[] = [],
+      notes: readonly (readonly [number, string])[] = [],
+    ): ChartSpec => ({
+      data: marked(seriesFrame(x, [], { series: named(["Live", [1, 2, 3]]) }), refs, notes),
+      mark: { mark: "line" },
       x: { type: "time" },
-      marks: [{ mark: "line", x, series: [{ name: "Live", y: [1, 2, 3] }] }, ...more],
     });
-    const t = tableModel(
-      model(
-        line([
-          { mark: "text", x: START + MIN, y: 2, text: "Deploy" },
-          { mark: "rule", y: 2, label: "Limit" },
-        ]),
-      ),
-      words,
-    );
+    const t = tableModel(model(line([["Limit", 2]], [[START + MIN, "Deploy"]])), words);
     expect(t.after).toBe(`Limit 2. ${time(START + MIN)}: Deploy.`);
-    expect(tableModel(model(line([])), words).after).toBe("");
+    expect(tableModel(model(line()), words).after).toBe("");
   });
 });
 
@@ -386,15 +371,9 @@ describe("the table of a bar chart", () => {
   it("holds a row per category in the app's order and a column per series", () => {
     const t = tableModel(
       model({
-        x: {},
+        data: rows(["Holy See", "Monaco"], ["Median age", [57.4, null]]),
+        mark: { mark: "bar" },
         y: { label: "Country" },
-        marks: [
-          {
-            mark: "bar",
-            y: ["Holy See", "Monaco"],
-            series: [{ name: "Median age", x: [57.4, null] }],
-          },
-        ],
       }),
       words,
     );
@@ -410,17 +389,8 @@ describe("the table of a bar chart", () => {
   it("adds a Total column from two series, a gap counting for nothing", () => {
     const t = tableModel(
       model({
-        x: {},
-        marks: [
-          {
-            mark: "bar",
-            y: ["Acme", "Brill"],
-            series: [
-              { name: "Domestic", x: [40, 3] },
-              { name: "International", x: [2, null] },
-            ],
-          },
-        ],
+        data: rows(["Acme", "Brill"], ["Domestic", [40, 3]], ["International", [2, null]]),
+        mark: { mark: "bar" },
       }),
       words,
     );
@@ -435,18 +405,8 @@ describe("the table of a bar chart", () => {
   it("holds a 100% chart's shares and each row's absolute total, a total of 0 by its values", () => {
     const t = tableModel(
       model({
-        x: {},
-        marks: [
-          {
-            mark: "bar",
-            y: ["Item 1", "Item 2"],
-            arrange: "share",
-            series: [
-              { name: "No", x: [1250, 0] },
-              { name: "Yes", x: [3750, null] },
-            ],
-          },
-        ],
+        data: rows(["Item 1", "Item 2"], ["No", [1250, 0]], ["Yes", [3750, null]]),
+        mark: { mark: "bar", arrange: "share" },
       }),
       words,
     );
@@ -460,19 +420,8 @@ describe("the table of a bar chart", () => {
   it("has a Total column for diverging bars", () => {
     const t = tableModel(
       model({
-        x: {},
-        marks: [
-          {
-            mark: "bar",
-            y: ["Item 1"],
-            arrange: "diverge",
-            left: 1,
-            series: [
-              { name: "No", x: [12] },
-              { name: "Yes", x: [30] },
-            ],
-          },
-        ],
+        data: rows(["Item 1"], ["No", [12]], ["Yes", [30]]),
+        mark: { mark: "bar", arrange: "diverge", left: 1 },
       }),
       words,
     );
@@ -483,18 +432,8 @@ describe("the table of a bar chart", () => {
   it("has a Total column for mirrored bars", () => {
     const t = tableModel(
       model({
-        x: {},
-        marks: [
-          {
-            mark: "bar",
-            y: ["45-50"],
-            arrange: "mirror",
-            series: [
-              { name: "Male", x: [2_734_000] },
-              { name: "Female", x: [2_690_000] },
-            ],
-          },
-        ],
+        data: rows(["45-50"], ["Male", [2_734_000]], ["Female", [2_690_000]]),
+        mark: { mark: "bar", arrange: "mirror" },
       }),
       words,
     );
@@ -505,18 +444,8 @@ describe("the table of a bar chart", () => {
   it.each(["group", "split"] as const)("has no Total column for %s bars", (arrange) => {
     const t = tableModel(
       model({
-        x: {},
-        marks: [
-          {
-            mark: "bar",
-            y: ["Japan"],
-            arrange,
-            series: [
-              { name: "Female", x: [51.1] },
-              { name: "Male", x: [48.4] },
-            ],
-          },
-        ],
+        data: rows(["Japan"], ["Female", [51.1]], ["Male", [48.4]]),
+        mark: { mark: "bar", arrange },
       }),
       words,
     );
@@ -529,18 +458,13 @@ describe("the table of a point chart", () => {
   it("holds a row per category and a column per series, a gap as No data, no Total", () => {
     const t = tableModel(
       model({
-        x: {},
+        data: rows(
+          ["Doctorate", "Master's"],
+          ["Women", [128_700, 91_000]],
+          ["Men", [163_500, null]],
+        ),
+        mark: { mark: "point" },
         y: { label: "Degree" },
-        marks: [
-          {
-            mark: "point",
-            y: ["Doctorate", "Master's"],
-            series: [
-              { name: "Women", x: [128_700, 91_000] },
-              { name: "Men", x: [163_500, null] },
-            ],
-          },
-        ],
       }),
       words,
     );
@@ -559,8 +483,9 @@ describe("the table of a point chart", () => {
   it("writes each instant in its time element on a time x, as words", () => {
     const t = tableModel(
       model({
+        data: rows(["a"], ["Release", [START]]),
+        mark: { mark: "point" },
         x: { type: "time" },
-        marks: [{ mark: "point", y: ["a"], series: [{ name: "Release", x: [START] }] }],
       }),
       words,
     );
@@ -572,18 +497,12 @@ describe("the table of a point chart", () => {
     const plot = (link: "range" | "arrow") =>
       tableModel(
         model({
-          x: {},
-          marks: [
-            {
-              mark: "point",
-              y: ["Doctorate", "Master's"],
-              link,
-              series: [
-                { name: "Women", x: [128_700, 91_000] },
-                { name: "Men", x: [91_000, null] },
-              ],
-            },
-          ],
+          data: rows(
+            ["Doctorate", "Master's"],
+            ["Women", [128_700, 91_000]],
+            ["Men", [91_000, null]],
+          ),
+          mark: { mark: "point", link },
         }),
         words,
       );
@@ -603,20 +522,13 @@ describe("the table of a slope chart", () => {
   it("holds a row per series, its two ends and its signed change, under the y label", () => {
     const t = tableModel(
       model({
+        data: marked(
+          rows(["2005", "2015"], ["Cats", [50, 34]], ["Horses", [30, 39]], ["Mice", [null, 44]]),
+          [["Target", 40]],
+          [[1, "Peak"]],
+        ),
+        mark: { mark: "slope" },
         y: { label: "Households, %" },
-        marks: [
-          {
-            mark: "slope",
-            x: ["2005", "2015"],
-            series: [
-              { name: "Cats", y: [50, 34] },
-              { name: "Horses", y: [30, 39] },
-              { name: "Mice", y: [null, 44] },
-            ],
-          },
-          { mark: "rule", y: 40, label: "Target" },
-          { mark: "text", x: "2005", y: 50, text: "Peak" },
-        ],
       }),
       words,
     );
@@ -632,29 +544,33 @@ describe("the table of a slope chart", () => {
       ["Mice", "No data", "44", "No data"],
     ]);
     expect(t.rows.map((r) => r.key)).toEqual(["Cats", "Horses", "Mice"]);
-    expect(t.after).toBe("Target 40. 2005: Peak.");
+    // A slope has no x place, so its note is said at its plain value.
+    expect(t.after).toBe("Target 40. 1: Peak.");
   });
 });
 
 describe("the table of a scatter plot", () => {
-  const world = (more: readonly Mark[] = [], domain?: readonly [number, number]): ChartSpec => ({
+  const world = (
+    domain?: readonly [number, number],
+    refs: readonly (readonly [string, number])[] = [],
+    notes: readonly (readonly [number, string])[] = [],
+  ): ChartSpec => ({
+    data: marked(
+      points([
+        {
+          key: "Europe",
+          names: ["Albania", "Monaco", "Kosovo"],
+          x: [18_920, 140_000, null],
+          y: [79.8, 85.9, 79],
+        },
+        { key: "Africa", names: ["Chad", "Mali"], x: [1_500, 2_000], y: [53, Number.NaN] },
+      ]),
+      refs,
+      notes,
+    ),
+    mark: { mark: "scatter" },
     x: { label: "GDP per capita", ...(domain === undefined ? {} : { domain }) },
     y: { label: "Life expectancy" },
-    marks: [
-      {
-        mark: "scatter",
-        series: [
-          {
-            name: "Europe",
-            names: ["Albania", "Monaco", "Kosovo"],
-            x: [18_920, 140_000, null],
-            y: [79.8, 85.9, 79],
-          },
-          { name: "Africa", names: ["Chad", "Mali"], x: [1_500, 2_000], y: [53, Number.NaN] },
-        ],
-      },
-      ...more,
-    ],
   });
 
   it("lists a row per dot in series order, its series, then each measure under its label", () => {
@@ -678,11 +594,10 @@ describe("the table of a scatter plot", () => {
   it("has no Series column with one series", () => {
     const t = tableModel(
       model({
+        data: points([{ key: "All", names: ["Chad"], x: [1_500], y: [53] }]),
+        mark: { mark: "scatter" },
         x: { label: "GDP per capita" },
         y: { label: "Life expectancy" },
-        marks: [
-          { mark: "scatter", series: [{ name: "All", names: ["Chad"], x: [1_500], y: [53] }] },
-        ],
       }),
       words,
     );
@@ -691,48 +606,37 @@ describe("the table of a scatter plot", () => {
   });
 
   it("leaves out a dot outside a passed domain, as the plot does", () => {
-    const t = tableModel(model(world([], [0, 100_000])), words);
+    const t = tableModel(model(world([0, 100_000])), words);
     expect(t.rows.map((r) => r.key)).toEqual(["Albania", "Kosovo", "Chad", "Mali"]);
   });
 
-  it("follows with its rules and notes, a note placed at the dot it joins", () => {
+  it("follows with its refs and notes, a note at its x measure", () => {
     const t = tableModel(
-      model(
-        world([
-          { mark: "rule", y: 70, label: "World average" },
-          { mark: "text", x: 140_000, y: 85.9, text: "A city-state" },
-        ]),
-      ),
+      model(world(undefined, [["World average", 70]], [[140_000, "A city-state"]])),
       words,
     );
-    expect(t.after).toBe("World average 70. Monaco: A city-state.");
+    expect(t.after).toBe("World average 70. GDP per capita 140,000: A city-state.");
   });
 
   it("sets the dots' names, as a band's rows, a slope's series and a whole's parts, in their own direction", () => {
     expect(namedRows(model(world()))).toBe(true);
     expect(
-      namedRows(
-        model({ marks: [{ mark: "slope", x: ["a", "b"], series: [{ name: "s", y: [1, 2] }] }] }),
-      ),
+      namedRows(model({ data: rows(["a", "b"], ["s", [1, 2]]), mark: { mark: "slope" } })),
     ).toBe(true);
-    expect(
-      namedRows(model({ marks: [{ mark: "pie", slices: [{ name: "Forest", value: 1 }] }] })),
-    ).toBe(true);
+    expect(namedRows(model({ data: categories(["Forest"], [[1]]), mark: { mark: "pie" } }))).toBe(
+      true,
+    );
     expect(
       namedRows(
         model({
-          marks: [
-            { mark: "tree", nodes: [{ name: "Asia", children: [{ name: "China", value: 1 }] }] },
-          ],
+          data: tree({ groups: [{ key: "Asia", children: [part("China", 1)] }] }),
+          mark: { mark: "tree" },
         }),
       ),
     ).toBe(true);
     expect(
       namedRows(
-        model({
-          x: { type: "time" },
-          marks: [{ mark: "line", x: [START], series: [{ name: "s", y: [1] }] }],
-        }),
+        model({ data: seriesFrame([START], [[1]]), mark: { mark: "line" }, x: { type: "time" } }),
       ),
     ).toBe(false);
   });
@@ -742,23 +646,19 @@ describe("the table of a bubble chart", () => {
   it("lists each dot's size last under its label, a missing one as No data", () => {
     const t = tableModel(
       model({
+        data: points([
+          {
+            key: "All",
+            names: ["Japan", "Laos", "Monaco"],
+            x: [48_000, 8_400, 140_000],
+            y: [84.5, 68, 85.9],
+            r: [124_000_000, null, 0],
+          },
+        ]),
+        mark: { mark: "scatter" },
         x: { label: "GDP per capita" },
         y: { label: "Life expectancy" },
         r: { label: "Population" },
-        marks: [
-          {
-            mark: "scatter",
-            series: [
-              {
-                name: "All",
-                names: ["Japan", "Laos", "Monaco"],
-                x: [48_000, 8_400, 140_000],
-                y: [84.5, 68, 85.9],
-                r: [124_000_000, null, 0],
-              },
-            ],
-          },
-        ],
       }),
       words,
     );
@@ -779,18 +679,12 @@ describe("the table of a cell chart", () => {
   it("is a matrix: a column per x entry, a row per y entry, each value or No data", () => {
     const t = tableModel(
       model({
+        data: grid({ names: ["2 PM", "3 PM"] }, { names: ["Monday", "Tuesday"] }, [
+          [4, 1200],
+          [null, 0],
+        ]),
+        mark: { mark: "cell" },
         colour: { unit: { one: "post", other: "posts" } },
-        marks: [
-          {
-            mark: "cell",
-            x: ["2 PM", "3 PM"],
-            y: ["Monday", "Tuesday"],
-            values: [
-              [4, 1200],
-              [null, 0],
-            ],
-          },
-        ],
       }),
       words,
     );
@@ -804,19 +698,13 @@ describe("the table of a cell chart", () => {
   it("lists a binned y's highest bin first and names both axes in the corner", () => {
     const t = tableModel(
       model({
+        data: grid({ edges: [1000, 2000, 5000] }, { edges: [50, 55, 60] }, [
+          [1, 2],
+          [3, 4],
+        ]),
+        mark: { mark: "cell" },
         x: { label: "GDP per capita" },
         y: { label: "Life expectancy" },
-        marks: [
-          {
-            mark: "cell",
-            x: { edges: [1000, 2000, 5000] },
-            y: { edges: [50, 55, 60] },
-            values: [
-              [1, 2],
-              [3, 4],
-            ],
-          },
-        ],
       }),
       words,
     );
@@ -831,8 +719,9 @@ describe("the table of a cell chart", () => {
   it("orders its columns as the plot does on a reversed x", () => {
     const t = tableModel(
       model({
+        data: grid({ names: ["a", "b"] }, { names: ["r"] }, [[1, 2]]),
+        mark: { mark: "cell" },
         x: { reverse: true },
-        marks: [{ mark: "cell", x: ["a", "b"], y: ["r"], values: [[1, 2]] }],
       }),
       words,
     );
@@ -846,13 +735,8 @@ describe("the table of a calendar", () => {
   const calendar = (weekStart: number, open = false) =>
     tableModel(
       model({
-        marks: [
-          {
-            mark: "cell",
-            days: { start, values: [1, 2, null, 4, 5, 6, 7, 8, 1200, 12], open },
-            weekStart,
-          },
-        ],
+        data: calendarFrame(start, [1, 2, null, 4, 5, 6, 7, 8, 1200, 12], { zone: TZ, open }),
+        mark: { mark: "cell", weekStart },
       }),
       words,
     );
@@ -892,7 +776,7 @@ describe("the table of a calendar at the end of what Date holds", () => {
   it("writes the last week, ending on Saturday 13 September 275760", () => {
     const t = tableModel(
       chartModel(
-        { marks: [{ mark: "cell", days: { start: 8.64e15 - 86_400_000, values: [1, 2] } }] },
+        { data: calendarFrame(8.64e15 - 86_400_000, [1, 2]), mark: { mark: "cell" } },
         "en",
         "UTC",
       ),
@@ -919,13 +803,13 @@ describe("the table of a calendar at the end of what Date holds", () => {
 describe("the table of a box plot", () => {
   const latency = (more: Record<string, unknown> = {}, two = false): ChartSpec => ({
     y: { label: "Endpoint" },
-    marks: [
-      {
-        mark: "box",
-        y: ["search", "health"],
-        series: [
+    mark: { mark: "box", ...more } as ChartSpec["mark"],
+    data: marked(
+      boxes(
+        ["search", "health"],
+        [
           {
-            name: "Before",
+            key: "Before",
             low: [120, null],
             q1: [180, null],
             median: [240, null],
@@ -936,7 +820,7 @@ describe("the table of a box plot", () => {
           ...(two
             ? [
                 {
-                  name: "After",
+                  key: "After",
                   low: [100, 1],
                   q1: [150, 2],
                   median: [190, 2],
@@ -946,10 +830,9 @@ describe("the table of a box plot", () => {
               ]
             : []),
         ],
-        ...more,
-      },
-      { mark: "rule", x: 500, label: "Target" },
-    ],
+      ),
+      [["Target", 500]],
+    ),
   });
 
   it("holds a row per category from Low to High, outliers ascending, then the whiskers and rules", () => {
@@ -991,17 +874,8 @@ describe("the table of a box plot", () => {
 
 describe("the table of a pie", () => {
   const land = (unit = true): ChartSpec => ({
-    marks: [
-      {
-        mark: "pie",
-        ...(unit ? { unit: { other: "km²" } } : {}),
-        slices: [
-          { name: "Agriculture", value: 182_637 },
-          { name: "Forest", value: 106_645 },
-          { name: "Water", value: null },
-        ],
-      },
-    ],
+    data: categories(["Agriculture", "Forest", "Water"], [[182_637, 106_645, null]]),
+    mark: { mark: "pie", ...(unit ? { unit: { other: "km²" } } : {}) },
   });
 
   it("has a row per slice in the order sent, its value and share, and the whole in its foot", () => {
@@ -1025,7 +899,7 @@ describe("the table of a pie", () => {
 
   it("has no foot under any other mark", () => {
     const t = tableModel(
-      model({ x: {}, marks: [{ mark: "line", x: [0, 1], series: [{ name: "A", y: [1, 2] }] }] }),
+      model({ data: seriesFrame([0, 1], [[1, 2]]), mark: { mark: "line" } }),
       words,
     );
     expect(t.foot).toBe(undefined);
@@ -1035,29 +909,16 @@ describe("the table of a pie", () => {
 describe("the table of a treemap", () => {
   // GDP in 2023, bn USD: 62,580 in all.
   const gdp = (india: number | null = 3550): ChartSpec => ({
-    marks: [
-      {
-        mark: "tree",
-        unit: { other: "bn USD" },
-        nodes: [
-          {
-            name: "Asia",
-            children: [
-              { name: "China", value: 17_795 },
-              { name: "India", value: india },
-            ],
-          },
-          {
-            name: "Americas",
-            children: [
-              { name: "United States", value: 27_361 },
-              { name: "Brazil", value: 2174 },
-              { name: "Other", value: 11_700 },
-            ],
-          },
-        ],
-      },
-    ],
+    data: tree({
+      groups: [
+        { key: "Asia", children: [part("China", 17_795), part("India", india)] },
+        {
+          key: "Americas",
+          children: [part("United States", 27_361), part("Brazil", 2174), part("Other", 11_700)],
+        },
+      ],
+    }),
+    mark: { mark: "tree", unit: { other: "bn USD" } },
   });
   const foot = (t: TableModel) =>
     t.foot === undefined ? [] : [text(t.foot.head), ...t.foot.cells.map((c) => text(c.parts))];
@@ -1097,15 +958,8 @@ describe("the table of a treemap", () => {
   it("has one body of parts with one level, and the whole in its foot", () => {
     const t = tableModel(
       model({
-        marks: [
-          {
-            mark: "tree",
-            nodes: [
-              { name: "United States", value: 3 },
-              { name: "China", value: 1 },
-            ],
-          },
-        ],
+        data: tree({ parts: [part("United States", 3), part("China", 1)] }),
+        mark: { mark: "tree" },
       }),
       words,
     );
@@ -1120,25 +974,34 @@ describe("the table of a treemap", () => {
 });
 
 describe("the table of small multiples", () => {
-  const line = (name: string, x: number[], y: (number | null)[], more: Mark[] = []) => ({
-    marks: [{ mark: "line" as const, x, series: [{ name, y }] }, ...more],
+  const line = (
+    key: string,
+    x: number[],
+    values: Values,
+    refs: readonly (readonly [string, number])[] = [],
+    notes: readonly (readonly [number, string])[] = [],
+    unit = "count",
+  ): Panel => ({
+    key,
+    data: marked(seriesFrame(x, [], { unit, series: named([key, values]) }), refs, notes),
   });
 
   it("gives per-series panels a column each under the panel's name, No data where one has no sample", () => {
     const t = tableModel(
       model({
+        mark: { mark: "line" },
         x: { label: "Week" },
-        y: { format: "percent" },
-        marks: [{ mark: "rule", y: 0.05, label: "Target" }],
         facets: {
           panels: [
             line(
               "North",
               [0, 1, 2],
               [0.02, 0.04, 0.06],
-              [{ mark: "text", x: 1, y: 0.04, text: "Strike" }],
+              [["Target", 0.05]],
+              [[1, "Strike"]],
+              "ratio",
             ),
-            line("South", [1, 2, 3], [0.03, 0.05, 0.07]),
+            line("South", [1, 2, 3], [0.03, 0.05, 0.07], [["Target", 0.05]], [], "ratio"),
           ],
         },
       }),
@@ -1159,14 +1022,30 @@ describe("the table of small multiples", () => {
     expect(t.after).toBe("Target 5%. North, 1: Strike.");
   });
 
-  it("reads the chart's rules once after the table, then each panel's own after its name", () => {
+  it("reads the chart's refs once after the table, then each panel's own after its name", () => {
     const t = tableModel(
       model({
-        marks: [{ mark: "rule", y: 1, label: "Chart" }],
+        mark: { mark: "line" },
         facets: {
           panels: [
-            line("North", [0, 1], [1, 2], [{ mark: "rule", y: 2, label: "Only north" }]),
-            line("South", [0, 1], [2, 1], [{ mark: "rule", y: 3, label: "Only south" }]),
+            line(
+              "North",
+              [0, 1],
+              [1, 2],
+              [
+                ["Chart", 1],
+                ["Only north", 2],
+              ],
+            ),
+            line(
+              "South",
+              [0, 1],
+              [2, 1],
+              [
+                ["Chart", 1],
+                ["Only south", 3],
+              ],
+            ),
           ],
         },
       }),
@@ -1175,11 +1054,14 @@ describe("the table of small multiples", () => {
     expect(t.after).toBe("Chart 1. North, Only north 2. South, Only south 3.");
   });
 
-  const step = (name: string, x: number[], y: (number | null)[]) => ({
-    marks: [{ mark: "line" as const, curve: "step" as const, x, series: [{ name, y }] }],
+  const step = (key: string, x: number[], values: Values): Panel => ({
+    key,
+    data: seriesFrame(x, [], { series: named([key, values]) }),
   });
-  const stepTable = (panels: ReturnType<typeof step>[], x: ChartSpec["x"] = {}) =>
-    cells(tableModel(model({ x, marks: [], facets: { panels } }), words));
+  const stepTable = (panels: Panel[], x: ChartSpec["x"] = {}) =>
+    cells(
+      tableModel(model({ mark: { mark: "line", curve: "step" }, x, facets: { panels } }), words),
+    );
 
   it("gives a step-line panel the level its line holds at another panel's change point", () => {
     expect(
@@ -1225,29 +1107,18 @@ describe("the table of small multiples", () => {
     ]);
   });
 
-  const area = (
-    name: string,
-    x: number[],
-    a: (number | null)[],
-    b: number[],
-    arrange: "stack" | "share" = "stack",
-  ) => ({
+  const area = (name: string, x: number[], a: Values, b: Values): Panel => ({
+    key: name,
     name,
-    marks: [
-      {
-        mark: "area" as const,
-        curve: "step" as const,
-        arrange,
-        x,
-        series: [
-          { name: "A", y: a },
-          { name: "B", y: b },
-        ],
-      },
-    ],
+    data: seriesFrame(x, [], { series: named(["A", a], ["B", b]) }),
   });
-  const areaTable = (panels: ReturnType<typeof area>[]) =>
-    cells(tableModel(model({ marks: [], facets: { panels } }), words));
+  const areaTable = (panels: Panel[], arrange: "stack" | "share" = "stack") =>
+    cells(
+      tableModel(
+        model({ mark: { mark: "area", curve: "step", arrange }, facets: { panels } }),
+        words,
+      ),
+    );
 
   it("holds no layer of a stepped area panel where a gap in any series ends the drawn step", () => {
     expect(
@@ -1280,25 +1151,22 @@ describe("the table of small multiples", () => {
   });
 
   it("holds no share of a stepped share panel up to a sample whose total is 0", () => {
-    const t = areaTable([
-      area("North", [0, 10], [1, 0], [1, 0], "share"),
-      area("South", [0, 5, 10], [1, 3, 0], [1, 1, 0], "share"),
-    ]);
+    const t = areaTable(
+      [area("North", [0, 10], [1, 0], [1, 0]), area("South", [0, 5, 10], [1, 3, 0], [1, 1, 0])],
+      "share",
+    );
     expect(t[1]).toEqual(["5", "No data", "No data", "No data", "75%", "25%", "4"]);
   });
 
   it("holds a stepped share panel's shares only between two samples it draws", () => {
     expect(
-      areaTable([
-        area("Germany", [0, 2, 4, 6], [1, 0, 1, 1], [1, 0, 3, 1], "share"),
-        area(
-          "France",
-          [0, 1, 2, 3, 4, 5, 6],
-          [1, 2, 1, 2, 1, 2, 1],
-          [3, 2, 3, 2, 3, 2, 3],
-          "share",
-        ),
-      ]),
+      areaTable(
+        [
+          area("Germany", [0, 2, 4, 6], [1, 0, 1, 1], [1, 0, 3, 1]),
+          area("France", [0, 1, 2, 3, 4, 5, 6], [1, 2, 1, 2, 1, 2, 1], [3, 2, 3, 2, 3, 2, 3]),
+        ],
+        "share",
+      ),
     ).toEqual([
       ["0", "50%", "50%", "2", "25%", "75%", "4"],
       ["1", "No data", "No data", "No data", "50%", "50%", "4"],
@@ -1311,12 +1179,13 @@ describe("the table of small multiples", () => {
   });
 
   it("gives each rect bucket its own row, by both edges, where panels' buckets share a start", () => {
-    const buckets = (name: string, x1: number[], x2: number[], y: number[]) => ({
-      marks: [{ mark: "rect" as const, x1, x2, series: [{ name, y }] }],
+    const buckets = (key: string, x1: number[], x2: number[], values: number[]): Panel => ({
+      key,
+      data: binsFrame(x1, x2, [], { axis: "value", series: named([key, values]) }),
     });
     const t = tableModel(
       model({
-        marks: [],
+        mark: { mark: "rect" },
         facets: {
           panels: [
             buckets("North", [0, 10], [10, 20], [1, 2]),
@@ -1336,23 +1205,17 @@ describe("the table of small multiples", () => {
   });
 
   it("gives per-category panels a column group each over the mark's columns and its Total", () => {
-    const panel = (name: string, coal: number[], gas: number[]) => ({
+    const panel = (name: string, coal: number[], gas: number[]): Panel => ({
+      key: name,
       name,
-      marks: [
-        {
-          mark: "rect" as const,
-          x1: [0, 10],
-          x2: [10, 20],
-          series: [
-            { name: "Coal", y: coal },
-            { name: "Gas", y: gas },
-          ],
-        },
-      ],
+      data: binsFrame([0, 10], [10, 20], [], {
+        axis: "value",
+        series: named(["Coal", coal], ["Gas", gas]),
+      }),
     });
     const t = tableModel(
       model({
-        marks: [],
+        mark: { mark: "rect" },
         facets: { panels: [panel("Germany", [3, 4], [1, 2]), panel("France", [1, 0], [5, 6])] },
       }),
       words,
@@ -1370,25 +1233,23 @@ describe("the table of small multiples", () => {
   });
 
   it("keeps a box plot's Series column once, before the panels' groups", () => {
-    const box = (name: string, median: number) => ({
+    const box = (name: string, median: number): Panel => ({
+      key: name,
       name,
-      marks: [
-        {
-          mark: "box" as const,
-          y: ["search"],
-          series: ["Before", "After"].map((s, k) => ({
-            name: s,
-            low: [1],
-            q1: [2],
-            median: [median + k],
-            q3: [8],
-            high: [9],
-          })),
-        },
-      ],
+      data: boxes(
+        ["search"],
+        ["Before", "After"].map((key, k) => ({
+          key,
+          low: [1],
+          q1: [2],
+          median: [median + k],
+          q3: [8],
+          high: [9],
+        })),
+      ),
     });
     const t = tableModel(
-      model({ marks: [], facets: { panels: [box("EU", 4), box("US", 5)] } }),
+      model({ mark: { mark: "box" }, facets: { panels: [box("EU", 4), box("US", 5)] } }),
       words,
     );
     expect(t.lead).toBe(1);
@@ -1404,20 +1265,13 @@ describe("the table of small multiples", () => {
   });
 
   it("sums each pie in the foot under its own group", () => {
-    const pie = (name: string, a: number, b: number) => ({
+    const pie = (name: string, a: number, b: number): Panel => ({
+      key: name,
       name,
-      marks: [
-        {
-          mark: "pie" as const,
-          slices: [
-            { name: "Wind", value: a },
-            { name: "Solar", value: b },
-          ],
-        },
-      ],
+      data: categories(["Wind", "Solar"], [[a, b]]),
     });
     const t = tableModel(
-      model({ marks: [], facets: { panels: [pie("2023", 3, 1), pie("2024", 1, 1)] } }),
+      model({ mark: { mark: "pie" }, facets: { panels: [pie("2023", 3, 1), pie("2024", 1, 1)] } }),
       words,
     );
     expect(t.bands?.map((b) => b.text)).toEqual(["2023", "2024"]);
@@ -1435,19 +1289,15 @@ describe("the table of small multiples", () => {
   });
 
   it("gives scatter panels a tbody each, headed by the panel's name across every column", () => {
-    const dots = (name: string, names: string[]) => ({
-      marks: [
-        {
-          mark: "scatter" as const,
-          series: [{ name, names, x: names.map((_, i) => i + 1), y: names.map((_, i) => 2 * i) }],
-        },
-      ],
+    const dots = (key: string, names: string[]): Panel => ({
+      key,
+      data: points([{ key, names, x: names.map((_, i) => i + 1), y: names.map((_, i) => 2 * i) }]),
     });
     const t = tableModel(
       model({
+        mark: { mark: "scatter" },
         x: { label: "Income" },
         y: { label: "Age" },
-        marks: [],
         facets: { panels: [dots("Europe", ["Albania", "Monaco"]), dots("Africa", ["Chad"])] },
       }),
       words,
