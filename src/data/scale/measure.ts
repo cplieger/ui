@@ -128,7 +128,8 @@ const settling = new Set<() => void>();
 /** Runs `run` once the page's fonts settle, in the settle's first
  *  continuation, after every cached measure is forgotten once for all the
  *  runs that settle holds: a caller that awaits `document.fonts.ready`
- *  after registering sees the run done. */
+ *  after registering sees the run done. A run that throws is reported and
+ *  the later runs still go. */
 export function afterFontsSettle(run: () => void): void {
   if (settling.size === 0) {
     void document.fonts.ready.then(() => {
@@ -136,7 +137,11 @@ export function afterFontsSettle(run: () => void): void {
       const runs = [...settling];
       settling.clear();
       for (const r of runs) {
-        r();
+        try {
+          r();
+        } catch (error) {
+          reportError(error);
+        }
       }
     });
   }

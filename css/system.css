@@ -3183,7 +3183,10 @@
  * (WCAG 2.4.11). `./settings` sets the bar's measured height, which grows
  * when it wraps on a phone; one row's height stands in without it. The
  * form hands its fields a property: a `:has()` left of `*` makes Chromium
- * restyle the whole document on every node inserted anywhere. */
+ * restyle the whole document on every node inserted anywhere (Blink's
+ * invalidation sets, see
+ * https://blogs.igalia.com/blee/posts/2023/05/31/how-blink-invalidates-styles-when-has-in-use.html).
+ */
 form:has(.cp-savebar:not([hidden])) {
   --cp-savebar-clear: calc(
     var(--cp-savebar-size, var(--cp-control-h) + 2 * var(--cp-space-3) + 2 * var(--cp-line-w)) +
@@ -4273,7 +4276,9 @@ input.cp-input:is([type^="date"], [type="time"]) {
 
 /* The rows after the button, the legend being a fieldset's first child: a
  * `:has()` here would make Chromium restyle the whole document on every
- * node inserted anywhere. */
+ * node inserted anywhere (Blink's invalidation sets, see
+ * https://blogs.igalia.com/blee/posts/2023/05/31/how-blink-invalidates-styles-when-has-in-use.html).
+ */
 .cp-choices > legend + .cp-button ~ :not(legend, legend + .cp-button) {
   clear: both;
   margin-block-start: var(--cp-space-2);

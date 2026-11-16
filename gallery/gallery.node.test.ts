@@ -144,36 +144,57 @@ describe.each(browsers)("the gallery in %s", (name) => {
 
   // Chromium's trace counts the elements each restyle visits. A `:has()` left
   // of a combinator whose last compound names no class, type or attribute
-  // made every insertion restyle the whole page, about 9,800 elements here.
+  // made every insertion restyle the whole page, about 9,800 elements here:
+  // https://blogs.igalia.com/blee/posts/2023/05/31/how-blink-invalidates-styles-when-has-in-use.html
   it.runIf(name === "chromium")(
     "restyles about one chart's elements, not the page's, once a node is added to a chart",
     async () => {
       const tab = await (browser as Browser).newPage({ viewport: { width: 1440, height: 900 } });
       await tab.goto(`${origin}/charts.html`);
-      const cdp = await tab.context().newCDPSession(tab);
-      const counts: number[] = [];
-      cdp.on("Tracing.dataCollected", (e) => {
-        for (const event of e.value) {
-          const count = (event["args"] as { elementCount?: unknown } | undefined)?.elementCount;
-          if (event["name"] === "UpdateLayoutTree" && typeof count === "number") {
-            counts.push(count);
-          }
-        }
+      // A font load restyles the whole tree in Blink, so the page settles and
+      // flushes before the bracketed insertion.
+      await tab.evaluate(async () => {
+        await document.fonts.ready;
+        await new Promise(requestAnimationFrame);
+        void getComputedStyle(document.body).color;
       });
+      const cdp = await tab.context().newCDPSession(tab);
+      const events: Record<string, unknown>[] = [];
+      cdp.on("Tracing.dataCollected", (e) => events.push(...e.value));
       const done = new Promise((ok) => cdp.once("Tracing.tracingComplete", ok));
       await cdp.send("Tracing.start", { categories: "devtools.timeline" });
       const page = await tab.evaluate(() => {
         const plot = document.querySelector('.cp-chart > [data-part="plot"]') as Element;
         void getComputedStyle(plot).color;
+        console.timeStamp("insert:start");
         plot.append(document.createElement("span"));
         void getComputedStyle(plot).color;
+        console.timeStamp("insert:end");
         return document.getElementsByTagName("*").length;
       });
       await cdp.send("Tracing.end");
       await done;
       await tab.close();
-      expect(counts.length).toBeGreaterThan(0);
-      expect(Math.max(...counts)).toBeLessThan(page / 10);
+      const mark = (message: string): number | undefined =>
+        events.find(
+          (e) =>
+            e["name"] === "TimeStamp" &&
+            (e["args"] as { data?: { message?: unknown } } | undefined)?.data?.message === message,
+        )?.["ts"] as number | undefined;
+      const start = mark("insert:start") ?? Infinity;
+      const end = mark("insert:end") ?? -Infinity;
+      const counts = events.flatMap((e) => {
+        const count = (e["args"] as { elementCount?: unknown } | undefined)?.elementCount;
+        const ts = e["ts"] as number;
+        return e["name"] === "UpdateLayoutTree" &&
+          typeof count === "number" &&
+          ts > start &&
+          ts < end
+          ? [count]
+          : [];
+      });
+      expect(counts).toHaveLength(1);
+      expect(counts[0]).toBeLessThan(page / 10);
     },
     60_000,
   );

@@ -86,9 +86,8 @@ const px = (style: CSSStyleDeclaration, name: string, fallback: number): number 
  * layout read, so it runs on a render or a resize, never inside a draw.
  */
 export function readMetrics(plot: HTMLElement, locale: string | undefined): Metrics {
-  // The face probes stay in the plot, out of its layout, so a read changes
-  // no tree: a change forces the next read to restyle, which a page of charts
-  // pays per chart.
+  // The face probes stay in the plot, out of its layout, so a repeat read
+  // changes no tree: a page of charts would otherwise restyle per chart.
   let probe = plot.querySelector<HTMLElement>(":scope > span[data-mono]");
   let holeProbe = plot.querySelector<HTMLElement>(":scope > span[data-hole]");
   if (probe === null || holeProbe === null) {

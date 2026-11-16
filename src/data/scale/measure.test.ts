@@ -60,4 +60,28 @@ describe("afterFontsSettle", () => {
     expect(seen[0]).not.toBe(before);
     expect(seen[1]).toBe(seen[0]);
   });
+
+  it("reports a run that throws and still runs the later ones", async () => {
+    const boom = new Error("boom");
+    const reported: unknown[] = [];
+    const onError = (event: ErrorEvent): void => {
+      reported.push(event.error);
+      event.preventDefault();
+    };
+    window.addEventListener("error", onError);
+    let ran = false;
+    try {
+      afterFontsSettle(() => {
+        throw boom;
+      });
+      afterFontsSettle(() => {
+        ran = true;
+      });
+      await document.fonts.ready;
+    } finally {
+      window.removeEventListener("error", onError);
+    }
+    expect(reported).toEqual([boom]);
+    expect(ran).toBe(true);
+  });
 });
