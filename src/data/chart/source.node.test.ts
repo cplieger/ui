@@ -107,11 +107,6 @@ describe("no call spreads a list the spec sets", () => {
       callSpreads(name, text),
     );
     expect(spreads).toEqual([
-      // xSpan returns a pair of words.
-      "chart/readout.ts: words.range(...model.xSpan",
-      "chart/readout.ts: words.range(...model.xSpan",
-      "chart/readout.ts: words.range(...model.xSpan",
-      "chart/readout.ts: words.range(...model.xSpan",
       // At most the three of 1, 2 and 5 in a decade.
       "scale/log.ts: all.push(...[1, 2, 5].map",
       // A column of four points or fewer, and the four a longer one keeps.

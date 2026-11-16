@@ -1,10 +1,10 @@
 <main class="play">
   <header>
     <h1>Charts</h1>
-    <p>Charts drawn by the library from data: grelot's Statistics tab, with its four charts and their states, the other time series a chart draws, bars and dots that compare categories, slope, scatter and bubble charts, heatmaps and box plots, and pies and treemaps. Point at a plot, tap it, or Tab to it and use the arrow keys; each chart's Table view shows the same data as a table.</p>
+    <p>Charts drawn by the library from data: grelot's Statistics tab, with its four charts and their states, the other time series a chart draws, bars and dots that compare categories, slope, scatter and bubble charts, heatmaps and box plots, pies and treemaps, and small multiples. Point at a plot, tap it, or Tab to it and use the arrow keys; each chart's Table view shows the same data as a table.</p>
   </header>
 
-  <nav class="g-index" aria-label="On this page"><a href="#statistics">Statistics</a><a href="#time-series">Time series</a><a href="#categories">Categories</a><a href="#two-scales">Slope and scatter</a><a href="#grids">Heatmaps and box plots</a><a href="#parts">Pies and treemaps</a><a href="#states">Loading, empty and error</a><a href="#phone">At a phone's width</a></nav>
+  <nav class="g-index" aria-label="On this page"><a href="#statistics">Statistics</a><a href="#time-series">Time series</a><a href="#categories">Categories</a><a href="#two-scales">Slope and scatter</a><a href="#grids">Heatmaps and box plots</a><a href="#parts">Pies and treemaps</a><a href="#facets">Small multiples</a><a href="#states">Loading, empty and error</a><a href="#phone">At a phone's width</a></nav>
 
   <section class="g-section" id="statistics">
     <h2>Statistics</h2>
@@ -344,6 +344,44 @@
     </div>
   </section>
 
+  <section class="g-section" id="facets">
+    <h2>Small multiples</h2>
+    <div class="g-grid">
+      <div class="card g-wide" data-new>
+        <h2>Line panels with context</h2>
+        <figure class="cp-chart" data-chart="regions">
+          <figcaption>Unemployment by region, 2020 to 2024</figcaption>
+          <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
+        </figure>
+        <footer>Six regions, one line each, sent with the highest last rate first, in as many columns as fit a 112 px plot. Every panel shares the one y scale, so a level reads the same in each, and with <code>context: true</code> every other region's line runs faintly behind its own. The 2019 average is a rule drawn in every panel and read once. Point at a panel, or Tab to it and use the arrows: the other panels ring the same month, and Tab carries it to the next panel. The note on North numbers on across the grid when it cannot fit its panel, with its list under the grid.</footer>
+      </div>
+      <div class="card g-wide" data-new>
+        <h2>Column panels</h2>
+        <figure class="cp-chart" data-chart="agent-columns">
+          <figcaption>Posts by thread kind, per agent, last 24 hours</figcaption>
+          <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
+        </figure>
+        <footer>Each agent's posts stacked by kind in hourly buckets, the same three kinds in every panel, so each panel needs its own name. The head beside it gives the agent's posts at the selection, or its total over the day with none. The table holds one row per hour and a group of columns per agent.</footer>
+      </div>
+      <div class="card g-wide" data-new>
+        <h2>Bar panels</h2>
+        <figure class="cp-chart" data-chart="daily-use">
+          <figcaption>Adults who use each platform daily, by age</figcaption>
+          <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
+        </figure>
+        <footer>One age group a panel, the same platforms in the same order in each, sorted by the youngest group's share. The platform names sit once in the gutter at the grid's left, and each bar keeps its value label. Up and Down walk the platforms; Tab to the next panel reads the same platform there.</footer>
+      </div>
+      <div class="card g-wide" data-new>
+        <h2>A grid of pies</h2>
+        <figure class="cp-chart" data-chart="devices">
+          <figcaption>Visits by device, per site, last 30 days</figcaption>
+          <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
+        </figure>
+        <footer>A pie per site, as many to a row as fit a 120 px plot, each as wide as its panel up to 240 px, with the same slices in the same order in every pie. Panels drop the labels beside the slices, so the legend row names them. Point at a slice and every other pie rings the same device; the head gives the selected slice's share, or the site's total visits with none.</footer>
+      </div>
+    </div>
+  </section>
+
   <section class="g-section" id="states">
     <h2>Loading, empty and error</h2>
     <div class="g-grid">
@@ -562,6 +600,26 @@
           </figure>
         </div>
         <footer>The plot is 200 px tall on a phone, so smaller countries lose their labels and the smallest continents their heads; their chips in the legend row still name them, and every tile is read by keys, pointer and touch.</footer>
+      </div>
+      <div class="card g-wide" data-new>
+        <h2>Line panels at a phone's width</h2>
+        <div class="g-resizable" data-start="phone">
+          <figure class="cp-chart" data-chart="phone-regions">
+            <figcaption>Unemployment by region, 2020 to 2024</figcaption>
+            <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
+          </figure>
+        </div>
+        <footer>On the 358 px frame two columns of line panels fit beside the y gutter, three grid rows with an x axis under each column, so the six panels take about one screen. Drag the corner narrower and the panels fall to one column once a plot would be under 112 px; wider, and a third column joins.</footer>
+      </div>
+      <div class="card g-wide" data-new>
+        <h2>Bar panels at a phone's width</h2>
+        <div class="g-resizable" data-start="phone">
+          <figure class="cp-chart" data-chart="phone-daily-use">
+            <figcaption>Adults who use each platform daily, by age</figcaption>
+            <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
+          </figure>
+        </div>
+        <footer>Under 30rem each platform's name sits above its bar, which needs the panel's whole width, so the bar panels take one column, one age group under another. Drag the corner wider than 30rem and they return to columns with the names in one gutter at the left.</footer>
       </div>
     </div>
   </section>

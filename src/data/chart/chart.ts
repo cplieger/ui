@@ -13,7 +13,8 @@ import { forgetMeasures } from "../scale/measure.js";
 
 import { colourKey, drawPlot, frameLegend, readMetrics, sizeKey } from "./draw.js";
 import { explore } from "./explore.js";
-import { layout, type Floors, type TreeKept } from "./layout.js";
+import { facetLayout, facetWidths, panelGrid } from "./facets.js";
+import { layout, type Floors, type Layout, type TreeKept } from "./layout.js";
 import { chartModel, type Model } from "./model.js";
 import { chipChosen, overall, readoutWidths, totalWord, type Widths } from "./readout.js";
 import type { ChartSpec } from "./spec.js";
@@ -104,10 +105,18 @@ function caption(figure: HTMLElement): { title: HTMLElement; summary: HTMLElemen
   return { title, summary };
 }
 
+// The words of the notes `lay` draws on `model`'s plot, in their numbers' order.
+const noteTexts = (model: Model, lay: Layout): string[] =>
+  lay.notes.map((n) => {
+    const m = model.marks[n.mark];
+    return m?.kind === "text" ? m.text : "";
+  });
+
 const grow = (floor: Widths | undefined, now: Widths): Widths =>
   floor?.values.length !== now.values.length
     ? now
     : {
+        ...(now.panel === undefined ? {} : { panel: Math.max(floor.panel ?? 0, now.panel) }),
         at: Math.max(floor.at, now.at),
         values: now.values.map((v, k) => Math.max(v, floor.values[k] ?? 0)),
         total: Math.max(floor.total, now.total),
@@ -174,6 +183,13 @@ export function renderChart(
 
   const life = new AbortController();
   const explorer = explore(plot, svg, legend, words, life.signal);
+  // Small multiples' grid, in the svg's place while the drawing has facets.
+  const grid = panelGrid(legend, words, howTo.id, life.signal);
+  const panels = grid.element;
+  const resetExplorers = (): void => {
+    explorer.reset();
+    grid.reset();
+  };
   let state: State = "loading";
   // What the good render since the last loading() showed, if one came.
   let shown: "ready" | "empty" | undefined;
@@ -240,7 +256,7 @@ export function renderChart(
       watched &&
       (!active.isConnected ||
         !active.checkVisibility() ||
-        (active === plot && !plot.hasAttribute("tabindex")) ||
+        ((active === plot || panels.contains(active)) && !active.hasAttribute("tabindex")) ||
         document.activeElement !== active)
     ) {
       figure.focus({ preventScroll: true });
@@ -260,6 +276,25 @@ export function renderChart(
   const hasDrawing = (): boolean =>
     state === "ready" || (state === "refreshFailed" && shown === "ready");
 
+  // The numbered markers' words below the plot, in their numbers' order.
+  const showNotes = (texts: readonly string[]): void => {
+    listed = texts.length > 0;
+    if (!listed) {
+      list.remove();
+      return;
+    }
+    const items = document.createDocumentFragment();
+    for (const text of texts) {
+      const li = document.createElement("li");
+      li.textContent = text;
+      items.append(li);
+    }
+    list.replaceChildren(items);
+    if (list.parentElement !== figure) {
+      plot.after(list);
+    }
+  };
+
   const drawGeometry = (): void => {
     if (drawn === undefined) {
       return;
@@ -271,26 +306,31 @@ export function renderChart(
     plotStale = false;
     const metrics = readMetrics(plot, locale);
     drawnBox = chartWidth();
+    const facets = drawn.facets;
+    if (facets !== undefined) {
+      const at = facetLayout(drawn, facets, words, metrics, plot.clientWidth, floors, drawnBox);
+      floors = at.gutters;
+      if (panels.parentElement !== plot) {
+        svg.replaceWith(panels);
+      }
+      showNotes(
+        facets.panels.flatMap((p, k) => {
+          const lay = at.panels[k]?.lay;
+          return lay?.numbered === true ? noteTexts(p.model, lay) : [];
+        }),
+      );
+      widths = grow(widths, facetWidths(drawn, facets, words, metrics.measure));
+      grid.draw(drawn, at, widths, metrics);
+      return;
+    }
+    if (panels.parentElement === plot) {
+      panels.replaceWith(svg);
+    }
     const lay = layout(drawn, words, metrics, plot.clientWidth, floors, drawnBox, kept);
     floors = lay.gutters;
     kept = lay.tree?.kept;
     drawPlot(svg, drawn, lay);
-    listed = lay.numbered;
-    if (listed) {
-      const texts = drawn.marks.map((m) => (m.kind === "text" ? m.text : ""));
-      const items = document.createDocumentFragment();
-      for (const n of lay.notes) {
-        const li = document.createElement("li");
-        li.textContent = texts[n.mark] ?? "";
-        items.append(li);
-      }
-      list.replaceChildren(items);
-      if (list.parentElement !== figure) {
-        plot.after(list);
-      }
-    } else {
-      list.remove();
-    }
+    showNotes(lay.numbered ? noteTexts(drawn, lay) : []);
     const none = overall(drawn, words);
     if (none !== undefined) {
       widths = grow(widths, readoutWidths(drawn, words, metrics.measure));
@@ -319,6 +359,7 @@ export function renderChart(
     }
     if (tableOn) {
       explorer.clear();
+      grid.clear();
     }
     if (tableOn && tableStale) {
       syncTable(panel, tableModel(drawn, words), title.textContent, namedRows(drawn));
@@ -348,7 +389,7 @@ export function renderChart(
     shown = model.empty ? "empty" : "ready";
     state = shown;
     if (model.empty) {
-      explorer.reset();
+      resetExplorers();
       drawn = undefined;
       listed = false;
       const text = model.spec.empty ?? words.empty;
@@ -356,14 +397,27 @@ export function renderChart(
       setSummary(text, false);
       arrange([empty]);
     } else {
-      explorer.data(model);
       drawn = model;
       setSummary(summaryOf(model, words), true);
-      plot.setAttribute("role", "application");
-      plot.setAttribute("aria-roledescription", words.chart);
-      plot.setAttribute("aria-describedby", howTo.id);
-      plot.setAttribute("aria-label", shortDescription(model, words));
-      plot.tabIndex = 0;
+      if (model.facets === undefined) {
+        grid.reset();
+        explorer.data(model);
+        howTo.textContent = words.howTo;
+        plot.setAttribute("role", "application");
+        plot.setAttribute("aria-roledescription", words.chart);
+        plot.setAttribute("aria-describedby", howTo.id);
+        plot.setAttribute("aria-label", shortDescription(model, words));
+        plot.tabIndex = 0;
+      } else {
+        // Each panel's plot is the region and the tab stop.
+        explorer.reset();
+        grid.data(model);
+        howTo.textContent = words.howToPanels;
+        for (const name of ["role", "aria-roledescription", "aria-describedby", "aria-label"]) {
+          plot.removeAttribute(name);
+        }
+        plot.removeAttribute("tabindex");
+      }
       // The drawing showView makes decides whether the new data numbers its notes.
       listed = false;
       arrange([legend, plot, panel]);
@@ -392,7 +446,7 @@ export function renderChart(
       arrange([empty, el]);
     } else {
       state = "failed";
-      explorer.reset();
+      resetExplorers();
       drawn = undefined;
       listed = false;
       setSummary("", false);
@@ -421,7 +475,7 @@ export function renderChart(
   const startLoading = (): void => {
     state = "loading";
     shown = undefined;
-    explorer.reset();
+    resetExplorers();
     drawn = undefined;
     listed = false;
     stored = undefined;
@@ -612,11 +666,16 @@ export function renderChart(
         figure.setAttribute("aria-busy", "false");
         arrange([]);
       } else if (hasDrawing()) {
-        explorer.reset();
-        plot.removeAttribute("tabindex");
-        plot.removeAttribute("aria-roledescription");
-        plot.removeAttribute("aria-describedby");
-        plot.setAttribute("role", "img");
+        const faceted = drawn?.facets !== undefined;
+        resetExplorers();
+        if (faceted) {
+          grid.tearDown();
+        } else {
+          plot.removeAttribute("tabindex");
+          plot.removeAttribute("aria-roledescription");
+          plot.removeAttribute("aria-describedby");
+          plot.setAttribute("role", "img");
+        }
         howTo.remove();
       }
       if (toggle !== undefined) {

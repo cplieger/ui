@@ -250,14 +250,9 @@ describe.each(browsers)("the gallery in %s", (name) => {
       await tab.goto(`${origin}/framed/${page}`);
       const frame = tab.frames()[1];
       // The marks run last, so a page they reach ran every wiring before them.
-      const marked = await frame
-        ?.waitForFunction(() => document.querySelector("[data-build]") !== null, null, {
-          timeout: 10_000,
-        })
-        .then(
-          () => true,
-          () => false,
-        );
+      // The module runs to its end before the frame loads, which delays the
+      // tab's load that goto waits for: a later look could find nothing more.
+      const marked = await frame?.evaluate(() => document.querySelector("[data-build]") !== null);
       await tab.close();
       expect({ errors, marked }).toEqual({ errors: [], marked: true });
     },

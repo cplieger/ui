@@ -54,3 +54,103 @@ it("writes a datetime HTML reads for years past 9999, and none before year 1", (
     "Jan 1, 1 BC",
   ]);
 });
+
+it("heads small multiples' column groups in a row above their columns, each over its <colgroup>", () => {
+  const panel = (name: string, a: number) => ({
+    name,
+    marks: [
+      {
+        mark: "rect" as const,
+        x1: [0],
+        x2: [10],
+        series: [
+          { name: "Coal", y: [a] },
+          { name: "Gas", y: [1] },
+        ],
+      },
+    ],
+  });
+  const t = tableModel(
+    chartModel(
+      {
+        x: { label: "Hour" },
+        marks: [],
+        facets: { panels: [panel("Germany", 2), panel("France", 3)] },
+      },
+      "en",
+      "UTC",
+    ),
+    chartWords(),
+  );
+  const el = document.createElement("div");
+  syncTable(el, t, "Power", false);
+  const table = el.querySelector("table");
+  expect([...(table?.querySelectorAll("colgroup") ?? [])].map((g) => g.span)).toEqual([1, 3, 3]);
+  const [top, below] = [...(table?.tHead?.rows ?? [])];
+  expect(
+    [...(top?.cells ?? [])].map((c) => [
+      c.textContent,
+      c.rowSpan,
+      c.colSpan,
+      c.getAttribute("scope"),
+    ]),
+  ).toEqual([
+    ["Hour", 2, 1, "col"],
+    ["Germany", 1, 3, "colgroup"],
+    ["France", 1, 3, "colgroup"],
+  ]);
+  expect([...(below?.cells ?? [])].map((c) => c.textContent)).toEqual([
+    "Coal",
+    "Gas",
+    "Total",
+    "Coal",
+    "Gas",
+    "Total",
+  ]);
+  expect([...(table?.tBodies[0]?.rows[0]?.cells ?? [])].map((c) => c.textContent)).toEqual([
+    "0 to 10",
+    "2",
+    "1",
+    "3",
+    "3",
+    "1",
+    "4",
+  ]);
+});
+
+it("heads each scatter panel's <tbody> with its name across every column", () => {
+  const dots = (name: string) => ({
+    marks: [{ mark: "scatter" as const, series: [{ name, names: ["a"], x: [1], y: [2] }] }],
+  });
+  const t = tableModel(
+    chartModel(
+      {
+        x: { label: "Income" },
+        y: { label: "Age" },
+        marks: [],
+        facets: { panels: [dots("Europe"), dots("Africa")] },
+      },
+      "en",
+      "UTC",
+    ),
+    chartWords(),
+  );
+  const el = document.createElement("div");
+  syncTable(el, t, "People", true);
+  const bodies = [...(el.querySelector("table")?.tBodies ?? [])];
+  expect(
+    bodies.map((b) => {
+      const th = b.rows[0]?.cells[0];
+      return [
+        b.dataset["key"],
+        th?.getAttribute("scope"),
+        th?.colSpan,
+        th?.querySelector("bdi")?.textContent,
+      ];
+    }),
+  ).toEqual([
+    ["Europe", "rowgroup", 3, "Europe"],
+    ["Africa", "rowgroup", 3, "Africa"],
+  ]);
+  expect(bodies.map((b) => b.rows.length)).toEqual([2, 2]);
+});
