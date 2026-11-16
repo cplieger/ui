@@ -111,6 +111,81 @@ function bare(): { root: HTMLElement; track: TextTrack } {
   return { root, track: video.addTextTrack("subtitles", "English", "en") };
 }
 
+/** A pane whose video lists one `<source>` that cannot play. */
+function failingSources(): {
+  root: HTMLElement;
+  video: HTMLVideoElement;
+  source: HTMLSourceElement;
+} {
+  const root = document.createElement("div");
+  root.className = "cp-video";
+  const video = document.createElement("video");
+  video.controls = true;
+  video.muted = true;
+  const source = document.createElement("source");
+  source.type = "video/webm";
+  source.src = objectUrl(new Blob(["not a video"], { type: "video/webm" }));
+  video.append(source);
+  root.append(video);
+  document.body.append(root);
+  return { root, video, source };
+}
+
+function controls(root: HTMLElement): { play: HTMLButtonElement; seek: HTMLInputElement } {
+  return {
+    play: root.querySelector('[data-part="play"]') as HTMLButtonElement,
+    seek: root.querySelector("input.cp-range") as HTMLInputElement,
+  };
+}
+
+/** Two subtitle languages from markup, the second marked `default`. */
+function twoLanguages(): {
+  root: HTMLElement;
+  video: HTMLVideoElement;
+  en: TextTrack;
+  ja: TextTrack;
+} {
+  const root = document.createElement("div");
+  root.className = "cp-video";
+  const video = document.createElement("video");
+  const en = trackElement();
+  en.default = false;
+  const ja = trackElement();
+  ja.srclang = "ja";
+  ja.label = "日本語";
+  video.append(en, ja);
+  root.append(video);
+  document.body.append(root);
+  return { root, video, en: en.track, ja: ja.track };
+}
+
+/** Resolves once `count` addtrack events fired, by when the browser has made
+ *  its own pick of a <track> to show. */
+function addedTracks(video: HTMLVideoElement, count: number): Promise<void> {
+  return new Promise((resolve) => {
+    let left = count;
+    video.textTracks.addEventListener("addtrack", () => {
+      left -= 1;
+      if (left === 0) {
+        resolve();
+      }
+    });
+  });
+}
+
+/** Script-built subtitles tracks, each disabled and holding one cue at `at`. */
+function disabledTracks(...at: number[]): { root: HTMLElement; tracks: TextTrack[] } {
+  const { root, track } = bare();
+  const video = root.querySelector("video") as HTMLVideoElement;
+  const tracks = at.map((start, i) => {
+    const t = i === 0 ? track : video.addTextTrack("subtitles", `Track ${String(i)}`, "en");
+    t.mode = "disabled";
+    t.addCue(new VTTCue(start, start + 1, String(start)));
+    return t;
+  });
+  return { root, tracks };
+}
+
 const times = (track: TextTrack): number[][] =>
   [...(track.cues ?? [])].map((c) => [c.startTime, c.endTime]);
 
@@ -508,6 +583,128 @@ describe("enhanceVideo", () => {
     expect([play.disabled, seek.disabled]).toEqual([false, false]);
   });
 
+  it("marks a video whose every <source> fails, enhanced before the failure", async () => {
+    const { root } = failingSources();
+    enhanceVideo(root, { signal: life.signal });
+    const { play, seek } = controls(root);
+    await expect.poll(() => root.hasAttribute("data-cp-error")).toBe(true);
+    expect(root.hasAttribute("aria-busy")).toBe(false);
+    expect([play.disabled, seek.disabled]).toEqual([true, true]);
+  });
+
+  it("marks a video whose every <source> failed before it starts", async () => {
+    const { root, video, source } = failingSources();
+    await new Promise((resolve) => {
+      source.addEventListener("error", resolve, { once: true });
+    });
+    await expect.poll(() => video.networkState).toBe(HTMLMediaElement.NETWORK_NO_SOURCE);
+    expect(video.error).toBeNull();
+    enhanceVideo(root, { signal: life.signal });
+    const { play, seek } = controls(root);
+    expect(root.hasAttribute("data-cp-error")).toBe(true);
+    expect(root.hasAttribute("aria-busy")).toBe(false);
+    expect([play.disabled, seek.disabled]).toEqual([true, true]);
+  });
+
+  it("clears the mark once a <source> added after the failure loads", async () => {
+    const { root, video } = failingSources();
+    enhanceVideo(root, { signal: life.signal });
+    await expect.poll(() => root.hasAttribute("data-cp-error")).toBe(true);
+    const next = document.createElement("source");
+    next.type = "video/webm";
+    next.src = await sample();
+    const loaded = metadata(video);
+    video.append(next);
+    await loaded;
+    const { play, seek } = controls(root);
+    expect(root.hasAttribute("data-cp-error")).toBe(false);
+    expect([play.disabled, seek.disabled]).toEqual([false, false]);
+  });
+
+  it("leaves a playing video unmarked when its caption file fails", async () => {
+    const { root, video } = await pane();
+    const track = trackElement();
+    URL.revokeObjectURL(track.src);
+    const failed = new Promise((resolve) => {
+      track.addEventListener("error", resolve, { once: true });
+    });
+    video.querySelector("track")?.remove();
+    video.append(track);
+    await failed;
+    expect(root.hasAttribute("data-cp-error")).toBe(false);
+    expect(controls(root).play.disabled).toBe(false);
+  });
+
+  it("shows one of two caption languages when it starts as their markup goes in", async () => {
+    const { root, en, ja } = twoLanguages();
+    const handle = enhanceVideo(root, { signal: life.signal });
+    handle.load(await sample());
+    handle.offset = 2;
+    const showing = (): TextTrack[] => [en, ja].filter((t) => t.mode === "showing");
+    await expect.poll(() => showing().map((t) => t.cues?.[0]?.startTime)).toEqual([3]);
+  });
+
+  it("moves the default of two languages alone, and gives every mode back once it aborts", async () => {
+    const { root, video, en, ja } = twoLanguages();
+    await addedTracks(video, 2);
+    const before = [en.mode, ja.mode];
+    const handle = enhanceVideo(root, { signal: life.signal });
+    handle.load(await sample());
+    handle.offset = 2;
+    await expect.poll(() => ja.cues?.[0]?.startTime).toBe(3);
+    const cue = ja.cues?.[0] as TextTrackCue;
+    expect([en.mode, ja.mode]).toEqual(["disabled", "showing"]);
+    life.abort();
+    expect([en.mode, ja.mode]).toEqual(before);
+    expect([cue.startTime, cue.endTime]).toEqual([1, 2]);
+  });
+
+  it("follows the track the app shows, and turns off the one it showed", async () => {
+    const {
+      root,
+      tracks: [a, b],
+    } = disabledTracks(1, 5);
+    enhanceVideo(root, { offset: 1, signal: life.signal });
+    expect([a?.mode, b?.mode]).toEqual(["showing", "disabled"]);
+    expect(times(a as TextTrack)).toEqual([[2, 3]]);
+    const cue = a?.cues?.[0] as TextTrackCue;
+    (b as TextTrack).mode = "showing";
+    await expect.poll(() => times(b as TextTrack)).toEqual([[6, 7]]);
+    expect(a?.mode).toBe("disabled");
+    expect([cue.startTime, cue.endTime]).toEqual([1, 2]);
+  });
+
+  it("leaves off a track the app turns off, and gives back its own times while it is off", async () => {
+    const {
+      root,
+      tracks: [a],
+    } = disabledTracks(1);
+    const track = a as TextTrack;
+    const list = (root.querySelector("video") as HTMLVideoElement).textTracks;
+    const changed = (): Promise<unknown> =>
+      new Promise((resolve) => {
+        list.addEventListener("change", resolve, { once: true });
+      });
+    const handle = enhanceVideo(root, { offset: 1, signal: life.signal });
+    expect(track.mode).toBe("showing");
+    const cue = track.cues?.[0] as TextTrackCue;
+    let change = changed();
+    track.mode = "disabled";
+    await change;
+    handle.offset = 2;
+    expect(track.mode).toBe("disabled");
+    change = changed();
+    track.mode = "showing";
+    await change;
+    expect([cue.startTime, cue.endTime]).toEqual([3, 4]);
+    change = changed();
+    track.mode = "disabled";
+    await change;
+    life.abort();
+    expect(track.mode).toBe("disabled");
+    expect([cue.startTime, cue.endTime]).toEqual([1, 2]);
+  });
+
   it("gives back a track's own times once another becomes the caption track", async () => {
     const root = document.createElement("div");
     root.className = "cp-video";
@@ -539,11 +736,13 @@ describe("enhanceVideo", () => {
   it("gives back the native controls and the cues' own times once its signal aborts", async () => {
     const { root, video, handle } = await pane();
     await expect.poll(() => cues(video).length).toBe(2);
+    const own = cues(video);
     handle.offset = 2;
     life.abort();
     expect(video.controls).toBe(true);
     expect(root.querySelector('[data-part="bar"]')).toBeNull();
-    expect(cues(video).map((c) => [c.startTime, c.endTime])).toEqual([
+    // The cues themselves: a track the module showed is disabled again and lists none.
+    expect(own.map((c) => [c.startTime, c.endTime])).toEqual([
       [1, 2],
       [3, 4],
     ]);

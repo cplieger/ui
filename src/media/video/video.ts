@@ -55,12 +55,7 @@ function clock(seconds: number): string {
   return h > 0 ? `${String(h)}:${String(m).padStart(2, "0")}:${s}` : `${String(m)}:${s}`;
 }
 
-/** The track the captions show on: the first subtitles or captions track,
- *  else the first text track. */
-function captionTrack(video: HTMLVideoElement): TextTrack | undefined {
-  const tracks = [...video.textTracks];
-  return tracks.find((t) => t.kind === "subtitles" || t.kind === "captions") ?? tracks[0];
-}
+const isCaption = (t: TextTrack): boolean => t.kind === "subtitles" || t.kind === "captions";
 
 /** The times a cue takes for `start` and `end`, never below 0, or undefined
  *  for a start that is not finite, which throws, or a NaN end. An unbounded
@@ -203,13 +198,24 @@ export function enhanceVideo(root: HTMLElement, options: VideoOptions = {}): Vid
     drawButton();
   };
 
-  /** Marks a failed source and turns its controls off; the next `loadstart`
-   *  clears it. */
+  /** Marks a failed source and turns its controls off until `clearError`. */
   const showError = (): void => {
     root.setAttribute(ERROR, "");
     play.disabled = true;
     busy = false;
   };
+
+  const clearError = (): void => {
+    root.removeAttribute(ERROR);
+    play.disabled = false;
+  };
+
+  /** Failed `<source>` children fire `error` at each one, not at the video,
+   *  and leave `video.error` null; after the last one the video has no
+   *  source (https://html.spec.whatwg.org/multipage/media.html#concept-media-load-algorithm). */
+  const sourcesFailed = (): boolean =>
+    video.networkState === HTMLMediaElement.NETWORK_NO_SOURCE &&
+    video.querySelector(":scope > source") !== null;
 
   const seekTo = (at: number): void => {
     const end = total();
@@ -219,28 +225,77 @@ export function enhanceVideo(root: HTMLElement, options: VideoOptions = {}): Vid
 
   /** Tracks whose own `addCue` places a new cue at the offset. */
   const placing = new Set<TextTrack>();
+  /** Tracks the module turned from disabled to showing, turned off again
+   *  when they stop being the caption track. */
+  const turnedOn = new Set<TextTrack>();
+  /** Tracks that have been the caption track. A track is shown only the
+   *  first time, so a track the app turns off stays off. */
+  const seen = new WeakSet<TextTrack>();
+  /** The cues the module moved in each track; a disabled track lists none. */
+  const movedIn = new Map<TextTrack, Set<TextTrackCue>>();
+  const record = (t: TextTrack, cue: TextTrackCue, own: Times, wrote: Times): void => {
+    moved.set(cue, { own, wrote });
+    const cues = movedIn.get(t) ?? new Set();
+    movedIn.set(t, cues.add(cue));
+  };
   /** Set by the teardown, or at once for a signal that has already aborted,
    *  so the captions are never moved after their times were given back. */
   let dead = signal?.aborted === true;
 
-  /** Gives `t` back its cues' own times and its own `addCue`. */
+  /** The subtitles or captions track whose `<track>` is marked `default`. */
+  const marked = (): TextTrack | undefined =>
+    [...video.querySelectorAll<HTMLTrackElement>(":scope > track")].find(
+      (e) => e.default && isCaption(e.track),
+    )?.track;
+
+  /** The track the captions use: a subtitles or captions track the app or
+   *  the browser shows, else the one the module showed, else the marked one,
+   *  else the first, else the first text track. */
+  const captionTrack = (): TextTrack | undefined => {
+    const tracks = [...video.textTracks];
+    const captions = tracks.filter(isCaption);
+    return (
+      captions.find((t) => t.mode === "showing" && !turnedOn.has(t)) ??
+      captions.find((t) => turnedOn.has(t)) ??
+      marked() ??
+      captions[0] ??
+      tracks[0]
+    );
+  };
+
+  /** Gives `t` back its cues' own times, its own `addCue` and its mode. */
   const release = (t: TextTrack): void => {
-    for (const cue of [...(t.cues ?? [])]) {
+    for (const cue of movedIn.get(t) ?? []) {
       const m = moved.get(cue);
       // A cue the app retimed since the last move keeps the app's times.
-      if (m !== undefined && carries(cue, m.wrote)) {
+      if (m === undefined || !carries(cue, m.wrote)) {
+        continue;
+      }
+      if (cue.track === t && t.mode !== "disabled") {
         place(t, cue, ...m.own);
+      } else {
+        [cue.startTime, cue.endTime] = m.own;
       }
     }
+    movedIn.delete(t);
     Reflect.deleteProperty(t, "addCue");
     placing.delete(t);
+    if (turnedOn.delete(t)) {
+      t.mode = "disabled";
+    }
   };
 
   const applyOffset = (): void => {
     if (dead) {
       return;
     }
-    const track = captionTrack(video);
+    // A track the app turned off since keeps the mode the app gave it.
+    for (const t of [...turnedOn]) {
+      if (t.mode !== "showing") {
+        turnedOn.delete(t);
+      }
+    }
+    const track = captionTrack();
     for (const t of [...placing]) {
       if (t !== track) {
         release(t);
@@ -249,8 +304,12 @@ export function enhanceVideo(root: HTMLElement, options: VideoOptions = {}): Vid
     if (track === undefined) {
       return;
     }
-    if (track.mode === "disabled") {
-      track.mode = "showing";
+    if (!seen.has(track)) {
+      seen.add(track);
+      if (track.mode === "disabled") {
+        track.mode = "showing";
+        turnedOn.add(track);
+      }
     }
     if (!placing.has(track)) {
       placing.add(track);
@@ -261,7 +320,7 @@ export function enhanceVideo(root: HTMLElement, options: VideoOptions = {}): Vid
         const times = cueTimes(own[0] + offset, own[1] + offset);
         if (times !== undefined) {
           [cue.startTime, cue.endTime] = times;
-          moved.set(cue, { own, wrote: times });
+          record(track, cue, own, times);
         }
         TextTrack.prototype.addCue.call(track, cue);
       };
@@ -270,7 +329,7 @@ export function enhanceVideo(root: HTMLElement, options: VideoOptions = {}): Vid
       const own = ownTimes(cue);
       const wrote = place(track, cue, own[0] + offset, own[1] + offset);
       if (wrote !== undefined) {
-        moved.set(cue, { own, wrote });
+        record(track, cue, own, wrote);
       }
     }
   };
@@ -299,11 +358,14 @@ export function enhanceVideo(root: HTMLElement, options: VideoOptions = {}): Vid
       listen,
     );
   }
+  // Before the listeners that draw, so the seek bar reads a cleared mark. A
+  // <source> added after every one failed loads with no `loadstart`.
+  for (const type of ["loadstart", "loadedmetadata"]) {
+    video.addEventListener(type, clearError, listen);
+  }
   video.addEventListener(
     "loadstart",
     () => {
-      root.removeAttribute(ERROR);
-      play.disabled = false;
       setBusy(true);
     },
     listen,
@@ -324,13 +386,16 @@ export function enhanceVideo(root: HTMLElement, options: VideoOptions = {}): Vid
       listen,
     );
   }
+  // A <source>'s error does not bubble, and a <track>'s is no failure of the video.
   video.addEventListener(
     "error",
-    () => {
-      showError();
-      draw();
+    (e) => {
+      if (e.target === video || (e.target instanceof HTMLSourceElement && sourcesFailed())) {
+        showError();
+        draw();
+      }
     },
-    listen,
+    until(signal, true),
   );
 
   seek.addEventListener(
@@ -408,9 +473,26 @@ export function enhanceVideo(root: HTMLElement, options: VideoOptions = {}): Vid
     },
     until(signal, true),
   );
-  // Either can change which track is the caption track.
-  video.textTracks.addEventListener("addtrack", applyOffset, listen);
-  video.textTracks.addEventListener("removetrack", applyOffset, listen);
+  // The browser picks which <track> shows in a task queued before the
+  // track's `addtrack` (https://html.spec.whatwg.org/multipage/media.html#honor-user-preferences-for-automatic-text-track-selection),
+  // so whether to show such a track is decided again after that pick.
+  video.textTracks.addEventListener(
+    "addtrack",
+    (e) => {
+      const fromMarkup = [...video.querySelectorAll<HTMLTrackElement>(":scope > track")].some(
+        (el) => el.track === e.track,
+      );
+      if (fromMarkup && e.track !== null) {
+        seen.delete(e.track);
+      }
+      applyOffset();
+    },
+    listen,
+  );
+  // `change` follows a mode the app or the browser sets.
+  for (const type of ["removetrack", "change"]) {
+    video.textTracks.addEventListener(type, applyOffset, listen);
+  }
 
   // A closed pane stops the video where it is, so reopening carries on.
   const shown = new ResizeObserver(() => {
@@ -425,7 +507,7 @@ export function enhanceVideo(root: HTMLElement, options: VideoOptions = {}): Vid
     { readonly stop: AbortController; readonly from: number; readonly resume: boolean } | undefined;
 
   // A source that failed before this call has already fired its error.
-  if (video.error !== null) {
+  if (video.error !== null || sourcesFailed()) {
     showError();
   }
   applyOffset();
