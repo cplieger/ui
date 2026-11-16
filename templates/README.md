@@ -96,7 +96,7 @@ The gate page for a recovery or error message, for a store or server that cannot
 
 ## Accounts unavailable: `accounts-unavailable.html`
 
-The message with no script, filled for an app whose accounts file cannot open. The server answers every page path with it, so nobody can sign in while the rest of the app keeps running. Its text is fixed: nothing in it is read at run time, so the page needs no store and no account.
+The message with no script, filled for an app whose accounts file cannot open. The server answers every page path with it, so nobody can sign in while the rest of the app keeps running. The server writes the whole page: nothing in it is fetched by a script, so the page needs no store and no account.
 
 | Region | Slots, in order |
 | --- | --- |
@@ -104,4 +104,10 @@ The message with no script, filled for an app whose accounts file cannot open. T
 | panel | heading ("Release tracker cannot open its accounts"), notices (a danger `.cp-notice`: nobody can sign in until the file is restored or reset, and everything else keeps running), facts (`dl.cp-facts`: each file that cannot open, its error, and where the backups are), remedies (restore from an archive, then reset, each its command in a code block, the warning naming what a reset deletes leading the reset; then "Reload this page once the command has finished.") |
 | foot | the about line, the build's version first |
 
-When the product's own store cannot open too, the facts name both files with their errors, and the remedies give the accounts commands first, then the store's.
+How an app fills the slots:
+
+- The file is named by its path, or by the name of the setting that holds the path when the app keeps its paths off every page served without signing in (`ACCOUNTS_PATH`).
+- The error is a sentence the server writes for the class of the failure ("The file cannot be read."), never the raw error, which can carry the path.
+- The Backups fact and the restore remedy are there only when the app has a restore command. A remedy with no command yet is its sentence alone in its item.
+- Each command is the app's whole line as the person runs it, written by the server: the container and the binary are the app's (`docker exec release-tracker /release-tracker accounts reset` for an image with no `PATH`).
+- When other files cannot open too, the facts name each file with its error, and the remedies give the accounts commands first, then each other file's.
