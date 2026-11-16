@@ -168,20 +168,31 @@ async function run(smooth: boolean, moves: readonly Move[]): Promise<void> {
     // Either the hold ended and the section in view is marked, or it still
     // holds the pressed category on a link in the list.
     const links = live();
-    const marked = links.filter((l) => l.getAttribute("aria-current") === "location");
+    const marked = (): HTMLAnchorElement[] =>
+      links.filter((l) => l.getAttribute("aria-current") === "location");
     const seen = await inView(links);
     await task();
-    if (seen !== null) {
-      expect(marked).toHaveLength(1);
-      expect(marked[0] === seen || marked[0]?.href === pressed).toBe(true);
+    expect(marked().length).toBeLessThanOrEqual(1);
+    if (seen !== null && marked()[0] !== seen) {
+      expect(marked()[0]?.href).toBe(pressed);
+      // A live hold ends on a pixel's page scroll and marks the section in
+      // view; a mark left behind by an ended hold stays where it is.
+      scrollBy({ top: scrollY > 0 ? -1 : 1, behavior: "instant" });
+      await still();
+      const now = await inView(links);
+      await task();
+      if (now !== null) {
+        expect(marked()).toHaveLength(1);
+        expect(marked()[0]).toBe(now);
+      }
     }
     // A hold on a live link ends on the person's next page scroll.
     document.documentElement.style.scrollBehavior = "";
     dispatchEvent(new Event("wheel"));
-    scrollTo(0, end());
+    scrollTo({ top: end(), behavior: "instant" });
     await still();
     dispatchEvent(new Event("wheel"));
-    scrollTo(0, 0);
+    scrollTo({ top: 0, behavior: "instant" });
     await still();
     const top = await inView(live());
     await task();
@@ -205,8 +216,16 @@ describe("enhanceSettings' pressed-category hold, for any order of events", () =
       fc.asyncProperty(fc.boolean(), fc.array(move, { minLength: 1, maxLength: 8 }), run),
       // Each run scrolls a real page, and the setup's 10 s limit fails a
       // property it interrupts; stopping at 6 s keeps the runs a loaded host
-      // affords and still reports a counter-example found before then.
-      { numRuns: 30, interruptAfterTimeLimit: 6000 },
+      // affords and still reports a counter-example found before then. The
+      // examples run first: a short last section held after its jump.
+      {
+        numRuns: 30,
+        interruptAfterTimeLimit: 6000,
+        examples: [
+          [false, [{ kind: "press", at: 2 }]],
+          [true, [{ kind: "press", at: 2 }]],
+        ],
+      },
     );
   }, 60_000);
 });

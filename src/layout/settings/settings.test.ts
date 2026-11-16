@@ -24,6 +24,32 @@ afterEach(async () => {
 
 const task = (): Promise<void> => new Promise((r) => setTimeout(r));
 
+/** Waits until `el` has stopped scrolling for three frames. */
+async function still(el: Element = document.documentElement): Promise<void> {
+  for (let y = Number.NaN, quiet = 0; quiet < 3;) {
+    await new Promise(requestAnimationFrame);
+    quiet = el.scrollTop === y ? quiet + 1 : 0;
+    y = el.scrollTop;
+  }
+  await task();
+}
+
+/** Resolves at the page's second scroll event, a smooth jump under way. */
+const glide = (): Promise<void> =>
+  new Promise((resolve) => {
+    let n = 0;
+    addEventListener(
+      "scroll",
+      () => {
+        n += 1;
+        if (n === 2) {
+          resolve();
+        }
+      },
+      { signal: life.signal },
+    );
+  });
+
 const row = (name: string, href: string, current = ""): string =>
   `<li><a class="cp-list-row" href="${href}"${current}><span class="cp-cell-stack">${name}</span></a></li>`;
 
@@ -490,7 +516,8 @@ describe("enhanceSettings", () => {
     } finally {
       document.documentElement.style.scrollBehavior = "";
     }
-    scrollTo(0, 0);
+    // Firefox may still glide a scroll made just after the style changes.
+    scrollTo({ top: 0, behavior: "instant" });
     await vi.waitFor(() => {
       expect(current()).toBe(0);
     });
@@ -598,7 +625,8 @@ describe("enhanceSettings", () => {
     } finally {
       document.documentElement.style.scrollBehavior = "";
     }
-    scrollTo(0, 0);
+    // Firefox may still glide a scroll made just after the style changes.
+    scrollTo({ top: 0, behavior: "instant" });
     await vi.waitFor(() => {
       expect(current()).toBe(0);
     });
@@ -634,10 +662,78 @@ describe("enhanceSettings", () => {
     } finally {
       document.documentElement.style.scrollBehavior = "";
     }
-    scrollTo(0, 0);
+    // Firefox may still glide a scroll made just after the style changes.
+    scrollTo({ top: 0, behavior: "instant" });
     await vi.waitFor(() => {
       expect(current()).toBe(0);
     });
+  });
+
+  it.each([0, 100])(
+    "keeps a pressed short category through its upward jump in a box %ipx below the window's top",
+    async (offset) => {
+      const host = document.createElement("div");
+      host.style.cssText = "position: fixed; inset: 0";
+      host.innerHTML =
+        `<header style="block-size: ${String(offset)}px"></header>` +
+        `<div class="cp-settings" style="block-size: calc(100vh - ${String(offset)}px); overflow-y: auto">` +
+        '<nav class="cp-settings-nav"><ul class="cp-list">' +
+        row("Connections", "#b-con") +
+        row("Checks", "#b-chk") +
+        row("Display", "#b-dis") +
+        '</ul></nav><form><section id="b-con" style="block-size: 120vh"><input></section>' +
+        '<section id="b-chk" style="block-size: 40px"><input></section>' +
+        '<section id="b-dis" style="block-size: 120vh"><input></section></form></div>';
+      document.body.append(host);
+      const box = host.querySelector(".cp-settings") as HTMLElement;
+      const links = [...host.querySelectorAll<HTMLAnchorElement>("a.cp-list-row")];
+      enhanceSettings(host.querySelector("form") as HTMLFormElement, { signal: life.signal });
+      box.scrollTop = box.scrollHeight;
+      await still(box);
+      links[1]?.click();
+      await still(box);
+      const checks = document.getElementById("b-chk") as HTMLElement;
+      const current = links.findIndex((l) => l.hasAttribute("aria-current"));
+      expect([current, Math.round(checks.getBoundingClientRect().top)]).toEqual([1, offset]);
+    },
+  );
+
+  it("ends the hold when the person's scroll cuts the press's smooth jump short", async () => {
+    const { form, links } = page(true);
+    enhanceSettings(form, { signal: life.signal });
+    const current = (): number => links.findIndex((l) => l.hasAttribute("aria-current"));
+    document.documentElement.style.scrollBehavior = "smooth";
+    try {
+      const gliding = glide();
+      links[2]?.click();
+      await gliding;
+      // The person's own scroll stops the glide, as a wheel or a drag does.
+      dispatchEvent(new WheelEvent("wheel", { deltaY: -100 }));
+      scrollTo({ top: Math.round(scrollY / 3), behavior: "instant" });
+      await still();
+    } finally {
+      document.documentElement.style.scrollBehavior = "";
+    }
+    // Connections is 120vh tall, so it fills the band at any scroll under 80vh.
+    expect([scrollY < innerHeight * 0.8, current()]).toEqual([true, 0]);
+  });
+
+  it("ends the hold when the person scrolls a smooth jump down back to the top", async () => {
+    const { form, links } = page(true);
+    enhanceSettings(form, { signal: life.signal });
+    const current = (): number => links.findIndex((l) => l.hasAttribute("aria-current"));
+    document.documentElement.style.scrollBehavior = "smooth";
+    try {
+      const gliding = glide();
+      links[2]?.click();
+      await gliding;
+      dispatchEvent(new WheelEvent("wheel", { deltaY: -100 }));
+      scrollTo({ top: 0, behavior: "instant" });
+      await still();
+    } finally {
+      document.documentElement.style.scrollBehavior = "";
+    }
+    expect([scrollY, current()]).toEqual([0, 0]);
   });
 
   it("carries a pressed category's hold to its new link when update replaces the links", async () => {

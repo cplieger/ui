@@ -130,7 +130,6 @@ type Hold =
       readonly kind: "jumping";
       readonly link: HTMLAnchorElement;
       readonly from: number;
-      readonly to: number;
       readonly scroller: EventTarget | null;
     }
   | { readonly kind: "held"; readonly link: HTMLAnchorElement; readonly at: string };
@@ -323,11 +322,11 @@ export function enhanceSettings(form: HTMLFormElement, options: SettingsOptions 
   // A pressed link stays current until the page scrolls after the press's
   // own jump, so a last section too short to reach the band still reads as
   // current. Every event goes through `step`; `release` is the only way back
-  // to idle. While `jumping`, the first scroller seen moving the section
-  // toward its place is the jump's, and only its `scrollend` ends the jump
-  // (Firefox jumps a frame after the click, a smooth scroll glides); a jump
-  // nothing has moved yet ends at the next input. Then `held` keeps the
-  // section's place on screen until a scroll moves it.
+  // to idle. A jump ends three ways: its scroller's `scrollend` settles where
+  // it landed and releases where the person cut it short (Firefox jumps a
+  // frame after the click, a smooth scroll glides); an input settles a jump
+  // nothing has moved; a scroll away from or past its place releases. Then
+  // `held` keeps the section's place on screen until a scroll moves it.
   let hold: Hold = IDLE;
   const placeOf = (link: HTMLAnchorElement): string => {
     const box = targets.get(link)?.getBoundingClientRect();
@@ -340,9 +339,21 @@ export function enhanceSettings(form: HTMLFormElement, options: SettingsOptions 
   const settle = (link: HTMLAnchorElement): void => {
     hold = { kind: "held", link, at: placeOf(link) };
   };
-  // `from` is the section's top at the press and `to` where the jump brings
-  // it. A scroll that moves the section away from `to` or past it is the
-  // person's, as after a press at the page's end, which moves nothing.
+  // Where a jump in `scroller` brings the section's top: the box's top inside
+  // its border (the window's is 0), plus its scroll-padding-top and the
+  // section's scroll-margin-top.
+  const destination = (scroller: Node, section: Element): number => {
+    const box =
+      scroller instanceof Element && scroller !== document.scrollingElement ? scroller : null;
+    const port = box ?? document.documentElement;
+    const top = box === null ? 0 : box.getBoundingClientRect().top + box.clientTop;
+    // scroll-padding computes to "auto" when unset.
+    const padding = parseFloat(getComputedStyle(port).scrollPaddingTop) || 0;
+    return top + padding + (parseFloat(getComputedStyle(section).scrollMarginTop) || 0);
+  };
+  // `from` is the section's top at the press. A scroll that moves it away
+  // from its place or past it is the person's, as after a press at the
+  // page's end, which moves nothing.
   const jumped = (jump: Extract<Hold, { kind: "jumping" }>, scroller: EventTarget | null): void => {
     const section = targets.get(jump.link);
     if (section === undefined || !(scroller instanceof Node) || !holds(scroller, section)) {
@@ -352,24 +363,34 @@ export function enhanceSettings(form: HTMLFormElement, options: SettingsOptions 
     if (top === jump.from) {
       return;
     }
-    const away = Math.sign(top - jump.from) !== Math.sign(jump.to - jump.from);
-    if (away || Math.abs(top - jump.from) > Math.abs(jump.to - jump.from) + 1) {
+    const to = destination(scroller, section);
+    const away = Math.sign(top - jump.from) !== Math.sign(to - jump.from);
+    if (away || Math.abs(top - jump.from) > Math.abs(to - jump.from) + 1) {
       release();
     } else if (jump.scroller === null) {
       hold = { ...jump, scroller };
     }
   };
+  // Short of its place, a jump landed only where its scroller stopped at the
+  // end it moved toward, as a last section too short to reach it does.
+  const landed = (jump: Extract<Hold, { kind: "jumping" }>, scroller: EventTarget): boolean => {
+    const section = targets.get(jump.link);
+    const port = scroller instanceof Element ? scroller : document.scrollingElement;
+    if (section === undefined || !(scroller instanceof Node) || port === null) {
+      return false;
+    }
+    const to = destination(scroller, section);
+    if (Math.abs(section.getBoundingClientRect().top - to) <= 1) {
+      return true;
+    }
+    return to < jump.from
+      ? port.scrollTop >= port.scrollHeight - port.clientHeight - 1
+      : port.scrollTop <= 1;
+  };
   const step = (e: HoldEvent): void => {
     if (e.type === "press") {
-      const target = targets.get(e.link);
-      const from = target?.getBoundingClientRect().top ?? 0;
-      // scroll-padding computes to "auto" when unset.
-      const to =
-        target === undefined
-          ? from
-          : (parseFloat(getComputedStyle(target).scrollMarginTop) || 0) +
-            (parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop) || 0);
-      hold = { kind: "jumping", link: e.link, from, to, scroller: null };
+      const from = targets.get(e.link)?.getBoundingClientRect().top ?? 0;
+      hold = { kind: "jumping", link: e.link, from, scroller: null };
       setCurrent(e.link);
       return;
     }
@@ -396,8 +417,12 @@ export function enhanceSettings(form: HTMLFormElement, options: SettingsOptions 
         }
         return;
       case "scrollend":
-        if (hold.kind === "jumping" && hold.scroller === e.target) {
-          settle(link);
+        if (hold.kind === "jumping" && hold.scroller !== null && hold.scroller === e.target) {
+          if (landed(hold, hold.scroller)) {
+            settle(link);
+          } else {
+            release();
+          }
         }
         return;
       case "scroll":
