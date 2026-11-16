@@ -2,7 +2,9 @@
  * stands, worst first, and opens its panel. data-state names the state; the
  * stylesheet draws its glyph and fill, and the words are the app's: the
  * state's words, then an optional data-part="detail", such as a running
- * check. A state that needs the person fills the button in its tone. */
+ * check. A state that needs the person fills the button in its tone. The
+ * rest fill moves away from the shell ink, as the nav's hover does: a tint
+ * of the ink itself dropped its words to 3.94:1 on a light shell. */
 .cp-header-status {
   --cp-status-glyph: none;
 
@@ -13,7 +15,7 @@
   padding-inline: var(--cp-space-3);
   border: 0;
   border-radius: var(--cp-radius-round);
-  background: oklch(from var(--cp-shell-ink) l c h / 12%);
+  background: var(--cp-shell-hover);
   color: var(--cp-shell-ink);
   font: inherit;
   font-size: var(--cp-text-sm);
@@ -85,7 +87,7 @@
 
 @keyframes cp-status-breathe {
   50% {
-    background-color: oklch(from var(--cp-shell-ink) l c h / 22%);
+    background-color: var(--cp-shell-current);
   }
 }
 
@@ -94,8 +96,25 @@
   outline-offset: var(--cp-focus-offset);
 }
 
-/* Compact: the glyph and the state's words; the detail waits in the panel. */
+/* Compact: the glyph alone. The words stay in the button's name, so they are
+ * clipped rather than hidden; the detail waits in the panel's heading. */
 @media (width < 40rem) {
+  .cp-header-status {
+    justify-content: center;
+    min-inline-size: var(--cp-control-h-sm);
+    padding-inline: 0;
+  }
+
+  .cp-header-status > :not([data-part="detail"]) {
+    position: absolute;
+    overflow: hidden;
+    clip-path: inset(50%);
+    inline-size: 1px;
+    block-size: 1px;
+    margin: -1px;
+    white-space: nowrap;
+  }
+
   .cp-header-status > [data-part="detail"] {
     display: none;
   }

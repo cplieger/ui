@@ -1489,6 +1489,36 @@ describe("css/system.css", () => {
     expect(getComputedStyle(detail).display).toBe("none");
   });
 
+  for (const t of ["light", "dark"] as const) {
+    it(`sets the header status's words at 4.5:1 on its fill at every hue in ${t}`, () => {
+      theme(t);
+      const el = build(
+        '<header class="cp-header">' +
+          ["ok", "working", ""]
+            .map(
+              (st) =>
+                `<button class="cp-header-status" type="button" data-state="${st}"><span>All good</span></button>`,
+            )
+            .join("") +
+          "</header>",
+      );
+      const buttons = [...el.querySelectorAll<HTMLElement>(".cp-header-status")];
+      for (const b of buttons) {
+        b.style.animation = "none";
+      }
+      for (let hue = 0; hue < 360; hue += 15) {
+        root.style.setProperty("--cp-accent-h", String(hue));
+        for (const b of buttons) {
+          const cs = getComputedStyle(b);
+          expect(
+            contrast(cs.color, cs.backgroundColor),
+            `hue ${String(hue)} state "${b.dataset["state"] ?? ""}"`,
+          ).toBeGreaterThanOrEqual(4.5);
+        }
+      }
+    });
+  }
+
   it("draws a destination's badge in the bar's ink, and on its icon's corner in the accent on a phone", async () => {
     theme("light");
     const el = build(
