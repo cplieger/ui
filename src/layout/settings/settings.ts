@@ -140,16 +140,36 @@ function paddingTop(styled: Element, port: number): number {
   block.append(probe);
   document.documentElement.append(block);
   const used = probe.getBoundingClientRect().height;
+  const full = block.getBoundingClientRect().height;
   block.remove();
-  return used;
+  // The ratio leaves out a zoom on the root, which scales both boxes.
+  return full > 0 ? (used / full) * port : used;
+}
+
+/** Screen pixels per CSS pixel of `el`'s contents, after every zoom and
+ *  transform on it and above it. A rectangle is in screen pixels; its
+ *  `scrollTop` and computed lengths are in its own. */
+function scaleOf(el: Element): number {
+  const probe = document.createElement("div");
+  probe.style.all = "initial";
+  probe.style.display = "block";
+  probe.style.position = "absolute";
+  probe.style.visibility = "hidden";
+  probe.style.blockSize = "100px";
+  (el.shadowRoot ?? el).append(probe);
+  const height = probe.getBoundingClientRect().height;
+  probe.remove();
+  return height > 0 ? height / 100 : 1;
 }
 
 /** A scroller a fragment jump moves: its offset at the press and the
- *  offset the jump takes it to. */
+ *  offset the jump takes it to. `reach` is where an earlier press's glide,
+ *  still running at this press, was taking it (else `to`). */
 interface Leg {
   readonly box: Element;
   readonly from: number;
   readonly to: number;
+  readonly reach: number;
 }
 
 /** Where a fragment jump to `section` takes each scroller holding it, keyed
@@ -160,15 +180,22 @@ interface Leg {
  *  fixed box the viewport is left out, since its scroll does not move it. */
 function plan(section: Element): Map<EventTarget, Leg> {
   const legs = new Map<EventTarget, Leg>();
-  let top =
-    section.getBoundingClientRect().top -
-    (parseFloat(getComputedStyle(section).scrollMarginTop) || 0);
-  const take = (key: EventTarget, box: Element, styled: Element, portTop: number): void => {
+  const margin = parseFloat(getComputedStyle(section).scrollMarginTop) || 0;
+  // The section's scroll-margin edge, in screen pixels.
+  let top = section.getBoundingClientRect().top - (margin === 0 ? 0 : margin * scaleOf(section));
+  /** `edge` is the box's top in screen pixels; `inset` (its top border) and
+   *  the offsets are in its own, `scale` screen pixels apart. */
+  const take = (
+    key: EventTarget,
+    box: Element,
+    styled: Element,
+    { edge, inset, scale }: { edge: number; inset: number; scale: number },
+  ): void => {
     const from = box.scrollTop;
-    const want = from + top - portTop - paddingTop(styled, box.clientHeight);
+    const want = from + (top - edge) / scale - inset - paddingTop(styled, box.clientHeight);
     const to = Math.max(0, Math.min(want, box.scrollHeight - box.clientHeight));
-    legs.set(key, { box, from, to });
-    top -= to - from;
+    legs.set(key, { box, from, to, reach: to });
+    top -= (to - from) * scale;
   };
   const html = document.documentElement;
   // The body's overflow is the viewport's while the root's is visible.
@@ -181,13 +208,18 @@ function plan(section: Element): Map<EventTarget, Leg> {
       overflowY !== "clip" &&
       (at !== document.body || bodyScrolls)
     ) {
-      take(at, at, at, at.getBoundingClientRect().top + at.clientTop);
+      take(at, at, at, {
+        edge: at.getBoundingClientRect().top,
+        inset: at.clientTop,
+        scale: scaleOf(at),
+      });
     }
     if (position === "fixed") {
       return legs;
     }
   }
-  take(document, document.scrollingElement ?? html, html, 0);
+  // The viewport's offsets and a rectangle are both in screen pixels.
+  take(document, document.scrollingElement ?? html, html, { edge: 0, inset: 0, scale: 1 });
   return legs;
 }
 
@@ -414,10 +446,19 @@ export function enhanceSettings(form: HTMLFormElement, options: SettingsOptions 
     const legs = plan(section);
     const left = new Set<EventTarget>();
     for (const [key, leg] of legs) {
+      // Firefox moves a running glide one more frame before the new jump
+      // starts, so that frame still heads for the earlier destination.
+      const earlier =
+        hold.kind === "jumping" && hold.left.has(key) ? hold.legs.get(key) : undefined;
       if (Math.abs(leg.to - leg.from) > 1) {
         left.add(key);
+        legs.set(key, { ...leg, reach: earlier?.to ?? leg.to });
       } else {
-        legs.set(key, { ...leg, to: leg.from });
+        legs.set(key, { ...leg, to: leg.from, reach: leg.from });
+      }
+      const at = leg.box.getRootNode();
+      if (at instanceof ShadowRoot) {
+        hear(at);
       }
     }
     setCurrent(link);
@@ -459,15 +500,17 @@ export function enhanceSettings(form: HTMLFormElement, options: SettingsOptions 
     }
     const at = e.target;
     const leg = at === null ? undefined : hold.legs.get(at);
-    // A scroller the jump does not move, a box inside the section, leaves it.
+    // A scroller that does not hold the section, such as a box inside it,
+    // leaves the hold.
     if (at === null || leg === undefined) {
       return;
     }
     const y = leg.box.scrollTop;
-    // On its way a scroller stays between its two offsets, within the 1px a
+    // On its way a scroller stays between its offsets, within the 1px a
     // planned offset may differ from the browser's; once still, on its own.
     const onCourse = hold.left.has(at)
-      ? y >= Math.min(leg.from, leg.to) - 1 && y <= Math.max(leg.from, leg.to) + 1
+      ? y >= Math.min(leg.from, leg.to, leg.reach) - 1 &&
+        y <= Math.max(leg.from, leg.to, leg.reach) + 1
       : y === leg.to;
     if (!onCourse) {
       release();
@@ -506,8 +549,14 @@ export function enhanceSettings(form: HTMLFormElement, options: SettingsOptions 
     { rootMargin: "-20% 0px -60% 0px" },
   );
   const early = { ...until(signal, true), passive: true };
-  // A box's scroll does not bubble, and one inside a shadow root stops there.
-  for (const at of root instanceof ShadowRoot ? [window, root] : [window]) {
+  // A box's scroll does not bubble or leave its shadow root, so each root
+  // holding a scroller the plan moves is heard.
+  const heard = new Set<EventTarget>();
+  const hear = (at: EventTarget): void => {
+    if (heard.has(at)) {
+      return;
+    }
+    heard.add(at);
     for (const type of ["scroll", "scrollend"] as const) {
       at.addEventListener(
         type,
@@ -517,6 +566,10 @@ export function enhanceSettings(form: HTMLFormElement, options: SettingsOptions 
         early,
       );
     }
+  };
+  hear(window);
+  if (root instanceof ShadowRoot) {
+    hear(root);
   }
   nav.addEventListener(
     "click",

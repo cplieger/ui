@@ -6,8 +6,8 @@ import { enhanceSettings } from "./settings.js";
 const frame = (): Promise<unknown> => new Promise(requestAnimationFrame);
 const task = (): Promise<void> => new Promise((r) => setTimeout(r));
 
-const NAMES = ["Connections", "Checks", "Display"] as const;
-const IDS = ["s-con", "s-chk", "s-dis"] as const;
+const NAMES = ["Connections", "Checks", "Display", "Logs"] as const;
+const IDS = ["s-con", "s-chk", "s-dis", "s-log"] as const;
 
 const rows = (keep: readonly number[]): string =>
   keep
@@ -25,11 +25,12 @@ type Move =
   | { readonly kind: "pane"; readonly to: number }
   | { readonly kind: "render"; readonly drop: number | null }
   | { readonly kind: "update" }
-  | { readonly kind: "wait"; readonly for: "frame" | "task" | "scrollend" };
+  | { readonly kind: "wait"; readonly for: "frame" | "task" | "scrollend" }
+  | { readonly kind: "glide"; readonly frames: number };
 
 const move: fc.Arbitrary<Move> = fc.oneof(
   {
-    arbitrary: fc.record({ kind: fc.constant("press"), at: fc.integer({ min: 0, max: 2 }) }),
+    arbitrary: fc.record({ kind: fc.constant("press"), at: fc.integer({ min: 0, max: 3 }) }),
     weight: 3,
   },
   {
@@ -59,7 +60,7 @@ const move: fc.Arbitrary<Move> = fc.oneof(
   },
   // Connections stays, so the top of the page always has a category in view.
   {
-    arbitrary: fc.record({ kind: fc.constant("render"), drop: fc.constantFrom(null, 1, 2) }),
+    arbitrary: fc.record({ kind: fc.constant("render"), drop: fc.constantFrom(null, 1, 2, 3) }),
     weight: 2,
   },
   { arbitrary: fc.record({ kind: fc.constant("update") }), weight: 1 },
@@ -70,24 +71,43 @@ const move: fc.Arbitrary<Move> = fc.oneof(
     }),
     weight: 3,
   },
+  // Waits into a glide, so the next move can meet it under way.
+  {
+    arbitrary: fc.record({ kind: fc.constant("glide"), frames: fc.integer({ min: 1, max: 20 }) }),
+    weight: 2,
+  },
 );
 
 /** The page around the categories, its smooth scrolling and its
- *  scroll-padding-top. `nested` puts them in a box that scrolls in a page
- *  that scrolls too; `short` makes Checks too short to reach the band. */
+ *  scroll-padding-top. `box` puts them in a box that scrolls in a page that
+ *  scrolls too, in their own tree or slotted into a shadow root's; `short`
+ *  makes Checks too short to reach the band; `tail` adds Logs, a tall
+ *  category below Display, so a jump to it glides past Checks. */
 interface Setup {
-  readonly nested: boolean;
+  readonly box: "none" | "light" | "shadow";
   readonly smooth: "none" | "root" | "both";
   readonly padding: "auto" | "48px" | "10%" | "calc(10% + 8px)";
   readonly short: boolean;
+  readonly tail: boolean;
 }
 
 const setup: fc.Arbitrary<Setup> = fc.record({
-  nested: fc.boolean(),
+  box: fc.constantFrom("none", "light", "shadow"),
   smooth: fc.constantFrom("none", "root", "both"),
   padding: fc.constantFrom("auto", "48px", "10%", "calc(10% + 8px)"),
   short: fc.boolean(),
+  tail: fc.boolean(),
 });
+
+/** A custom element whose shadow root scrolls what is slotted into it. */
+class Pane extends HTMLElement {
+  constructor() {
+    super();
+    this.attachShadow({ mode: "open" }).innerHTML =
+      '<div style="block-size: 80vh; overflow-y: auto"><slot></slot></div>';
+  }
+}
+customElements.define("settings-property-pane", Pane);
 
 /** Waits until the page and `pane` have stopped scrolling for three frames. */
 async function still(pane: Element | null = null): Promise<void> {
@@ -126,23 +146,34 @@ function inView(links: readonly HTMLAnchorElement[]): Promise<HTMLAnchorElement 
 async function run(page: Setup, moves: readonly Move[]): Promise<void> {
   const life = new AbortController();
   const host = document.createElement("div");
-  const pane = page.nested ? ' style="block-size: 80vh; overflow-y: auto"' : "";
+  const nested = page.box !== "none";
+  const pane = page.box === "light" ? ' style="block-size: 80vh; overflow-y: auto"' : "";
   const checks = page.short ? "block-size: 40px" : "min-block-size: 120vh";
+  const all = page.tail ? [0, 1, 2, 3] : [0, 1, 2];
   host.innerHTML =
-    (page.nested ? '<header style="block-size: 10vh"></header>' : "") +
+    (nested ? '<header style="block-size: 10vh"></header>' : "") +
+    (page.box === "shadow" ? "<settings-property-pane>" : "") +
     `<div class="cp-settings"${pane}><nav class="cp-settings-nav" aria-label="Settings"><ul class="cp-list">` +
-    rows([0, 1, 2]) +
+    rows(all) +
     "</ul></nav><form>" +
     '<section id="s-con" style="min-block-size: 120vh"><h2>Connections</h2><input></section>' +
     `<section id="s-chk" style="${checks}"><h2>Checks</h2><input></section>` +
     '<section id="s-dis"><h2>Display</h2><textarea rows="2">1\n2\n3\n4\n5\n6\n7\n8</textarea></section>' +
+    (page.tail ? '<section id="s-log" style="block-size: 150vh"><h2>Logs</h2></section>' : "") +
     "</form></div>" +
-    (page.nested ? '<footer style="block-size: 100vh"></footer>' : "");
+    (page.box === "shadow" ? "</settings-property-pane>" : "") +
+    (nested ? '<footer style="block-size: 100vh"></footer>' : "");
   document.body.append(host);
   const nav = host.querySelector("nav") as HTMLElement;
   const ul = host.querySelector("ul") as HTMLElement;
   const box = host.querySelector("textarea") as HTMLTextAreaElement;
-  const scroller = page.nested ? (host.querySelector(".cp-settings") as HTMLElement) : null;
+  const scroller =
+    page.box === "light"
+      ? (host.querySelector(".cp-settings") as HTMLElement)
+      : page.box === "shadow"
+        ? (host.querySelector("settings-property-pane")?.shadowRoot
+            ?.firstElementChild as HTMLElement)
+        : null;
   const live = (): HTMLAnchorElement[] => [
     ...nav.querySelectorAll<HTMLAnchorElement>("a.cp-list-row"),
   ];
@@ -192,11 +223,21 @@ async function run(page: Setup, moves: readonly Move[]): Promise<void> {
           if (m.drop !== null && pressed?.endsWith(`#${IDS[m.drop] ?? ""}`) === true) {
             holding = false;
           }
-          ul.innerHTML = rows([0, 1, 2].filter((i) => i !== m.drop));
+          ul.innerHTML = rows(all.filter((i) => i !== m.drop));
           s.update();
           break;
         case "update":
           s.update();
+          break;
+        case "glide":
+          for (let i = 0, y = ""; i < m.frames; i++) {
+            await frame();
+            const now = `${String(scrollY)} ${String(scroller?.scrollTop ?? 0)}`;
+            if (now === y) {
+              break;
+            }
+            y = now;
+          }
           break;
         case "wait":
           if (m.for === "frame") {
@@ -227,9 +268,10 @@ async function run(page: Setup, moves: readonly Move[]): Promise<void> {
     }
     if (seen !== null && marked()[0] !== seen) {
       expect(marked()[0]?.href).toBe(pressed);
-      // A live hold ends on a pixel's page scroll and marks the section in
-      // view; a mark left behind by an ended hold stays where it is.
-      scrollBy({ top: scrollY > 0 ? -1 : 1, behavior: "instant" });
+      // A live hold ends on a pixel's scroll of the categories' scroller and
+      // marks the section in view; a mark left by an ended hold stays put.
+      const by = (scroller?.scrollTop ?? scrollY) > 0 ? -1 : 1;
+      (scroller ?? window).scrollBy({ top: by, behavior: "instant" });
       await still(scroller);
       const now = await inView(links);
       await task();
@@ -268,7 +310,7 @@ async function run(page: Setup, moves: readonly Move[]): Promise<void> {
   }
 }
 
-const flat: Setup = { nested: false, smooth: "none", padding: "auto", short: false };
+const flat: Setup = { box: "none", smooth: "none", padding: "auto", short: false, tail: false };
 
 describe("enhanceSettings' pressed-category hold, for any order of events", () => {
   it("ends with the section in view marked, or holds a link still in the list", async () => {
@@ -285,7 +327,16 @@ describe("enhanceSettings' pressed-category hold, for any order of events", () =
           [{ ...flat, smooth: "none" }, [{ kind: "press", at: 2 }]],
           [{ ...flat, smooth: "root" }, [{ kind: "press", at: 2 }]],
           [{ ...flat, padding: "10%", short: true }, [{ kind: "press", at: 1 }]],
-          [{ ...flat, nested: true, smooth: "root", short: true }, [{ kind: "press", at: 1 }]],
+          [{ ...flat, box: "light", smooth: "root", short: true }, [{ kind: "press", at: 1 }]],
+          [{ ...flat, box: "shadow", short: true }, [{ kind: "press", at: 1 }]],
+          [
+            { ...flat, smooth: "root", short: true, tail: true },
+            [
+              { kind: "press", at: 3 },
+              { kind: "glide", frames: 12 },
+              { kind: "press", at: 1 },
+            ],
+          ],
         ],
       },
     );

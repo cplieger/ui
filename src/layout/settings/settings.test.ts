@@ -38,7 +38,8 @@ async function still(...els: Element[]): Promise<void> {
   await task();
 }
 
-/** Resolves at the page's second scroll event, a smooth jump under way. */
+/** Resolves at the page's second scroll event, a smooth jump under way, or
+ *  at its scrollend, when a slow frame let the jump finish in one. */
 const glide = (): Promise<void> =>
   new Promise((resolve) => {
     let n = 0;
@@ -51,6 +52,13 @@ const glide = (): Promise<void> =>
         }
       },
       { signal: life.signal },
+    );
+    addEventListener(
+      "scrollend",
+      () => {
+        resolve();
+      },
+      { signal: life.signal, once: true },
     );
   });
 
@@ -802,6 +810,99 @@ describe("enhanceSettings", () => {
       }
       // Each scroller brings Checks to its own top: the box's, then the window's.
       expect(await pressChecks(links, 0, box)).toBe(1);
+    },
+  );
+
+  it.each(["its own tree", "a shadow root it is slotted into"])(
+    "keeps a pressed short category in a box in %s, and ends the hold when the box scrolls back",
+    async (where) => {
+      const host = document.createElement("div");
+      document.body.append(host);
+      const inner =
+        '<div class="cp-settings"><nav class="cp-settings-nav"><ul class="cp-list">' +
+        row("Connections", "#b-con") +
+        row("Checks", "#b-chk") +
+        row("Display", "#b-dis") +
+        '</ul></nav><form><section id="b-con" style="block-size: 120vh"><input></section>' +
+        '<section id="b-chk" style="block-size: 40px"><input></section>' +
+        '<section id="b-dis" style="block-size: 120vh"><input></section></form></div>';
+      const scrolling = 'style="block-size: 80vh; overflow-y: auto"';
+      if (where === "its own tree") {
+        host.innerHTML = `<div id="b-box" ${scrolling}>${inner}</div>`;
+      } else {
+        host.innerHTML = `<settings-test-pane>${inner}</settings-test-pane>`;
+        const pane = host.querySelector("settings-test-pane") as HTMLElement;
+        pane.attachShadow({ mode: "open" }).innerHTML =
+          `<div id="b-box" ${scrolling}><slot></slot></div>`;
+      }
+      const box = (host.querySelector("#b-box") ??
+        host
+          .querySelector("settings-test-pane")
+          ?.shadowRoot?.getElementById("b-box")) as HTMLElement;
+      const links = [...host.querySelectorAll<HTMLAnchorElement>("a.cp-list-row")];
+      enhanceSettings(host.querySelector("form") as HTMLFormElement, { signal: life.signal });
+      await still(box);
+      const pressed = await pressChecks(links, box.getBoundingClientRect().top, box);
+      box.scrollTo({ top: 0, behavior: "instant" });
+      await still(box);
+      await task();
+      const current = links.findIndex((l) => l.hasAttribute("aria-current"));
+      expect([pressed, current]).toEqual([1, 0]);
+    },
+  );
+
+  it("keeps a short category pressed during another press's smooth glide the other way", async () => {
+    const host = document.createElement("div");
+    host.innerHTML =
+      '<div class="cp-settings"><nav class="cp-settings-nav"><ul class="cp-list">' +
+      row("Connections", "#b-con") +
+      row("Checks", "#b-chk") +
+      row("Display", "#b-dis") +
+      row("More", "#b-more") +
+      '</ul></nav><form><section id="b-con" style="block-size: 120vh"><input></section>' +
+      '<section id="b-chk" style="block-size: 40px"><input></section>' +
+      '<section id="b-dis" style="block-size: 120vh"><input></section>' +
+      '<section id="b-more" style="block-size: 300vh"><input></section></form></div>';
+    document.body.append(host);
+    const links = [...host.querySelectorAll<HTMLAnchorElement>("a.cp-list-row")];
+    enhanceSettings(host.querySelector("form") as HTMLFormElement, { signal: life.signal });
+    await still();
+    const checks = document.getElementById("b-chk") as HTMLElement;
+    const dest = checks.getBoundingClientRect().top + scrollY;
+    document.documentElement.style.scrollBehavior = "smooth";
+    links[3]?.click();
+    // Firefox's last frame toward More then lands beyond Checks' place.
+    for (let i = 0; i < 300 && scrollY < dest + 150; i++) {
+      await new Promise(requestAnimationFrame);
+    }
+    expect(await pressChecks(links, 0)).toBe(1);
+  });
+
+  it.each([
+    ["zoom: 1.5", "down", 1.5, 16],
+    ["zoom: 1.5", "up", 1.5, 16],
+    ["zoom: 0.8", "down", 0.8, 16],
+    ["zoom: 0.8", "up", 0.8, 16],
+    // WebKit divides the section's scroll-margin by a transform's scale (16px
+    // lands at 12.8), so this case leaves the margin out.
+    ["transform: scale(1.25)", "down", 1.25, 0],
+    ["transform: scale(1.25)", "up", 1.25, 0],
+  ])(
+    "keeps a pressed short category in a scrolling box under %s, %sward",
+    async (rule, dir, scale, margin) => {
+      const { box, links } = short(
+        '<div style="position: fixed; inset: 0"><div class="cp-settings" style="block-size: 400px; overflow-y: auto; ' +
+          `border-top: 10px solid; scroll-padding-top: 24px; ${rule}"></div></div>`,
+      );
+      (document.getElementById("b-chk") as HTMLElement).style.scrollMarginTop =
+        `${String(margin)}px`;
+      if (dir === "up") {
+        box.scrollTo({ top: box.scrollHeight, behavior: "instant" });
+      }
+      await still(box);
+      // The border, the box's padding and the section's margin, all scaled.
+      const want = box.getBoundingClientRect().top + (10 + 24 + margin) * scale;
+      expect(await pressChecks(links, want, box)).toBe(1);
     },
   );
 
