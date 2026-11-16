@@ -36,7 +36,10 @@ describe("the about line", () => {
   });
 
   it("inks a link and its underline in the accent when the keyboard reaches it", async () => {
-    const link = q(build(STILL + status(800)), 'a[href="#source"]');
+    // Tab from a known place: where focus last stood is the engine's.
+    const host = build(`${STILL}<button type="button">Before</button>${status(800)}`);
+    const link = q(host, 'a[href="#source"]');
+    q(host, "button").focus();
     await userEvent.tab();
     expect(document.activeElement).toBe(link);
     expect(getComputedStyle(link).color).toBe(resolved("var(--cp-accent-ink)"));

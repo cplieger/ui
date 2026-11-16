@@ -1,9 +1,11 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { server } from "vitest/browser";
 
+import { createHeaderStatus } from "../navigation/header-status/header-status.js";
 import { drawing, maskUrl, shipped } from "./test-helpers/css.js";
 
 const APP_PAGES = ["app.html", "list-detail.html", "settings.html", "not-found.html"] as const;
+const STATUS_PAGES = ["app.html", "list-detail.html", "settings.html"] as const;
 const GATE_PAGES = [
   "gate.html",
   "gate-steps.html",
@@ -198,6 +200,63 @@ describe("the page templates", () => {
       }
     },
   );
+
+  it.each(STATUS_PAGES)(
+    "%s holds the header status's pill, its empty panel and the urgent part first in main",
+    async (name) => {
+      const doc = await parse(name);
+      const pill = doc.querySelector(".cp-header > .cp-toolbar > button.cp-header-status");
+      const panel = pill?.nextElementSibling;
+      expect(panel?.matches('.cp-popover.cp-status-panel[data-variant="panel"][popover]')).toBe(
+        true,
+      );
+      expect(pill?.getAttribute("popovertarget")).toBe(panel?.id);
+      expect(panel?.childNodes).toHaveLength(0);
+      const urgent = doc.querySelector(".cp-main > .cp-stack > :first-child");
+      expect(urgent?.matches('div.cp-stack[data-gap="tight"]#urgent[hidden]')).toBe(true);
+      expect(urgent?.childNodes).toHaveLength(0);
+      expect(marks(doc, "slot")).toEqual(expect.arrayContaining(["header status", "banner"]));
+    },
+  );
+
+  it("app.html's header status takes createHeaderStatus as its parts", async () => {
+    const doc = await parse("app.html");
+    const host = document.createElement("div");
+    host.className = "cp";
+    host.append(
+      document.importNode(doc.querySelector(".cp-header") as Element, true),
+      document.importNode(doc.querySelector(".cp-main") as Element, true),
+    );
+    document.body.append(host);
+    const button = host.querySelector<HTMLButtonElement>("button.cp-header-status");
+    const panel = host.querySelector<HTMLElement>("#status");
+    const banner = host.querySelector<HTMLElement>("#urgent");
+    if (button === null || panel === null || banner === null) {
+      throw new Error("no header status parts");
+    }
+    const status = createHeaderStatus({ button, panel, banner });
+    try {
+      status.update({
+        conditions: [
+          { id: "store", level: "problem", urgent: true, title: "Store full", href: "#store" },
+        ],
+        work: [],
+      });
+      expect(button.dataset["state"]).toBe("problem");
+      expect(button.textContent).toContain("Store full");
+      expect(banner.hidden).toBe(false);
+      expect(banner.querySelector('.cp-notice[data-variant="banner"]')?.textContent).toContain(
+        "Store full",
+      );
+      button.click();
+      expect(panel.matches(":popover-open")).toBe(true);
+      expect(panel.querySelector("h2")?.textContent).toContain("Store full");
+      panel.hidePopover();
+    } finally {
+      status.destroy();
+      host.remove();
+    }
+  });
 
   it("list-detail.html holds the list, a hidden detail and its close", async () => {
     const doc = await parse("list-detail.html");

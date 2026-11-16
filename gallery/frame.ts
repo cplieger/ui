@@ -6,11 +6,16 @@
  * frame's document.
  */
 
+import { installAnchors } from "@cplieger/ui/anchor";
+import { installAnnouncer } from "@cplieger/ui/announce";
+import { createHeaderStatus } from "@cplieger/ui/header-status";
 import { createIcons } from "@cplieger/ui/icons";
 import { applyPointerTier, installPointerTier } from "@cplieger/ui/pointer";
 
 applyPointerTier();
 installPointerTier();
+installAnchors();
+installAnnouncer();
 
 const root = document.documentElement;
 const icons = createIcons<string>({ base: new URL("icons/svg/", import.meta.url).href });
@@ -61,5 +66,24 @@ for (const item of document.querySelectorAll<HTMLAnchorElement>(".cp-nav-item"))
     if (heading !== null) {
       heading.textContent = item.querySelector(".cp-nav-label")?.textContent ?? "";
     }
+  });
+}
+
+// The template's header status, on a quiet model.
+const pill = document.querySelector<HTMLButtonElement>("button.cp-header-status");
+const panel = document.getElementById("status");
+if (pill !== null && panel !== null) {
+  const now = Date.now();
+  const banner = document.getElementById("urgent");
+  const parts = banner === null ? { button: pill, panel } : { button: pill, panel, banner };
+  createHeaderStatus(parts).update({
+    conditions: [],
+    work: [],
+    next: "Next scan 03:00",
+    recent: [
+      { id: "scan", words: "Library scan finished", at: now - 12 * 60_000 },
+      { id: "check", words: "Quick check found 2 releases", at: now - 95 * 60_000 },
+    ],
+    history: { href: "#", label: "Open activity" },
   });
 }

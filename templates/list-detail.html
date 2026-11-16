@@ -34,10 +34,11 @@
         </nav>
         <!-- slot: toolbar: the header status and its panel, the theme toggle, the global actions, the account button last -->
         <div class="cp-toolbar">
-          <!-- slot: header status: the button, then its .cp-popover.cp-status-panel; run controls go in the panel's last section -->
-          <button class="cp-header-status" type="button" data-state="ok">
+          <!-- slot: header status: the button and its empty panel, which createHeaderStatus fills; the run controls are its starts -->
+          <button class="cp-header-status" type="button" data-state="ok" popovertarget="status">
             <span>All good</span>
           </button>
+          <div class="cp-popover cp-status-panel" data-variant="panel" popover id="status"></div>
           <button class="cp-button cp-toggle" data-variant="quiet" data-kind="theme" type="button" aria-label="Dark theme" aria-pressed="false">
             <span class="cp-icon" data-cp-icon="sun" aria-hidden="true"></span>
             <span class="cp-icon" data-cp-icon="moon" data-part="on" aria-hidden="true"></span>
@@ -53,6 +54,8 @@
       <!-- region: main -->
       <main class="cp-main" id="main" tabindex="-1">
         <div class="cp-stack">
+          <!-- slot: banner: the header status's urgent part first, then a .cp-notice data-variant="banner" per condition of the app's own that stops work on every screen -->
+          <div class="cp-stack" data-gap="tight" id="urgent" hidden></div>
           <!-- slot: heading -->
           <div class="cp-heading-row">
             <div>
