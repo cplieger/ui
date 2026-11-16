@@ -111,3 +111,5 @@ How an app fills the slots:
 - The Backups fact and the restore remedy are there only when the app has a restore command. A remedy with no command yet is its sentence alone in its item.
 - Each command is the app's whole line as the person runs it, written by the server: the container and the binary are the app's (`docker exec release-tracker /release-tracker accounts reset` for an image with no `PATH`).
 - When other files cannot open too, the facts name each file with its error, and the remedies give the accounts commands first, then each other file's.
+- When the key file is missing or does not match the accounts file, the remedies are restoring the matching key file first, then the reset, whose sentence adds that the sealed secrets must be entered again.
+- The last line stays "Reload this page once the command has finished.", since the serving process opens the repaired file in place. Only when the server reports that the file was replaced and needs a restart does the line say to restart the container.
