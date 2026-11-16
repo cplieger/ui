@@ -1,13 +1,24 @@
 import { describe, expect, it } from "vitest";
 
+import type { FrameRef, FrameSeries, FrameTreePart } from "../frame/frame.js";
 import { writer } from "../scale/format.js";
 import { measurer } from "../scale/measure.js";
 
 import { barSegments } from "./geometry.js";
 import { dodge, layout, numberedNotes, type Metrics, type Note, type TreeKept } from "./layout.js";
 import { chartModel, type BarModel } from "./model.js";
-import type { ChartSpec } from "./spec.js";
-import { ladder } from "./test-helpers/frames.js";
+import type { ChartSpec, Mark } from "./spec.js";
+import {
+  binsFrame,
+  boxes,
+  events,
+  grid,
+  ladder,
+  points,
+  seriesFrame,
+  tree,
+  unitBins,
+} from "./test-helpers/frames.js";
 import { chartWords } from "./words.js";
 
 // A face 7.5 px a character, digits included.
@@ -35,36 +46,63 @@ const lay = (
   floors = { axis: 0, label: 0 },
 ) => layout(chartModel(spec, "en", "UTC"), words, metrics(more), width, floors);
 
-const edges = ladder();
-const readDelays = (median: number, p95: number): ChartSpec => ({
-  x: {
-    type: "log",
-    format: "duration",
-    label: "Time from post to read",
-    domain: [1, edges.at(-1) ?? 0],
-  },
-  y: { label: "Reads", unit: { one: "read", other: "reads" } },
-  marks: [
-    {
-      mark: "rect",
-      x1: edges.slice(0, -1),
-      x2: edges.slice(1),
-      series: [{ name: "Reads", y: edges.slice(1).map(() => 3) }],
-    },
-    { mark: "rule", x: median, label: "Median" },
-    { mark: "rule", x: p95, label: "95th percentile" },
-  ],
-});
+type Values = readonly (number | null)[];
+type More = Omit<ChartSpec, "data" | "mark" | "facets">;
 
-const line = (y: (number | null)[][]): ChartSpec => ({
-  x: {},
-  marks: [
-    {
-      mark: "line",
-      x: (y[0] ?? []).map((_, i) => i),
-      series: y.map((values, k) => ({ name: `s${String(k)}`, y: values })),
+// Series keyed by their names, in order.
+const named = (series: readonly (readonly [string, Values])[]): FrameSeries[] =>
+  series.map(([key, values]) => ({ key, values: [...values] }));
+
+// A categories frame of `names` and its named series, drawn by `mark`.
+const rows = (
+  names: readonly string[],
+  series: readonly (readonly [string, Values])[],
+  mark: Mark,
+  more: More = {},
+  unit = "count",
+): ChartSpec =>
+  ({
+    data: { type: "categories", name: "c", unit, names: [...names], series: named(series) },
+    mark,
+    ...more,
+  }) as ChartSpec;
+
+// `spec` with refs keyed by their labels.
+const withRefs = (spec: ChartSpec, refs: readonly (readonly [string, number])[]): ChartSpec =>
+  ({
+    ...spec,
+    data: {
+      ...(spec.data as NonNullable<ChartSpec["data"]>),
+      refs: refs.map(([key, value]): FrameRef => ({ key, value })),
     },
-  ],
+  }) as ChartSpec;
+
+const edges = ladder();
+const readDelays = (median: number, p95: number): ChartSpec =>
+  withRefs(
+    {
+      data: binsFrame(edges.slice(0, -1), edges.slice(1), [edges.slice(1).map(() => 3)], {
+        axis: "value",
+        unit: "seconds",
+      }),
+      mark: { mark: "rect" },
+      x: { type: "log", label: "Time from post to read", domain: [1, edges.at(-1) ?? 0] },
+      y: { label: "Reads", unit: { one: "read", other: "reads" } },
+    },
+    [
+      ["Median", median],
+      ["95th percentile", p95],
+    ],
+  );
+
+// A line over samples 0, 1, ..., its series keyed s0, s1, ....
+const line = (y: readonly Values[]): ChartSpec => ({
+  data: seriesFrame(
+    (y[0] ?? []).map((_, i) => i),
+    [],
+    { series: named(y.map((values, k) => [`s${String(k)}`, values])) },
+  ),
+  mark: { mark: "line" },
 });
 
 describe("rule labels", () => {
@@ -107,17 +145,9 @@ describe("gutters", () => {
 
   it("cuts band names to the group gutter, so the gutter is the group's", () => {
     const spec: ChartSpec = {
-      x: {},
+      data: events({ "a-very-long-agent-name": [1], b: [2] }),
+      mark: { mark: "dot" },
       y: { type: "band", mono: true },
-      marks: [
-        {
-          mark: "dot",
-          rows: [
-            { name: "a-very-long-agent-name", x: [1] },
-            { name: "b", x: [2] },
-          ],
-        },
-      ],
     };
     const l = lay(spec, 400, { axisGroup: 80 });
     expect(l.gutters.axis).toBe(80);
@@ -128,11 +158,7 @@ describe("gutters", () => {
   });
 
   it("keeps a column chart's label gutter at the group's, empty", () => {
-    const spec: ChartSpec = {
-      x: {},
-      marks: [{ mark: "rect", x1: [0], x2: [1], series: [{ name: "a", y: [1] }] }],
-    };
-    const l = lay(spec, 600, { labelGroup: 80 });
+    const l = lay({ data: unitBins([[1]]), mark: { mark: "rect" } }, 600, { labelGroup: 80 });
     expect(l.gutters.label).toBe(80);
     expect(l.endLabels).toEqual([]);
     expect(l.left + l.projection.width).toBe(600 - 80);
@@ -176,17 +202,13 @@ describe("end labels", () => {
 
   it("cuts a name to the group's label gutter less its pad, keeping the value whole", () => {
     const spec: ChartSpec = {
-      x: {},
-      marks: [
-        {
-          mark: "line",
-          x: [0, 1],
-          series: [
-            { name: "Agents waiting on review", y: [3, 12_345] },
-            { name: "Live", y: [1, 4] },
-          ],
-        },
-      ],
+      data: seriesFrame([0, 1], [], {
+        series: named([
+          ["Agents waiting on review", [3, 12_345]],
+          ["Live", [1, 4]],
+        ]),
+      }),
+      mark: { mark: "line" },
     };
     const l = lay(spec, 600, { labelGroup: 80 });
     // 80 - 8 px less " 12,345" leaves 19.5 px, two characters at 7.5 px.
@@ -195,6 +217,14 @@ describe("end labels", () => {
     expect(lay(spec, 600).endLabels.map((e) => e.text)).toContain(
       "Agents waiting on review 12,345",
     );
+  });
+
+  it("names each line by its words in mark.keys", () => {
+    const spec: ChartSpec = {
+      ...line([[1, 5]]),
+      mark: { mark: "line", keys: [{ key: "s0", name: "Live" }] },
+    };
+    expect(lay(spec, 480).endLabels.map((e) => e.text)).toEqual(["Live 5"]);
   });
 
   it("reads 30rem off the chart's width, which the plot's borders make wider than its drawing", () => {
@@ -213,17 +243,10 @@ describe("end labels", () => {
 });
 
 describe("an area's end labels", () => {
-  const area = (y: (number | null)[][], arrange?: "share"): ChartSpec => ({
-    x: {},
+  const area = (y: readonly Values[], arrange?: "share"): ChartSpec => ({
+    ...line(y),
+    mark: { mark: "area", ...(arrange === undefined ? {} : { arrange }) },
     height: 200,
-    marks: [
-      {
-        mark: "area",
-        x: (y[0] ?? []).map((_, i) => i),
-        ...(arrange === undefined ? {} : { arrange }),
-        series: y.map((values, k) => ({ name: `s${String(k)}`, y: values })),
-      },
-    ],
   });
 
   it("labels each layer at the middle of its thickness at the last whole stack", () => {
@@ -301,7 +324,11 @@ describe("a note", () => {
       const text = new Array<string>(300_000).fill("a").join(" ");
       const spec = line([[1, 2]]);
       const [note] = lay(
-        { ...spec, marks: [...spec.marks, { mark: "text", x: 0, y: 1, text }] },
+        {
+          ...spec,
+          data: { ...(spec.data as NonNullable<ChartSpec["data"]>), notes: [{ key: "n", at: 0 }] },
+          notes: [{ key: "n", text }],
+        } as ChartSpec,
         600,
         { measure: wide },
       ).notes;
@@ -312,16 +339,9 @@ describe("a note", () => {
 });
 
 describe("a bar chart", () => {
-  const countries: ChartSpec = {
-    x: {},
-    marks: [
-      {
-        mark: "bar",
-        y: ["Holy See", "Monaco", "Japan"],
-        series: [{ name: "Median age", x: [57.4, 54.5, -9] }],
-      },
-    ],
-  };
+  const countries = rows(["Holy See", "Monaco", "Japan"], [["Median age", [57.4, 54.5, -9]]], {
+    mark: "bar",
+  });
 
   it("sets a row of --cp-chart-row per category, its name in the gutter, from 30rem up", () => {
     const l = lay(countries, 600);
@@ -343,10 +363,7 @@ describe("a bar chart", () => {
   });
 
   it("cuts a name above its bar to the plot's width", () => {
-    const long: ChartSpec = {
-      x: {},
-      marks: [{ mark: "bar", y: ["A very long country name"], series: [{ name: "a", x: [1] }] }],
-    };
+    const long = rows(["A very long country name"], [["a", [1]]], { mark: "bar" });
     const l = lay(long, 100);
     expect((l.yLabels[0]?.text.length ?? 0) * 7.5).toBeLessThanOrEqual(100);
     expect(l.yLabels[0]?.text.endsWith("…")).toBe(true);
@@ -369,19 +386,14 @@ describe("a bar chart", () => {
 
   it("labels a stack's total at the end of its whole bar, none for a row of gaps", () => {
     const l = lay(
-      {
-        x: {},
-        marks: [
-          {
-            mark: "bar",
-            y: ["a", "b"],
-            series: [
-              { name: "p", x: [2, null] },
-              { name: "q", x: [3, null] },
-            ],
-          },
+      rows(
+        ["a", "b"],
+        [
+          ["p", [2, null]],
+          ["q", [3, null]],
         ],
-      },
+        { mark: "bar" },
+      ),
       600,
     );
     expect(l.valueLabels.map((t) => t.text)).toEqual(["5"]);
@@ -390,16 +402,13 @@ describe("a bar chart", () => {
 
   it("signs a diverging bar's labels and keeps the widest label's room on each side", () => {
     const l = lay(
-      {
-        x: { format: "percent" },
-        marks: [
-          {
-            mark: "bar",
-            y: ["Utah", "Texas", "Puerto Rico"],
-            series: [{ name: "Change", x: [0.16, 0, -0.143] }],
-          },
-        ],
-      },
+      rows(
+        ["Utah", "Texas", "Puerto Rico"],
+        [["Change", [0.16, 0, -0.143]]],
+        { mark: "bar" },
+        {},
+        "ratio",
+      ),
       600,
     );
     expect(l.valueLabels.map((t) => t.text)).toEqual(["+16%", "0%", "-14%"]);
@@ -414,10 +423,8 @@ describe("a bar chart", () => {
     t.anchor === "end" ? [t.x - 7.5 * t.text.length, t.x] : [t.x, t.x + 7.5 * t.text.length];
 
   it("writes a value past a passed domain at its bar's cut end, inside the plot", () => {
-    const one = (domain: [number, number], x: number[]): ChartSpec => ({
-      x: { domain },
-      marks: [{ mark: "bar", y: ["a", "b"], series: [{ name: "Age", x }] }],
-    });
+    const one = (domain: [number, number], x: number[]): ChartSpec =>
+      rows(["a", "b"], [["Age", x]], { mark: "bar" }, { x: { domain } });
     const high = lay(one([0, 50], [57.4, 49.8]), 600);
     expect(high.valueLabels.map((t) => t.text)).toEqual(["57.4", "49.8"]);
     expect(high.valueLabels[0]?.x).toBeCloseTo(high.projection.xAt(50) + 4);
@@ -433,21 +440,15 @@ describe("a bar chart", () => {
     }
   });
 
-  const sexes: ChartSpec = {
-    x: {},
-    marks: [
-      {
-        mark: "bar",
-        y: ["Japan", "Italy"],
-        arrange: "group",
-        series: [
-          { name: "Combined", x: [49.8, 48.4] },
-          { name: "Female", x: [51.1, null] },
-          { name: "Male", x: [48.4, -3] },
-        ],
-      },
+  const sexes = rows(
+    ["Japan", "Italy"],
+    [
+      ["Combined", [49.8, 48.4]],
+      ["Female", [51.1, null]],
+      ["Male", [48.4, -3]],
     ],
-  };
+    { mark: "bar", arrange: "group" },
+  );
 
   it("makes a grouped row its 12 px bars, the 1 px between them and 8 px, from 30rem up", () => {
     const l = lay(sexes, 600);
@@ -477,10 +478,14 @@ describe("a bar chart", () => {
   });
 
   it("draws an x axis with its ticks and title when labels are off", () => {
-    const off: ChartSpec = {
-      x: { label: "Years" },
-      marks: [{ mark: "bar", y: ["a", "b"], labels: false, series: [{ name: "a", x: [12, 47] }] }],
-    };
+    const off = rows(
+      ["a", "b"],
+      [["a", [12, 47]]],
+      { mark: "bar", labels: false },
+      {
+        x: { label: "Years" },
+      },
+    );
     const l = lay(off, 600);
     expect(l.valueLabels).toEqual([]);
     expect(l.xAxis.ticks.map((t) => t.value)).toContain(0);
@@ -490,20 +495,15 @@ describe("a bar chart", () => {
   });
 
   it("draws a 100% chart's x axis in percent across the whole plot, with no value labels", () => {
-    const share: ChartSpec = {
-      x: { label: "Answers" },
-      marks: [
-        {
-          mark: "bar",
-          y: ["a", "b"],
-          arrange: "share",
-          series: [
-            { name: "No", x: [3, 1] },
-            { name: "Yes", x: [1, 1] },
-          ],
-        },
+    const share = rows(
+      ["a", "b"],
+      [
+        ["No", [3, 1]],
+        ["Yes", [1, 1]],
       ],
-    };
+      { mark: "bar", arrange: "share" },
+      { x: { label: "Answers" } },
+    );
     const l = lay(share, 600);
     expect(l.valueLabels).toEqual([]);
     expect(l.xLabels.at(0)?.text).toBe("0%");
@@ -512,22 +512,17 @@ describe("a bar chart", () => {
     expect([l.projection.xAt(0), l.projection.xAt(1)]).toEqual([0, l.projection.width]);
   });
 
-  const survey = (more: Partial<NonNullable<ChartSpec["x"]>> = {}, labels = true): ChartSpec => ({
-    x: more,
-    marks: [
-      {
-        mark: "bar",
-        y: ["Instagram", "Facebook"],
-        arrange: "split",
-        labels,
-        series: [
-          { name: "Daily", x: [34, 20] },
-          { name: "Weekly", x: [8, 43] },
-          { name: "Never", x: [7, null] },
-        ],
-      },
-    ],
-  });
+  const answers: [string, Values][] = [
+    ["Daily", [34, 20]],
+    ["Weekly", [8, 43]],
+    ["Never", [7, null]],
+  ];
+  const survey = (
+    more: NonNullable<ChartSpec["x"]> = {},
+    labels = true,
+    series: readonly (readonly [string, Values])[] = answers,
+  ): ChartSpec =>
+    rows(["Instagram", "Facebook"], series, { mark: "bar", arrange: "split", labels }, { x: more });
 
   it("sets a panel per series 16 px apart on one shared scale, each headed by its name", () => {
     const l = lay(survey(), 600);
@@ -571,20 +566,15 @@ describe("a bar chart", () => {
   });
 
   it("writes a value past a passed domain at its bar's cut end, inside its own panel", () => {
-    const spec: ChartSpec = {
-      x: { domain: [0, 30] },
-      marks: [
-        {
-          mark: "bar",
-          y: ["Instagram"],
-          arrange: "split",
-          series: [
-            { name: "Daily", x: [43] },
-            { name: "Weekly", x: [8] },
-          ],
-        },
+    const spec = rows(
+      ["Instagram"],
+      [
+        ["Daily", [43]],
+        ["Weekly", [8]],
       ],
-    };
+      { mark: "bar", arrange: "split" },
+      { x: { domain: [0, 30] } },
+    );
     const l = lay(spec, 600);
     const panels = l.projection.panels ?? [];
     expect(l.valueLabels.map((t) => t.text)).toEqual(["43", "8"]);
@@ -600,18 +590,7 @@ describe("a bar chart", () => {
   });
 
   it("cuts a panel's name to its width", () => {
-    const long = survey();
-    const bar = long.marks[0];
-    if (bar?.mark !== "bar") {
-      throw new Error("a bar mark");
-    }
-    const l = lay(
-      {
-        ...long,
-        marks: [{ ...bar, series: [{ name: "A few times a week", x: [1, 2] }, ...bar.series] }],
-      },
-      600,
-    );
+    const l = lay(survey({}, true, [["A few times a week", [1, 2]], ...answers]), 600);
     const head = l.heads[0]?.text ?? "";
     // Four 119 px panels: "A few times a week" is 135 px, so it is cut.
     expect(head.endsWith("…")).toBe(true);
@@ -654,21 +633,16 @@ describe("a bar chart", () => {
     expect(l.valueLabels[0]).toMatchObject({ x: (panels[0]?.at(34) ?? 0) - 4, anchor: "end" });
   });
 
-  const pyramid = (more: Partial<NonNullable<ChartSpec["x"]>> = {}, labels = true): ChartSpec => ({
-    x: more,
-    marks: [
-      {
-        mark: "bar",
-        y: ["90+", "45-50"],
-        arrange: "mirror",
-        labels,
-        series: [
-          { name: "Male", x: [12, 40] },
-          { name: "Female", x: [20, 36] },
-        ],
-      },
-    ],
-  });
+  const pyramid = (more: NonNullable<ChartSpec["x"]> = {}, labels = true): ChartSpec =>
+    rows(
+      ["90+", "45-50"],
+      [
+        ["Male", [12, 40]],
+        ["Female", [20, 36]],
+      ],
+      { mark: "bar", arrange: "mirror", labels },
+      { x: more },
+    );
 
   it("sets a mirror's sides back to back around an 8 px spine, on one shared scale", () => {
     const l = lay(pyramid(), 600);
@@ -744,19 +718,16 @@ describe("a bar chart", () => {
 });
 
 describe("a point chart", () => {
-  const ages = (x: NonNullable<ChartSpec["x"]> = { label: "Median age" }): ChartSpec => ({
-    x,
-    marks: [
-      {
-        mark: "point",
-        y: ["Holy See", "Monaco", "Japan"],
-        series: [
-          { name: "Female", x: [60.4, 54.5, 51.1] },
-          { name: "Male", x: [54.5, 51.3, 48.4] },
-        ],
-      },
-    ],
-  });
+  const ages = (x: NonNullable<ChartSpec["x"]> = { label: "Median age" }): ChartSpec =>
+    rows(
+      ["Holy See", "Monaco", "Japan"],
+      [
+        ["Female", [60.4, 54.5, 51.1]],
+        ["Male", [54.5, 51.3, 48.4]],
+      ],
+      { mark: "point" },
+      { x },
+    );
 
   it("sets a row of --cp-chart-row per category, its name in the gutter, from 30rem up", () => {
     const l = lay(ages(), 600);
@@ -813,22 +784,23 @@ describe("an x rule's label on bar rows", () => {
   const ruled = (
     arrange: "split" | "mirror" | "diverge" | undefined,
     x: NonNullable<ChartSpec["x"]> = {},
-  ): ChartSpec => ({
-    x,
-    marks: [
-      {
-        mark: "bar",
-        y: ["Instagram", "Facebook"],
-        ...(arrange === undefined ? {} : { arrange }),
-        ...(arrange === "diverge" ? { left: 1 } : {}),
-        series: [
-          { name: "Daily", x: [34, 20] },
-          { name: "Weekly", x: [8, 43] },
+  ): ChartSpec =>
+    withRefs(
+      rows(
+        ["Instagram", "Facebook"],
+        [
+          ["Daily", [34, 20]],
+          ["Weekly", [8, 43]],
         ],
-      },
-      { mark: "rule", x: 10, label: "Aim" },
-    ],
-  });
+        {
+          mark: "bar",
+          ...(arrange === undefined ? {} : { arrange }),
+          ...(arrange === "diverge" ? { left: 1 } : {}),
+        },
+        { x },
+      ),
+      [["Aim", 10]],
+    );
 
   it("starts at its line in the first panel under a split, above the heads", () => {
     const l = lay(ruled("split"), 600);
@@ -894,18 +866,17 @@ describe("a slope chart", () => {
   const slope = (
     ends: readonly (readonly [number | null, number | null])[],
     names = ["Cats", "Dogs", "Horses", "Mice"],
-    more: Partial<ChartSpec> = {},
-  ): ChartSpec => ({
-    marks: [
-      {
-        mark: "slope",
-        x: ["2005", "2015"],
-        // Series past the ninth need a slot given; the layout never reads it.
-        series: ends.map((y, k) => ({ name: names[k] ?? `s${String(k)}`, slot: 1, y })),
-      },
-    ],
-    ...more,
-  });
+    more: More = {},
+  ): ChartSpec => {
+    const keys = ends.map((_, k) => names[k] ?? `s${String(k)}`);
+    return rows(
+      ["2005", "2015"],
+      ends.map((y, k) => [keys[k] ?? "", y]),
+      // Series past the ninth need a slot given; the layout never reads it.
+      { mark: "slope", keys: keys.map((key) => ({ key, slot: 1 })) },
+      more,
+    );
+  };
   const pets = slope([
     [50, 34],
     [40, 4],
@@ -1027,15 +998,21 @@ describe("a slope chart", () => {
 });
 
 describe("a scatter's layout", () => {
+  const towns = (r?: number[]) =>
+    points([
+      {
+        key: "All",
+        names: ["Chad", "Monaco"],
+        x: [0, 100],
+        y: [50, 90],
+        ...(r === undefined ? {} : { r }),
+      },
+    ]);
   const countries: ChartSpec = {
+    data: towns(),
+    mark: { mark: "scatter" },
     x: { label: "GDP per capita", domain: [0, 100] },
     y: { label: "Life expectancy", domain: [50, 90] },
-    marks: [
-      {
-        mark: "scatter",
-        series: [{ name: "All", names: ["Chad", "Monaco"], x: [0, 100], y: [50, 90] }],
-      },
-    ],
   };
 
   it("runs both axes 6 px inside the plot, so a dot and its ring at a domain's end draw whole", () => {
@@ -1056,13 +1033,8 @@ describe("a scatter's layout", () => {
   it("gives a bubble chart its largest radius by width and runs its axes clear of its largest bubble", () => {
     const sized = (r: number[]): ChartSpec => ({
       ...countries,
+      data: towns(r),
       r: { label: "Population", domain: [0, 100] },
-      marks: [
-        {
-          mark: "scatter",
-          series: [{ name: "All", names: ["Chad", "Monaco"], x: [0, 100], y: [50, 90], r }],
-        },
-      ],
     });
     const wide = lay(sized([100, 25]), 600);
     expect(wide.projection.bubble).toBe(24);
@@ -1091,8 +1063,13 @@ describe("a cell chart's layout", () => {
   const hours = Array.from({ length: 24 }, (_, h) => String(h));
   const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
   const week = (x: ChartSpec["x"] = {}): ChartSpec => ({
-    x,
-    marks: [{ mark: "cell", x: hours, y: days, values: days.map(() => hours.map(() => 1)) }],
+    data: grid(
+      { names: hours },
+      { names: days },
+      days.map(() => hours.map(() => 1)),
+    ),
+    mark: { mark: "cell" },
+    ...(x === undefined ? {} : { x }),
   });
 
   it("gives each row the band's row height with its name in the y gutter", () => {
@@ -1146,20 +1123,18 @@ describe("a binned cell chart's layout", () => {
   const binned = (
     x: readonly number[] | readonly string[],
     y: readonly number[],
-    more: Partial<ChartSpec> = {},
+    more: More = {},
   ): ChartSpec => {
-    const columns = x.length - (typeof x[0] === "number" ? 1 : 0);
+    const named = typeof x[0] !== "number";
+    const columns = x.length - (named ? 0 : 1);
     return {
+      data: grid(
+        named ? { names: [...(x as readonly string[])] } : { edges: [...(x as readonly number[])] },
+        { edges: [...y] },
+        y.slice(1).map(() => Array.from({ length: columns }, () => 1)),
+      ),
+      mark: { mark: "cell" },
       ...more,
-      marks: [
-        {
-          mark: "cell",
-          x:
-            typeof x[0] === "number" ? { edges: x as readonly number[] } : (x as readonly string[]),
-          y: { edges: y },
-          values: y.slice(1).map(() => Array.from({ length: columns }, () => 1)),
-        },
-      ],
     };
   };
   const life = [50, 55, 60, 65, 70, 75, 80, 85];
@@ -1214,21 +1189,19 @@ describe("a binned cell chart's layout", () => {
 
 describe("a box plot", () => {
   const latency = (series = 1): ChartSpec => ({
+    data: boxes(
+      ["search", "export", "login", "health"],
+      Array.from({ length: series }, (_, k) => ({
+        key: k === 0 ? "Before" : "After",
+        low: [120, 300, 40, 1],
+        q1: [180, 900, 60, 2],
+        median: [240, 1400, 75, 2],
+        q3: [410, 2100, 90, 3],
+        high: [760, 4000, 130, 4],
+      })),
+    ),
+    mark: { mark: "box" },
     x: { label: "Latency" },
-    marks: [
-      {
-        mark: "box",
-        y: ["search", "export", "login", "health"],
-        series: Array.from({ length: series }, (_, k) => ({
-          name: k === 0 ? "Before" : "After",
-          low: [120, 300, 40, 1],
-          q1: [180, 900, 60, 2],
-          median: [240, 1400, 75, 2],
-          q3: [410, 2100, 90, 3],
-          high: [760, 4000, 130, 4],
-        })),
-      },
-    ],
   });
 
   it("sets a 24 px row per category with one series, its name in the gutter, from 30rem up", () => {
@@ -1250,37 +1223,28 @@ describe("a box plot", () => {
     const names = (n: number) => Array.from({ length: n }, (_, i) => `r${String(i)}`);
     const ones = (n: number) => names(n).map(() => 1);
     const grouped = lay(
-      {
-        x: {},
-        marks: [
-          {
-            mark: "bar",
-            y: names(500),
-            arrange: "group",
-            series: names(5).map((name) => ({ name, x: ones(500) })),
-          },
-        ],
-      },
+      rows(
+        names(500),
+        names(5).map((name) => [name, ones(500)]),
+        { mark: "bar", arrange: "group" },
+      ),
       600,
     );
     // 5 × 12 + 4 + 8 px a row.
     expect(grouped.projection.height).toBe(500 * 72);
     const v = ones(625);
-    const boxes = lay(
+    const plot = lay(
       {
-        x: {},
-        marks: [
-          {
-            mark: "box",
-            y: names(625),
-            series: names(4).map((name) => ({ name, low: v, q1: v, median: v, q3: v, high: v })),
-          },
-        ],
+        data: boxes(
+          names(625),
+          names(4).map((key) => ({ key, low: v, q1: v, median: v, q3: v, high: v })),
+        ),
+        mark: { mark: "box" },
       },
       600,
     );
     // 4 × 16 + 8 px a row.
-    expect(boxes.projection.height).toBe(625 * 72);
+    expect(plot.projection.height).toBe(625 * 72);
   });
 
   it("puts each name above its boxes under 30rem: 44 px a row with one series, 60 with two", () => {
@@ -1300,18 +1264,12 @@ describe("a box plot", () => {
 });
 
 describe("a pie", () => {
-  const land = (hole = false, values = [182_637, 106_839, 50_000, 11_443, 6_661]): ChartSpec => ({
-    marks: [
-      {
-        mark: "pie",
-        hole,
-        unit: { other: "km²" },
-        slices: ["Agriculture", "Forest", "Housing & traffic", "Other land", "Water"].map(
-          (name, i) => ({ name, value: values[i] ?? null }),
-        ),
-      },
-    ],
-  });
+  const land = (hole = false, values: Values = [182_637, 106_839, 50_000, 11_443, 6_661]) =>
+    rows(
+      ["Agriculture", "Forest", "Housing & traffic", "Other land", "Water"],
+      [["Land", values]],
+      { mark: "pie", hole, unit: { other: "km²" } },
+    );
   // The hole's face, 9 px a character, wider than the axis face.
   const hole = measurer((t) => 9 * Array.from(t).length, 9, "en");
   // A 480 px figure's 478 px plot, and a 320 px phone's 288 px figure.
@@ -1399,17 +1357,12 @@ describe("a pie", () => {
 
   it("drops every label together when a side's cannot fit the plot's height", () => {
     // n thin slices near 12 o'clock, all right of it, then one for the rest.
-    const thin = (n: number): ChartSpec => ({
-      marks: [
-        {
-          mark: "pie",
-          slices: [
-            ...Array.from({ length: n }, (_, i) => ({ name: `T${String(i)}`, value: 1 })),
-            { name: "Rest", value: 1000 },
-          ],
-        },
-      ],
-    });
+    const thin = (n: number): ChartSpec =>
+      rows(
+        [...Array.from({ length: n }, (_, i) => `T${String(i)}`), "Rest"],
+        [["Share", [...Array.from({ length: n }, () => 1), 1000]]],
+        { mark: "pie" },
+      );
     // Seven need 7 × 36 = 252 px on the right, past the 240 px plot.
     const l = wide(thin(7));
     expect(l.endLabels).toEqual([]);
@@ -1437,48 +1390,37 @@ describe("a pie", () => {
     });
     // On a phone the hole is 100 px across, 84 px of room.
     expect(phone(land(true)).hole).toBeUndefined();
-    const small: ChartSpec = {
-      marks: [
-        { mark: "pie", hole: true, unit: { other: "GB" }, slices: [{ name: "A", value: 4210 }] },
-      ],
-    };
+    const small = rows(["A"], [["Size", [4210]]], {
+      mark: "pie",
+      hole: true,
+      unit: { other: "GB" },
+    });
     expect(phone(small).hole?.total.text).toBe("4,210\u00A0GB");
     expect(wide(land()).hole).toBeUndefined();
   });
 });
 
 describe("a treemap", () => {
-  const regions = (
-    asia: readonly (number | null)[] = [3, 1],
-    europe = 4,
-    more: Partial<ChartSpec> = {},
-  ): ChartSpec => ({
+  // A part of `key`, no data for null.
+  const part = (key: string, value: number | null): FrameTreePart =>
+    value === null ? { key } : { key, value };
+  const regions = (asia: Values = [3, 1], europe = 4, more: More = {}): ChartSpec => ({
+    data: tree({
+      groups: [
+        {
+          key: "Asia",
+          children: [part("China", asia[0] ?? null), part("Japan", asia[1] ?? null)],
+        },
+        { key: "Europe", children: [part("Germany", europe)] },
+      ],
+    }),
+    mark: { mark: "tree", unit: { other: "USD" } },
     ...more,
-    marks: [
-      {
-        mark: "tree",
-        unit: { other: "USD" },
-        nodes: [
-          {
-            name: "Asia",
-            children: [
-              { name: "China", value: asia[0] ?? null },
-              { name: "Japan", value: asia[1] ?? null },
-            ],
-          },
-          { name: "Europe", children: [{ name: "Germany", value: europe }] },
-        ],
-      },
-    ],
   });
-  const parts = (values: readonly (number | null)[], more: Partial<ChartSpec> = {}): ChartSpec => ({
+  const parts = (values: Values, more: More = {}, name = "Country "): ChartSpec => ({
+    data: tree({ parts: values.map((v, i) => part(`${name}${String(i + 1)}`, v)) }),
+    mark: { mark: "tree" },
     ...more,
-    marks: [
-      {
-        mark: "tree",
-        nodes: values.map((value, i) => ({ name: `Country ${String(i + 1)}`, value })),
-      },
-    ],
   });
   const box = (b: { left: number; top: number; right: number; bottom: number } | undefined) =>
     b === undefined ? undefined : [b.left, b.top, b.right, b.bottom];
@@ -1581,9 +1523,7 @@ describe("a treemap", () => {
     expect(at(parts(moved), 590, first.tree?.kept).tree?.kept.top).toEqual(
       at(parts(moved), 590).tree?.kept.top,
     );
-    const renamed: ChartSpec = {
-      marks: [{ mark: "tree", nodes: moved.map((value, i) => ({ name: `C${String(i)}`, value })) }],
-    };
+    const renamed = parts(moved, {}, "C");
     expect(at(renamed, 600, first.tree?.kept).tree?.kept.top).toEqual(fresh.tree?.kept.top);
     // Two levels keep their parts' rows inside each group too.
     const two = at(regions([3, 1]), 600);
