@@ -3958,6 +3958,25 @@ describe("css/system.css lists, feeds and counts", () => {
     expect(contrast(quiet.color, quiet.backgroundColor)).toBeGreaterThanOrEqual(4.5);
   });
 
+  it("centres a badge's figures on their cap height, the same in every engine", () => {
+    theme("light");
+    const el = build(
+      '<span class="cp-badge">3</span><span class="cp-badge" data-variant="quiet">12</span>',
+    );
+    for (const badge of el.querySelectorAll<HTMLElement>(".cp-badge")) {
+      const baseline = document.createElement("span");
+      baseline.style.cssText = "display: inline-block; inline-size: 1px; block-size: 0";
+      const cap = document.createElement("span");
+      cap.style.cssText = "position: absolute; block-size: 100cap";
+      badge.append(baseline, cap);
+      const box = badge.getBoundingClientRect();
+      const base = baseline.getBoundingClientRect().bottom - box.top;
+      const capHeight = cap.getBoundingClientRect().height / 100;
+      expect(box.height).toBe(20);
+      expect(Math.abs(base - capHeight - (box.height - base))).toBeLessThanOrEqual(1);
+    }
+  });
+
   it.skipIf(!emulates)(
     "outlines a badge in forced colours, where its fill is dropped",
     async () => {
