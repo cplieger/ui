@@ -15,7 +15,6 @@ import {
   pointLink,
   sampleTotal,
   sampleValue,
-  scatterDotAt,
   slopeChange,
   type BarModel,
   type BoxModel,
@@ -34,7 +33,6 @@ import {
   type SlopeModel,
   type TreeModel,
 } from "./model.js";
-import { noteJoin } from "./notes.js";
 import {
   boxPart,
   bucketText,
@@ -556,7 +554,7 @@ function treeSummary(model: Model, m: TreeModel, words: Words): string[] {
  *  name through `panelAt`. */
 export function ruleSentences(model: Model, words: Words): string[] {
   if (model.facets === undefined) {
-    return rulesOf(model, model.marks, words);
+    return [...rulesOf(model, model.marks, words), ...unplacedRules(model, words)];
   }
   // A panel's model holds its own marks, then the chart's, which are rules
   // alone beside facets.
@@ -567,8 +565,24 @@ export function ruleSentences(model: Model, words: Words): string[] {
     ...(first === undefined
       ? []
       : rulesOf(first.model, first.model.marks.slice(own(first.model)), words)),
-    ...panels.flatMap((p) => rulesOf(p.model, p.model.marks.slice(0, own(p.model)), words, p.name)),
+    ...unplacedRules(model, words),
+    ...panels.flatMap((p) => [
+      ...rulesOf(p.model, p.model.marks.slice(0, own(p.model)), words, p.name),
+      ...unplacedRules(p.model, words, p.name),
+    ]),
   ];
+}
+
+// A ref the plot has no axis for, its value in the format of the values the
+// frame's unit is on: a cell chart's colour, else the amounts.
+function unplacedRules(model: Model, words: Words, panel?: string): string[] {
+  const cells = model.primary?.kind === "cell" || model.primary?.kind === "calendar";
+  return model.unplaced.rules.map((r) =>
+    words.rule(
+      panel === undefined ? r.label : words.panelAt(panel, r.label),
+      cells ? model.colourText(r.value) : model.amountText(r.value),
+    ),
+  );
 }
 
 function rulesOf(model: Model, marks: Model["marks"], words: Words, panel?: string): string[] {
@@ -582,41 +596,24 @@ function rulesOf(model: Model, marks: Model["marks"], words: Words, panel?: stri
   return out;
 }
 
-/** Each note's sentence, in spec order: its x as the readings write it (a
- *  slope's column name), under a dot mark after its row's name, on a bar or
- *  point chart its row's name alone, on a scatter the name of the dot it
- *  joins or else both its measures, on a cell chart the place of the cell it
- *  joins or else both its values, on a calendar its instant's date; in a
- *  panel of small multiples that place through `panelAt`. */
+/** Each note's sentence, in spec order: its x as the readings write it, on
+ *  a scatter as its measure, on a calendar its instant's date; then each
+ *  note the plot has no place for, at its plain value; in a panel of small
+ *  multiples that place through `panelAt`. */
 export function noteSentences(model: Model, words: Words, panel?: string): string[] {
   const out: string[] = [];
-  const m = model.primary;
   const note = (at: string, text: string) =>
     words.note(panel === undefined ? at : words.panelAt(panel, at), text);
   for (const t of model.marks) {
-    if (t.kind === "text" && m?.kind === "scatter") {
-      const d = t.x === undefined ? undefined : scatterDotAt(m, t.x, t.y);
+    if (t.kind === "text") {
       const at =
-        d === undefined
-          ? `${measureText(model, "x", t.x ?? null, words)}, ${measureText(model, "y", t.y, words)}`
-          : (m.series[d.series]?.names[d.i] ?? "");
+        model.primary?.kind === "scatter" ? measureText(model, "x", t.x, words) : model.xText(t.x);
       out.push(note(at, t.text));
-    } else if (t.kind === "text" && m?.kind === "cell") {
-      const j = noteJoin(model, t);
-      const at =
-        j?.kind === "cell"
-          ? cellPlaceText(model, m, j.row, j.column, words)
-          : words.cellPlace(model.xText(t.x ?? 0), model.yText(t.y));
-      out.push(note(at, t.text));
-    } else if (t.kind === "text" && m?.kind === "calendar") {
-      out.push(note(model.xText(t.x ?? 0), t.text));
-    } else if (t.kind === "text") {
-      const row = model.y.type === "band" ? (model.y.rows[t.y] ?? "") : undefined;
-      const x = t.x === undefined ? undefined : model.xText(t.x);
-      const at =
-        row === undefined ? x : m?.kind === "dot" && x !== undefined ? `${row}, ${x}` : row;
-      out.push(note(at ?? "", t.text));
     }
+  }
+  const plain = writer("number", model.locale);
+  for (const t of model.unplaced.notes) {
+    out.push(note(plain(t.at), t.text));
   }
   return out;
 }

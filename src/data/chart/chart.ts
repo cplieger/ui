@@ -21,7 +21,7 @@ import { shortDescription, summaryOf } from "./summary.js";
 import { namedRows, syncTable, tableModel } from "./table.js";
 import { chartWords, type ChartWords, type Words } from "./words.js";
 
-export type { ChartSpec, Mark } from "./spec.js";
+export type { ChartFrame, ChartSpec, Mark } from "./spec.js";
 export type { ChartWords } from "./words.js";
 
 export interface ChartOptions {

@@ -44,7 +44,6 @@ import {
   barsApart,
   dayOf,
   sampleValue,
-  thinnestBin,
   type BarModel,
   type BoxModel,
   type CalendarModel,
@@ -55,8 +54,9 @@ import {
   type SlopeModel,
   type TreeModel,
 } from "./model.js";
+import { thinnestBin } from "./check.js";
 import { dayFormat, dayPlace, foldSize, monthFirst, weekCount, weekRow } from "./calendar.js";
-import { MARKER_RADIUS, NOTE_REM, notePoint, placeNote, wrapNote, type Box } from "./notes.js";
+import { NOTE_REM, notePoint, placeNote, wrapNote, type Box } from "./notes.js";
 import { rimPoint, sliceAngles, type Disc } from "./pie.js";
 import { lastSample, lastStack, partAmount, samplePart } from "./readout.js";
 import type { Continuous } from "./scales.js";
@@ -223,8 +223,6 @@ const MIRROR_SPACE = 2;
 const NAME_GAP = 2;
 /** The room between a bar's end and its value label. */
 const VALUE_GAP = 4;
-/** The room between a row's last bar, or its label, and a note's point there. */
-const END_GAP = 4;
 /** The room between panels: a split bar chart's, and small multiples' rows and columns. */
 export const PANEL_GAP = 16;
 /** The spine between a mirrored bar chart's two sides. */
@@ -291,14 +289,12 @@ function endTexts(
   return out;
 }
 
-// Each text mark `notePoint` places, wrapped and placed beside its point;
-// `rowEnd` gives the point of a note at its row's end.
+// Each text mark `notePoint` places, wrapped and placed beside its point on
+// the plot's top edge, or `dayPoint`'s on a calendar.
 function notesOf(
   model: Model,
   metrics: Metrics,
   projection: Projection,
-  rows: Layout["rows"],
-  rowEnd: (row: number) => number,
   dayPoint?: (t: number) => { readonly x: number; readonly y: number } | undefined,
 ): Note[] {
   const out: Note[] = [];
@@ -308,12 +304,12 @@ function notesOf(
     if (m.kind !== "text" || at === undefined) {
       return;
     }
-    const day = dayPoint === undefined ? undefined : dayPoint(at.x ?? 0);
+    const day = dayPoint === undefined ? undefined : dayPoint(at);
     if (dayPoint !== undefined && day === undefined) {
       return;
     }
-    const x = day?.x ?? (at.x === undefined ? rowEnd(at.y) : projection.xAt(at.x));
-    const y = day?.y ?? (m.row ? (rows[at.y]?.y ?? 0) : projection.yAt(at.y));
+    const x = day?.x ?? projection.xAt(at);
+    const y = day?.y ?? 0;
     const texts = wrapNote(m.text, max, metrics.measure.text);
     const w = widestOf(texts, metrics.measure.text);
     const h = texts.length * metrics.lineHeight;
@@ -626,7 +622,7 @@ function slopeLayout(
     anchor: c === 0 ? "start" : "end",
   }));
   const projection: Projection = { width: plotW, height, dpr, yAt, x: model.x, xAt };
-  const notes = notesOf(model, metrics, projection, [], () => 0);
+  const notes = notesOf(model, metrics, projection);
   return {
     width,
     // Half a label's line under the plot holds a label at its bottom edge.
@@ -735,21 +731,14 @@ function calendarLayout(
     x: model.x,
     xAt: (v) => v,
   };
-  const notes = notesOf(
-    model,
-    metrics,
-    projection,
-    [],
-    () => 0,
-    (t) => {
-      const i = dayOf(model, m, t);
-      if (i === -1) {
-        return undefined;
-      }
-      const b = dayBox(grid, i, dpr);
-      return { x: (b.left + b.right) / 2, y: (b.top + b.bottom) / 2 };
-    },
-  );
+  const notes = notesOf(model, metrics, projection, (t) => {
+    const i = dayOf(model, m, t);
+    if (i === -1) {
+      return undefined;
+    }
+    const b = dayBox(grid, i, dpr);
+    return { x: (b.left + b.right) / 2, y: (b.top + b.bottom) / 2 };
+  });
   return {
     width,
     height,
@@ -1250,19 +1239,7 @@ export function layout(
     roomRight = Math.max(roomLeft, roomRight);
     roomLeft = 0;
   }
-  // A note at its row's end needs its point, and a numbered marker round it,
-  // on the plot: past each panel's outer end, a diverging row's right end,
-  // or the end the bars run to.
-  const endRoom = model.marks.some((m) => m.kind === "text" && m.x === undefined)
-    ? END_GAP + MARKER_RADIUS
-    : 0;
-  const endLeft = !panelled && bars?.arrange !== "diverge" && reverse;
-  if (endLeft) {
-    roomLeft += endRoom;
-  } else {
-    roomRight += endRoom;
-  }
-  const shift = valued ? 0 : inset + (endLeft ? endRoom : 0);
+  const shift = valued ? 0 : inset;
   const one: Axis =
     cells !== undefined && "names" in cells.x
       ? bandAxis(cells.x.names, plotW, reverse, measure)
@@ -1277,7 +1254,7 @@ export function layout(
           }
         : xAxis(
             flip === reverse ? model.x : { ...model.x, reverse: flip },
-            Math.max(1, panelW - 2 * inset - endRoom),
+            Math.max(1, panelW - 2 * inset),
             ctx,
           );
   const panels = panelled ? panelsOf(bars, panelW, reverse, one.at) : [];
@@ -1497,29 +1474,7 @@ export function layout(
     ...(bubble === undefined ? {} : { bubble }),
   };
 
-  // A note with no x points 4 px past the outer end of its row's last
-  // place: the last panel's bar, a mirror's or a diverging row's right
-  // side, or else its farthest bar; past that bar's value label if it has one.
-  const rowEnd = (row: number): number => {
-    if (bars === undefined) {
-      return 0;
-    }
-    const k = mirror ? panels.findIndex((p) => !p.leftward) : panels.length - 1;
-    const panel = panels[k];
-    if (panel !== undefined) {
-      const label = labelEnds.find((e) => e.row === row && e.series === k);
-      const dir = panel.leftward ? -1 : 1;
-      return (label?.edge ?? panel.at(held(bars.series[k]?.x[row] ?? 0))) + dir * END_GAP;
-    }
-    const reach = barReach(bars, row);
-    if (bars.arrange === "diverge") {
-      return Math.max(xAx.at(held(reach.lo)), xAx.at(held(reach.hi))) + END_GAP;
-    }
-    // Bars here are 0 or more, so the farthest reaches the row's highest.
-    const label = labelEnds.find((e) => e.row === row && e.value === reach.hi);
-    return (label?.edge ?? xAx.at(held(reach.hi))) + (reverse ? -END_GAP : END_GAP);
-  };
-  const notes = notesOf(model, metrics, projection, rows, rowEnd);
+  const notes = notesOf(model, metrics, projection);
   return {
     width,
     height: top + height + bottom,

@@ -52,6 +52,8 @@ interface Door {
    *  if given; `charge` of it joins the values count before an entry is read. */
   readonly list: (v: unknown, field: Field, options?: List) => unknown[];
   readonly add: (n: number, field: Field) => void;
+  /** The values counted so far. */
+  readonly count: () => number;
   readonly fail: Fail;
 }
 
@@ -110,7 +112,7 @@ export function door(prefix: string, most: number): Door {
     }
     return out;
   };
-  return { list, add, fail };
+  return { list, add, count: () => count, fail };
 }
 
 // Every frame type, so a type the contract adds fails the type check here.

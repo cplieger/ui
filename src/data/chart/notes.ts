@@ -8,9 +8,7 @@
 import { lowerBound } from "../scale/reduce.js";
 
 import {
-  binOf,
   dayOf,
-  scatterDotAt,
   stepStopAt,
   type Model,
   type RectModel,
@@ -142,17 +140,9 @@ export function placeNote(
   return { side: taken, box, fits };
 }
 
-/** The stop a note joins: bucket, sample or slope column `i`, post `i` of
- *  a timeline row, a row (a timeline row with no post, or a bar or point
- *  row), a scatter's dot `i` of `series`, a grid's cell, or a calendar's
- *  day `i`. */
+/** The stop a note joins: bucket or sample `i`, or a calendar's day `i`. */
 export type Join =
-  | { readonly kind: "stop"; readonly i: number }
-  | { readonly kind: "post"; readonly row: number; readonly i: number }
-  | { readonly kind: "row"; readonly row: number }
-  | { readonly kind: "dot"; readonly series: number; readonly i: number }
-  | { readonly kind: "cell"; readonly row: number; readonly column: number }
-  | { readonly kind: "day"; readonly i: number };
+  { readonly kind: "stop"; readonly i: number } | { readonly kind: "day"; readonly i: number };
 
 /**
  * The index in `[from, to)` of ascending `xs` nearest `x`, the earlier on a
@@ -214,48 +204,26 @@ function firstShown(m: RectModel, past: (i: number) => boolean): number {
 }
 
 /**
- * Where note `t` stands, in axis values: a band's row index for `y`, and no
- * `x` for a note at its row's end. Undefined when it lies off either axis's
- * domain, which the scales set without notes. Layout and `noteJoin` both
- * check it, so whether a note is on the plot never depends on the chart's
- * width.
+ * Where note `t` stands on x, or undefined off the x domain, which the scales
+ * set without notes. Layout and `noteJoin` both check it, so whether a note
+ * is on the plot never depends on the chart's width.
  */
-export function notePoint(
-  model: Model,
-  t: TextModel,
-): { readonly x: number | undefined; readonly y: number } | undefined {
-  if (t.x === undefined) {
-    return { x: undefined, y: t.y };
-  }
+export function notePoint(model: Model, t: TextModel): number | undefined {
   const x = ruleAt(model.x, t.x);
-  if ("off" in x) {
-    return undefined;
-  }
-  if (model.y.type === "band") {
-    return { x: x.at, y: t.y };
-  }
-  const y = ruleAt(model.y, t.y);
-  return "off" in y ? undefined : { x: x.at, y: y.at };
+  return "off" in x ? undefined : x.at;
 }
 
-/** The stop note `t` joins in `model`; none when `notePoint` places it
- *  nowhere or it names no stop. On a step curve that is the stop holding its
- *  nearest sample, since the keys stop only there. A bar, point or box note
- *  joins its row, its x only placing it; a slope note its column; a
- *  scatter note the dot at its values, by value, never by px, so its join
- *  holds before any layout and at every width; a cell note the cell its
- *  names or the bins holding its values give; a calendar note the day
- *  holding its instant on the chart's wall clock. */
+/** The stop note `t` joins in `model`: on a rect, line or area the stop at
+ *  its x (on a step curve the stop holding its nearest sample, since the keys
+ *  stop only there), on a calendar the day holding its instant on the chart's
+ *  wall clock. Elsewhere a reading is a row, a dot or a cell, which an x alone
+ *  does not name, so none. */
 export function noteJoin(model: Model, t: TextModel): Join | undefined {
-  const p = notePoint(model, t);
+  const x = notePoint(model, t);
   const m = model.primary;
-  if (p === undefined) {
+  if (x === undefined) {
     return undefined;
   }
-  if (p.x === undefined || m?.kind === "bar" || m?.kind === "point" || m?.kind === "box") {
-    return { kind: "row", row: p.y };
-  }
-  const x = p.x;
   switch (m?.kind) {
     case "rect": {
       const i = bucketAt(m, x, model.x.hi);
@@ -269,35 +237,11 @@ export function noteJoin(model: Model, t: TextModel): Join | undefined {
       }
       return { kind: "stop", i: m.step ? stepStopAt(m, i) : i };
     }
-    case "dot": {
-      const row = m.rows[t.y];
-      if (row === undefined) {
-        return undefined;
-      }
-      if (row.to <= row.from) {
-        return { kind: "row", row: t.y };
-      }
-      const i = nearestStop(row.x, row.from, row.to, x);
-      return i === undefined ? undefined : { kind: "post", row: t.y, i };
-    }
-    case "slope":
-      return { kind: "stop", i: x };
-    case "scatter": {
-      const d = scatterDotAt(m, x, p.y);
-      return d === undefined ? undefined : { kind: "dot", ...d };
-    }
-    case "cell": {
-      const column = "names" in m.x ? Math.floor(x) : binOf(m.x.edges, x);
-      const row = "names" in m.y ? p.y : binOf(m.y.edges, p.y);
-      return column === -1 || row === -1 ? undefined : { kind: "cell", row, column };
-    }
     case "calendar": {
       const i = dayOf(model, m, x);
       return i === -1 ? undefined : { kind: "day", i };
     }
-    case "pie":
-    case "tree":
-    case undefined:
+    default:
       return undefined;
   }
 }

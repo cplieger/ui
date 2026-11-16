@@ -1112,7 +1112,7 @@ export function spoken(
 // The stop `sel` stands on: a pointer on a step curve's held sample stands on
 // the stop holding it, which is where `noteJoin` joins a note.
 function stopOf(model: Model, sel: Selection): number | undefined {
-  if (sel.kind === "rect" || sel.kind === "slope") {
+  if (sel.kind === "rect") {
     return sel.i;
   }
   if (sel.kind !== "line" && sel.kind !== "area") {
@@ -1123,21 +1123,7 @@ function stopOf(model: Model, sel: Selection): number | undefined {
 }
 
 const joins = (j: Join, sel: Selection, stop: number | undefined): boolean =>
-  j.kind === "stop"
-    ? stop === j.i
-    : j.kind === "post"
-      ? sel.kind === "dot" && sel.row === j.row && j.i >= sel.from && j.i < sel.to
-      : j.kind === "dot"
-        ? sel.kind === "scatter" && sel.series === j.series && sel.i === j.i
-        : j.kind === "cell"
-          ? sel.kind === "cell" && sel.row === j.row && sel.column === j.column
-          : j.kind === "day"
-            ? sel.kind === "day" && sel.i === j.i
-            : (sel.kind === "row" ||
-                sel.kind === "bar" ||
-                sel.kind === "point" ||
-                sel.kind === "box") &&
-              sel.row === j.row;
+  j.kind === "stop" ? stop === j.i : sel.kind === "day" && sel.i === j.i;
 
 /** Each note joining `sel`'s stop through `words.noteReading`, in spec order. */
 function noteReadings(model: Model, sel: Selection, words: Words): string {

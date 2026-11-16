@@ -77,12 +77,11 @@ const MOST_DIGITS = 100;
 
 /**
  * The one way the chart and the sparkline write a number: `format` in
- * `locale`, "number" when undefined, never with a signed zero. A number
- * format's own `signDisplay` is kept unless it signs a zero: "always"
- * becomes "exceptZero", and "auto" (the default) "exceptZero" when `signed`
- * and "negative" when not. A duration is a count of seconds. When `signed`,
- * a duration gets a "+" before a value it writes above 0 ms, and a function's
- * string, as it is, before a positive value's text unless it has one.
+ * `locale` ("number" when undefined, a duration from seconds), never with a
+ * signed zero: `signDisplay` "always" is "exceptZero", "auto" "exceptZero"
+ * when `signed` and "negative" when not. When `signed`, a duration gets a
+ * "+" before a value it writes above 0 ms, and a function's string, as it
+ * is, before a positive value's text unless it has one.
  */
 export function writer(
   format: Format | undefined,
