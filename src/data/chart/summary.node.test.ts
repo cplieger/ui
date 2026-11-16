@@ -13,6 +13,7 @@ import {
   events,
   grid,
   ladder,
+  named,
   points,
   seriesFrame,
   tree,
@@ -40,9 +41,6 @@ const posts = { one: "post", other: "posts" };
 
 type Values = readonly (number | null)[];
 type More = Omit<ChartSpec, "data" | "mark" | "facets">;
-// Series keyed by their names, in order.
-const named = (...series: (readonly [string, Values])[]): FrameSeries[] =>
-  series.map(([key, values]) => ({ key, values: [...values] }));
 // `frame` with refs and notes keyed by their words.
 const marked = <F extends ChartFrame>(
   frame: F,

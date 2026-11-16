@@ -1218,33 +1218,34 @@ function readFacets(facets: unknown, c: MarkCopy, words: Words, d: Door, spec: R
     );
   }
   const given = own["panels"];
-  if (!isArray(given) || given.length === 0) {
-    fail("facets.panels must be a non-empty array, a panel each");
+  if (!isArray(given)) {
+    return fail("facets.panels must be a non-empty array, a panel each");
   }
-  const before = d.count();
-  const most = room(Math.min(given.length, MOST_PANELS));
-  const seen = new Set<string>();
-  const read = d.list(given, "facets.panels", {
+  // Copied before any panel is read, so its length is read once.
+  const list = d.list(given, "facets.panels", {
     most: MOST_PANELS,
     why: "past which no reader compares them",
-    each: (panel, k) => {
-      const at = `facets.panels[${String(k)}]`;
-      if (!isObject(panel)) {
-        return fail(`${at} must be an object`);
-      }
-      const p = fields(panel, ["key", "name", "data"]);
-      const key = p["key"];
-      if (typeof key !== "string") {
-        return fail(`${at}.key must be a string`);
-      }
-      if (key === "" || seen.has(key)) {
-        fail(`${at}.key "${key}" must be unique and not empty`, RangeError);
-      }
-      seen.add(key);
-      optional(p["name"], "string", `${at}.name`);
-      return { name: p["name"], read: readPanel(p["data"], `${at}.data`, c, d, spec, words, most) };
-    },
-  }) as { name: unknown; read: PanelRead }[];
+  });
+  const before = d.count();
+  const most = room(list.length);
+  const seen = new Set<string>();
+  const read = list.map((panel, k) => {
+    const at = `facets.panels[${String(k)}]`;
+    if (!isObject(panel)) {
+      return fail(`${at} must be an object`);
+    }
+    const p = fields(panel, ["key", "name", "data"]);
+    const key = p["key"];
+    if (typeof key !== "string") {
+      return fail(`${at}.key must be a string`);
+    }
+    if (key === "" || seen.has(key)) {
+      fail(`${at}.key "${key}" must be unique and not empty`, RangeError);
+    }
+    seen.add(key);
+    optional(p["name"], "string", `${at}.name`);
+    return { name: p["name"], read: readPanel(p["data"], `${at}.data`, c, d, spec, words, most) };
+  });
   if (own["context"] === true) {
     d.add(Math.max(0, read.length - 1) * (d.count() - before), "facets.context");
   }
@@ -1405,7 +1406,7 @@ export function check(given: unknown): Plot {
   if ((spec["data"] === undefined) === (facets === undefined)) {
     fail(
       spec["data"] === undefined
-        ? "the spec must hold data, or facets of panels each with its data"
+        ? "data must be given, or facets whose panels each hold their data"
         : "data has no place beside facets, whose panels each hold their data",
     );
   }

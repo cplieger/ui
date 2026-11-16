@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { FrameNote, FrameRef, FrameSeries, FrameTreePart } from "../frame/frame.js";
+import type { FrameNote, FrameRef, FrameTreePart } from "../frame/frame.js";
 import { writer } from "../scale/format.js";
 
 import { chartModel, stepStops, type LineModel, type Model } from "./model.js";
@@ -14,6 +14,7 @@ import {
   events,
   grid,
   ladder,
+  named,
   points,
   seriesFrame,
   tree,
@@ -35,9 +36,6 @@ const per = <T>(n: number, f: (i: number) => T): T[] => Array.from({ length: n }
 
 type Values = readonly (number | null)[];
 type Panel = NonNullable<ChartSpec["facets"]>["panels"][number];
-// Series keyed by their names, in order.
-const named = (...series: (readonly [string, Values])[]): FrameSeries[] =>
-  series.map(([key, values]) => ({ key, values: [...values] }));
 // `frame` with refs and notes keyed by their words.
 const marked = <F extends ChartFrame>(
   frame: F,

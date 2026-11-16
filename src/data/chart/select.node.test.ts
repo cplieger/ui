@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { FrameNote, FrameSeries, FrameTreePart } from "../frame/frame.js";
+import type { FrameNote, FrameTreePart } from "../frame/frame.js";
 import { writer } from "../scale/format.js";
 import { measurer } from "../scale/measure.js";
 
@@ -14,6 +14,7 @@ import {
   calendar as calendarFrame,
   categories,
   grid as gridFrame,
+  named,
   points,
   seriesFrame,
   tree,
@@ -70,9 +71,6 @@ function press(b: Built, sel: Selection, ...keys: Key[]): (Selection | undefined
 const minutes = (n: number) => Array.from({ length: n }, (_, i) => START + i * MIN);
 
 type Values = readonly (number | null)[];
-// Series keyed by their names, in order.
-const named = (...series: (readonly [string, Values])[]): FrameSeries[] =>
-  series.map(([key, values]) => ({ key, values: [...values] }));
 // `spec` with frame notes keyed by their text.
 const noted = (spec: ChartSpec, ...notes: (readonly [number, string])[]): ChartSpec =>
   ({

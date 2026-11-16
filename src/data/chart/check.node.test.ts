@@ -37,8 +37,9 @@ describe("the door's shape", () => {
     expect(() => check({ marks: [{ mark: "line", x: [0], series: [] }] })).toThrow(
       /mark must be an object/,
     );
-    expect(() => check({ mark: { mark: "line" } })).toThrow(TypeError);
-    expect(() => check({ mark: { mark: "line" } })).toThrow(/must hold data, or facets/);
+    expect(() => check({ mark: { mark: "line" } })).toThrow(
+      new TypeError("renderChart: data must be given, or facets whose panels each hold their data"),
+    );
   });
 
   it("refuses data beside facets", () => {

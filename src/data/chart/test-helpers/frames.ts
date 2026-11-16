@@ -27,6 +27,10 @@ export function ladder(max = THREE_DAYS): readonly number[] {
 
 type Values = readonly (number | null)[];
 
+/** Series keyed by their names, in order, so the readings say them. */
+export const named = (...series: (readonly [string, Values])[]): FrameSeries[] =>
+  series.map(([key, values]) => ({ key, values: [...values] }));
+
 // Series keyed "a", "b", ... in order, a value list each.
 const keyed = (values: readonly Values[]): FrameSeries[] =>
   values.map((v, i) => ({ key: String.fromCharCode(97 + i), values: [...v] }));

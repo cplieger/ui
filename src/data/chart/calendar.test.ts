@@ -7,6 +7,7 @@ import { forgetMeasures } from "../scale/measure.js";
 import { weekStartOf } from "./calendar.js";
 import { renderChart, type ChartSpec } from "./chart.js";
 import { chartModel, type CalendarModel } from "./model.js";
+import { calendar } from "./test-helpers/frames.js";
 
 const root = document.documentElement;
 let sheet: HTMLLinkElement;
@@ -45,13 +46,11 @@ afterEach(() => {
 const JAN1 = Date.UTC(2026, 0, 1);
 const year = (weekStart?: number): ChartSpec => ({
   colour: { unit: { one: "post", other: "posts" } },
-  marks: [
-    {
-      mark: "cell",
-      days: { start: JAN1, values: Array.from({ length: 365 }, (_, i) => (i * 7) % 23) },
-      ...(weekStart === undefined ? {} : { weekStart }),
-    },
-  ],
+  data: calendar(
+    JAN1,
+    Array.from({ length: 365 }, (_, i) => (i * 7) % 23),
+  ),
+  mark: { mark: "cell", ...(weekStart === undefined ? {} : { weekStart }) },
 });
 
 describe("the week a calendar starts on", () => {
@@ -121,7 +120,8 @@ describe("a calendar heatmap drawn", () => {
   it("draws and reads a calendar whose last week ends on the last day Date holds", async () => {
     const spec: ChartSpec = {
       colour: { unit: { one: "post", other: "posts" } },
-      marks: [{ mark: "cell", days: { start: 8.64e15 - 86_400_000, values: [1, 2] } }],
+      data: calendar(8.64e15 - 86_400_000, [1, 2]),
+      mark: { mark: "cell" },
     };
     const { plot, svg } = build(spec, 900, "en-US");
     expect(names(svg, "y")).toEqual(["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]);

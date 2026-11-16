@@ -47,6 +47,7 @@ import {
   events,
   grid,
   ladder,
+  named,
   points,
   seriesFrame,
   tree as treeFrame,
@@ -69,9 +70,6 @@ const per = <T>(n: number, f: (i: number) => T): T[] => Array.from({ length: n }
 
 type Values = readonly (number | null)[];
 type Slot = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
-// Series keyed by their names, in order.
-const named = (...series: (readonly [string, Values])[]): FrameSeries[] =>
-  series.map(([key, values]) => ({ key, values: [...values] }));
 // The slots of the keys that take another than their place's.
 const slots = (...keys: (readonly [string, Slot])[]) => keys.map(([key, slot]) => ({ key, slot }));
 
