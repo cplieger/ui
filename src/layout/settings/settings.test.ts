@@ -15,6 +15,8 @@ afterEach(async () => {
   document.documentElement.style.scrollBehavior = "";
   document.documentElement.style.scrollPaddingTop = "";
   document.documentElement.style.zoom = "";
+  document.documentElement.style.transform = "";
+  document.documentElement.style.transformOrigin = "";
   scrollTo(0, 0);
   // The next case's press must not meet this scroll's late events, and
   // Firefox may still be gliding from a case's smooth scroll.
@@ -934,6 +936,24 @@ describe("enhanceSettings", () => {
       // The root's lengths scale by its zoom; 10% of the scrollport does not.
       const want = padding === "48px" ? (48 + margin) * zoom : port * 0.1 + (8 + margin) * zoom;
       expect(await pressChecks(links, want)).toBe(1);
+    },
+  );
+
+  it.each(["down", "up"])(
+    "keeps a pressed short category through a jump under the root's scroll-padding-top 48px and transform: scale(1.25), %sward",
+    async (dir) => {
+      const root = document.documentElement;
+      root.style.transform = "scale(1.25)";
+      root.style.transformOrigin = "0 0";
+      root.style.scrollPaddingTop = "48px";
+      const { links } = short('<div class="cp-settings"></div>');
+      (document.getElementById("b-chk") as HTMLElement).style.blockSize = "20px";
+      if (dir === "up") {
+        scrollTo({ top: root.scrollHeight, behavior: "instant" });
+      }
+      await still();
+      // A transform, unlike a zoom, leaves the root's scroll-padding as written.
+      expect(await pressChecks(links, 48)).toBe(1);
     },
   );
 

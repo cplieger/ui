@@ -221,8 +221,10 @@ function plan(section: Element): Map<EventTarget, Leg> {
     }
   }
   // The viewport's offsets and a rectangle are in screen pixels, the root's
-  // lengths in its own, `zoom` screen pixels apart.
-  const zoom = scaleOf(html);
+  // lengths in its own, its computed zoom apart. A transform on the root
+  // does not move where the browser rests a section, so `scaleOf` is wrong here.
+  const raw = Number.parseFloat(getComputedStyle(html).zoom);
+  const zoom = Number.isFinite(raw) && raw > 0 ? raw : 1;
   take(document, document.scrollingElement ?? html, {
     edge: 0,
     inset: 0,
