@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { rollText } from "../../core/roll/roll.js";
 import { enhanceConfirm, type ConfirmOptions } from "./confirm.js";
@@ -279,5 +279,50 @@ describe("enhanceConfirm", () => {
   it("throws a TypeError without its words", () => {
     const b = document.createElement("button");
     expect(() => enhanceConfirm(b, { busy: "Saving…", done: "Saved" })).toThrow(TypeError);
+  });
+});
+
+describe("the first paint, before the script", () => {
+  let sheet: HTMLLinkElement;
+
+  beforeAll(async () => {
+    document.documentElement.classList.add("cp");
+    sheet = document.createElement("link");
+    sheet.rel = "stylesheet";
+    sheet.href = new URL("../../../css/system.css", import.meta.url).href;
+    const loaded = new Promise((resolve, reject) => {
+      sheet.addEventListener("load", resolve, { once: true });
+      sheet.addEventListener("error", reject, { once: true });
+    });
+    document.head.append(sheet);
+    await loaded;
+  });
+
+  afterAll(() => {
+    sheet.remove();
+    document.documentElement.classList.remove("cp");
+  });
+
+  it("shows only a button's icon at rest, its busy and done parts hidden", () => {
+    const b = document.createElement("button");
+    b.className = "cp-button";
+    b.type = "button";
+    const icon = (name: string, part?: string) => {
+      const s = document.createElement("span");
+      s.className = "cp-icon";
+      s.dataset["cpIcon"] = name;
+      if (part !== undefined) {
+        s.dataset["part"] = part;
+      }
+      return s;
+    };
+    const rest = icon("download");
+    const busy = icon("spinner-arc", "busy");
+    const done = icon("check", "done");
+    b.append(rest, busy, done, "Grab");
+    document.body.append(b);
+    expect(getComputedStyle(rest).display).not.toBe("none");
+    expect(getComputedStyle(busy).display).toBe("none");
+    expect(getComputedStyle(done).display).toBe("none");
   });
 });
