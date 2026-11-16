@@ -1,8 +1,12 @@
 import { expect, it } from "vitest";
 
 import { chartModel } from "./model.js";
+import type { ChartSpec } from "./spec.js";
 import { syncTable, tableModel, type TableModel } from "./table.js";
+import { binsFrame, calendar, points } from "./test-helpers/frames.js";
 import { chartWords } from "./words.js";
+
+type Panel = NonNullable<ChartSpec["facets"]>["panels"][number];
 
 it("builds a table of 129,600 rows, a 90-day line sampled each minute", () => {
   const t: TableModel = {
@@ -24,7 +28,7 @@ it("builds a table of 129,600 rows, a 90-day line sampled each minute", () => {
 it("writes a datetime HTML reads for years past 9999, and none before year 1", () => {
   const last = tableModel(
     chartModel(
-      { marks: [{ mark: "cell", days: { start: 8.64e15 - 86_400_000, values: [1, 2] } }] },
+      { data: calendar(8.64e15 - 86_400_000, [1, 2]), mark: { mark: "cell" } },
       "en",
       "UTC",
     ),
@@ -56,25 +60,22 @@ it("writes a datetime HTML reads for years past 9999, and none before year 1", (
 });
 
 it("heads small multiples' column groups in a row above their columns, each over its <colgroup>", () => {
-  const panel = (name: string, a: number) => ({
+  const panel = (name: string, a: number): Panel => ({
+    key: name,
     name,
-    marks: [
-      {
-        mark: "rect" as const,
-        x1: [0],
-        x2: [10],
-        series: [
-          { name: "Coal", y: [a] },
-          { name: "Gas", y: [1] },
-        ],
-      },
-    ],
+    data: binsFrame([0], [10], [], {
+      axis: "value",
+      series: [
+        { key: "Coal", values: [a] },
+        { key: "Gas", values: [1] },
+      ],
+    }),
   });
   const t = tableModel(
     chartModel(
       {
         x: { label: "Hour" },
-        marks: [],
+        mark: { mark: "rect" },
         facets: { panels: [panel("Germany", 2), panel("France", 3)] },
       },
       "en",
@@ -119,15 +120,16 @@ it("heads small multiples' column groups in a row above their columns, each over
 });
 
 it("heads each scatter panel's <tbody> with its name across every column", () => {
-  const dots = (name: string) => ({
-    marks: [{ mark: "scatter" as const, series: [{ name, names: ["a"], x: [1], y: [2] }] }],
+  const dots = (name: string): Panel => ({
+    key: name,
+    data: points([{ key: name, names: ["a"], x: [1], y: [2] }]),
   });
   const t = tableModel(
     chartModel(
       {
         x: { label: "Income" },
         y: { label: "Age" },
-        marks: [],
+        mark: { mark: "scatter" },
         facets: { panels: [dots("Europe"), dots("Africa")] },
       },
       "en",

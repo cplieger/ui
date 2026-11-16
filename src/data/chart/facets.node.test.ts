@@ -1,14 +1,23 @@
 import { describe, expect, it } from "vitest";
 
+import type { FrameNote, FrameRef, SeriesFrame } from "../frame/frame.js";
 import { measurer } from "../scale/measure.js";
 
 import { facetLayout, facetOverall, facetWidths, headFigure, PANEL_HEIGHT } from "./facets.js";
 import type { Metrics } from "./layout.js";
 import { chartModel, type Model } from "./model.js";
-import type { ChartSpec, Mark } from "./spec.js";
+import type { ChartFrame, ChartSpec, Mark } from "./spec.js";
+import {
+  binsFrame,
+  boxes as boxesFrame,
+  calendar,
+  categories,
+  grid as gridFrame,
+  points,
+  tree,
+  unitBins,
+} from "./test-helpers/frames.js";
 import { chartWords } from "./words.js";
-
-type Slot = NonNullable<Extract<Mark, { mark: "line" }>["series"][number]["slot"]>;
 
 const face = measurer((t) => 7.5 * Array.from(t).length, 7.5, "en");
 const metrics: Metrics = {
@@ -35,37 +44,54 @@ const grid = (spec: ChartSpec, width: number) => {
   return facetLayout(m, m.facets, words, metrics, width, { axis: 0, label: 0 });
 };
 
+type Panel = NonNullable<ChartSpec["facets"]>["panels"][number];
+type Facets = Omit<NonNullable<ChartSpec["facets"]>, "panels">;
+type Values = readonly (number | null)[];
+
 const x = [0, 1, 2, 3];
-const line = (name: string, y: (number | null)[]): Mark => ({
-  mark: "line",
+// A share of each sample, one series keyed `key`.
+const one = (key: string, values: Values, more: Partial<SeriesFrame> = {}): SeriesFrame => ({
+  type: "series",
+  name: "s",
+  unit: "ratio",
   x,
-  series: [{ name, y }],
+  series: [{ key, values: [...values] }],
+  ...more,
 });
-const lines = (count: number, more: Partial<ChartSpec> = {}): ChartSpec => ({
-  y: { format: "percent" },
-  marks: [],
+// Panels keyed p0, p1, ... of `frames`, under `mark`.
+const faceted = (
+  mark: Mark,
+  frames: readonly ChartFrame[],
+  names?: readonly string[],
+  more: Omit<ChartSpec, "data" | "mark" | "facets"> = {},
+  facets: Facets = {},
+): ChartSpec => ({
+  mark,
   facets: {
-    panels: Array.from({ length: count }, (_, k) => ({
-      marks: [line(`Region ${String(k + 1)}`, [0.02, 0.04 * (k + 1), 0.03, 0.05])],
-    })),
+    ...facets,
+    panels: frames.map((data, k): Panel => {
+      const name = names?.[k];
+      return { key: `p${String(k)}`, ...(name === undefined ? {} : { name }), data };
+    }),
   },
   ...more,
 });
-const bars = (names: string[]): ChartSpec => ({
-  marks: [],
-  facets: {
-    panels: names.map((name, k) => ({
-      name,
-      marks: [
-        {
-          mark: "bar",
-          y: ["Coal", "Gas", "Wind"],
-          series: [{ name: "Share", x: [k + 1, 2, 3] }],
-        },
-      ],
-    })),
-  },
-});
+const regions = (count: number, refs?: FrameRef[]): SeriesFrame[] =>
+  Array.from({ length: count }, (_, k) =>
+    one(`Region ${String(k + 1)}`, [0.02, 0.04 * (k + 1), 0.03, 0.05], refs && { refs }),
+  );
+const lines = (
+  count: number,
+  more: Omit<ChartSpec, "data" | "mark" | "facets"> = {},
+  facets: Facets = {},
+): ChartSpec => faceted({ mark: "line" }, regions(count), undefined, more, facets);
+const fuels = (k: number) => categories(["Coal", "Gas", "Wind"], [[k + 1, 2, 3]]);
+const bars = (names: string[]): ChartSpec =>
+  faceted(
+    { mark: "bar" },
+    names.map((_, k) => fuels(k)),
+    names,
+  );
 
 describe("facets: the spec", () => {
   it("takes every panel's data into the chart's one domain", () => {
@@ -81,25 +107,17 @@ describe("facets: the spec", () => {
   });
 
   it("names a panel of several series by its own name, and refuses one without", () => {
-    const two = (name?: string): ChartSpec => ({
-      marks: [],
-      facets: {
-        panels: ["A", "B"].map((n) => ({
-          ...(name === undefined ? {} : { name: `${name} ${n}` }),
-          marks: [
-            {
-              mark: "rect",
-              x1: [0, 1],
-              x2: [1, 2],
-              series: [
-                { name: "Coal", y: [1, 2] },
-                { name: "Gas", y: [2, 1] },
-              ],
-            },
-          ],
-        })),
-      },
-    });
+    const two = (name?: string): ChartSpec =>
+      faceted(
+        { mark: "rect" },
+        ["A", "B"].map(() =>
+          unitBins([
+            [1, 2],
+            [2, 1],
+          ]),
+        ),
+        name === undefined ? undefined : ["A", "B"].map((n) => `${name} ${n}`),
+      );
     expect(model(two("Region")).facets?.panels.map((p) => p.name)).toEqual([
       "Region A",
       "Region B",
@@ -107,6 +125,11 @@ describe("facets: the spec", () => {
     expect(() => model(two())).toThrow(
       new TypeError("renderChart: facets.panels[0].name is required on a panel of 2 series"),
     );
+  });
+
+  it("names a one-series panel by its series' words in mark.keys", () => {
+    const spec = faceted({ mark: "line", keys: [{ key: "Region 2", name: "South" }] }, regions(2));
+    expect(model(spec).facets?.panels.map((p) => p.name)).toEqual(["Region 1", "South"]);
   });
 
   it("refuses an empty or a repeated panel name", () => {
@@ -117,134 +140,106 @@ describe("facets: the spec", () => {
   });
 
   it("refuses panels whose series are neither one each nor the same", () => {
-    const spec: ChartSpec = {
-      marks: [],
-      facets: {
-        panels: [
-          {
-            name: "A",
-            marks: [
-              {
-                mark: "line",
-                x,
-                series: [
-                  { name: "a", y: x },
-                  { name: "b", y: x },
-                ],
-              },
-            ],
-          },
-          {
-            name: "B",
-            marks: [
-              {
-                mark: "line",
-                x,
-                series: [
-                  { name: "b", y: x },
-                  { name: "a", y: x },
-                ],
-              },
-            ],
-          },
-        ],
-      },
-    };
+    const pair = (a: string, b: string): SeriesFrame => ({
+      ...one(a, x),
+      series: [
+        { key: a, values: x },
+        { key: b, values: x },
+      ],
+    });
+    const spec = faceted({ mark: "line" }, [pair("a", "b"), pair("b", "a")], ["A", "B"]);
     expect(() => model(spec)).toThrow(/each hold one series, or all the same series/);
   });
 
-  it("refuses data marks of two kinds or two option sets", () => {
-    const kinds: ChartSpec = {
-      marks: [],
-      facets: {
-        panels: [
-          { marks: [line("A", x)] },
-          { marks: [{ mark: "area", x, series: [{ name: "B", y: x }] }] },
-        ],
-      },
-    };
-    expect(() => model(kinds)).toThrow(
-      /facets\.panels\[1\]\.marks\[0\] is a area mark beside line panels/,
-    );
-    const options: ChartSpec = {
-      marks: [],
-      facets: {
-        panels: [
-          { marks: [line("A", x)] },
-          { marks: [{ mark: "line", x, curve: "step", series: [{ name: "B", y: x }] }] },
-        ],
-      },
-    };
-    expect(() => model(options)).toThrow(/facets\.panels\[1\]\.marks\[0\]\.curve must be/);
+  it("refuses a panel whose frame the mark does not draw", () => {
+    const mixed = faceted({ mark: "line" }, [one("A", x), unitBins([[1]])]);
+    expect(() => model(mixed)).toThrow(/^renderChart: facets\.panels\[1\]\.data\.type/u);
   });
 
-  it("refuses a timeline, a slope or a treemap in a panel", () => {
+  it("refuses a timeline or a treemap in a panel", () => {
     const dot: ChartSpec = {
-      x: { type: "time" },
-      marks: [],
-      facets: { panels: [{ name: "A", marks: [{ mark: "dot", rows: [{ name: "a", x: [1] }] }] }] },
-    };
-    expect(() => model(dot)).toThrow(/is a dot mark, which draws no panels/);
-    const tree: ChartSpec = {
-      marks: [],
+      mark: { mark: "dot" },
       facets: {
-        panels: [{ name: "A", marks: [{ mark: "tree", nodes: [{ name: "a", value: 1 }] }] }],
+        panels: [
+          {
+            key: "a",
+            name: "A",
+            data: { type: "events", name: "e", rows: [{ key: "a", at: [1] }] },
+          },
+        ],
       },
     };
-    expect(() => model(tree)).toThrow(/is a tree mark, which draws no panels/);
+    expect(() => model(dot)).toThrow(/mark\.mark "dot" draws no panels/);
+    const trees = faceted({ mark: "tree" }, [tree({ parts: [{ key: "a", value: 1 }] })], ["A"]);
+    expect(() => model(trees)).toThrow(/mark\.mark "tree" draws no panels/);
   });
 
-  it("holds rules only in the chart's marks, and a rule the panels' mark refuses is refused", () => {
-    expect(() => model(lines(2, { marks: [line("C", x)] }))).toThrow(
-      /marks\[0\] must be a rule beside facets/,
+  it("draws a ref every panel holds at one value once, as the chart's, and a panel's own in its panel", () => {
+    const target: FrameRef = { key: "target", value: 0.2 };
+    const shared = model(
+      faceted({ mark: "line" }, regions(2, [target]), undefined, {
+        refs: [{ key: "target", label: "Target" }],
+      }),
     );
-    expect(() => model(lines(2, { marks: [{ mark: "text", x: 1, y: 1, text: "a" }] }))).toThrow(
-      /marks\[0\] must be a rule beside facets/,
-    );
-    const rule = model(lines(2, { marks: [{ mark: "rule", y: 0.2, label: "Target" }] }));
-    for (const p of rule.facets?.panels ?? []) {
+    const rules = (marks: readonly { readonly mark: string }[] = []) =>
+      marks.filter((m) => m.mark === "rule");
+    expect(rules(shared.spec.marks)).toEqual([{ mark: "rule", y: 0.2, label: "Target" }]);
+    expect(shared.spec.facets?.panels.map((p) => rules(p.marks).length)).toEqual([0, 0]);
+    // Each panel's plot draws the chart's rule.
+    for (const p of shared.facets?.panels ?? []) {
       expect(p.model.marks.filter((m) => m.kind === "rule")).toHaveLength(1);
       expect("hi" in p.model.y ? p.model.y.hi : 0).toBeGreaterThanOrEqual(0.2);
     }
-    expect(() =>
-      model({ ...bars(["A", "B"]), marks: [{ mark: "rule", y: 1, label: "y" }] }),
-    ).toThrow(new TypeError("renderChart: a rule on a band y has no value to sit at"));
-    const pies: ChartSpec = {
-      marks: [{ mark: "rule", x: 1, label: "Target" }],
-      facets: {
-        panels: ["2023", "2024"].map((name) => ({
-          name,
-          marks: [{ mark: "pie", slices: [{ name: "a", value: 1 }] }] as Mark[],
-        })),
-      },
-    };
-    expect(() => model(pies)).toThrow(/marks\[0\] is a rule mark beside a pie/);
+    const [a, b] = regions(2);
+    const own = model(
+      faceted({ mark: "line" }, [{ ...(a ?? one("a", x)), refs: [target] }, b ?? one("b", x)]),
+    );
+    expect(rules(own.spec.marks)).toEqual([]);
+    expect(own.spec.facets?.panels.map((p) => rules(p.marks).length)).toEqual([1, 0]);
   });
 
-  it("names a panel's own mark by its place in the panel", () => {
-    const spec = lines(2);
-    const panels = spec.facets?.panels ?? [];
-    const broken: ChartSpec = {
-      ...spec,
-      facets: {
-        panels: [
-          panels[0] ?? { marks: [] },
-          { marks: [{ mark: "line", x, series: [{ name: "B", y: [1, 2] }] }] },
-        ],
-      },
-    };
-    expect(() => model(broken)).toThrow(/facets\.panels\[1\]\.marks\[0\]\.series\[0\]\.y/);
+  it("refuses a ref on an axis the panels' mark has no scale for, and gives a pie's in the summary", () => {
+    const refs = [{ key: "y", value: 1 }];
+    expect(() =>
+      model(
+        faceted(
+          { mark: "bar" },
+          [fuels(0), fuels(1)].map((f) => ({ ...f, refs })),
+          ["A", "B"],
+          { refs: [{ key: "y", axis: "y" }] },
+        ),
+      ),
+    ).toThrow(
+      /^renderChart: refs\[0\]\.axis "y" has no place beside a bar mark, which has no continuous y scale/u,
+    );
+    const pies = model(
+      faceted(
+        { mark: "pie" },
+        ["2023", "2024"].map(() =>
+          categories(["a"], [[1]], { refs: [{ key: "Target", value: 1 }] }),
+        ),
+        ["2023", "2024"],
+      ),
+    );
+    expect(pies.marks.filter((m) => m.kind === "rule")).toEqual([]);
+    expect(pies.unplaced.rules).toEqual([{ label: "Target", value: 1 }]);
+  });
+
+  it("names a panel's own frame field by its place in the panel", () => {
+    const [a] = regions(1);
+    const broken = faceted({ mark: "line" }, [a ?? one("a", x), { ...one("B", [1, 2]), x }]);
+    expect(() => model(broken)).toThrow(/facets\.panels\[1\]\.data\.series\[0\]\.values/);
   });
 
   it("refuses a missing, empty or over-long panel list, and a panel without its data", () => {
-    expect(() => model({ marks: [], facets: { panels: [] } })).toThrow(
+    expect(() => model({ mark: { mark: "line" }, facets: { panels: [] } })).toThrow(
       new TypeError("renderChart: facets.panels must be a non-empty array, a panel each"),
     );
     expect(() => model(lines(101))).toThrow(RangeError);
     expect(() => model(lines(101))).toThrow(/facets\.panels must hold at most 100 entries/);
-    expect(() => model({ marks: [], facets: { panels: [{ name: "A", marks: [] }] } })).toThrow(
-      new TypeError("renderChart: facets.panels[0].marks must hold one data mark"),
-    );
+    expect(() =>
+      model({ mark: { mark: "line" }, facets: { panels: [{ key: "a", name: "A" }] } } as never),
+    ).toThrow(/^renderChart: facets\.panels\[0\]\.data must be/u);
   });
 
   // Each panel draws a plot of its own, so the figure's ceilings are shared out.
@@ -257,90 +252,72 @@ describe("facets: the spec", () => {
     expect(model(lines(100, { height: 400 })).spec.height).toBe(400);
     const names = (n: number) => Array.from({ length: n }, (_, i) => `r${String(i)}`);
     const ones = (n: number) => names(n).map(() => 1);
-    const panels = (mark: Mark): ChartSpec => ({
-      marks: [],
-      facets: { panels: names(10).map((name) => ({ name, marks: [mark] })) },
-    });
-    const rows = (n: number, k = 1): Mark => ({
-      mark: "bar",
-      y: names(n),
-      arrange: "group",
-      series: names(k).map((name) => ({ name, x: ones(n) })),
-    });
-    expect(() => model(panels(rows(101)))).toThrow(
+    const panels = (mark: Mark, frame: ChartFrame): ChartSpec =>
+      faceted(
+        mark,
+        names(10).map(() => frame),
+        names(10),
+      );
+    const rows = (n: number, k = 1) =>
+      categories(
+        names(n),
+        names(k).map(() => ones(n)),
+      );
+    const group: Mark = { mark: "bar", arrange: "group" };
+    expect(() => model(panels(group, rows(101)))).toThrow(
       new RangeError(
-        "renderChart: facets.panels[0].marks[0].y must name at most 100 rows in each of 10 panels",
+        "renderChart: facets.panels[0].data.names must name at most 100 rows in each of 10 panels",
       ),
     );
-    expect(model(panels(rows(100))).facets?.panels).toHaveLength(10);
-    expect(() => model(panels(rows(100, 3)))).toThrow(
+    expect(model(panels(group, rows(100))).facets?.panels).toHaveLength(10);
+    expect(() => model(panels(group, rows(100, 3)))).toThrow(
       new RangeError(
-        "renderChart: facets.panels[0].marks[0].series must take at most 250 sub-rows in each of 10 panels, a sub-row per series in each row, since the plot is as tall as its rows",
+        "renderChart: facets.panels[0].data.series must take at most 250 sub-rows in each of 10 panels, a sub-row per series in each row, since the plot is as tall as its rows",
       ),
     );
     // 1 January 1970 was a Thursday, so with weeks from Thursday 700 days are 100 weeks.
-    const days = (n: number): Mark => ({
-      mark: "cell",
-      weekStart: 4,
-      days: { start: 0, values: ones(n) },
-    });
-    expect(() => model(panels(days(701)))).toThrow(
+    const week: Mark = { mark: "cell", weekStart: 4 };
+    expect(() => model(panels(week, calendar(0, ones(701))))).toThrow(
       new RangeError(
         "renderChart: the days of a calendar must fit in 100 weeks in each of 10 panels",
       ),
     );
-    expect(model(panels(days(700))).facets?.panels).toHaveLength(10);
-    const bins = (thinnest: number): Mark => ({
-      mark: "cell",
-      x: ["a"],
-      y: { edges: [0, thinnest, 1] },
-      values: [[1], [2]],
-    });
-    expect(() => model(panels(bins(0.009)))).toThrow(
+    expect(model(panels(week, calendar(0, ones(700)))).facets?.panels).toHaveLength(10);
+    const bins = (thinnest: number) =>
+      gridFrame({ names: ["a"] }, { edges: [0, thinnest, 1] }, [[1], [2]]);
+    expect(() => model(panels({ mark: "cell" }, bins(0.009)))).toThrow(
       new RangeError(
-        "renderChart: facets.panels[0].marks[0].y.edges' thinnest bin must be at least 1/100 of the axis in each of 10 panels, since the plot grows until it is a row tall",
+        "renderChart: facets.panels[0].data.y.edges' thinnest bin must be at least 1/100 of the axis in each of 10 panels, since the plot grows until it is a row tall",
       ),
     );
-    expect(model(panels(bins(0.01))).facets?.panels).toHaveLength(10);
+    expect(model(panels({ mark: "cell" }, bins(0.01))).facets?.panels).toHaveLength(10);
   });
 
   it("counts each panel's values again for every other panel it is drawn behind", () => {
-    const samples = (n: number, context?: true): ChartSpec => ({
-      marks: [],
-      facets: {
-        ...(context === undefined ? {} : { context }),
-        panels: Array.from({ length: 100 }, (_, k) => ({
-          marks: [
-            {
-              mark: "line",
-              x: Array.from({ length: n }, (_, i) => i),
-              series: [{ name: `P${String(k)}`, y: Array.from({ length: n }, () => 1) }],
-            },
-          ],
+    const samples = (n: number, context?: true): ChartSpec =>
+      faceted(
+        { mark: "line" },
+        Array.from({ length: 100 }, (_, k): SeriesFrame => ({
+          ...one(`P${String(k)}`, []),
+          x: Array.from({ length: n }, (_, i) => i),
+          series: [{ key: `P${String(k)}`, values: Array.from({ length: n }, () => 1) }],
         })),
-      },
-    });
-    // 100 panels of n samples draw 100 × n values each, 10,000 × n in all,
-    // beside the panels' own charge of one a panel.
-    expect(() => model(samples(100, true))).toThrow(
-      new RangeError(
-        "renderChart: facets.context must not take the spec past 1000000 values, each panel's values counted again for every other panel, behind which they are drawn",
-      ),
-    );
-    expect(model(samples(99, true)).facets?.context).toBe(true);
-    expect(model(samples(100)).facets?.panels).toHaveLength(100);
+        undefined,
+        {},
+        context === undefined ? {} : { context },
+      );
+    // 100 panels of n samples hold 100 × n values, each drawn again behind
+    // the 99 other panels: 10,000 × n in all.
+    expect(() => model(samples(101, true))).toThrow(RangeError);
+    expect(() => model(samples(101, true))).toThrow(/^renderChart: facets\.context .*1000000/u);
+    expect(model(samples(100, true)).facets?.context).toBe(true);
+    expect(model(samples(101)).facets?.panels).toHaveLength(100);
   });
 
   it("draws context behind one-series line or scatter panels only", () => {
-    expect(
-      model(lines(2, { facets: { context: true, panels: lines(2).facets?.panels ?? [] } })).facets
-        ?.context,
-    ).toBe(true);
+    expect(model(lines(2, {}, { context: true })).facets?.context).toBe(true);
     expect(() =>
-      model({
-        ...bars(["A", "B"]),
-        facets: { context: true, panels: bars(["A", "B"]).facets?.panels ?? [] },
-      }),
+      model(faceted({ mark: "bar" }, [fuels(0), fuels(1)], ["A", "B"], {}, { context: true })),
     ).toThrow(
       new TypeError("renderChart: facets.context draws behind line or scatter panels only"),
     );
@@ -353,98 +330,58 @@ describe("facets: the spec", () => {
   });
 
   it("refuses band panels whose rows differ, naming the field", () => {
-    const [a] = bars(["A", "B"]).facets?.panels ?? [];
-    const moved: ChartSpec = {
-      marks: [],
-      facets: {
-        panels: [
-          a ?? { marks: [] },
-          {
-            name: "B",
-            marks: [
-              {
-                mark: "bar",
-                y: ["Coal", "Wind", "Gas"],
-                series: [{ name: "Share", x: [1, 2, 3] }],
-              },
-            ],
-          },
-        ],
-      },
-    };
+    const moved = faceted(
+      { mark: "bar" },
+      [fuels(0), categories(["Coal", "Wind", "Gas"], [[1, 2, 3]])],
+      ["A", "B"],
+    );
     expect(() => model(moved)).toThrow(
       new TypeError(
-        "renderChart: facets.panels[1].marks[0].y must be facets.panels[0]'s; the panels share one band of rows",
+        "renderChart: facets.panels[1].data.names must be facets.panels[0]'s; the panels share one band of rows",
       ),
     );
-    const boxes = (y: string[]): Mark => ({
-      mark: "box",
-      y,
-      series: [{ name: "Wait", low: [1, 1], q1: [2, 2], median: [3, 3], q3: [4, 4], high: [5, 5] }],
-    });
+    const boxes = (names: string[]) =>
+      boxesFrame(names, [
+        { key: "Wait", low: [1, 1], q1: [2, 2], median: [3, 3], q3: [4, 4], high: [5, 5] },
+      ]);
     expect(() =>
-      model({
-        marks: [],
-        facets: {
-          panels: [
-            { name: "A", marks: [boxes(["x", "y"])] },
-            { name: "B", marks: [boxes(["x", "z"])] },
-          ],
-        },
-      }),
-    ).toThrow(/facets\.panels\[1\]\.marks\[0\]\.y must be facets\.panels\[0\]'s/);
+      model(faceted({ mark: "box" }, [boxes(["x", "y"]), boxes(["x", "z"])], ["A", "B"])),
+    ).toThrow(/facets\.panels\[1\]\.data\.names must be facets\.panels\[0\]'s/);
   });
 
   it("refuses heatmap panels whose axes differ and calendar panels whose days differ", () => {
-    const cells = (x: string[] | { edges: number[] }): Mark => ({
-      mark: "cell",
-      x,
-      y: ["Mon", "Tue"],
-      values: [
+    const cells = (columns: string[]) =>
+      gridFrame({ names: columns }, { names: ["Mon", "Tue"] }, [
         [1, 2],
         [3, 4],
-      ],
-    });
-    const grids = (second: Mark): ChartSpec => ({
-      marks: [],
-      facets: {
-        panels: [
-          { name: "A", marks: [cells(["0h", "1h"])] },
-          { name: "B", marks: [second] },
-        ],
-      },
-    });
+      ]);
+    const grids = (second: ChartFrame) =>
+      faceted({ mark: "cell" }, [cells(["0h", "1h"]), second], ["A", "B"]);
     expect(() => model(grids(cells(["0h", "1h"])))).not.toThrow();
     expect(() => model(grids(cells(["1h", "0h"])))).toThrow(
       new TypeError(
-        "renderChart: facets.panels[1].marks[0].x must be facets.panels[0]'s; the panels share one grid",
+        "renderChart: facets.panels[1].data.x must be facets.panels[0]'s; the panels share one grid",
       ),
     );
     const start = Date.UTC(2024, 0, 1);
-    const days = (from: number, count: number, open?: boolean): Mark => ({
-      mark: "cell",
-      days: {
-        start: from,
-        values: Array.from({ length: count }, (_, i) => i),
-        ...(open === undefined ? {} : { open }),
-      },
-    });
-    const calendars = (second: Mark): ChartSpec => ({
-      marks: [],
-      facets: {
-        panels: [
-          { name: "A", marks: [days(start, 28)] },
-          { name: "B", marks: [second] },
-        ],
-      },
-    });
+    const days = (from: number, count: number, open?: boolean) =>
+      calendar(
+        from,
+        Array.from({ length: count }, (_, i) => i),
+        open === undefined ? {} : { open },
+      );
+    const calendars = (second: ChartFrame) =>
+      faceted({ mark: "cell" }, [days(start, 28), second], ["A", "B"]);
     expect(() => model(calendars(days(start, 28)))).not.toThrow();
     expect(() => model(calendars(days(start + 86_400_000, 28)))).toThrow(
-      /facets\.panels\[1\]\.marks\[0\]\.days\.start must be facets\.panels\[0\]'s; the panels share one calendar/,
+      /facets\.panels\[1\]\.data\.start must be facets\.panels\[0\]'s; the panels share one calendar/,
     );
-    expect(() => model(calendars(days(start, 21)))).toThrow(/days\.values\.length must be/);
-    expect(() => model(calendars(days(start, 28, true)))).toThrow(/days\.open must be/);
-    expect(() => model({ marks: [], facets: { panels: [{ marks: [days(start, 28)] }] } })).toThrow(
+    expect(() => model(calendars(days(start, 21)))).toThrow(/data\.values\.length must be/);
+    expect(() => model(calendars(days(start, 28, true)))).toThrow(/data\.open must be/);
+    expect(() =>
+      model(calendars({ ...days(start, 28), zone: "Europe/Paris", start: start - 3_600_000 })),
+    ).toThrow(/data\.zone must be/);
+    expect(() => model(faceted({ mark: "cell" }, [days(start, 28)]))).toThrow(
       new TypeError(
         "renderChart: facets.panels[0].name is required; a cell panel has no series to name it",
       ),
@@ -452,19 +389,9 @@ describe("facets: the spec", () => {
   });
 
   it("refuses pie panels whose slices differ, even one slice each", () => {
-    const pie = (names: string[]): Mark => ({
-      mark: "pie",
-      slices: names.map((name, k) => ({ name, value: k + 1 })),
-    });
-    const pies = (a: string[], b: string[]): ChartSpec => ({
-      marks: [],
-      facets: {
-        panels: [
-          { name: "2023", marks: [pie(a)] },
-          { name: "2024", marks: [pie(b)] },
-        ],
-      },
-    });
+    const pie = (names: string[]) => categories(names, [names.map((_, k) => k + 1)]);
+    const pies = (a: string[], b: string[]) =>
+      faceted({ mark: "pie" }, [pie(a), pie(b)], ["2023", "2024"]);
     expect(() => model(pies(["Coal", "Gas"], ["Coal", "Gas"]))).not.toThrow();
     for (const [a, b] of [
       [
@@ -475,80 +402,55 @@ describe("facets: the spec", () => {
     ]) {
       expect(() => model(pies(a ?? [], b ?? []))).toThrow(
         new TypeError(
-          "renderChart: facets.panels must each hold the same slices in the same order",
+          "renderChart: facets.panels[1].data.names must be facets.panels[0]'s; the panels share one set of slices",
         ),
       );
     }
   });
 
-  it("refuses a per-category panel whose series takes another slot than the first panel's", () => {
-    const stack = (slot?: Slot): Mark => ({
-      mark: "rect",
-      x1: [0, 10],
-      x2: [10, 20],
-      series: [
-        { name: "Posts", y: [1, 2] },
-        { name: "Replies", y: [3, 4], ...(slot === undefined ? {} : { slot }) },
-      ],
-    });
-    const regions = (a: Mark, b: Mark): ChartSpec => ({
-      marks: [],
-      facets: {
-        panels: [
-          { name: "North", marks: [a] },
-          { name: "South", marks: [b] },
+  it("gives a series the one slot mark.keys names in every panel", () => {
+    const stack = (k: number) =>
+      binsFrame([0, 10], [10, 20], [], {
+        axis: "value",
+        series: [
+          { key: "Posts", values: [1, 2 + k] },
+          { key: "Replies", values: [3, 4] },
         ],
-      },
-    });
-    expect(() => model(regions(stack(), stack(2)))).not.toThrow();
-    expect(() => model(regions(stack(4), stack(4)))).not.toThrow();
-    expect(() => model(regions(stack(), stack(4)))).toThrow(
-      new TypeError(
-        "renderChart: facets.panels[1].marks[0].series[1].slot must be facets.panels[0]'s; a series keeps one colour in every panel",
+      });
+    const m = model(
+      faceted(
+        { mark: "rect", keys: [{ key: "Replies", slot: 4 }] },
+        [stack(0), stack(1)],
+        ["North", "South"],
       ),
     );
-    const pie = (slot: Slot): Mark => ({
-      mark: "pie",
-      slices: [
-        { name: "Coal", value: 1 },
-        { name: "Gas", value: 2, slot },
-      ],
-    });
-    expect(() => model(regions(pie(2), pie(5)))).toThrow(
-      /facets\.panels\[1\]\.marks\[0\]\.slices\[1\]\.slot must be facets\.panels\[0\]'s/,
+    expect(
+      m.facets?.panels.map((p) =>
+        p.model.primary?.kind === "rect" ? p.model.primary.series.map((s) => s.slot) : [],
+      ),
+    ).toEqual([
+      [1, 4],
+      [1, 4],
+    ]);
+    // Per-series panels may each take a slot, colour highlighting one of them.
+    const highlighted = model(
+      faceted({ mark: "line", keys: [{ key: "South", slot: 3 }] }, [
+        one("North", [1, 2, 3, 4]),
+        one("South", [1, 2, 3, 4]),
+      ]),
     );
-    // Per-series panels may each name a slot, colour highlighting one of them.
-    const line = (name: string, slot?: Slot): Mark => ({
-      mark: "line",
-      x: [0, 1],
-      series: [{ name, y: [1, 2], ...(slot === undefined ? {} : { slot }) }],
-    });
-    expect(() =>
-      model({
-        marks: [],
-        facets: { panels: [{ marks: [line("North")] }, { marks: [line("South", 3)] }] },
-      }),
-    ).not.toThrow();
+    expect(
+      highlighted.facets?.panels.map((p) =>
+        p.model.primary?.kind === "line" ? p.model.primary.series[0]?.slot : undefined,
+      ),
+    ).toEqual([1, 3]);
   });
 
   it("colours every heatmap panel by one set of classes over every panel's values", () => {
-    const cells = (top: number): Mark => ({
-      mark: "cell",
-      x: ["a", "b"],
-      y: ["c"],
-      values: [[0, top]],
-    });
-    const m = model({
-      marks: [],
-      facets: {
-        panels: [
-          { name: "Low", marks: [cells(10)] },
-          { name: "High", marks: [cells(100)] },
-        ],
-      },
-    });
+    const cells = (top: number) => gridFrame({ names: ["a", "b"] }, { names: ["c"] }, [[0, top]]);
+    const m = model(faceted({ mark: "cell" }, [cells(10), cells(100)], ["Low", "High"]));
     // A lone heatmap of the high panel's values spans the same 0 to 100.
-    const lone = model({ marks: [cells(100)] }).primary;
+    const lone = model({ data: cells(100), mark: { mark: "cell" } }).primary;
     const classesOf = (p: Model["primary"]) => (p?.kind === "cell" ? p.classes : undefined);
     expect(lone?.kind).toBe("cell");
     for (const p of m.facets?.panels ?? []) {
@@ -557,22 +459,15 @@ describe("facets: the spec", () => {
   });
 
   it("sizes every bubble panel on one r scale over every panel's sizes", () => {
-    const bubbles = (r: number): Mark => ({
-      mark: "scatter",
-      series: [{ name: "Towns", names: ["a", "b"], x: [1, 2], y: [1, 2], r: [1, r] }],
-    });
-    const m = model({
-      x: { label: "Area" },
-      y: { label: "People" },
-      r: { label: "Jobs" },
-      marks: [],
-      facets: {
-        panels: [
-          { name: "North", marks: [bubbles(10)] },
-          { name: "South", marks: [bubbles(40)] },
-        ],
-      },
-    });
+    const bubbles = (r: number) =>
+      points([{ key: "Towns", names: ["a", "b"], x: [1, 2], y: [1, 2], r: [1, r] }]);
+    const m = model(
+      faceted({ mark: "scatter" }, [bubbles(10), bubbles(40)], ["North", "South"], {
+        x: { label: "Area" },
+        y: { label: "People" },
+        r: { label: "Jobs" },
+      }),
+    );
     const his = (m.facets?.panels ?? []).map((p) =>
       p.model.primary?.kind === "scatter" ? p.model.primary.size?.hi : undefined,
     );
@@ -586,7 +481,7 @@ describe("facets: the grid", () => {
     expect(grid(lines(3), 1000).columns).toBe(3);
     const phone = grid(lines(6), 288);
     expect(phone.columns).toBe(2);
-    const widths = phone.panels.map((p) => p.lay.frame.width);
+    const widths = phone.panels.map((p) => p.lay.projection.width);
     expect(new Set(widths).size).toBe(1);
     expect(phone.gutter + 2 * ((widths[0] ?? 0) + 2) + 16).toBeLessThanOrEqual(288);
     expect(widths[0]).toBeGreaterThanOrEqual(112);
@@ -595,7 +490,7 @@ describe("facets: the grid", () => {
 
   it("gives every panel the default panel height", () => {
     for (const p of grid(lines(4), 600).panels) {
-      expect(p.lay.frame.height).toBe(PANEL_HEIGHT);
+      expect(p.lay.projection.height).toBe(PANEL_HEIGHT);
     }
   });
 
@@ -615,7 +510,7 @@ describe("facets: the grid", () => {
     expect(at.map((p) => p.x)).toEqual([false, false, false, true, true]);
     expect(at.map((p) => p.ticks)).toEqual([false, false, false, true, true]);
     const [first, second] = g.panels;
-    expect(second?.lay.height).toBe((second?.lay.top ?? 0) + (second?.lay.frame.height ?? 0));
+    expect(second?.lay.height).toBe((second?.lay.top ?? 0) + (second?.lay.projection.height ?? 0));
     expect(first?.lay.left).toBe(g.gutter);
   });
 
@@ -643,25 +538,15 @@ describe("facets: the grid", () => {
   });
 
   describe("pie panels", () => {
-    const pies = (count: number, more: Partial<ChartSpec> = {}): ChartSpec => ({
-      marks: [],
-      facets: {
-        panels: Array.from({ length: count }, (_, k) => ({
-          name: String(2020 + k),
-          marks: [
-            {
-              mark: "pie",
-              slices: [
-                { name: "Coal", value: 3 + k },
-                { name: "Gas", value: 2 },
-                { name: "Wind", value: 1 },
-              ],
-            },
-          ],
-        })),
-      },
-      ...more,
-    });
+    const pies = (count: number, more: Omit<ChartSpec, "data" | "mark" | "facets"> = {}) =>
+      faceted(
+        { mark: "pie" },
+        Array.from({ length: count }, (_, k) =>
+          categories(["Coal", "Gas", "Wind"], [[3 + k, 2, 1]]),
+        ),
+        Array.from({ length: count }, (_, k) => String(2020 + k)),
+        more,
+      );
 
     it("draw each pie as wide as its plot, at most 240 px, with no gutter and no outside labels", () => {
       const phone = grid(pies(4), 288);
@@ -669,7 +554,7 @@ describe("facets: the grid", () => {
       // Two to a row on a phone: (288 - 16) / 2, less each plot's border.
       expect(phone.columns).toBe(2);
       for (const p of phone.panels) {
-        expect(p.lay.frame.width).toBe(134);
+        expect(p.lay.projection.width).toBe(134);
         expect(2 * (p.lay.pie?.r ?? 0)).toBe(134);
         expect(p.lay.endLabels).toEqual([]);
         expect(p.lay.leaders).toEqual([]);
@@ -681,54 +566,40 @@ describe("facets: the grid", () => {
 
     it("take a passed height as each pie's plot height", () => {
       const p = grid(pies(2, { height: 100 }), 1000).panels[0];
-      expect(p?.lay.frame.height).toBe(100);
+      expect(p?.lay.projection.height).toBe(100);
       expect(2 * (p?.lay.pie?.r ?? 0)).toBe(100);
     });
   });
 
   it("fits heatmap panels at 160 px a plot and scatter panels at 112", () => {
-    const cells: ChartSpec = {
-      marks: [],
-      facets: {
-        panels: ["A", "B", "C"].map((name) => ({
-          name,
-          marks: [{ mark: "cell", x: ["a", "b"], y: ["c"], values: [[1, 2]] }] as Mark[],
-        })),
-      },
-    };
+    const cells = faceted(
+      { mark: "cell" },
+      ["A", "B", "C"].map(() => gridFrame({ names: ["a", "b"] }, { names: ["c"] }, [[1, 2]])),
+      ["A", "B", "C"],
+    );
     // Three 160 px plots, their borders and two gaps take 518 px beside the gutter.
     expect(grid(cells, 600).columns).toBe(3);
     expect(grid(cells, 400).columns).toBe(2);
-    const dots: ChartSpec = {
-      x: { label: "Area" },
-      y: { label: "People" },
-      marks: [],
-      facets: {
-        panels: ["A", "B", "C"].map((name) => ({
-          marks: [{ mark: "scatter", series: [{ name, names: ["a"], x: [1], y: [2] }] }] as Mark[],
-        })),
-      },
-    };
+    const dots = faceted(
+      { mark: "scatter" },
+      ["A", "B", "C"].map((key) => points([{ key, names: ["a"], x: [1], y: [2] }])),
+      undefined,
+      { x: { label: "Area" }, y: { label: "People" } },
+    );
     const g = grid(dots, 600);
     expect(g.columns).toBe(3);
     for (const p of g.panels) {
-      expect(p.lay.frame.width).toBeGreaterThanOrEqual(112);
+      expect(p.lay.projection.width).toBeGreaterThanOrEqual(112);
     }
   });
 
   describe("numbers notes across the panels", () => {
-    const note = (x: number, text: string): Mark => ({ mark: "text", x, y: 0.03, text });
-    const noted = (notes: Mark[][]): ChartSpec => {
-      const spec = lines(notes.length);
-      return {
-        ...spec,
-        facets: {
-          panels: (spec.facets?.panels ?? []).map((p, k) => ({
-            marks: [...p.marks, ...(notes[k] ?? [])],
-          })),
-        },
-      };
-    };
+    const note = (at: number, key: string): FrameNote => ({ key, at });
+    const noted = (notes: FrameNote[][]): ChartSpec =>
+      faceted(
+        { mark: "line" },
+        regions(notes.length).map((frame, k) => ({ ...frame, notes: notes[k] ?? [] })),
+      );
     const numbers = (g: ReturnType<typeof grid>) =>
       g.panels.map((p) => ({
         numbered: p.lay.numbered,
@@ -781,49 +652,32 @@ describe("facets: the head figure", () => {
     const b = model(bars(["A", "B"]));
     const row = { kind: "bar", row: 2, part: undefined } as const;
     expect(b.facets?.panels.map((p) => headFigure(p.model, words, row))).toEqual(["3", "3"]);
-    const stacks = model({
-      x: { domain: [0, 2] },
-      marks: [],
-      facets: {
-        panels: ["Germany", "France"].map((name, k) => ({
-          name,
-          marks: [
-            {
-              mark: "rect",
-              x1: [0, 1],
-              x2: [1, 2],
-              series: [
-                { name: "Coal", y: [1, 2 + k] },
-                { name: "Wind", y: [3, 4] },
-              ],
-            },
-          ],
-        })),
-      },
-    });
+    const stacks = model(
+      faceted(
+        { mark: "rect" },
+        [0, 1].map((k) =>
+          unitBins([
+            [1, 2 + k],
+            [3, 4],
+          ]),
+        ),
+        ["Germany", "France"],
+        { x: { domain: [0, 2] } },
+      ),
+    );
     const bucket = { kind: "rect", i: 1, part: undefined } as const;
     expect(stacks.facets?.panels.map((p) => headFigure(p.model, words))).toEqual(["10", "11"]);
     expect(stacks.facets?.panels.map((p) => headFigure(p.model, words, bucket))).toEqual([
       "6",
       "7",
     ]);
-    const pies = model({
-      marks: [],
-      facets: {
-        panels: ["2023", "2024"].map((name, k) => ({
-          name,
-          marks: [
-            {
-              mark: "pie",
-              slices: [
-                { name: "Coal", value: 1 + k },
-                { name: "Wind", value: 3 },
-              ],
-            },
-          ],
-        })),
-      },
-    });
+    const pies = model(
+      faceted(
+        { mark: "pie" },
+        [0, 1].map((k) => categories(["Coal", "Wind"], [[1 + k, 3]])),
+        ["2023", "2024"],
+      ),
+    );
     const slice = { kind: "slice", i: 0 } as const;
     expect(pies.facets?.panels.map((p) => headFigure(p.model, words))).toEqual(["4", "5"]);
     expect(pies.facets?.panels.map((p) => headFigure(p.model, words, slice))).toEqual([
@@ -845,40 +699,37 @@ describe("facets: the figure's legend row", () => {
       entries: [{ slot: undefined, name: undefined, value: "" }],
       total: undefined,
     });
-    const one = model(
-      lines(1, {
-        facets: {
+    const single = model(
+      faceted(
+        { mark: "line" },
+        [one("North", [0.1, 0.2, 0.3, 0.4])],
+        undefined,
+        {},
+        {
           unit: { one: "region", other: "regions" },
-          panels: [{ marks: [line("North", [0.1, 0.2, 0.3, 0.4])] }],
         },
-      }),
+      ),
     );
-    expect(one.facets && facetOverall(one, one.facets, words)?.panel).toBe("1\u00A0region");
+    expect(single.facets && facetOverall(single, single.facets, words)?.panel).toBe(
+      "1\u00A0region",
+    );
     // Panels whose last samples differ share no x.
-    const apart = model({
-      y: { format: "percent" },
-      marks: [],
-      facets: {
-        panels: [
-          { marks: [line("North", [0.1, 0.2, 0.3, 0.4])] },
-          { marks: [line("South", [0.1, 0.2, 0.3, null])] },
-        ],
-      },
-    });
+    const apart = model(
+      faceted({ mark: "line" }, [
+        one("North", [0.1, 0.2, 0.3, 0.4]),
+        one("South", [0.1, 0.2, 0.3, null]),
+      ]),
+    );
     expect(apart.facets && facetOverall(apart, apart.facets, words)?.at).toBe("");
   });
 
   it("measures each slot over every panel, and the panel slot over the count and the names", () => {
-    const m = model({
-      y: { format: "percent" },
-      marks: [],
-      facets: {
-        panels: [
-          { marks: [line("N", [0.1, 0.2, 0.3, 0.4])] },
-          { marks: [line("A long name", [0.1, 0.2, 0.3, 0.123])] },
-        ],
-      },
-    });
+    const m = model(
+      faceted({ mark: "line" }, [
+        one("N", [0.1, 0.2, 0.3, 0.4]),
+        one("A long name", [0.1, 0.2, 0.3, 0.123]),
+      ]),
+    );
     if (m.facets === undefined) {
       throw new Error("no facets");
     }

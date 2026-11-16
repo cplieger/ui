@@ -8,7 +8,7 @@
 import type { Box } from "./notes.js";
 
 /** Dots in plot px, in draw order: a later dot lies over an earlier one. */
-export interface Dots {
+interface Dots {
   readonly x: ArrayLike<number>;
   readonly y: ArrayLike<number>;
   /** Each dot's radius. */

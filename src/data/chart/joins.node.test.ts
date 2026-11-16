@@ -5,8 +5,9 @@ import { measurer } from "../scale/measure.js";
 import { layout, type Metrics } from "./layout.js";
 import { chartModel, type Model } from "./model.js";
 import { initial, spoken } from "./select.js";
-import type { ChartSpec, Mark } from "./spec.js";
+import type { ChartSpec } from "./spec.js";
 import { generatedSummary } from "./summary.js";
+import { binsFrame, points, seriesFrame } from "./test-helpers/frames.js";
 import { chartWords } from "./words.js";
 
 const face = measurer((t) => 7.5 * Array.from(t).length, 7.5, "en");
@@ -51,27 +52,17 @@ function render(model: Model): void {
   expect(layout(model, words, metrics, 800, { axis: 0, label: 0 }).notes).not.toHaveLength(0);
 }
 
-const notes = (x: (k: number) => number, y: (k: number) => number): Mark[] =>
-  Array.from({ length: NOTES }, (_, k) => ({ mark: "text", x: x(k), y: y(k), text: "a" }));
+const notes = (at: (k: number) => number) =>
+  Array.from({ length: NOTES }, (_, k) => ({ key: "a", at: at(k) }));
 
 // Built at the size the bound is about, it runs past node's 5 s default on a
 // loaded host.
 describe("a note's join", { timeout: 30_000 }, () => {
-  it("finds the chart's data mark once, so 20,000 notes before a line read the marks a few times each", () => {
+  it("finds the chart's data mark once, so 20,000 notes beside a line read the marks a few times each", () => {
+    const x = Array.from({ length: 101 }, (_, i) => i);
     const spec: ChartSpec = {
-      x: {},
-      y: {},
-      marks: [
-        ...notes(
-          (k) => k % 100,
-          () => 1,
-        ),
-        {
-          mark: "line",
-          x: Array.from({ length: 101 }, (_, i) => i),
-          series: [{ name: "a", y: Array.from({ length: 101 }, () => 1) }],
-        },
-      ],
+      data: seriesFrame(x, [x.map(() => 1)], { notes: notes((k) => k % 100) }),
+      mark: { mark: "line" },
     };
     const model = chartModel(spec, "en", "UTC");
     const reads = { n: 0 };
@@ -84,19 +75,13 @@ describe("a note's join", { timeout: 30_000 }, () => {
     const BUCKETS = 20_000;
     const x1 = Array.from({ length: BUCKETS }, (_, i) => i * 10);
     const spec: ChartSpec = {
-      x: { type: "linear" },
-      marks: [
-        {
-          mark: "rect",
-          x1,
-          x2: x1.map((s) => s + 10),
-          series: [{ name: "a", y: x1.map(() => 1) }],
-        },
-        ...notes(
-          (k) => k * 10 + 5,
-          () => 1,
-        ),
-      ],
+      data: binsFrame(
+        x1,
+        x1.map((s) => s + 10),
+        [x1.map(() => 1)],
+        { axis: "value", notes: notes((k) => k * 10 + 5) },
+      ),
+      mark: { mark: "rect" },
     };
     const model = chartModel(spec, "en", "UTC");
     const [rect] = model.marks;
@@ -113,22 +98,16 @@ describe("a note's join", { timeout: 30_000 }, () => {
     expect(reads.n).toBeLessThanOrEqual(most);
   });
 
-  it("finds a scatter note's dot by its values, so 20,000 notes over 20,000 dots read each dot a few times", () => {
+  it("joins a scatter's notes to no dot, so 20,000 notes over 20,000 dots read each dot a few times", () => {
     const DOTS = 20_000;
     const at = Array.from({ length: DOTS }, (_, i) => i);
     const spec: ChartSpec = {
+      data: points([{ key: "a", names: at.map((i) => `d${String(i)}`), x: at, y: at }], {
+        notes: notes((k) => k),
+      }),
+      mark: { mark: "scatter" },
       x: { type: "linear", label: "Income" },
       y: { type: "linear", label: "Life expectancy" },
-      marks: [
-        {
-          mark: "scatter",
-          series: [{ name: "a", names: at.map((i) => `d${String(i)}`), x: at, y: at }],
-        },
-        ...notes(
-          (k) => k,
-          (k) => k,
-        ),
-      ],
     };
     const model = chartModel(spec, "en", "UTC");
     const [scatter] = model.marks;

@@ -4,6 +4,7 @@ import { cdp, server } from "vitest/browser";
 import { forgetMeasures } from "../scale/measure.js";
 
 import { renderChart, type ChartSpec } from "./chart.js";
+import { events, grid, named, points, seriesFrame, tree } from "./test-helpers/frames.js";
 
 // The targets are a 16 ms render and a 2 ms move of script time; these
 // bounds leave room for a slow runner and still fail one DOM node per point.
@@ -115,150 +116,116 @@ const minutes = Array.from({ length: 4_320 }, (_, i) => START + i * MIN);
 const stepLine: ChartSpec = {
   x: { type: "time", domain: [START, START + HOURS_72] },
   y: { label: "Agents" },
-  marks: [
-    {
-      mark: "line",
-      curve: "step",
-      x: minutes,
-      series: [
-        { name: "Live", y: minutes.map((_, i) => 4 + ((i * 7) % 9)) },
-        { name: "Active", y: minutes.map((_, i) => (i * 5) % 7) },
-      ],
-    },
-  ],
+  data: seriesFrame(minutes, [], {
+    series: named(
+      ["Live", minutes.map((_, i) => 4 + ((i * 7) % 9))],
+      ["Active", minutes.map((_, i) => (i * 5) % 7)],
+    ),
+  }),
+  mark: { mark: "line", curve: "step" },
 };
 
 // 8,640 distinct response times, from 100 ms to 90 s.
 const durationLine: ChartSpec = {
   ...stepLine,
-  y: { label: "Response time", format: "duration" },
-  marks: [
-    {
-      mark: "line",
-      curve: "step",
-      x: minutes,
-      series: Array.from({ length: 2 }, (_, k) => ({
-        name: `p${String(50 + 45 * k)}`,
-        y: minutes.map((_, i) => 100 + ((i * 7_919 + k * 104_729) % 89_900)),
-      })),
-    },
-  ],
+  y: { label: "Response time" },
+  data: seriesFrame(minutes, [], {
+    unit: "seconds",
+    series: [50, 95].map((p, k) => ({
+      key: `p${String(p)}`,
+      values: minutes.map((_, i) => (100 + ((i * 7_919 + k * 104_729) % 89_900)) / 1_000),
+    })),
+  }),
 };
 
 // Three layers of 4,320 samples each, a stacked area over 72 hours.
 const stackedArea: ChartSpec = {
   x: { type: "time", domain: [START, START + HOURS_72] },
-  marks: [
-    {
-      mark: "area",
-      x: minutes,
-      series: [
-        { name: "Gas", y: minutes.map((_, i) => 40 + ((i * 7) % 13)) },
-        { name: "Wind", y: minutes.map((_, i) => 10 + ((i * 5) % 17)) },
-        { name: "Solar", y: minutes.map((_, i) => (i * 3) % 11) },
-      ],
-    },
-  ],
+  data: seriesFrame(minutes, [], {
+    series: named(
+      ["Gas", minutes.map((_, i) => 40 + ((i * 7) % 13))],
+      ["Wind", minutes.map((_, i) => 10 + ((i * 5) % 17))],
+      ["Solar", minutes.map((_, i) => (i * 3) % 11)],
+    ),
+  }),
+  mark: { mark: "area" },
 };
 
 // 20,000 posts over 29 agents, spread unevenly along 72 hours.
+const posts = events(
+  Object.fromEntries(
+    Array.from({ length: 29 }, (_, r) => {
+      const n = r < 4 ? 0 : Math.ceil((20_000 * (r + 1)) / 425);
+      return [
+        `agent-${String(r)}`,
+        Array.from({ length: n }, (_, i) => START + Math.floor((i * HOURS_72) / n)),
+      ];
+    }),
+  ),
+);
 const timeline: ChartSpec = {
-  x: { type: "time", domain: [START, START + HOURS_72] },
+  x: { domain: [START, START + HOURS_72] },
   y: { type: "band", mono: true },
-  marks: [
-    {
-      mark: "dot",
-      rows: Array.from({ length: 29 }, (_, r) => {
-        const n = r < 4 ? 0 : Math.ceil((20_000 * (r + 1)) / 425);
-        return {
-          name: `agent-${String(r)}`,
-          x: Array.from({ length: n }, (_, i) => START + Math.floor((i * HOURS_72) / n)),
-        };
-      }),
-    },
-  ],
+  data: posts,
+  mark: { mark: "dot" },
 };
 
 const few: ChartSpec = {
   ...stepLine,
-  marks: [
-    {
-      mark: "line",
-      curve: "step",
-      x: minutes.slice(0, 3),
-      series: [
-        { name: "Live", y: [1, 2, 3] },
-        { name: "Active", y: [0, 1, 1] },
-      ],
-    },
-  ],
+  data: seriesFrame(minutes.slice(0, 3), [], {
+    series: named(["Live", [1, 2, 3]], ["Active", [0, 1, 1]]),
+  }),
 };
-const fewDurations: ChartSpec = { ...few, y: { format: "duration" } };
+const fewDurations: ChartSpec = {
+  ...few,
+  data: seriesFrame(minutes.slice(0, 3), [[1, 2, 3]], { unit: "seconds" }),
+};
 const fewLayers: ChartSpec = {
   ...stackedArea,
-  marks: [
-    {
-      mark: "area",
-      x: minutes.slice(0, 3),
-      series: [
-        { name: "Gas", y: [1, 2, 3] },
-        { name: "Wind", y: [0, 1, 1] },
-        { name: "Solar", y: [1, 1, 1] },
-      ],
-    },
-  ],
+  data: seriesFrame(minutes.slice(0, 3), [
+    [1, 2, 3],
+    [0, 1, 1],
+    [1, 1, 1],
+  ]),
 };
-const fewDots: ChartSpec = {
-  ...timeline,
-  marks: [{ mark: "dot", rows: [{ name: "a", x: minutes.slice(0, 3) }] }],
-};
+const fewDots: ChartSpec = { ...timeline, data: events({ a: minutes.slice(0, 3) }) };
 
 // 10,000 dots in five series, spread over both axes by two coprime strides.
 const scatter: ChartSpec = {
   x: { label: "GDP per capita" },
   y: { label: "Life expectancy" },
-  marks: [
-    {
-      mark: "scatter",
-      series: Array.from({ length: 5 }, (_, k) => ({
-        name: `Region ${String(k + 1)}`,
-        names: Array.from({ length: 2_000 }, (_, i) => `place-${String(k)}-${String(i)}`),
-        x: Array.from({ length: 2_000 }, (_, i) => 500 + ((i * 7_919 + k * 104_729) % 99_500)),
-        y: Array.from({ length: 2_000 }, (_, i) => 50 + ((i * 6_007 + k * 3_571) % 4_000) / 100),
-      })),
-    },
-  ],
+  data: points(
+    Array.from({ length: 5 }, (_, k) => ({
+      key: `Region ${String(k + 1)}`,
+      names: Array.from({ length: 2_000 }, (_, i) => `place-${String(k)}-${String(i)}`),
+      x: Array.from({ length: 2_000 }, (_, i) => 500 + ((i * 7_919 + k * 104_729) % 99_500)),
+      y: Array.from({ length: 2_000 }, (_, i) => 50 + ((i * 6_007 + k * 3_571) % 4_000) / 100),
+    })),
+  ),
+  mark: { mark: "scatter" },
 };
 const fewPlaces: ChartSpec = {
   ...scatter,
-  marks: [{ mark: "scatter", series: [{ name: "a", names: ["a", "b"], x: [1, 2], y: [3, 4] }] }],
+  data: points([{ key: "a", names: ["a", "b"], x: [1, 2], y: [3, 4] }]),
 };
 
 // 2,000 bubbles in five series, sized over four orders of magnitude.
 const bubbles: ChartSpec = {
   ...scatter,
   r: { label: "Population" },
-  marks: [
-    {
-      mark: "scatter",
-      series: Array.from({ length: 5 }, (_, k) => ({
-        name: `Region ${String(k + 1)}`,
-        names: Array.from({ length: 400 }, (_, i) => `place-${String(k)}-${String(i)}`),
-        x: Array.from({ length: 400 }, (_, i) => 500 + ((i * 7_919 + k * 104_729) % 99_500)),
-        y: Array.from({ length: 400 }, (_, i) => 50 + ((i * 6_007 + k * 3_571) % 4_000) / 100),
-        r: Array.from({ length: 400 }, (_, i) => 10 ** (3 + ((i * 37 + k * 11) % 400) / 100)),
-      })),
-    },
-  ],
+  data: points(
+    Array.from({ length: 5 }, (_, k) => ({
+      key: `Region ${String(k + 1)}`,
+      names: Array.from({ length: 400 }, (_, i) => `place-${String(k)}-${String(i)}`),
+      x: Array.from({ length: 400 }, (_, i) => 500 + ((i * 7_919 + k * 104_729) % 99_500)),
+      y: Array.from({ length: 400 }, (_, i) => 50 + ((i * 6_007 + k * 3_571) % 4_000) / 100),
+      r: Array.from({ length: 400 }, (_, i) => 10 ** (3 + ((i * 37 + k * 11) % 400) / 100)),
+    })),
+  ),
 };
 const fewBubbles: ChartSpec = {
   ...bubbles,
-  marks: [
-    {
-      mark: "scatter",
-      series: [{ name: "a", names: ["a", "b"], x: [1, 2], y: [3, 4], r: [5, 6] }],
-    },
-  ],
+  data: points([{ key: "a", names: ["a", "b"], x: [1, 2], y: [3, 4], r: [5, 6] }]),
 };
 
 // A 2D histogram of 100 by 100 bins, 10,000 cells, every 97th missing.
@@ -266,43 +233,37 @@ const edges = Array.from({ length: 101 }, (_, i) => i * 10);
 const histogram2d: ChartSpec = {
   x: { label: "Price" },
   y: { label: "Rating" },
-  marks: [
-    {
-      mark: "cell",
-      x: { edges },
-      y: { edges },
-      values: Array.from({ length: 100 }, (_, r) =>
-        Array.from({ length: 100 }, (_, c) =>
-          (r * 100 + c) % 97 === 0 ? null : (r * 7 + c * 13) % 50,
-        ),
+  data: grid(
+    { edges },
+    { edges },
+    Array.from({ length: 100 }, (_, r) =>
+      Array.from({ length: 100 }, (_, c) =>
+        (r * 100 + c) % 97 === 0 ? null : (r * 7 + c * 13) % 50,
       ),
-    },
-  ],
+    ),
+  ),
+  mark: { mark: "cell" },
 };
 const fewCells: ChartSpec = {
   ...histogram2d,
-  marks: [{ mark: "cell", x: { edges: [0, 1] }, y: { edges: [0, 1] }, values: [[1]] }],
+  data: grid({ edges: [0, 1] }, { edges: [0, 1] }, [[1]]),
 };
 
 // A treemap of 1,000 parts in 9 groups of a long tail each.
+const countries = Array.from({ length: 9 }, (_, g) => ({
+  key: `Region ${String(g + 1)}`,
+  children: Array.from({ length: g < 1 ? 112 : 111 }, (_, i) => ({
+    key: `Country ${String(g)}-${String(i)}`,
+    value: 1e12 / (1 + i + g * 7),
+  })),
+}));
 const treemap: ChartSpec = {
-  marks: [
-    {
-      mark: "tree",
-      unit: { other: "USD" },
-      format: { notation: "compact" },
-      nodes: Array.from({ length: 9 }, (_, g) => ({
-        name: `Region ${String(g + 1)}`,
-        children: Array.from({ length: g < 1 ? 112 : 111 }, (_, i) => ({
-          name: `Country ${String(g)}-${String(i)}`,
-          value: 1e12 / (1 + i + g * 7),
-        })),
-      })),
-    },
-  ],
+  data: tree({ groups: countries }, { unit: "none" }),
+  mark: { mark: "tree", unit: { other: "USD" }, format: { notation: "compact" } },
 };
 const fewParts: ChartSpec = {
-  marks: [{ mark: "tree", nodes: [{ name: "a", value: 1 }] }],
+  data: tree({ parts: [{ key: "a", value: 1 }] }),
+  mark: { mark: "tree" },
 };
 
 // The step line's 8,640 values and the stacked area's three layers of
@@ -313,46 +274,40 @@ const hours12 = minutes.slice(0, 1_440);
 const linePanels: ChartSpec = {
   x: { type: "time", domain: [START, START + 1_439 * MIN] },
   y: { label: "Agents" },
-  marks: [],
+  mark: { mark: "line", curve: "step" },
   facets: {
-    panels: regions.map((name, k) => ({
-      marks: [
-        {
-          mark: "line",
-          curve: "step",
-          x: hours12,
-          series: [{ name, y: hours12.map((_, i) => 4 + ((i * 7 + k) % 9)) }],
-        },
-      ],
+    panels: regions.map((key, k) => ({
+      key,
+      data: seriesFrame(hours12, [], {
+        series: named([key, hours12.map((_, i) => 4 + ((i * 7 + k) % 9))]),
+      }),
     })),
   },
 };
 const fewLinePanels: ChartSpec = {
   ...linePanels,
   facets: {
-    panels: regions.slice(0, 2).map((name) => ({
-      marks: [{ mark: "line", x: hours12.slice(0, 3), series: [{ name, y: [1, 2, 3] }] }],
+    panels: regions.slice(0, 2).map((key) => ({
+      key,
+      data: seriesFrame(hours12.slice(0, 3), [], { series: named([key, [1, 2, 3]]) }),
     })),
   },
 };
 const hours18 = minutes.slice(0, 1_080);
 const areaPanels: ChartSpec = {
   x: { type: "time", domain: [START, START + 1_079 * MIN] },
-  marks: [],
+  mark: { mark: "area" },
   facets: {
     panels: regions.slice(0, 4).map((name, k) => ({
+      key: name,
       name,
-      marks: [
-        {
-          mark: "area",
-          x: hours18,
-          series: [
-            { name: "Gas", y: hours18.map((_, i) => 40 + ((i * 7 + k) % 13)) },
-            { name: "Wind", y: hours18.map((_, i) => 10 + ((i * 5 + k) % 17)) },
-            { name: "Solar", y: hours18.map((_, i) => (i * 3 + k) % 11) },
-          ],
-        },
-      ],
+      data: seriesFrame(hours18, [], {
+        series: named(
+          ["Gas", hours18.map((_, i) => 40 + ((i * 7 + k) % 13))],
+          ["Wind", hours18.map((_, i) => 10 + ((i * 5 + k) % 17))],
+          ["Solar", hours18.map((_, i) => (i * 3 + k) % 11)],
+        ),
+      }),
     })),
   },
 };
@@ -360,18 +315,11 @@ const fewAreaPanels: ChartSpec = {
   ...areaPanels,
   facets: {
     panels: regions.slice(0, 2).map((name) => ({
+      key: name,
       name,
-      marks: [
-        {
-          mark: "area",
-          x: hours18.slice(0, 3),
-          series: [
-            { name: "Gas", y: [1, 2, 3] },
-            { name: "Wind", y: [0, 1, 1] },
-            { name: "Solar", y: [1, 1, 1] },
-          ],
-        },
-      ],
+      data: seriesFrame(hours18.slice(0, 3), [], {
+        series: named(["Gas", [1, 2, 3]], ["Wind", [0, 1, 1]], ["Solar", [1, 1, 1]]),
+      }),
     })),
   },
 };
@@ -449,8 +397,7 @@ describe("performance", () => {
   });
 
   it.skipIf(!chromium)("renders a treemap of 1,000 parts within its bound", async () => {
-    const nodes = treemap.marks[0]?.mark === "tree" ? treemap.marks[0].nodes : [];
-    expect(nodes.reduce((n, g) => n + ("children" in g ? g.children.length : 1), 0)).toBe(1_000);
+    expect(countries.reduce((n, g) => n + g.children.length, 0)).toBe(1_000);
     const { ms, plot } = await timed(treemap, fewParts);
     // One path per group's slot.
     expect(plot.querySelectorAll('[data-part="tree"] > path')).toHaveLength(9);
@@ -459,8 +406,7 @@ describe("performance", () => {
   });
 
   it.skipIf(!chromium)("renders a timeline of 20,000 dots within its bound", async () => {
-    const dots = timeline.marks[0]?.mark === "dot" ? timeline.marks[0].rows : [];
-    expect(dots.reduce((n, r) => n + r.x.length, 0)).toBeGreaterThanOrEqual(20_000);
+    expect(posts.rows.reduce((n, r) => n + r.at.length, 0)).toBeGreaterThanOrEqual(20_000);
     const { ms, plot } = await timed(timeline, fewDots);
     expect(ms).toBeLessThan(RENDER_MS);
     expect(await moveMs(plot)).toBeLessThan(MOVE_MS);
@@ -478,7 +424,8 @@ describe("a time axis over a long span", () => {
   ])("renders a line over %s within the render bound", async (_, lo, hi) => {
     const spec: ChartSpec = {
       x: { type: "time", domain: [lo, hi] },
-      marks: [{ mark: "line", x: [lo, 0, hi], series: [{ name: "a", y: [1, 3, 2] }] }],
+      data: seriesFrame([lo, 0, hi], [[1, 3, 2]]),
+      mark: { mark: "line" },
     };
     const life = new AbortController();
     lives.push(life);
