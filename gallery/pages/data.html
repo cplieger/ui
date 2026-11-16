@@ -11,10 +11,10 @@
     <div class="g-grid">
       <div class="card g-wide" data-new>
         <h2>Sort, select, act</h2>
+        <h3 id="g-table-title" tabindex="-1">Library</h3>
         <section class="cp-batchbar" data-batch="rows" data-total="412" aria-label="Selected entries" hidden><span class="cp-batch-count">0 selected</span><button class="cp-button" data-variant="quiet" data-size="sm" type="button" data-batch-every hidden>Select all 412 entries</button><button class="cp-button" data-size="sm" type="button" data-batch-clear>Clear</button><button class="cp-button" data-variant="primary" data-size="sm" type="button" data-batch-action="Grab"><span class="cp-icon" data-cp-icon="download" aria-hidden="true"></span><span class="cp-icon" data-cp-icon="spinner-arc" data-part="busy" aria-hidden="true"></span><span class="cp-icon" data-cp-icon="check" data-part="done" aria-hidden="true"></span><span class="cp-roll">Grab 0</span></button></section>
-        <div class="cp-panel" data-flush>
-          <table class="cp-table" id="g-table">
-            <caption tabindex="-1">Library, 1 to 4 of 412 entries</caption>
+        <div class="cp-panel" data-flush role="region" tabindex="0" aria-labelledby="g-table-title">
+          <table class="cp-table" id="g-table" aria-labelledby="g-table-title">
             <thead><tr>
               <th data-col="select"><label><input class="cp-checkbox" type="checkbox" data-select-all="rows"></label></th>
               <th aria-sort="ascending"><button class="cp-sort" type="button">Title</button></th>
@@ -164,9 +164,9 @@
       </div>
       <div class="card g-wide" data-new>
         <h2>A table that holds its place</h2>
-        <div class="cp-panel" data-flush>
-          <table class="cp-table">
-            <caption>Library, the worst verdict first</caption>
+        <h3 id="hold-library-title">Library, the worst verdict first</h3>
+        <div class="cp-panel" data-flush role="region" tabindex="0" aria-labelledby="hold-library-title">
+          <table class="cp-table" aria-labelledby="hold-library-title">
             <thead><tr><th>Copy</th><th>Verdict</th><th>Grab</th></tr></thead>
             <tbody id="hold-library">
               <tr data-copy="ping-pong" data-verdict="missing"><td><div class="cp-cell-stack"><a href="#lists">Ping Pong the Animation</a><span class="cp-meta">Sonarr, TV, 2014</span></div></td><td><span class="cp-chip" data-tone="danger"><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span>Missing</span></td><td><span class="cp-meta">None</span></td></tr>
@@ -248,10 +248,9 @@
     <h2>Figures and shares</h2>
     <div class="g-grid">
       <div class="card g-wide" data-new>
-        <h2>Series colours</h2>
-        <div class="cp-panel" data-flush>
-          <table class="cp-table" data-series-contrast>
-            <caption class="g-sr">The nine series colours and their contrast on each surface</caption>
+        <h2 id="series-title">Series colours</h2>
+        <div class="cp-panel" data-flush role="region" tabindex="0" aria-labelledby="series-title">
+          <table class="cp-table" data-series-contrast aria-labelledby="series-title">
             <thead><tr><th data-col="num">Slot</th><th>On a chip, with its swatch</th><th data-col="num">On the page</th><th data-col="num">On a panel</th><th data-col="num">Sunken</th><th data-col="num">In a popover</th></tr></thead>
             <tbody>
               <tr><td data-col="num">1</td><td><span class="cp-chip" data-series="1"><span class="cp-swatch"></span>On the best</span></td><td data-col="num" data-on="page"></td><td data-col="num" data-on="raised"></td><td data-col="num" data-on="sunken"></td><td data-col="num" data-on="overlay"></td></tr>
@@ -276,8 +275,7 @@
             <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" data-share-toggle="verdict-share" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
           </div>
           <div class="cp-share" id="verdict-share">
-            <table class="cp-table">
-              <caption class="cp-visually-hidden">Copies by verdict</caption>
+            <table class="cp-table" aria-labelledby="share-h">
               <thead><tr><th scope="col">Verdict</th><th scope="col" data-col="num">Copies</th></tr></thead>
               <tbody>
                 <tr data-series="1"><th scope="row"><a href="#figures"><span class="cp-icon" data-cp-icon="shield-check" aria-hidden="true"></span>On the best</a></th><td data-col="num"><data value="402">402</data></td></tr>
@@ -297,10 +295,9 @@
         <footer>One segment per verdict, sized by its share, with the surface showing through a 2px gap; a mouse or a tap on a segment shows its words, count and share. The legend chips are the links, each with its swatch, glyph, words and count; a reader also hears its share, and focus or a mouse shows the segment's tip on it. Table view shows the same numbers as a table, which is also what a page without the script shows. Grab 20 upgrades moves twenty copies from Not listed to On the best, and the bar follows the table.</footer>
       </div>
       <div class="card g-wide" data-new>
-        <h2>Sparkline</h2>
-        <div class="cp-panel" data-flush>
-          <table class="cp-table">
-            <caption class="g-sr">A message server and its members, sampled each minute</caption>
+        <h2 id="spark-title">Sparkline</h2>
+        <div class="cp-panel" data-flush role="region" tabindex="0" aria-labelledby="spark-title">
+          <table class="cp-table" aria-labelledby="spark-title">
             <thead><tr><th scope="col">Measure</th><th scope="col">Last 6 hours</th></tr></thead>
             <tbody>
               <tr><th scope="row">Live members</th><td><span class="cp-sparkline" data-series="1" data-spark="live"></span></td></tr>
@@ -322,17 +319,18 @@
           <button class="cp-figure" type="button" data-tone="neutral" aria-expanded="false" aria-controls="refused-posts" data-figure-count="refused"><span data-part="label">Refused posts</span> <span data-part="value"><data value="0">0</data></span></button>
           <button class="cp-figure" type="button" data-tone="warning" aria-expanded="false" aria-controls="failed-pushes"><span data-part="label">Failed pushes</span> <span data-part="value"><data value="3">3</data></span></button>
         </div>
-        <section class="cp-panel g-gap-top" id="refused-posts" aria-label="Refused posts" hidden>
+        <section class="cp-panel g-gap-top" id="refused-posts" aria-labelledby="refused-h" hidden>
+          <h3 id="refused-h">Refused posts in the last 6 hours</h3>
           <p class="cp-meta" data-figure-empty="refused">No post was refused in the last 6 hours.</p>
-          <table class="cp-table" data-figure-list="refused" hidden>
-            <caption class="cp-visually-hidden">Refused posts in the last 6 hours</caption>
+          <table class="cp-table" data-figure-list="refused" aria-labelledby="refused-h" hidden>
             <thead><tr><th scope="col">Time</th><th scope="col">Thread</th><th scope="col">Reason</th></tr></thead>
             <tbody><tr><td><time datetime="14:21">14:21</time></td><td class="cp-mono">/releases</td><td>The body is over 64&nbsp;KiB.</td></tr></tbody>
           </table>
         </section>
-        <section class="cp-panel g-gap-top" data-flush id="failed-pushes" aria-label="Failed pushes" hidden>
-          <table class="cp-table">
-            <caption class="cp-visually-hidden">Failed pushes in the last 6 hours</caption>
+        <section class="g-gap-top" id="failed-pushes" aria-labelledby="failed-h" hidden>
+          <h3 id="failed-h">Failed pushes in the last 6 hours</h3>
+          <div class="cp-panel" data-flush role="region" tabindex="0" aria-labelledby="failed-h">
+          <table class="cp-table" aria-labelledby="failed-h">
             <thead><tr><th scope="col">Time</th><th scope="col">Member</th><th scope="col">Reason</th></tr></thead>
             <tbody>
               <tr><td><time datetime="13:02">13:02</time></td><td>@ada</td><td>The connection closed before the push.</td></tr>
@@ -340,6 +338,7 @@
               <tr><td><time datetime="14:05">14:05</time></td><td>@ada</td><td>The connection closed before the push.</td></tr>
             </tbody>
           </table>
+          </div>
         </section>
         <div class="g-row-inline g-gap-top"><button class="cp-button" type="button" data-spark-tick>Next minute</button><button class="cp-button" type="button" data-figure-refuse="refused">Refuse a post</button></div>
         <footer>A number now under its label, with its unit on its baseline. Live members carries its last six hours as a sparkline in its slot. Oldest unread is past its hour, so it takes the warning tone with the tone's glyph, and a reader hears "over an hour". Refused posts and Failed pushes are buttons that open the events behind their count: neutral at 0, in the warning tone with a count. Refuse a post turns the first from 0 to 1 and back.</footer>
@@ -355,10 +354,9 @@
         <footer>A native meter against its ceiling, marked at 80% and 90%. Past the first mark the fill turns to the warning tone and past the second to danger, each with its glyph before the words, which say the value and the mark it passed. Add 30 GB and Free 150 GB move it.</footer>
       </div>
       <div class="card g-wide" data-new>
-        <h2>Ranked table</h2>
-        <div class="cp-panel" data-flush>
-          <table class="cp-table" data-ranked>
-            <caption class="g-sr">Who posts and reads, in the last 6 hours, by posts sent</caption>
+        <h2 id="ranked-title">Ranked table</h2>
+        <div class="cp-panel" data-flush role="region" tabindex="0" aria-labelledby="ranked-title">
+          <table class="cp-table" data-ranked aria-labelledby="ranked-title">
             <thead><tr><th scope="col">Member</th><th scope="col" data-bar="posts">Sent</th><th scope="col" data-bar="posts">Read</th><th scope="col" data-col="num">Longest wait</th><th scope="col" data-col="num">Turns held</th></tr></thead>
             <tbody>
               <tr><th scope="row"><a href="#figures">@ada</a></th><td data-bar="posts"><data value="148">148</data></td><td data-bar="posts" data-series="2"><data value="96">96</data></td><td data-col="num">3&nbsp;min</td><td data-col="num">4</td></tr>

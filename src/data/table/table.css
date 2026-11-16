@@ -44,14 +44,6 @@
   gap: var(--cp-space-1);
 }
 
-/* The caption names the table and its range. */
-.cp-table > caption {
-  padding: var(--cp-space-3) var(--cp-space-3) var(--cp-space-1);
-  color: var(--cp-ink-muted);
-  font-size: var(--cp-text-xs);
-  text-align: start;
-}
-
 /* A sortable header's button (@cplieger/ui/table). Its arrow shows on the
  * sorted column and turns over for descending. */
 .cp-sort {

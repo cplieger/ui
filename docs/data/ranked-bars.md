@@ -5,8 +5,8 @@
 A bar beside each number in a table column, sized against the column's largest. It suits a table ranked by count, such as who posts and reads, or which threads are busiest. The numbers stay exact and the names stay whole, and the bars show the ranking at a glance.
 
 ```html
-<table class="cp-table" id="posters">
-  <caption>Who posts and reads</caption>
+<h2 id="posters-h">Who posts and reads</h2>
+<table class="cp-table" id="posters" aria-labelledby="posters-h">
   <thead><tr><th scope="col">Member</th><th scope="col" data-bar="posts">Sent</th><th scope="col" data-bar="posts">Read</th></tr></thead>
   <tbody>
     <tr><th scope="row"><a href="/members/ada">@ada</a></th><td data-bar="posts"><data value="148">148</data></td><td data-bar="posts"><data value="96">96</data></td></tr>

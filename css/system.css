@@ -2573,9 +2573,9 @@
   color: inherit;
 }
 
-/* A heading or caption that takes focus by script, so a screen reader
- * lands on a new step or page, is no control: it draws no ring. */
-:where(.cp) :where(h1, h2, h3, h4, caption)[tabindex="-1"]:focus {
+/* A heading that takes focus by script, so a screen reader lands on a new
+ * step or page, is no control: it draws no ring. */
+:where(.cp) :where(h1, h2, h3, h4)[tabindex="-1"]:focus {
   outline: none;
 }
 
@@ -5252,14 +5252,6 @@ textarea.cp-input {
   display: inline-flex;
   align-items: center;
   gap: var(--cp-space-1);
-}
-
-/* The caption names the table and its range. */
-.cp-table > caption {
-  padding: var(--cp-space-3) var(--cp-space-3) var(--cp-space-1);
-  color: var(--cp-ink-muted);
-  font-size: var(--cp-text-xs);
-  text-align: start;
 }
 
 /* A sortable header's button (@cplieger/ui/table). Its arrow shows on the

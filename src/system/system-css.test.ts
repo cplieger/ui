@@ -5368,16 +5368,16 @@ describe("css/system.css data tables", () => {
     );
   });
 
-  it("writes a caption small and muted at the table's start", () => {
+  it("draws no title inside a table: a caption keeps the table's own type", () => {
     theme("light");
     const el = build(
-      '<table class="cp-table"><caption>Library, 1 to 4 of 412 entries</caption></table>',
+      '<table class="cp-table"><caption>Library</caption><tbody><tr><td>Mushishi</td></tr></tbody></table>',
     );
-    const caption = getComputedStyle(el.querySelector("caption") as Element);
-    expect([caption.color, caption.textAlign]).toEqual([resolve("var(--cp-ink-muted)"), "start"]);
-    expect(caption.fontSize).toBe(
-      getComputedStyle(host("", { style: "font-size: var(--cp-text-xs)" })).fontSize,
-    );
+    const [caption, cell] = ["caption", "td"].map((s) =>
+      getComputedStyle(el.querySelector(s) as Element),
+    ) as [CSSStyleDeclaration, CSSStyleDeclaration];
+    expect(caption.fontSize).toBe(cell.fontSize);
+    expect(caption.color).toBe(cell.color);
   });
 
   it("hugs a number column and a bar column to their widest cell, the text column taking the rest", () => {
