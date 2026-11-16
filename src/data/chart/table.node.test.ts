@@ -708,11 +708,23 @@ describe("the table of a scatter plot", () => {
     expect(t.after).toBe("World average 70. Monaco: A city-state.");
   });
 
-  it("sets the dots' names, as a band's rows and a slope's series, in their own direction", () => {
+  it("sets the dots' names, as a band's rows, a slope's series and a whole's parts, in their own direction", () => {
     expect(namedRows(model(world()))).toBe(true);
     expect(
       namedRows(
         model({ marks: [{ mark: "slope", x: ["a", "b"], series: [{ name: "s", y: [1, 2] }] }] }),
+      ),
+    ).toBe(true);
+    expect(
+      namedRows(model({ marks: [{ mark: "pie", slices: [{ name: "Forest", value: 1 }] }] })),
+    ).toBe(true);
+    expect(
+      namedRows(
+        model({
+          marks: [
+            { mark: "tree", nodes: [{ name: "Asia", children: [{ name: "China", value: 1 }] }] },
+          ],
+        }),
       ),
     ).toBe(true);
     expect(
@@ -876,6 +888,34 @@ describe("the table of a calendar", () => {
   });
 });
 
+describe("the table of a calendar at the end of what Date holds", () => {
+  it("writes the last week, ending on Saturday 13 September 275760", () => {
+    const t = tableModel(
+      chartModel(
+        { marks: [{ mark: "cell", days: { start: 8.64e15 - 86_400_000, values: [1, 2] } }] },
+        "en",
+        "UTC",
+      ),
+      words,
+    );
+    expect(t.columns.map((c) => c.text)).toEqual([
+      "Sunday",
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday",
+      "Saturday",
+    ]);
+    expect(t.rows.map((r) => r.head)).toEqual([
+      [{ at: 8.64e15 - 6 * 86_400_000, text: "Sep 7, 275760", date: true }],
+    ]);
+    expect(t.rows.map((r) => r.cells.map((c) => text(c.parts)))).toEqual([
+      ["", "", "", "", "", "1", "2"],
+    ]);
+  });
+});
+
 describe("the table of a box plot", () => {
   const latency = (more: Record<string, unknown> = {}, two = false): ChartSpec => ({
     y: { label: "Endpoint" },
@@ -946,5 +986,484 @@ describe("the table of a box plot", () => {
     const t = tableModel(model(latency()), chartWords({ boxLabels: { median: "Médiane" } }));
     expect(t.columns.map((c) => c.text)).toContain("Médiane");
     expect(t.columns.map((c) => c.text)).toContain("Low");
+  });
+});
+
+describe("the table of a pie", () => {
+  const land = (unit = true): ChartSpec => ({
+    marks: [
+      {
+        mark: "pie",
+        ...(unit ? { unit: { other: "km²" } } : {}),
+        slices: [
+          { name: "Agriculture", value: 182_637 },
+          { name: "Forest", value: 106_645 },
+          { name: "Water", value: null },
+        ],
+      },
+    ],
+  });
+
+  it("has a row per slice in the order sent, its value and share, and the whole in its foot", () => {
+    const t = tableModel(model(land()), words);
+    expect(t.corner).toBe("");
+    expect(t.columns.map((c) => c.text)).toEqual(["km²", "Share"]);
+    expect(cells(t)).toEqual([
+      ["Agriculture", "182,637", "63%"],
+      ["Forest", "106,645", "37%"],
+      ["Water", "No data", "No data"],
+    ]);
+    const foot = t.foot;
+    expect(
+      foot === undefined ? [] : [text(foot.head), ...foot.cells.map((c) => text(c.parts))],
+    ).toEqual(["Total", "289,282", "100%"]);
+  });
+
+  it("heads the values Value without a unit", () => {
+    expect(tableModel(model(land(false)), words).columns[0]?.text).toBe("Value");
+  });
+
+  it("has no foot under any other mark", () => {
+    const t = tableModel(
+      model({ x: {}, marks: [{ mark: "line", x: [0, 1], series: [{ name: "A", y: [1, 2] }] }] }),
+      words,
+    );
+    expect(t.foot).toBe(undefined);
+  });
+});
+
+describe("the table of a treemap", () => {
+  // GDP in 2023, bn USD: 62,580 in all.
+  const gdp = (india: number | null = 3550): ChartSpec => ({
+    marks: [
+      {
+        mark: "tree",
+        unit: { other: "bn USD" },
+        nodes: [
+          {
+            name: "Asia",
+            children: [
+              { name: "China", value: 17_795 },
+              { name: "India", value: india },
+            ],
+          },
+          {
+            name: "Americas",
+            children: [
+              { name: "United States", value: 27_361 },
+              { name: "Brazil", value: 2174 },
+              { name: "Other", value: 11_700 },
+            ],
+          },
+        ],
+      },
+    ],
+  });
+  const foot = (t: TableModel) =>
+    t.foot === undefined ? [] : [text(t.foot.head), ...t.foot.cells.map((c) => text(c.parts))];
+
+  it("has a group per tbody, its head row its sum and share, then its parts in the order sent", () => {
+    const t = tableModel(model(gdp()), words);
+    expect(t.columns.map((c) => c.text)).toEqual(["bn USD", "Share"]);
+    expect(cells(t)).toEqual([
+      ["China", "17,795", "28%"],
+      ["India", "3,550", "5.7%"],
+      ["United States", "27,361", "44%"],
+      ["Brazil", "2,174", "3.5%"],
+      ["Other", "11,700", "19%"],
+    ]);
+    expect(
+      t.groups?.map((g) => [
+        g.key,
+        g.count,
+        g.head.scope,
+        text(g.head.head),
+        ...g.head.cells.map((c) => text(c.parts)),
+      ]),
+    ).toEqual([
+      ["Asia", 2, "rowgroup", "Asia", "21,345", "34%"],
+      ["Americas", 3, "rowgroup", "Americas", "41,235", "66%"],
+    ]);
+    expect(foot(t)).toEqual(["Total", "62,580", "100%"]);
+  });
+
+  it("writes a gap No data, its group's sum and the whole without it", () => {
+    const t = tableModel(model(gdp(null)), words);
+    expect(cells(t)[1]).toEqual(["India", "No data", "No data"]);
+    expect(t.groups?.[0]?.head.cells.map((c) => text(c.parts))).toEqual(["17,795", "30%"]);
+    expect(foot(t)).toEqual(["Total", "59,030", "100%"]);
+  });
+
+  it("has one body of parts with one level, and the whole in its foot", () => {
+    const t = tableModel(
+      model({
+        marks: [
+          {
+            mark: "tree",
+            nodes: [
+              { name: "United States", value: 3 },
+              { name: "China", value: 1 },
+            ],
+          },
+        ],
+      }),
+      words,
+    );
+    expect(t.groups).toBe(undefined);
+    expect(t.columns[0]?.text).toBe("Value");
+    expect(cells(t)).toEqual([
+      ["United States", "3", "75%"],
+      ["China", "1", "25%"],
+    ]);
+    expect(foot(t)).toEqual(["Total", "4", "100%"]);
+  });
+});
+
+describe("the table of small multiples", () => {
+  const line = (name: string, x: number[], y: (number | null)[], more: Mark[] = []) => ({
+    marks: [{ mark: "line" as const, x, series: [{ name, y }] }, ...more],
+  });
+
+  it("gives per-series panels a column each under the panel's name, No data where one has no sample", () => {
+    const t = tableModel(
+      model({
+        x: { label: "Week" },
+        y: { format: "percent" },
+        marks: [{ mark: "rule", y: 0.05, label: "Target" }],
+        facets: {
+          panels: [
+            line(
+              "North",
+              [0, 1, 2],
+              [0.02, 0.04, 0.06],
+              [{ mark: "text", x: 1, y: 0.04, text: "Strike" }],
+            ),
+            line("South", [1, 2, 3], [0.03, 0.05, 0.07]),
+          ],
+        },
+      }),
+      words,
+    );
+    expect(t.corner).toBe("Week");
+    expect(t.bands).toBeUndefined();
+    expect(t.columns).toEqual([
+      { text: "North", num: true },
+      { text: "South", num: true },
+    ]);
+    expect(cells(t)).toEqual([
+      ["0", "2%", "No data"],
+      ["1", "4%", "3%"],
+      ["2", "6%", "5%"],
+      ["3", "No data", "7%"],
+    ]);
+    expect(t.after).toBe("Target 5%. North, 1: Strike.");
+  });
+
+  it("reads the chart's rules once after the table, then each panel's own after its name", () => {
+    const t = tableModel(
+      model({
+        marks: [{ mark: "rule", y: 1, label: "Chart" }],
+        facets: {
+          panels: [
+            line("North", [0, 1], [1, 2], [{ mark: "rule", y: 2, label: "Only north" }]),
+            line("South", [0, 1], [2, 1], [{ mark: "rule", y: 3, label: "Only south" }]),
+          ],
+        },
+      }),
+      words,
+    );
+    expect(t.after).toBe("Chart 1. North, Only north 2. South, Only south 3.");
+  });
+
+  const step = (name: string, x: number[], y: (number | null)[]) => ({
+    marks: [{ mark: "line" as const, curve: "step" as const, x, series: [{ name, y }] }],
+  });
+  const stepTable = (panels: ReturnType<typeof step>[], x: ChartSpec["x"] = {}) =>
+    cells(tableModel(model({ x, marks: [], facets: { panels } }), words));
+
+  it("gives a step-line panel the level its line holds at another panel's change point", () => {
+    expect(
+      stepTable([
+        step("North", [0, 1, 2, 3], [5, 5, 7, 7]),
+        step("South", [0, 1, 2, 3], [2, 4, 4, 4]),
+      ]),
+    ).toEqual([
+      ["0", "5", "2"],
+      ["1", "5", "4"],
+      ["2", "7", "4"],
+      ["3", "7", "4"],
+    ]);
+  });
+
+  it("writes No data where a step-line panel's line draws nothing: before it, in a gap and after it", () => {
+    expect(
+      stepTable([
+        step("North", [1, 2, 3], [5, null, 6]),
+        step("South", [0, 1, 1.5, 2, 2.5, 3, 4], [1, 2, 1, 2, 1, 2, 1]),
+      ]),
+    ).toEqual([
+      ["0", "No data", "1"],
+      ["1", "5", "2"],
+      ["1.5", "No data", "1"],
+      ["2", "No data", "2"],
+      ["2.5", "No data", "1"],
+      ["3", "6", "2"],
+      ["4", "No data", "1"],
+    ]);
+  });
+
+  it("holds a step-line panel's level drawn in from a sample beyond either end of the domain", () => {
+    expect(
+      stepTable([step("North", [0, 2, 6], [5, 6, 8]), step("South", [1, 3, 4], [1, 2, 1])], {
+        domain: [1, 4],
+      }),
+    ).toEqual([
+      ["1", "5", "1"],
+      ["2", "6", "1"],
+      ["3", "6", "2"],
+      ["4", "6", "1"],
+    ]);
+  });
+
+  const area = (
+    name: string,
+    x: number[],
+    a: (number | null)[],
+    b: number[],
+    arrange: "stack" | "share" = "stack",
+  ) => ({
+    name,
+    marks: [
+      {
+        mark: "area" as const,
+        curve: "step" as const,
+        arrange,
+        x,
+        series: [
+          { name: "A", y: a },
+          { name: "B", y: b },
+        ],
+      },
+    ],
+  });
+  const areaTable = (panels: ReturnType<typeof area>[]) =>
+    cells(tableModel(model({ marks: [], facets: { panels } }), words));
+
+  it("holds no layer of a stepped area panel where a gap in any series ends the drawn step", () => {
+    expect(
+      areaTable([
+        area("Germany", [0, 2, 4], [1, 3, null], [2, 2, 5]),
+        area("France", [0, 1, 2, 3, 4], [1, 2, 1, 2, 1], [1, 1, 1, 1, 1]),
+      ]),
+    ).toEqual([
+      ["0", "1", "2", "3", "1", "1", "2"],
+      ["1", "1", "2", "3", "2", "1", "3"],
+      ["2", "3", "2", "5", "1", "1", "2"],
+      ["3", "No data", "No data", "No data", "2", "1", "3"],
+      ["4", "No data", "5", "No data", "1", "1", "2"],
+    ]);
+  });
+
+  it("holds no layer of a stepped area panel from a sample that is a gap in any series", () => {
+    expect(
+      areaTable([
+        area("Germany", [0, 2, 4], [1, null, 1], [2, 2, 5]),
+        area("France", [0, 1, 2, 3, 4], [1, 2, 1, 2, 1], [1, 1, 1, 1, 1]),
+      ]),
+    ).toEqual([
+      ["0", "1", "2", "3", "1", "1", "2"],
+      ["1", "No data", "No data", "No data", "2", "1", "3"],
+      ["2", "No data", "2", "No data", "1", "1", "2"],
+      ["3", "No data", "No data", "No data", "2", "1", "3"],
+      ["4", "1", "5", "6", "1", "1", "2"],
+    ]);
+  });
+
+  it("holds no share of a stepped share panel up to a sample whose total is 0", () => {
+    const t = areaTable([
+      area("North", [0, 10], [1, 0], [1, 0], "share"),
+      area("South", [0, 5, 10], [1, 3, 0], [1, 1, 0], "share"),
+    ]);
+    expect(t[1]).toEqual(["5", "No data", "No data", "No data", "75%", "25%", "4"]);
+  });
+
+  it("holds a stepped share panel's shares only between two samples it draws", () => {
+    expect(
+      areaTable([
+        area("Germany", [0, 2, 4, 6], [1, 0, 1, 1], [1, 0, 3, 1], "share"),
+        area(
+          "France",
+          [0, 1, 2, 3, 4, 5, 6],
+          [1, 2, 1, 2, 1, 2, 1],
+          [3, 2, 3, 2, 3, 2, 3],
+          "share",
+        ),
+      ]),
+    ).toEqual([
+      ["0", "50%", "50%", "2", "25%", "75%", "4"],
+      ["1", "No data", "No data", "No data", "50%", "50%", "4"],
+      ["2", "0", "0", "0", "25%", "75%", "4"],
+      ["3", "No data", "No data", "No data", "50%", "50%", "4"],
+      ["4", "25%", "75%", "4", "25%", "75%", "4"],
+      ["5", "25%", "75%", "4", "50%", "50%", "4"],
+      ["6", "50%", "50%", "2", "25%", "75%", "4"],
+    ]);
+  });
+
+  it("gives each rect bucket its own row, by both edges, where panels' buckets share a start", () => {
+    const buckets = (name: string, x1: number[], x2: number[], y: number[]) => ({
+      marks: [{ mark: "rect" as const, x1, x2, series: [{ name, y }] }],
+    });
+    const t = tableModel(
+      model({
+        marks: [],
+        facets: {
+          panels: [
+            buckets("North", [0, 10], [10, 20], [1, 2]),
+            buckets("South", [0, 5], [5, 20], [9, 8]),
+          ],
+        },
+      }),
+      words,
+    );
+    expect(cells(t)).toEqual([
+      ["0 to 5", "No data", "9"],
+      ["0 to 10", "1", "No data"],
+      ["5 to 20", "No data", "8"],
+      ["10 to 20", "2", "No data"],
+    ]);
+    expect(new Set(t.rows.map((r) => r.key)).size).toBe(4);
+  });
+
+  it("gives per-category panels a column group each over the mark's columns and its Total", () => {
+    const panel = (name: string, coal: number[], gas: number[]) => ({
+      name,
+      marks: [
+        {
+          mark: "rect" as const,
+          x1: [0, 10],
+          x2: [10, 20],
+          series: [
+            { name: "Coal", y: coal },
+            { name: "Gas", y: gas },
+          ],
+        },
+      ],
+    });
+    const t = tableModel(
+      model({
+        marks: [],
+        facets: { panels: [panel("Germany", [3, 4], [1, 2]), panel("France", [1, 0], [5, 6])] },
+      }),
+      words,
+    );
+    expect(t.bands).toEqual([
+      { text: "Germany", span: 3 },
+      { text: "France", span: 3 },
+    ]);
+    expect(t.lead).toBe(0);
+    expect(t.columns.map((c) => c.text)).toEqual(["Coal", "Gas", "Total", "Coal", "Gas", "Total"]);
+    expect(cells(t).map((r) => r.slice(1))).toEqual([
+      ["3", "1", "4", "1", "5", "6"],
+      ["4", "2", "6", "0", "6", "6"],
+    ]);
+  });
+
+  it("keeps a box plot's Series column once, before the panels' groups", () => {
+    const box = (name: string, median: number) => ({
+      name,
+      marks: [
+        {
+          mark: "box" as const,
+          y: ["search"],
+          series: ["Before", "After"].map((s, k) => ({
+            name: s,
+            low: [1],
+            q1: [2],
+            median: [median + k],
+            q3: [8],
+            high: [9],
+          })),
+        },
+      ],
+    });
+    const t = tableModel(
+      model({ marks: [], facets: { panels: [box("EU", 4), box("US", 5)] } }),
+      words,
+    );
+    expect(t.lead).toBe(1);
+    expect(t.bands).toEqual([
+      { text: "EU", span: 6 },
+      { text: "US", span: 6 },
+    ]);
+    expect(t.columns.map((c) => c.text).slice(0, 2)).toEqual(["Series", "Low"]);
+    expect(cells(t)).toEqual([
+      ["search", "Before", "1", "2", "4", "8", "9", "None", "1", "2", "5", "8", "9", "None"],
+      ["search", "After", "1", "2", "5", "8", "9", "None", "1", "2", "6", "8", "9", "None"],
+    ]);
+  });
+
+  it("sums each pie in the foot under its own group", () => {
+    const pie = (name: string, a: number, b: number) => ({
+      name,
+      marks: [
+        {
+          mark: "pie" as const,
+          slices: [
+            { name: "Wind", value: a },
+            { name: "Solar", value: b },
+          ],
+        },
+      ],
+    });
+    const t = tableModel(
+      model({ marks: [], facets: { panels: [pie("2023", 3, 1), pie("2024", 1, 1)] } }),
+      words,
+    );
+    expect(t.bands?.map((b) => b.text)).toEqual(["2023", "2024"]);
+    expect(cells(t)).toEqual([
+      ["Wind", "3", "75%", "1", "50%"],
+      ["Solar", "1", "25%", "1", "50%"],
+    ]);
+    expect([text(t.foot?.head ?? []), ...(t.foot?.cells ?? []).map((c) => text(c.parts))]).toEqual([
+      "Total",
+      "4",
+      "100%",
+      "2",
+      "100%",
+    ]);
+  });
+
+  it("gives scatter panels a tbody each, headed by the panel's name across every column", () => {
+    const dots = (name: string, names: string[]) => ({
+      marks: [
+        {
+          mark: "scatter" as const,
+          series: [{ name, names, x: names.map((_, i) => i + 1), y: names.map((_, i) => 2 * i) }],
+        },
+      ],
+    });
+    const t = tableModel(
+      model({
+        x: { label: "Income" },
+        y: { label: "Age" },
+        marks: [],
+        facets: { panels: [dots("Europe", ["Albania", "Monaco"]), dots("Africa", ["Chad"])] },
+      }),
+      words,
+    );
+    expect(t.columns.map((c) => c.text)).toEqual(["Income", "Age"]);
+    expect(t.bands).toBeUndefined();
+    expect(
+      t.groups?.map((g) => [g.key, text(g.head.head), g.head.scope, g.head.span, g.count]),
+    ).toEqual([
+      ["Europe", "Europe", "rowgroup", 3, 2],
+      ["Africa", "Africa", "rowgroup", 3, 1],
+    ]);
+    expect(cells(t)).toEqual([
+      ["Albania", "1", "0"],
+      ["Monaco", "2", "2"],
+      ["Chad", "1", "0"],
+    ]);
   });
 });

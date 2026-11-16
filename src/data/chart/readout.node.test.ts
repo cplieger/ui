@@ -13,10 +13,12 @@ import {
   type DotModel,
   type LineModel,
   type Model,
+  type PieModel,
   type PointModel,
   type RectModel,
   type ScatterModel,
   type SlopeModel,
+  type TreeModel,
 } from "./model.js";
 import {
   barReading,
@@ -24,6 +26,7 @@ import {
   bucketReading,
   cellReading,
   columnReading,
+  chipChosen,
   overall,
   pointReading,
   postReading,
@@ -31,10 +34,14 @@ import {
   rowReading,
   sampleReading,
   scatterReading,
+  sliceReading,
   totalWord,
+  treeReading,
   type Reading,
 } from "./readout.js";
 import type { ChartSpec, Mark } from "./spec.js";
+
+type Slot = NonNullable<Extract<Mark, { mark: "line" }>["series"][number]["slot"]>;
 import { chartWords } from "./words.js";
 
 const TZ = "Europe/Paris";
@@ -247,6 +254,42 @@ describe("the legend row of a step line", () => {
     const r = sampleReading(m, line, 0, words);
     expect(r.at).toBe(time(START));
     expect(chips(r)?.map((c) => c[2])).toEqual(["No data", "No data"]);
+  });
+});
+
+// Built at the size the bound is about, it runs past node's 5 s default on a
+// loaded host.
+describe("the legend row of 200,000 lines", { timeout: 30_000 }, () => {
+  const m = model({
+    x: { type: "time", domain: [START, START + 10 * MIN] },
+    marks: [
+      {
+        mark: "line",
+        x: [START, START + MIN],
+        series: per(200_000, (k) => ({
+          name: `s${String(k)}`,
+          slot: ((k % 9) + 1) as Slot,
+          y: [k, k % 2 === 0 ? 1 : null],
+        })),
+      },
+    ],
+  });
+
+  it("reads each line's last value, at the latest of them", () => {
+    const r = overall(m, words);
+    expect(r?.at).toBe(time(START + MIN));
+    expect(r?.entries).toHaveLength(200_000);
+    expect(chips(r)?.slice(0, 2)).toEqual([
+      [1, "s0", "1"],
+      [2, "s1", "1"],
+    ]);
+    expect(
+      readoutWidths(
+        m,
+        words,
+        measurer((t) => 7 * t.length, 6, "en"),
+      ).values,
+    ).toHaveLength(200_000);
   });
 });
 
@@ -464,7 +507,7 @@ describe("the legend row's widths", () => {
     }
   });
 
-  it("holds a duration wider than its extremes, writing one text per duration record", () => {
+  it("holds a duration wider than its extremes, writing one text per duration width", () => {
     const n = 1_000;
     const y = per(n, (i) =>
       i === 0 ? 0 : i === n - 1 ? 9 * 60 * MIN : i === 500 ? 9_420_013 : 100 + i * 9,
@@ -478,8 +521,9 @@ describe("the legend row's widths", () => {
     const counting = { ...measure, number: (t: string) => (texts++, measure.number(t)) };
     const w = readoutWidths(m, words, counting);
     expect(w.values[0]).toBe(measure.number(writer("duration", "en")(9_420_013)));
-    // About a hundred records: 0, 109 to 999 ms, 1 to 9 s, 2 hr 37 min and 9 hr.
-    expect(texts).toBeLessThan(150);
+    // Six duration widths (0 ms, 109 to 999 ms, 1 sec, 2 to 9 sec, 2 hr 37 min,
+    // 9 hr), with No data, the x's three digit counts and the overall row.
+    expect(texts).toBeLessThan(20);
     const line = m.marks[0] as LineModel;
     for (let i = 0; i < n; i++) {
       fits(sampleReading(m, line, i, words), w);
@@ -1384,5 +1428,150 @@ describe("the legend row of a box plot", () => {
       7 * "Whiskers 120 to 760".length,
       7 * "Outliers 2".length,
     ]);
+  });
+});
+
+describe("the legend row of a pie", () => {
+  // Germany's land by use, in km², with water missing: 52%, 31%, 14% and 3.3% of 349,356.
+  const land: ChartSpec = {
+    marks: [
+      {
+        mark: "pie",
+        unit: { other: "km²" },
+        slices: [
+          { name: "Agriculture", value: 182_637 },
+          { name: "Forest", slot: 5, value: 106_645 },
+          { name: "Housing & traffic", value: 48_631 },
+          { name: "Other land", value: 11_443 },
+          { name: "Water", value: null },
+        ],
+      },
+    ],
+  };
+  const pie = (m: Model) => m.marks[0] as PieModel;
+  const shares = [
+    [1, "Agriculture", "52%"],
+    [5, "Forest", "31%"],
+    [3, "Housing & traffic", "14%"],
+    [4, "Other land", "3.3%"],
+    [5, "Water", "No data"],
+  ];
+
+  it("reads the total with no selection, a chip per slice with its share", () => {
+    const r = overall(model(land), words);
+    expect(r?.at).toBe(`Total 349,356${nb}km²`);
+    expect(chips(r)).toEqual(shares);
+    expect(r?.total).toBe(undefined);
+  });
+
+  it("reads a selected slice's name and value, the chips keeping their shares, its own chosen", () => {
+    const m = model(land);
+    const r = sliceReading(m, pie(m), 1, words);
+    expect(r.at).toBe(`Forest 106,645${nb}km²`);
+    expect(chips(r)).toEqual(shares);
+    expect(r.chosen).toBe(1);
+    expect(sliceReading(m, pie(m), 4, words).at).toBe("Water No data");
+  });
+
+  it("keeps the x slot as wide as the widest slice's reading", () => {
+    const measure = measurer((t) => 7 * Array.from(t).length, 6, "en");
+    const m = model(land);
+    const w = readoutWidths(m, words, measure);
+    expect(w.at).toBe(measure.number(`Housing & traffic 48,631${nb}km²`));
+  });
+});
+
+describe("the legend row of a treemap", () => {
+  // GDP in 2023, bn USD: 62,580 in all, Asia 41%, the Americas 47% and Europe 12%.
+  const gdp = (india: number | null = 3550): ChartSpec => ({
+    marks: [
+      {
+        mark: "tree",
+        unit: { other: "bn USD" },
+        nodes: [
+          {
+            name: "Asia",
+            children: [
+              { name: "China", value: 17_795 },
+              { name: "Japan", value: 4213 },
+              { name: "India", value: india },
+            ],
+          },
+          {
+            name: "Americas",
+            slot: 6,
+            children: [
+              { name: "United States", value: 27_361 },
+              { name: "Brazil", value: 2174 },
+            ],
+          },
+          {
+            name: "Europe",
+            children: [
+              { name: "Germany", value: 4456 },
+              { name: "France", value: 3031 },
+            ],
+          },
+        ],
+      },
+    ],
+  });
+  const flat: ChartSpec = {
+    marks: [
+      {
+        mark: "tree",
+        unit: { other: "bn USD" },
+        nodes: [
+          { name: "United States", value: 27_361 },
+          { name: "China", slot: 3, value: 17_795 },
+          { name: "Germany", value: 4456 },
+        ],
+      },
+    ],
+  };
+  const tree = (m: Model) => m.marks[0] as TreeModel;
+  const shares = [
+    [1, "Asia", "41%"],
+    [6, "Americas", "47%"],
+    [3, "Europe", "12%"],
+  ];
+
+  it("reads the total with no selection, a chip per group with its share", () => {
+    const r = overall(model(gdp()), words);
+    expect(r?.at).toBe(`Total 62,580${nb}bn USD`);
+    expect(chips(r)).toEqual(shares);
+    expect(chipChosen(model(gdp()))).toBe(true);
+  });
+
+  it("reads a part by its path, value and share, the chips kept, its group's chosen", () => {
+    const m = model(gdp());
+    const r = treeReading(m, tree(m), false, 3, words);
+    expect(r.at).toBe(`Americas, United States 27,361${nb}bn USD, 44%`);
+    expect(chips(r)).toEqual(shares);
+    expect(r.chosen).toBe(1);
+    const gap = model(gdp(null));
+    expect(treeReading(gap, tree(gap), false, 2, words).at).toBe("Asia, India No data");
+  });
+
+  it("reads a group by its name, sum and share, its own chip chosen", () => {
+    const m = model(gdp());
+    const r = treeReading(m, tree(m), true, 2, words);
+    expect(r.at).toBe(`Europe 7,487${nb}bn USD, 12%`);
+    expect(r.chosen).toBe(2);
+  });
+
+  it("has no chips with one level, the part named alone", () => {
+    const m = model(flat);
+    expect(chips(overall(m, words))).toEqual([]);
+    const r = treeReading(m, tree(m), false, 1, words);
+    expect(r.at).toBe(`China 17,795${nb}bn USD, 36%`);
+    expect(chips(r)).toEqual([]);
+    expect(r.chosen).toBe(undefined);
+  });
+
+  it("keeps the x slot as wide as the widest node's reading", () => {
+    const measure = measurer((t) => 7 * Array.from(t).length, 6, "en");
+    const w = readoutWidths(model(gdp()), words, measure);
+    expect(w.at).toBe(measure.number(`Americas, United States 27,361${nb}bn USD, 44%`));
   });
 });

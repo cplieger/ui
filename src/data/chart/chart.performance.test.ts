@@ -94,7 +94,7 @@ async function timed(
 
 const MOVES = 21;
 
-// The mean of 21 moves across the plot.
+// The mean of 21 moves across the plot, or across one panel's.
 async function moveMs(plot: HTMLElement): Promise<number> {
   const box = plot.getBoundingClientRect();
   const t0 = await cpu();
@@ -284,6 +284,98 @@ const fewCells: ChartSpec = {
   marks: [{ mark: "cell", x: { edges: [0, 1] }, y: { edges: [0, 1] }, values: [[1]] }],
 };
 
+// A treemap of 1,000 parts in 9 groups of a long tail each.
+const treemap: ChartSpec = {
+  marks: [
+    {
+      mark: "tree",
+      unit: { other: "USD" },
+      format: { notation: "compact" },
+      nodes: Array.from({ length: 9 }, (_, g) => ({
+        name: `Region ${String(g + 1)}`,
+        children: Array.from({ length: g < 1 ? 112 : 111 }, (_, i) => ({
+          name: `Country ${String(g)}-${String(i)}`,
+          value: 1e12 / (1 + i + g * 7),
+        })),
+      })),
+    },
+  ],
+};
+const fewParts: ChartSpec = {
+  marks: [{ mark: "tree", nodes: [{ name: "a", value: 1 }] }],
+};
+
+// The step line's 8,640 values and the stacked area's three layers of
+// 4,320 samples, each split across panels: a figure's budget is summed over
+// its panels, since one task draws them all.
+const regions = ["North", "South", "East", "West", "Centre", "Coast"];
+const hours12 = minutes.slice(0, 1_440);
+const linePanels: ChartSpec = {
+  x: { type: "time", domain: [START, START + 1_439 * MIN] },
+  y: { label: "Agents" },
+  marks: [],
+  facets: {
+    panels: regions.map((name, k) => ({
+      marks: [
+        {
+          mark: "line",
+          curve: "step",
+          x: hours12,
+          series: [{ name, y: hours12.map((_, i) => 4 + ((i * 7 + k) % 9)) }],
+        },
+      ],
+    })),
+  },
+};
+const fewLinePanels: ChartSpec = {
+  ...linePanels,
+  facets: {
+    panels: regions.slice(0, 2).map((name) => ({
+      marks: [{ mark: "line", x: hours12.slice(0, 3), series: [{ name, y: [1, 2, 3] }] }],
+    })),
+  },
+};
+const hours18 = minutes.slice(0, 1_080);
+const areaPanels: ChartSpec = {
+  x: { type: "time", domain: [START, START + 1_079 * MIN] },
+  marks: [],
+  facets: {
+    panels: regions.slice(0, 4).map((name, k) => ({
+      name,
+      marks: [
+        {
+          mark: "area",
+          x: hours18,
+          series: [
+            { name: "Gas", y: hours18.map((_, i) => 40 + ((i * 7 + k) % 13)) },
+            { name: "Wind", y: hours18.map((_, i) => 10 + ((i * 5 + k) % 17)) },
+            { name: "Solar", y: hours18.map((_, i) => (i * 3 + k) % 11) },
+          ],
+        },
+      ],
+    })),
+  },
+};
+const fewAreaPanels: ChartSpec = {
+  ...areaPanels,
+  facets: {
+    panels: regions.slice(0, 2).map((name) => ({
+      name,
+      marks: [
+        {
+          mark: "area",
+          x: hours18.slice(0, 3),
+          series: [
+            { name: "Gas", y: [1, 2, 3] },
+            { name: "Wind", y: [0, 1, 1] },
+            { name: "Solar", y: [1, 1, 1] },
+          ],
+        },
+      ],
+    })),
+  },
+};
+
 describe("performance", () => {
   it.skipIf(!chromium)("renders a 72-hour step line of 8,640 values within its bound", async () => {
     const { ms, plot } = await timed(stepLine, few);
@@ -306,6 +398,28 @@ describe("performance", () => {
       const { ms, plot } = await timed(stackedArea, fewLayers);
       expect(ms).toBeLessThan(RENDER_MS);
       expect(await moveMs(plot)).toBeLessThan(MOVE_MS);
+    },
+  );
+
+  it.skipIf(!chromium)(
+    "renders six line panels of 1,440 values each within the step line's bound",
+    async () => {
+      const { ms, plot } = await timed(linePanels, fewLinePanels);
+      expect(plot.querySelectorAll('[data-part="panel"]')).toHaveLength(6);
+      expect(ms).toBeLessThan(RENDER_MS);
+      const frame = plot.querySelector<HTMLElement>('[data-part="frame"]') as HTMLElement;
+      expect(await moveMs(frame)).toBeLessThan(MOVE_MS);
+    },
+  );
+
+  it.skipIf(!chromium)(
+    "renders four stacked area panels of three layers of 1,080 samples within the area's bound",
+    async () => {
+      const { ms, plot } = await timed(areaPanels, fewAreaPanels);
+      expect(plot.querySelectorAll('[data-part="layers"] > path')).toHaveLength(12);
+      expect(ms).toBeLessThan(RENDER_MS);
+      const frame = plot.querySelector<HTMLElement>('[data-part="frame"]') as HTMLElement;
+      expect(await moveMs(frame)).toBeLessThan(MOVE_MS);
     },
   );
 
@@ -334,11 +448,49 @@ describe("performance", () => {
     expect(await moveMs(plot)).toBeLessThan(MOVE_MS);
   });
 
+  it.skipIf(!chromium)("renders a treemap of 1,000 parts within its bound", async () => {
+    const nodes = treemap.marks[0]?.mark === "tree" ? treemap.marks[0].nodes : [];
+    expect(nodes.reduce((n, g) => n + ("children" in g ? g.children.length : 1), 0)).toBe(1_000);
+    const { ms, plot } = await timed(treemap, fewParts);
+    // One path per group's slot.
+    expect(plot.querySelectorAll('[data-part="tree"] > path')).toHaveLength(9);
+    expect(ms).toBeLessThan(RENDER_MS);
+    expect(await moveMs(plot)).toBeLessThan(MOVE_MS);
+  });
+
   it.skipIf(!chromium)("renders a timeline of 20,000 dots within its bound", async () => {
     const dots = timeline.marks[0]?.mark === "dot" ? timeline.marks[0].rows : [];
     expect(dots.reduce((n, r) => n + r.x.length, 0)).toBeGreaterThanOrEqual(20_000);
     const { ms, plot } = await timed(timeline, fewDots);
     expect(ms).toBeLessThan(RENDER_MS);
     expect(await moveMs(plot)).toBeLessThan(MOVE_MS);
+  });
+});
+
+// The fastest of three renders' main-thread CPU time: a few dots draw in well
+// under the bound, and only ticks generated across the span's days could reach it.
+describe("a time axis over a long span", () => {
+  const year = (y: number) => new Date(Date.UTC(2000, 0, 1)).setUTCFullYear(y);
+
+  it.skipIf(!chromium).each([
+    ["10,000 years", year(-3000), year(7000)],
+    ["all that Date holds", -8.64e15, 8.64e15],
+  ])("renders a line over %s within the render bound", async (_, lo, hi) => {
+    const spec: ChartSpec = {
+      x: { type: "time", domain: [lo, hi] },
+      marks: [{ mark: "line", x: [lo, 0, hi], series: [{ name: "a", y: [1, 3, 2] }] }],
+    };
+    const life = new AbortController();
+    lives.push(life);
+    let ms = Infinity;
+    let fig = figure();
+    for (let k = 0; k < RUNS; k++) {
+      fig = figure();
+      const t0 = await cpu();
+      renderChart(fig, spec, { signal: life.signal });
+      ms = Math.min(ms, (await cpu()) - t0);
+    }
+    expect(fig.querySelectorAll('[data-part="x"] text').length).toBeGreaterThan(2);
+    expect(ms).toBeLessThan(RENDER_MS);
   });
 });

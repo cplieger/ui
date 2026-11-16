@@ -97,6 +97,22 @@ function start(spec: ChartSpec | null, b: Built = build(), options: ChartOptions
   return renderChart(b.figure, spec, { signal: b.life.signal, toggle: b.toggle, ...options });
 }
 
+// Sets the chart's box to `width` and resolves once the chart has drawn at it.
+// Observers deliver in the order they were made, so the chart's runs before
+// this one and asks for its frame first; this one's frame then runs after it.
+async function resize(b: Built, width: number): Promise<void> {
+  (b.figure.parentElement as HTMLElement).style.inlineSize = `${String(width)}px`;
+  await new Promise<void>((done) => {
+    const seen = new ResizeObserver(() => {
+      seen.disconnect();
+      requestAnimationFrame(() => {
+        done();
+      });
+    });
+    seen.observe(b.figure);
+  });
+}
+
 const get = (figure: HTMLElement, name: string) =>
   figure.querySelector<HTMLElement>(`:scope > [data-part="${name}"]`);
 const notice = (words = "Check failed. Retry.") => {
@@ -653,8 +669,7 @@ describe("the teardown", () => {
     expect(b.toggle.getAttribute("aria-pressed")).toBe("false");
     const svg = get(b.figure, "plot")?.querySelector("svg");
     const width = svg?.getAttribute("width");
-    (b.figure.parentElement as HTMLElement).style.inlineSize = "400px";
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    await resize(b, 400);
     expect(svg?.getAttribute("width")).toBe(width);
   });
 
@@ -805,6 +820,97 @@ describe("the table view on update", () => {
     start(full, b);
     expect(get(b.figure, "table")?.querySelector("table")).toBeNull();
   });
+
+  it("writes a pie's Total row in the foot, its cells rewritten in place on update", () => {
+    const pie = (forest: number): ChartSpec => ({
+      marks: [
+        {
+          mark: "pie",
+          slices: [
+            { name: "Agriculture", value: 182_637 },
+            { name: "Forest", value: forest },
+          ],
+        },
+      ],
+    });
+    const b = build();
+    const chart = start(pie(106_645), b);
+    chart.showTable(true);
+    const table = get(b.figure, "table")?.querySelector("table");
+    const foot = () => table?.tFoot?.rows[0];
+    const row = foot();
+    const total = row?.cells[1];
+    expect(row?.querySelector("th")?.scope).toBe("row");
+    expect([...(row?.cells ?? [])].map((c) => c.textContent)).toEqual(["Total", "289,282", "100%"]);
+    expect(
+      [...(table?.tBodies[0]?.querySelectorAll("th") ?? [])].map(
+        (th) => th.querySelector("bdi")?.textContent,
+      ),
+    ).toEqual(["Agriculture", "Forest"]);
+    chart.update(pie(17_363));
+    expect(get(b.figure, "table")?.querySelector("table")).toBe(table);
+    expect(foot()).toBe(row);
+    expect(foot()?.cells[1]).toBe(total);
+    expect(total?.textContent).toBe("200,000");
+    expect(table?.tFoot?.rows).toHaveLength(1);
+  });
+
+  it("writes a treemap's groups in a tbody each, kept and moved by name on update", () => {
+    const tree = (groups: readonly (readonly [string, number])[]): ChartSpec => ({
+      marks: [
+        {
+          mark: "tree",
+          nodes: groups.map(([name, value]) => ({
+            name,
+            children: [
+              { name: "A", value },
+              { name: "B", value: 1 },
+            ],
+          })),
+        },
+      ],
+    });
+    const b = build();
+    const chart = start(
+      tree([
+        ["Asia", 3],
+        ["Europe", 2],
+        ["Africa", 1],
+      ]),
+      b,
+    );
+    chart.showTable(true);
+    const table = get(b.figure, "table")?.querySelector("table");
+    const bodies = () => [...(table?.tBodies ?? [])];
+    const [asia, europe] = bodies();
+    const heads = (tb: HTMLTableSectionElement | undefined) =>
+      [...(tb?.querySelectorAll("th") ?? [])].map((th) => `${th.scope} ${th.textContent ?? ""}`);
+    expect(bodies()).toHaveLength(3);
+    expect(heads(asia)).toEqual(["rowgroup Asia", "row A", "row B"]);
+    expect(
+      [...(asia?.querySelectorAll("th") ?? [])].map((th) => th.querySelector("bdi")?.textContent),
+    ).toEqual(["Asia", "A", "B"]);
+    expect([...(asia?.rows[0]?.cells ?? [])].map((c) => c.textContent)).toEqual([
+      "Asia",
+      "4",
+      "44%",
+    ]);
+    const cell = europe?.rows[1]?.cells[1];
+    chart.update(
+      tree([
+        ["Europe", 7],
+        ["Asia", 3],
+      ]),
+    );
+    expect(get(b.figure, "table")?.querySelector("table")).toBe(table);
+    expect(bodies()).toHaveLength(2);
+    expect(bodies()[0]).toBe(europe);
+    expect(bodies()[1]).toBe(asia);
+    expect(europe?.rows[1]?.cells[1]).toBe(cell);
+    expect(cell?.textContent).toBe("7");
+    expect(table?.tHead?.nextElementSibling).toBe(europe);
+    expect(table?.lastElementChild).toBe(table?.tFoot);
+  });
 });
 
 describe("the drawing under update and resize", () => {
@@ -909,10 +1015,34 @@ describe("the drawing under update and resize", () => {
     const wide = slot();
     chart.update(bars([1, 1, 1, 1], [1, 1, 1, 1]));
     expect(slot()).toBe(wide);
-    (b.figure.parentElement as HTMLElement).style.inlineSize = "560px";
-    await vi.waitFor(() => {
-      expect(slot()).toBeLessThan(wide);
+    await resize(b, 560);
+    expect(slot()).toBeLessThan(wide);
+  });
+
+  it("keeps a treemap's rows on an update of the same names, and lays out afresh on new names", () => {
+    const gdp = [27.4, 17.8, 4.5, 4.2, 3.7, 3.3, 3, 2.2, 2.1, 1.7, 1.4, 1.2, 1.1, 0.9, 0.5, 0.3];
+    const moved = gdp.map((v, i) => (i === 0 ? v * 0.4 : i === 1 ? v * 2.5 : v));
+    const tree = (values: readonly number[], prefix = "C"): ChartSpec => ({
+      marks: [
+        {
+          mark: "tree",
+          nodes: values.map((value, i) => ({ name: `${prefix}${String(i)}`, value })),
+        },
+      ],
     });
+    const tiles = (b: Built) =>
+      b.figure.querySelector('svg [data-part="tree"] path')?.getAttribute("d") ?? "";
+    const fresh = build();
+    start(tree(moved), fresh);
+    const b = build();
+    const chart = start(tree(gdp), b);
+    const before = tiles(b);
+    chart.update(tree(moved));
+    // The edges moved, along the rows the first values made, not afresh.
+    expect(tiles(b)).not.toBe(before);
+    expect(tiles(b)).not.toBe(tiles(fresh));
+    chart.update(tree(moved, "D"));
+    expect(tiles(b)).toBe(tiles(fresh));
   });
 
   it("measures afresh on a resize, with no two x labels overlapping", async () => {
@@ -920,10 +1050,8 @@ describe("the drawing under update and resize", () => {
     start(counts(9), b);
     const ticks = () => b.figure.querySelectorAll('svg [data-part="x"] text').length;
     const wide = ticks();
-    (b.figure.parentElement as HTMLElement).style.inlineSize = "320px";
-    await vi.waitFor(() => {
-      expect(ticks()).toBeLessThan(wide);
-    });
+    await resize(b, 320);
+    expect(ticks()).toBeLessThan(wide);
     const boxes = [...b.figure.querySelectorAll('svg [data-part="x"] text')]
       .map((t) => t.getBoundingClientRect())
       .sort((p, q) => p.left - q.left);
@@ -1006,16 +1134,11 @@ describe("the notes", () => {
   it("switches to the list on a resize under 30rem and back above it", async () => {
     const b = build({ width: 600 });
     start(one, b);
-    const host = b.figure.parentElement as HTMLElement;
-    host.style.inlineSize = "320px";
-    await vi.waitFor(() => {
-      expect(listed(b)).toEqual(["Deploy"]);
-    });
+    await resize(b, 320);
+    expect(listed(b)).toEqual(["Deploy"]);
     expect(svgNotes(b)).toEqual([]);
-    host.style.inlineSize = "600px";
-    await vi.waitFor(() => {
-      expect(get(b.figure, "notes")).toBeNull();
-    });
+    await resize(b, 600);
+    expect(get(b.figure, "notes")).toBeNull();
     expect(svgNotes(b)).toEqual(["Deploy"]);
   });
 
@@ -1140,5 +1263,468 @@ describe("a scatter plot's notes with the table view on from the start", () => {
     expect(chart.summary.endsWith(" Monaco: A city-state.")).toBe(true);
     const rows = [...(get(b.figure, "table")?.querySelectorAll("tbody th") ?? [])];
     expect(rows.map((th) => th.querySelector("bdi")?.textContent)).toEqual(["Albania", "Monaco"]);
+  });
+});
+
+describe("small multiples' panels", () => {
+  const months = per(12, (i) => Date.UTC(2024, i, 1));
+  const regions = (names: readonly string[]): ChartSpec => ({
+    x: { type: "time", domain: [months[0] ?? 0, months.at(-1) ?? 0] },
+    y: { format: "percent" },
+    marks: [{ mark: "rule", y: 0.05, label: "Target" }],
+    facets: {
+      unit: { one: "region", other: "regions" },
+      panels: names.map((name, k) => ({
+        marks: [
+          {
+            mark: "line",
+            x: months,
+            series: [{ name, y: months.map((_, i) => 0.03 + 0.001 * i * (k + 1)) }],
+          },
+        ],
+      })),
+    },
+  });
+  const panelsOf = (b: Built) => [
+    ...(get(b.figure, "plot")?.querySelectorAll<HTMLElement>('[data-part="panel"]') ?? []),
+  ];
+  const plotOf = (panel: HTMLElement) => panel.querySelector("svg") as SVGSVGElement;
+
+  it("draws a grid of panels in the plot, each with its head and its own SVG", () => {
+    const setAttribute = vi.spyOn(Element.prototype, "setAttribute");
+    const b = build({ width: 600 });
+    start(regions(["North", "South", "East", "West"]), b);
+    const plot = get(b.figure, "plot");
+    expect(plot?.querySelector(':scope > [data-part="panels"]')).not.toBeNull();
+    expect(plot?.querySelector(":scope > svg")).toBeNull();
+    const panels = panelsOf(b);
+    expect(panels.map((p) => p.querySelector('[data-part="name"]')?.textContent)).toEqual([
+      "North",
+      "South",
+      "East",
+      "West",
+    ]);
+    // Panels on one row start their plots at the same height, a column's at the same x.
+    const tops = panels.map((p) => plotOf(p).getBoundingClientRect().top);
+    expect(new Set(tops).size).toBe(1);
+    const widths = panels.slice(1).map((p) => plotOf(p).getBoundingClientRect().width);
+    expect(new Set(widths).size).toBe(1);
+    // Only the first column writes y labels; every panel draws the target rule.
+    expect(
+      plotOf(panels[0] as HTMLElement).querySelector('[data-part="y"]')?.childElementCount,
+    ).toBeGreaterThan(0);
+    expect(
+      plotOf(panels[1] as HTMLElement).querySelector('[data-part="y"]')?.childElementCount,
+    ).toBe(0);
+    expect(setAttribute.mock.calls.map((call) => call[0])).not.toContain("style");
+  });
+
+  it("keeps the grid inside the figure at a phone's width, in columns of the left-to-right order", async () => {
+    const b = build({ width: 600 });
+    start(regions(["North", "South", "East", "West", "Centre", "Coast"]), b);
+    await resize(b, 288);
+    const panels = panelsOf(b);
+    const figure = b.figure.getBoundingClientRect();
+    for (const p of panels) {
+      const r = p.getBoundingClientRect();
+      expect(r.left).toBeGreaterThanOrEqual(figure.left - 0.5);
+      expect(r.right).toBeLessThanOrEqual(figure.right + 0.5);
+    }
+    const [first, second, third] = panels.map((p) => p.getBoundingClientRect());
+    expect(second?.top).toBe(first?.top);
+    expect(second?.left).toBeGreaterThan(first?.left ?? 0);
+    expect(third?.top).toBeGreaterThan(first?.bottom ?? 0);
+  });
+
+  it("keeps left-to-right order in a right-to-left page", () => {
+    const b = build({ width: 600 });
+    b.figure.dir = "rtl";
+    start(regions(["North", "South"]), b);
+    const [first, second] = panelsOf(b).map((p) => p.getBoundingClientRect());
+    expect(second?.left).toBeGreaterThan(first?.left ?? 0);
+  });
+
+  it("swaps the grid and the lone SVG as an update adds or drops facets, through loading", () => {
+    const b = build();
+    const chart = start(full, b);
+    const svg = get(b.figure, "plot")?.querySelector(":scope > svg");
+    chart.update(regions(["North", "South"]));
+    expect(get(b.figure, "plot")?.querySelector(":scope > svg")).toBeNull();
+    const panels = panelsOf(b);
+    expect(panels).toHaveLength(2);
+    chart.update(regions(["North", "South", "East"]));
+    const grown = panelsOf(b);
+    expect(grown).toHaveLength(3);
+    expect(grown[0]).toBe(panels[0]);
+    expect(grown[1]).toBe(panels[1]);
+    chart.update(full);
+    expect(get(b.figure, "plot")?.querySelector(":scope > svg")).toBe(svg);
+    expect(get(b.figure, "plot")?.querySelector('[data-part="panels"]')).toBeNull();
+    chart.loading();
+    expect(get(b.figure, "plot")).toBeNull();
+    chart.update(regions(["North"]));
+    expect(panelsOf(b)).toHaveLength(1);
+  });
+
+  it("tears down to a static image per panel, each named by its label", () => {
+    const b = build();
+    start(regions(["North", "South"]), b);
+    b.life.abort();
+    expect(get(b.figure, "plot")?.hasAttribute("role")).toBe(false);
+    const frames = panelsOf(b).map((p) => p.querySelector('[data-part="frame"]'));
+    expect(frames.map((f) => f?.getAttribute("role"))).toEqual(["img", "img"]);
+    expect(frames.map((f) => f?.getAttribute("aria-label")?.split(":")[0])).toEqual([
+      "North",
+      "South",
+    ]);
+  });
+
+  it("lists every panel's numbered notes once under the grid, numbered on across the panels", async () => {
+    const b = build({ width: 600 });
+    const spec = regions(["North", "South", "East"]);
+    const noted: ChartSpec = {
+      ...spec,
+      facets: {
+        ...spec.facets,
+        panels: (spec.facets?.panels ?? []).map((p, k) => ({
+          marks: [
+            ...p.marks,
+            ...(k === 1
+              ? []
+              : [{ mark: "text" as const, x: months[3] ?? 0, y: 0.04, text: `Note ${String(k)}` }]),
+          ],
+        })),
+      },
+    };
+    const chart = start(noted, b);
+    const markers = () =>
+      [...b.figure.querySelectorAll('svg [data-part="marker"] text')].map((t) => t.textContent);
+    const listed = () =>
+      [...(get(b.figure, "notes")?.querySelectorAll("li") ?? [])].map((li) => li.textContent);
+    expect(markers()).toEqual([]);
+    expect(get(b.figure, "notes")).toBeNull();
+    await resize(b, 288);
+    expect(markers()).toEqual(["1", "2"]);
+    expect(listed()).toEqual(["Note 0", "Note 2"]);
+    expect(showing(b.figure)).toEqual(["legend", "plot", "notes", "table"]);
+    chart.update(regions(["North", "South"]));
+    expect(get(b.figure, "notes")).toBeNull();
+  });
+
+  // Coal and gas per country, in 15-minute buckets: a per-category form.
+  const countries = (shape: "bars" | "area"): ChartSpec => ({
+    ...full,
+    facets: {
+      panels: [
+        ["Germany", 2],
+        ["France", 1],
+      ].map(([name, k]) => ({
+        name: String(name),
+        marks: [
+          {
+            mark: "rect",
+            shape,
+            x1: starts,
+            x2: starts.map((s) => s + 15 * MIN),
+            series: [
+              { name: "Coal", y: starts.map(() => 2 * Number(k)) },
+              { name: "Gas", y: starts.map(() => Number(k)) },
+            ],
+          },
+        ],
+      })),
+    },
+    marks: [],
+  });
+  const box = (svg: SVGSVGElement, part: string) =>
+    (svg.querySelector(`[data-part="${part}"]`) as SVGGraphicsElement).getBBox();
+
+  it.each(["bars", "area"] as const)(
+    "draws column panels as %s on one y scale, each stack from the same baseline",
+    (shape) => {
+      const b = build({ width: 600 });
+      start(countries(shape), b);
+      const [germany, france] = panelsOf(b).map((p) => box(plotOf(p), "rect"));
+      expect(
+        panelsOf(b).map((p) => plotOf(p).querySelectorAll('[data-part="rect"] > path').length),
+      ).toEqual([2, 2]);
+      // Totals of 6 and 3 on one scale from 0: one stack twice the other's
+      // height, less the 1 px gap between layers.
+      expect(Math.abs((germany?.height ?? 0) - 2 * (france?.height ?? 0))).toBeLessThanOrEqual(2);
+      expect(germany?.y).toBeLessThan(france?.y ?? 0);
+      expect((germany?.y ?? 0) + (germany?.height ?? 0)).toBeCloseTo(
+        (france?.y ?? 0) + (france?.height ?? 0),
+        0,
+      );
+      // The shared x puts every bucket at the same place in each panel.
+      expect(germany?.x).toBeCloseTo(france?.x ?? -1, 1);
+      expect(germany?.width).toBeCloseTo(france?.width ?? -1, 1);
+    },
+  );
+
+  it.each([
+    ["line", "line"],
+    ["area", "layers"],
+  ] as const)(
+    "draws no end labels in %s panels, so each plot reaches its panel's right edge",
+    (mark, part) => {
+      const series = [
+        { name: "Gas", y: [3, 4, 5, 4] },
+        { name: "Wind", y: [1, 2, 2, 3] },
+      ];
+      const lone: ChartSpec = {
+        x: { type: "time", domain: [START, START + 45 * MIN] },
+        marks: [{ mark, x: starts, series }],
+      };
+      const alone = build({ width: 600 });
+      start(lone, alone);
+      const svg = get(alone.figure, "plot")?.querySelector("svg") as SVGSVGElement;
+      expect(svg.querySelectorAll('[data-part="end"] > text')).toHaveLength(2);
+      const b = build({ width: 600 });
+      start(
+        {
+          ...lone,
+          marks: [],
+          facets: {
+            panels: ["North", "South"].map((name) => ({
+              name,
+              marks: [{ mark, x: starts, series }],
+            })),
+          },
+        },
+        b,
+      );
+      for (const p of panelsOf(b)) {
+        const plot = plotOf(p);
+        expect(plot.querySelectorAll('[data-part="end"] text')).toHaveLength(0);
+        const drawn = box(plot, part);
+        // The plot's own svg runs AREA_ROOM past the plot on each side.
+        const area = plot.querySelector('[data-part="area"]') as SVGSVGElement;
+        const [vx = 0, , vw = 0] = (plot.getAttribute("viewBox") ?? "").split(" ").map(Number);
+        expect(area.x.baseVal.value + area.width.baseVal.value - AREA_ROOM).toBeCloseTo(vx + vw, 1);
+        // The last sample sits at the domain's end, the plot's right edge.
+        const plotW = area.width.baseVal.value - 2 * AREA_ROOM;
+        expect(Math.abs(drawn.x + drawn.width - plotW)).toBeLessThanOrEqual(2);
+      }
+    },
+  );
+
+  // The same three sources per country: the per-category form of a bar panel.
+  const mixes: ChartSpec = {
+    marks: [],
+    facets: {
+      unit: { one: "country", other: "countries" },
+      panels: [
+        ["Germany", [26, 15, 31]],
+        ["France", [1, 7, 9]],
+        ["Spain", [2, 18, 24]],
+      ].map(([name, x]) => ({
+        name: String(name),
+        marks: [
+          {
+            mark: "bar" as const,
+            y: ["Coal", "Gas", "Wind"],
+            series: [{ name: "Share", x: x as number[] }],
+          },
+        ],
+      })),
+    },
+  };
+
+  it("sets bar panels side by side, then in one column at a phone's width, each with its value labels", async () => {
+    const b = build({ width: 600 });
+    start(mixes, b);
+    const lefts = () => panelsOf(b).map((p) => Math.round(p.getBoundingClientRect().left));
+    expect(new Set(lefts()).size).toBe(3);
+    await resize(b, 288);
+    expect(new Set(lefts()).size).toBe(1);
+    const figure = b.figure.getBoundingClientRect();
+    for (const p of panelsOf(b)) {
+      expect(p.getBoundingClientRect().right).toBeLessThanOrEqual(figure.right + 0.5);
+      expect(plotOf(p).querySelectorAll('[data-part="value"] > text')).toHaveLength(3);
+    }
+  });
+
+  it("draws a pie in each panel as wide as its plot, with no outside labels or leaders", () => {
+    const slices = (k: number) => [
+      { name: "Coal", value: 3 + k },
+      { name: "Gas", value: 2 },
+      { name: "Wind", value: 1 },
+    ];
+    const alone = build({ width: 600 });
+    start({ marks: [{ mark: "pie", slices: slices(0) }] }, alone);
+    const lone = get(alone.figure, "plot")?.querySelector("svg") as SVGSVGElement;
+    expect(lone.querySelectorAll('[data-part="end"] > text').length).toBeGreaterThan(0);
+    const b = build({ width: 600 });
+    start(
+      {
+        marks: [],
+        facets: {
+          panels: [0, 1, 2].map((k) => ({
+            name: String(2022 + k),
+            marks: [{ mark: "pie" as const, slices: slices(k) }],
+          })),
+        },
+      },
+      b,
+    );
+    for (const p of panelsOf(b)) {
+      const plot = plotOf(p);
+      expect(plot.querySelectorAll('[data-part="end"] text')).toHaveLength(0);
+      expect(plot.querySelector('[data-part="leader"]')).toBeNull();
+      const area = plot.querySelector('[data-part="area"]') as SVGSVGElement;
+      // Within a pixel: the arcs' bounds are the curves' own.
+      expect(
+        Math.abs(box(plot, "pie").width - (area.width.baseVal.value - 2 * AREA_ROOM)),
+      ).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it("keys heatmap panels once in the legend row and fills them by the chart's classes", () => {
+    const b = build({ width: 600 });
+    start(
+      {
+        marks: [],
+        facets: {
+          panels: [
+            ["Low", 10],
+            ["High", 100],
+          ].map(([name, top]) => ({
+            name: String(name),
+            marks: [
+              {
+                mark: "cell" as const,
+                x: ["Mon", "Tue"],
+                y: ["Night"],
+                values: [[0, Number(top)]],
+              },
+            ],
+          })),
+        },
+      },
+      b,
+    );
+    expect(get(b.figure, "legend")?.querySelectorAll('[data-part="key"]')).toHaveLength(1);
+    const steps = panelsOf(b).map((p) =>
+      [...plotOf(p).querySelectorAll('[data-part="cell"] > path[data-step]')].map((c) =>
+        Number(c.getAttribute("data-step")),
+      ),
+    );
+    // On one scale from 0 to 100, the low panel's 10 sits in a lower class
+    // than the high panel's 100, which takes the top step.
+    const [low = [], high = []] = steps;
+    expect(Math.max(...low)).toBeLessThan(Math.max(...high));
+    expect(Math.min(...low)).toBe(Math.min(...high));
+  });
+
+  it("gives the plot back its region and tab stop when an update drops the facets", () => {
+    const b = build();
+    const chart = start(regions(["North", "South"]), b);
+    chart.update(full);
+    const plot = get(b.figure, "plot");
+    expect(plot?.getAttribute("role")).toBe("application");
+    expect(plot?.tabIndex).toBe(0);
+    expect(plot?.querySelector('[id$="-howto"]')?.textContent).toBe(
+      "Arrow keys read the values. Tab leaves the chart.",
+    );
+  });
+});
+
+describe("instants at the calendar unit every x value falls on", () => {
+  const TZ = "Europe/Paris";
+  const HR = 3_600_000;
+  // Paris is UTC+1 in winter and UTC+2 from late March to late October, so
+  // the 1st of April to October is at 10 PM UTC the day before.
+  const months = per(60, (i) => Date.UTC(2020, i, 1) - (i % 12 >= 3 && i % 12 <= 9 ? 2 : 1) * HR);
+  const monthly: ChartSpec = {
+    x: { type: "time", domain: [months[0] ?? 0, months[59] ?? 0] },
+    y: { label: "Unemployment", format: "percent" },
+    marks: [
+      { mark: "line", x: months, series: [{ name: "North", y: per(60, (i) => 0.05 + i / 2000) }] },
+    ],
+  };
+  const summary = (b: Built) =>
+    b.figure.querySelector('figcaption > [data-part="summary"]')?.textContent ?? "";
+
+  it("writes monthly samples as months, stepping every 1 month", () => {
+    const b = build();
+    start(monthly, b, { locale: "en", timeZone: TZ });
+    expect(summary(b)).toMatch(/^Jan 2020 to Dec 2024, every 1\u00A0month\. North: last /u);
+    expect(get(b.figure, "plot")?.getAttribute("aria-label")).toContain("Jan 2020 to Dec 2024");
+    expect(get(b.figure, "legend")?.textContent).toContain("Dec 2024");
+    expect(get(b.figure, "legend")?.textContent).not.toContain("12:00");
+  });
+
+  it("names each panel's range in months", () => {
+    const b = build();
+    const line = (name: string) => ({
+      marks: [{ mark: "line" as const, x: months, series: [{ name, y: per(60, () => 0.05) }] }],
+    });
+    start({ ...monthly, marks: [], facets: { panels: [line("North"), line("South")] } }, b, {
+      locale: "en",
+      timeZone: TZ,
+    });
+    const frames = b.figure.querySelectorAll('[data-part="frame"]');
+    expect(frames[1]?.getAttribute("aria-label")).toMatch(
+      /^South: Line chart, .*Jan 2020 to Dec 2024$/u,
+    );
+  });
+
+  it("writes daily buckets as dates across a clock change, the table keeping each instant", () => {
+    // Midnights of 27 March to 3 April 2026: the 29th is 23 hours long.
+    const days = per(8, (i) => Date.UTC(2026, 2, 27 + i) - (i < 3 ? 1 : 2) * HR);
+    const b = build();
+    start(
+      {
+        x: { type: "time" },
+        y: { label: "Posts" },
+        marks: [
+          {
+            mark: "rect",
+            x1: days.slice(0, 7),
+            x2: days.slice(1),
+            series: [{ name: "Posts", y: per(7, (i) => i + 1) }],
+          },
+        ],
+      },
+      b,
+      { locale: "en", timeZone: TZ },
+    );
+    expect(summary(b)).toMatch(
+      /^28, every 1\u00A0day from Mar 27 to Apr 2\. Busiest: Apr 2, 7\.$/u,
+    );
+    b.toggle.click();
+    const times = [...(get(b.figure, "table")?.querySelectorAll("tbody time") ?? [])];
+    expect(times.slice(0, 3).map((t) => t.textContent)).toEqual(["Mar 27", "Mar 28", "Mar 29"]);
+    expect(times[2]?.getAttribute("datetime")).toBe("2026-03-28T23:00:00.000Z");
+  });
+
+  it("writes yearly samples as years, stepping every 1 year", () => {
+    const years = per(10, (i) => Date.UTC(2015 + i, 0, 1) - HR);
+    const b = build();
+    start(
+      {
+        x: { type: "time" },
+        y: { label: "Members" },
+        marks: [
+          { mark: "line", x: years, series: [{ name: "Members", y: per(10, (i) => 100 + i) }] },
+        ],
+      },
+      b,
+      { locale: "en", timeZone: TZ },
+    );
+    expect(summary(b)).toMatch(/^2015 to 2024, every 1\u00A0year\. Members: last 109/u);
+  });
+
+  it("keeps the minute when one x value falls inside a day", () => {
+    const b = build();
+    const note = {
+      mark: "text" as const,
+      x: Date.UTC(2023, 1, 14, 13, 30),
+      y: 0.06,
+      text: "Strike",
+    };
+    start({ ...monthly, marks: [...monthly.marks, note] }, b, { locale: "en", timeZone: TZ });
+    expect(summary(b)).toMatch(/^Jan 1, 2020, 12:00\sAM to Dec 1, 2024, 12:00\sAM\. /u);
   });
 });

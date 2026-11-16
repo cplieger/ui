@@ -122,6 +122,7 @@
   font-variant-numeric: tabular-nums;
 }
 
+.cp-chart > [data-part="legend"] [data-part="panel"],
 .cp-chart > [data-part="legend"] [data-part="at"] {
   display: inline-block;
 }
@@ -245,6 +246,53 @@
   font-size: 0.92em;
 }
 
+/* A donut's total in its hole; the script measures it by this face. */
+.cp-chart [data-part="plot"] [data-hole] {
+  font-size: var(--cp-text-md);
+}
+
+/* Small multiples run left to right whatever the text direction, as the
+ * plot's geometry does; the script sets the columns and gaps it laid out. */
+.cp-chart [data-part="panels"] {
+  display: grid;
+  justify-content: start;
+  direction: ltr;
+}
+
+/* A head never widens its column: a long name is cut. */
+.cp-chart [data-part="panels"] [data-part="head"] {
+  display: flex;
+  gap: var(--cp-space-2);
+  contain: inline-size;
+  block-size: 18px;
+  line-height: 18px;
+  color: var(--cp-ink-muted);
+}
+
+.cp-chart [data-part="head"] > [data-part="name"] {
+  overflow: hidden;
+  min-inline-size: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The selected panel's name, by weight as well as ink. */
+.cp-chart [data-selected] > [data-part="head"] > bdi {
+  color: var(--cp-ink);
+  font-weight: var(--cp-weight-medium);
+}
+
+.cp-chart [data-part="head"] > [data-part="figure"] {
+  flex: none;
+  margin-inline-start: auto;
+  color: var(--cp-ink);
+  white-space: nowrap;
+}
+
+.cp-chart [data-part="panels"] [data-part="frame"] {
+  border: 1px solid transparent;
+}
+
 .cp-chart svg {
   display: block;
   overflow: visible;
@@ -275,8 +323,25 @@
   stroke-width: 1px;
 }
 
+/* Small multiples' other panels behind this one's data, faint enough that
+ * only the panel's own series reads as data. */
+.cp-chart svg [data-part="context"] {
+  fill: none;
+  stroke: var(--cp-border);
+  stroke-width: 1px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.cp-chart svg [data-part="context"][data-dots] {
+  fill: var(--cp-border);
+  stroke: none;
+}
+
 .cp-chart svg :is([data-part="rect"], [data-part="layers"]) path,
-.cp-chart svg [data-part="bar"] path {
+.cp-chart svg [data-part="bar"] path,
+.cp-chart svg [data-part="pie"] path,
+.cp-chart svg [data-part="tree"] path {
   fill: var(--cp-tone-9);
 }
 
@@ -450,7 +515,8 @@
   stroke-linejoin: round;
 }
 
-/* A slope's end label moved off its dot's height points back to it. */
+/* A slope's end label moved off its dot's height, or a pie's outside label,
+ * points back to its mark. */
 .cp-chart svg [data-part="leader"] {
   fill: none;
   stroke: var(--cp-ink-muted);
@@ -477,18 +543,37 @@
   stroke-width: 2px;
 }
 
+/* Another panel's selection at this panel's same position: a fainter ring,
+ * and its row's name in ink alone, so the one real selection stands out. */
+.cp-chart svg[data-synced] [data-part="ring"] {
+  stroke: var(--cp-ink-muted);
+  stroke-width: 1px;
+}
+
+.cp-chart svg[data-synced] text[data-selected] {
+  font-weight: inherit;
+}
+
 .cp-chart svg :is([data-part="rule-label"], [data-part="end"]) text {
   fill: var(--cp-ink);
 }
 
-.cp-chart svg [data-part="end"] text[data-selected] {
+.cp-chart svg [data-part="end"] text[data-selected],
+.cp-chart svg [data-part="tile"] text[data-selected],
+.cp-chart svg [data-part="head"] text[data-selected] {
   font-weight: var(--cp-weight-medium);
 }
 
-/* A note's or a bar value's 3 px halo of the plot's surface keeps it
- * legible over bars, gridlines and rules; the stroke paints first, so it
- * widens the glyphs by half. */
-.cp-chart svg :is([data-part="note"], [data-part="value"]) text {
+.cp-chart svg [data-part="hole"] text[data-hole] {
+  fill: var(--cp-ink);
+}
+
+/* A note's, a bar value's or a tile label's 3 px halo of the plot's surface
+ * keeps it legible over bars, tiles, gridlines and rules, on the surface
+ * its ink was tested on; the stroke paints first, so it widens the glyphs
+ * by half. */
+.cp-chart svg :is([data-part="note"], [data-part="value"]) text,
+.cp-chart svg [data-part="tile"] text {
   fill: var(--cp-ink);
   stroke: var(--cp-chart-surface);
   stroke-width: 6px;

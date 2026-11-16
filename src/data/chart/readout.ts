@@ -25,8 +25,10 @@ import {
   type CalendarModel,
   type CellModel,
   type DotModel,
-  type LineModel,
+  type FacetsModel,
   type Model,
+  type PieModel,
+  type TreeModel,
   type PointModel,
   type PointSeriesModel,
   type RectModel,
@@ -46,40 +48,19 @@ interface Entry {
 }
 
 export interface Reading {
+  /** Under `facets`, the selected panel's name, or the panel count. */
+  readonly panel?: string;
   /** The x it reads, or a dot row's name. */
   readonly at: string;
   readonly entries: readonly Entry[];
   /** A stack's total, or a range plot's gap or an arrow plot's change,
    *  under `totalWord`; absent without one. */
   readonly total: string | undefined;
-  /** The entry of the series chosen, whose chip name turns semibold. */
+  /** The entry of the series or slice chosen, whose chip name turns semibold. */
   readonly chosen?: number;
   /** A cell chart's selected class, whose swatch in the colour key takes
    *  the ring; -1 for a missing cell, whose No data swatch does. */
   readonly swatch?: number;
-}
-
-/** The mark the legend row reads: the chart's one data mark. */
-type Primary =
-  | RectModel
-  | LineModel
-  | AreaModel
-  | DotModel
-  | BarModel
-  | PointModel
-  | SlopeModel
-  | ScatterModel
-  | CellModel
-  | CalendarModel
-  | BoxModel;
-
-export function primaryOf(model: Model): Primary | undefined {
-  for (const m of model.marks) {
-    if (m.kind !== "rule" && m.kind !== "text") {
-      return m;
-    }
-  }
-  return undefined;
 }
 
 export const counted = (
@@ -89,12 +70,27 @@ export const counted = (
   model: Model,
 ): string => (unit === undefined ? value : withNoun(value, noun(unit, count, model.locale)));
 
+/** Small multiples' panel count, in `facets.unit` or as `words.panels`. */
+export function panelCount(model: Model, facets: FacetsModel, words: Words): string {
+  const n = facets.panels.length;
+  const count = writer("number", model.locale)(n);
+  return facets.unit === undefined ? words.panels(count, n) : counted(count, n, facets.unit, model);
+}
+
 /** The x domain in words, `underRange` when a log x's underflow bin is drawn below it. */
 export function domainText(model: Model, words: Words): string {
-  const { x, xText } = model;
+  const { x, xText, primary } = model;
+  // Buckets and bins tile their domain, so its end is their last one's.
+  const open = primary?.kind === "rect" || (primary?.kind === "cell" && "edges" in primary.x);
   return x.under?.drawn === "below"
     ? words.underRange(xText(x.lo), xText(x.hi))
-    : words.range(...model.xSpan(x.lo, x.hi));
+    : spanText(model, x.lo, x.hi, words, open);
+}
+
+/** The span from `from` to `to` in words, `open` for a bucket's (`Model.xSpan`). */
+function spanText(model: Model, from: number, to: number, words: Words, open = false): string {
+  const [first, last] = model.xSpan(from, to, open);
+  return last === undefined ? first.text : words.range(first.text, last.text);
 }
 
 // The legend row's x reading starts its line, so an underflow range reads as
@@ -113,7 +109,7 @@ export function bucketText(model: Model, m: RectModel, i: number, words: Words):
   const text =
     under !== undefined && model.marks[under.mark] === m && under.index === i
       ? words.under(model.xText(m.x2[i] ?? 0))
-      : words.range(...model.xSpan(m.x1[i] ?? 0, m.x2[i] ?? 0));
+      : spanText(model, m.x1[i] ?? 0, m.x2[i] ?? 0, words, true);
   return m.open && i === m.x1.length - 1 ? words.soFar(text) : text;
 }
 
@@ -312,7 +308,7 @@ export function linkText(model: Model, m: PointModel, v: number): string {
 /** The word a reading's `total` follows in the legend row and the table:
  *  a range plot's gap, an arrow plot's change, or a stack's total. */
 export function totalWord(model: Model, words: Words): string {
-  const m = primaryOf(model);
+  const m = model.primary;
   const link = m?.kind === "point" ? m.link : undefined;
   return link === "range" ? words.gap : link === "arrow" ? words.change : words.total;
 }
@@ -356,11 +352,13 @@ export function columnReading(
 }
 
 /** Whether a chosen series marks its legend chip: on a slope, whose series
- *  Up and Down choose while the row reads a column, and on a scatter, whose
- *  chips keep their counts while the row reads a dot. */
+ *  Up and Down choose while the row reads a column, on a scatter, whose
+ *  chips keep their counts while the row reads a dot, and on a pie or a
+ *  tree, whose chips keep their shares while the row reads a slice or a
+ *  tree's node. */
 export function chipChosen(model: Model): boolean {
-  const kind = primaryOf(model)?.kind;
-  return kind === "slope" || kind === "scatter";
+  const kind = model.primary?.kind;
+  return kind === "slope" || kind === "scatter" || kind === "pie" || kind === "tree";
 }
 
 /** A scatter dot's value on `axis`, or a bubble's size on "r", with its
@@ -514,7 +512,7 @@ export function cellAxisText(
   const hi = a.edges[i + 1] ?? 0;
   const range =
     axis === "x"
-      ? words.range(...model.xSpan(lo, hi))
+      ? spanText(model, lo, hi, words, true)
       : words.range(model.yText(lo), model.yText(hi));
   const label = model.spec[axis]?.label ?? "";
   return label === "" || !labelled ? range : words.measure(label, range);
@@ -578,14 +576,109 @@ export function dayReading(model: Model, m: CalendarModel, i: number, words: Wor
   };
 }
 
+/** A pie's or a tree's part, or its whole, in its mark's unit. */
+export const partAmount = (model: Model, m: PieModel | TreeModel, v: number): string =>
+  counted(model.amountText(v), v, m.unit, model);
+
+/** Slice `i`'s share of its pie's whole; No data for a gap. */
+export function sliceShare(model: Model, m: PieModel, i: number, words: Words): string {
+  const v = m.slices[i]?.value ?? null;
+  return v === null ? words.noData : model.shareText(m.total > 0 ? v / m.total : 0);
+}
+
+// A chip per slice in the clockwise order, each with its share, at every
+// selection: the chips name the slices where colour alone would not.
+const sliceChips = (model: Model, m: PieModel, words: Words): Entry[] =>
+  m.slices.map((s, i) => ({ slot: s.slot, name: s.name, value: sliceShare(model, m, i, words) }));
+
+/** Slice `i` of `m`: its name and value, No data for a gap, with every
+ *  slice's chip and its own chosen. */
+export function sliceReading(model: Model, m: PieModel, i: number, words: Words): Reading {
+  const s = m.slices[i];
+  const v = s?.value ?? null;
+  return {
+    at: `${s?.name ?? ""} ${v === null ? words.noData : partAmount(model, m, v)}`,
+    entries: sliceChips(model, m, words),
+    total: undefined,
+    chosen: i,
+  };
+}
+
+/** How many slices a pie or parts a tree holds, through `words.parts`. */
+export function partsText(model: Model, m: PieModel | TreeModel, words: Words): string {
+  const n = m.kind === "pie" ? m.slices.length : m.parts.length;
+  return words.parts(writer("number", model.locale)(n), n);
+}
+
+/** How many groups a tree holds, through `words.groups`; "" with one level. */
+export function groupsText(model: Model, m: TreeModel, words: Words): string {
+  const n = m.groups.length;
+  return n === 0 ? "" : words.groups(writer("number", model.locale)(n), n);
+}
+
+/** A tree's value `v` as a share of its whole. */
+export const treeShare = (model: Model, m: TreeModel, v: number): string =>
+  model.shareText(m.total > 0 ? v / m.total : 0);
+
+/** A tree's part `i` in words: its group's name and its own through
+ *  `words.path`, or its own alone with one level. */
+export function partName(m: TreeModel, i: number, words: Words): string {
+  const p = m.parts[i];
+  const g = p === undefined ? undefined : m.groups[p.group];
+  return g === undefined ? (p?.name ?? "") : words.path(g.name, p?.name ?? "");
+}
+
+/** A tree's group `i`, or part `i` when not `group`: its name, a part's
+ *  through `partName`, and its value and share of the whole, No data for a
+ *  part's gap. */
+export function treeNode(
+  model: Model,
+  m: TreeModel,
+  group: boolean,
+  i: number,
+  words: Words,
+): { readonly name: string; readonly text: string } {
+  const g = group ? m.groups[i] : undefined;
+  const v = group ? (g?.value ?? 0) : (m.parts[i]?.value ?? null);
+  return {
+    name: group ? (g?.name ?? "") : partName(m, i, words),
+    text: v === null ? words.noData : `${partAmount(model, m, v)}, ${treeShare(model, m, v)}`,
+  };
+}
+
+/** A tree's group chips, in group order, each with its share; none with
+ *  one level, whose parts share a slot and are named by their labels. */
+const groupChips = (model: Model, m: TreeModel): Entry[] =>
+  m.groups.map((g) => ({ slot: g.slot, name: g.name, value: treeShare(model, m, g.value) }));
+
+/** A tree's group `i`, or part `i` when not `group`, through `treeNode`,
+ *  with every group's chip and the node's own group chosen. */
+export function treeReading(
+  model: Model,
+  m: TreeModel,
+  group: boolean,
+  i: number,
+  words: Words,
+): Reading {
+  const node = treeNode(model, m, group, i, words);
+  const reading = {
+    at: `${node.name} ${node.text}`,
+    entries: groupChips(model, m),
+    total: undefined,
+  };
+  const chosen = group ? i : (m.parts[i]?.group ?? -1);
+  return chosen === -1 ? reading : { ...reading, chosen };
+}
+
 /** The legend row with no selection: a rect's series totals over the
  *  domain with a stack's grand total, a dot chart's count, a line's last
  *  values, an area's last whole stack, a bar or point chart's row count,
  *  a slope's right column, a scatter's dot count, blank slots for its
  *  measures and from two series up each one's count, a cell chart's
- *  cell count, a calendar's day count, or a box chart's row count. */
+ *  cell count, a calendar's day count, a box chart's row count, a pie's
+ *  total with each slice's share, or a tree's total with each group's. */
 export function overall(model: Model, words: Words): Reading | undefined {
-  const m = primaryOf(model);
+  const m = model.primary;
   switch (m?.kind) {
     case undefined:
       return undefined;
@@ -617,7 +710,10 @@ export function overall(model: Model, words: Words): Reading | undefined {
       return sampleReading(model, m, last, words);
     }
     case "line": {
-      const last = Math.max(...m.series.map((s) => lastSample(m, s)));
+      const last = m.series.reduce(
+        (most, s) => Math.max(most, lastSample(m, s)),
+        Number.NEGATIVE_INFINITY,
+      );
       const at = last === -1 ? legendDomain(model, words) : model.xText(m.x[last] ?? 0);
       const value = (s: SeriesModel) => {
         const i = lastSample(m, s);
@@ -671,6 +767,18 @@ export function overall(model: Model, words: Words): Reading | undefined {
             : m.series.map((s) => ({ slot: s.slot, name: s.name, value: "" })),
         total: undefined,
       };
+    case "pie":
+      return {
+        at: `${words.total} ${partAmount(model, m, m.total)}`,
+        entries: sliceChips(model, m, words),
+        total: undefined,
+      };
+    case "tree":
+      return {
+        at: `${words.total} ${partAmount(model, m, m.total)}`,
+        entries: groupChips(model, m),
+        total: undefined,
+      };
   }
 }
 
@@ -702,8 +810,8 @@ export function sampleReading(model: Model, m: SampleModel, i: number, words: Wo
   return { at: model.xText(m.x[i] ?? 0), entries: all, total: stackText(model, m, i, words) };
 }
 
-const span = (model: Model, x: ArrayLike<number>, from: number, to: number, words: Words) =>
-  words.range(...model.xSpan(x[from] ?? 0, x[to - 1] ?? 0));
+const span = (model: Model, x: readonly number[], from: number, to: number, words: Words) =>
+  spanText(model, x[from] ?? 0, x[to - 1] ?? 0, words);
 
 const bare = (value: string): Entry[] => [{ slot: undefined, name: undefined, value }];
 
@@ -741,6 +849,8 @@ export function rowReading(model: Model, m: DotModel, r: number, words: Words): 
 
 /** The legend's slot widths, in px. */
 export interface Widths {
+  /** Under `facets`, the panel slot's. */
+  readonly panel?: number;
   readonly at: number;
   readonly values: readonly number[];
   readonly total: number;
@@ -811,6 +921,14 @@ function xTexts(model: Model, values: Iterable<number>): string[] {
   return [...slots.values()].map((v) => model.xText(v));
 }
 
+// Appends `items` one by one: a call spread of a list the spec sets throws
+// past about 125,000 arguments in V8 (source.node.test.ts).
+function pushAll<T>(to: T[] | undefined, items: Iterable<T>): void {
+  for (const item of items) {
+    to?.push(item);
+  }
+}
+
 // The noun `counted` adds to an amount of `unit`, if any.
 const nounOf = (model: Model, unit: Unit | undefined) =>
   unit === undefined ? undefined : (v: number) => noun(unit, v, model.locale);
@@ -821,11 +939,17 @@ function valueTexts(model: Model, m: SampleModel, s: SeriesModel, words: Words):
   const out = [words.noData];
   if (m.kind === "area" && m.arrange === "share") {
     const shares = over(m.from, m.to, (i) => sampleValue(m, s, i));
-    out.push(...widthSamples(shares, model.widthKeys.y).map((v) => model.yText(v)));
+    pushAll(
+      out,
+      widthSamples(shares, model.widthKeys.y).map((v) => model.yText(v)),
+    );
     const unshared = over(m.from, m.to, (i) =>
       drawnTotal(m, i) === null ? (s.y[i] ?? null) : null,
     );
-    out.push(...widthSamples(unshared, model.widthKeys.amount).map((v) => model.amountText(v)));
+    pushAll(
+      out,
+      widthSamples(unshared, model.widthKeys.amount).map((v) => model.amountText(v)),
+    );
     return out;
   }
   const unit = m.series.length === 1 ? model.spec.y?.unit : undefined;
@@ -834,7 +958,10 @@ function valueTexts(model: Model, m: SampleModel, s: SeriesModel, words: Words):
     model.widthKeys.y,
     nounOf(model, unit),
   );
-  out.push(...values.map((v) => counted(model.yText(v), v, unit, model)));
+  pushAll(
+    out,
+    values.map((v) => counted(model.yText(v), v, unit, model)),
+  );
   return out;
 }
 
@@ -869,7 +996,8 @@ function scatterTexts(
   return texts.length === 0 ? [measureText(model, axis, null, words)] : texts;
 }
 
-const widest = (texts: Iterable<string>, measure: Measure): number => {
+/** The widest of `texts`, measured with numbers as tabular figures. */
+export const widest = (texts: Iterable<string>, measure: Measure): number => {
   let w = 0;
   for (const t of texts) {
     w = Math.max(w, measure.number(t));
@@ -880,7 +1008,7 @@ const widest = (texts: Iterable<string>, measure: Measure): number => {
 /** Each slot's width over every reading the chart can show, measured by
  *  `measure` with numbers as tabular figures. */
 export function readoutWidths(model: Model, words: Words, measure: Measure): Widths {
-  const m = primaryOf(model);
+  const m = model.primary;
   const none = overall(model, words);
   const at = [none?.at ?? ""];
   const values: string[][] = (none?.entries ?? []).map((e) => [e.value]);
@@ -896,17 +1024,18 @@ export function readoutWidths(model: Model, words: Words, measure: Measure): Wid
     }
   } else if (m?.kind === "line" || m?.kind === "area") {
     const { x } = m;
-    at.push(
-      ...xTexts(
+    pushAll(
+      at,
+      xTexts(
         model,
         over(m.from, m.to, (i) => x[i] ?? 0),
       ),
     );
     m.series.forEach((s, k) => {
-      values[k]?.push(...valueTexts(model, m, s, words));
+      pushAll(values[k], valueTexts(model, m, s, words));
     });
     if (m.kind === "area" && m.series.length > 1) {
-      totals.push(...totalTexts(model, m, words));
+      pushAll(totals, totalTexts(model, m, words));
     }
   } else if (m?.kind === "bar" || m?.kind === "point") {
     for (let r = 0; r < (model.y.type === "band" ? model.y.rows.length : 0); r++) {
@@ -918,6 +1047,17 @@ export function readoutWidths(model: Model, words: Words, measure: Measure): Wid
     }
   } else if (m?.kind === "slope") {
     add(columnReading(model, m, 0, words));
+  } else if (m?.kind === "pie") {
+    m.slices.forEach((_, i) => {
+      add(sliceReading(model, m, i, words));
+    });
+  } else if (m?.kind === "tree") {
+    m.groups.forEach((_, i) => {
+      add(treeReading(model, m, true, i, words));
+    });
+    m.parts.forEach((_, i) => {
+      add(treeReading(model, m, false, i, words));
+    });
   } else if (m?.kind === "scatter") {
     m.series.forEach((s, k) => {
       for (const i of m.shown[k] ?? []) {
@@ -925,7 +1065,7 @@ export function readoutWidths(model: Model, words: Words, measure: Measure): Wid
       }
     });
     measuresOf(m).forEach((axis, slot) => {
-      values[slot]?.push(...scatterTexts(model, m, axis, words));
+      pushAll(values[slot], scatterTexts(model, m, axis, words));
     });
   } else if (m?.kind === "cell") {
     // A place joins a column's words to a row's, so the widest of each makes the widest place.
@@ -949,17 +1089,19 @@ export function readoutWidths(model: Model, words: Words, measure: Measure): Wid
         yield* row;
       }
     };
-    values[0]?.push(
-      words.noData,
-      ...widthSamples(all(), model.widthKeys.colour, nounOf(model, unit)).map((v) =>
+    values[0]?.push(words.noData);
+    pushAll(
+      values[0],
+      widthSamples(all(), model.widthKeys.colour, nounOf(model, unit)).map((v) =>
         cellValueText(model, v, words),
       ),
     );
   } else if (m?.kind === "calendar") {
     m.values.forEach((_, i) => at.push(dayText(model, m, i, words)));
-    values[0]?.push(
-      words.noData,
-      ...widthSamples(m.values, model.widthKeys.colour, nounOf(model, model.spec.colour?.unit)).map(
+    values[0]?.push(words.noData);
+    pushAll(
+      values[0],
+      widthSamples(m.values, model.widthKeys.colour, nounOf(model, model.spec.colour?.unit)).map(
         (v) => cellValueText(model, v, words),
       ),
     );

@@ -1409,3 +1409,256 @@ describe("the summary of a box plot", () => {
     );
   });
 });
+
+describe("the summary and short description of a pie", () => {
+  const land = (hole = false, water: number | null = 8224): ChartSpec => ({
+    marks: [
+      {
+        mark: "pie",
+        hole,
+        unit: { other: "km²" },
+        slices: [
+          { name: "Agriculture", value: 182_637 },
+          { name: "Forest", value: 106_645 },
+          { name: "Housing & traffic", value: 48_631 },
+          { name: "Other land", value: 11_443 },
+          { name: "Water", value: water },
+        ],
+      },
+    ],
+  });
+
+  it("gives the whole, then each slice's share in the order sent", () => {
+    expect(generatedSummary(model(land()), words)).toBe(
+      `357,580${nb}km²: Agriculture 51%, Forest 30%, Housing & traffic 14%, Other land 3.2%, Water 2.3%.`,
+    );
+  });
+
+  it("writes a gap's share as No data, the shares of the values sent", () => {
+    expect(generatedSummary(model(land(false, null)), words)).toBe(
+      `349,356${nb}km²: Agriculture 52%, Forest 31%, Housing & traffic 14%, Other land 3.3%, Water No data.`,
+    );
+  });
+
+  it("frames it through partsSummary", () => {
+    const own = chartWords({ partsSummary: (total, parts) => `${parts} (${total})` });
+    expect(generatedSummary(model(land()), own)).toMatch(
+      /^Agriculture 51%, .* \(357,580\u00A0km²\)$/u,
+    );
+  });
+
+  it("names a pie and a donut by their slice count", () => {
+    expect(shortDescription(model(land()), words)).toBe("Pie chart, 5 parts");
+    expect(shortDescription(model(land(true)), words)).toBe("Donut chart, 5 parts");
+  });
+});
+
+describe("the summary of a treemap", () => {
+  // GDP in 2023, bn USD: 62,580 in all, Asia 41%, the Americas 47% and Europe 12%.
+  const gdp = (us: number | null = 27_361): ChartSpec => ({
+    marks: [
+      {
+        mark: "tree",
+        unit: { other: "bn USD" },
+        nodes: [
+          {
+            name: "Asia",
+            children: [
+              { name: "China", value: 17_795 },
+              { name: "Japan", value: 4213 },
+              { name: "India", value: 3550 },
+            ],
+          },
+          {
+            name: "Americas",
+            children: [
+              { name: "United States", value: us },
+              { name: "Brazil", value: 2174 },
+            ],
+          },
+          {
+            name: "Europe",
+            children: [
+              { name: "Germany", value: 4456 },
+              { name: "France", value: 3031 },
+            ],
+          },
+        ],
+      },
+    ],
+  });
+  const flat = (values: readonly (number | null)[]): ChartSpec => ({
+    marks: [
+      {
+        mark: "tree",
+        nodes: values.map((value, i) => ({ name: `Country ${String(i + 1)}`, value })),
+      },
+    ],
+  });
+
+  it("gives the whole and each group's share in the order sent, then the largest part", () => {
+    expect(generatedSummary(model(gdp()), words)).toBe(
+      `62,580${nb}bn USD: Asia 41%, Americas 47%, Europe 12%. Largest: Americas, United States 27,361${nb}bn USD, 44%.`,
+    );
+  });
+
+  it("takes the largest part among those with a value", () => {
+    expect(generatedSummary(model(gdp(null)), words)).toBe(
+      `35,219${nb}bn USD: Asia 73%, Americas 6.2%, Europe 21%. Largest: Asia, China 17,795${nb}bn USD, 51%.`,
+    );
+  });
+
+  it("gives one level's five largest parts, largest first, ties in the order sent, then how many more", () => {
+    expect(generatedSummary(model(flat([5, 30, 10, null, 20, 10, 0, 25])), words)).toBe(
+      "100: Country 2 30%, Country 8 25%, Country 5 20%, Country 3 10%, Country 6 10%, and 3 more.",
+    );
+    expect(generatedSummary(model(flat([1, 3])), words)).toBe("4: Country 2 75%, Country 1 25%.");
+  });
+
+  it("frames the parts through partsSummary, the largest through largest and the path through path", () => {
+    const own = chartWords({
+      partsSummary: (total, parts) => `${parts} (${total})`,
+      largest: (name, value, share) => `Top ${name} = ${value} = ${share}.`,
+      path: (group, part) => `${part} in ${group}`,
+      more: (n) => `+${n}`,
+    });
+    expect(generatedSummary(model(gdp()), own)).toBe(
+      `Asia 41%, Americas 47%, Europe 12% (62,580${nb}bn USD) Top United States in Americas = 27,361${nb}bn USD = 44%.`,
+    );
+    expect(generatedSummary(model(flat([1, 1, 1, 1, 1, 1])), own)).toBe(
+      "Country 1 17%, Country 2 17%, Country 3 17%, Country 4 17%, Country 5 17%, +1 (6)",
+    );
+  });
+});
+
+describe("the summary of small multiples", () => {
+  const line = (name: string, y: (number | null)[], more: Mark[] = []) => ({
+    marks: [{ mark: "line" as const, x: [0, 1, 2, 3], series: [{ name, y }] }, ...more],
+  });
+  const regions = { one: "region", other: "regions" };
+
+  it("says the panel count, the shared range once, each panel's series, the rules, then the notes", () => {
+    const m = model({
+      y: { format: "percent" },
+      marks: [{ mark: "rule", y: 0.05, label: "Target" }],
+      facets: {
+        unit: regions,
+        panels: [
+          line(
+            "North",
+            [0.042, 0.098, 0.07, 0.061],
+            [{ mark: "text", x: 1, y: 0.098, text: "Strike" }],
+          ),
+          line("South", [0.031, 0.074, 0.05, 0.039]),
+        ],
+      },
+    });
+    expect(generatedSummary(m, words)).toBe(
+      `2${nb}regions. 0 to 3, every 1. North: last 6%, low 4%, high 10%. South: last 4%, low 3%, high 7%. Target 5%. North, 1: Strike.`,
+    );
+  });
+
+  it("puts a panel's own sentences after its name when they do not start with it", () => {
+    const panel = (name: string, coal: number[], gas: number[]) => ({
+      name,
+      marks: [
+        {
+          mark: "rect" as const,
+          x1: [0, 10],
+          x2: [10, 20],
+          series: [
+            { name: "Coal", y: coal },
+            { name: "Gas", y: gas },
+          ],
+        },
+      ],
+    });
+    const m = model({
+      marks: [],
+      facets: { panels: [panel("Germany", [3, 4], [1, 2]), panel("France", [1, 0], [5, 6])] },
+    });
+    expect(generatedSummary(m, words)).toBe(
+      "2 panels. Germany. 10, every 10 from 0 to 20: Coal 7, Gas 3. Busiest: 10 to 20, 6. France. 12, every 10 from 0 to 20: Coal 1, Gas 11. Busiest: 0 to 10, 6.",
+    );
+  });
+
+  it("names per-series bar panels whose sentences do not name their series, and says the shared rows once", () => {
+    const panel = (name: string, coal: number) => ({
+      name,
+      marks: [
+        {
+          mark: "bar" as const,
+          y: ["Coal", "Gas"],
+          series: [{ name: "Share", x: [coal, 2] }],
+        },
+      ],
+    });
+    const m = model({ marks: [], facets: { panels: [panel("2023", 3), panel("2024", 1)] } });
+    expect(generatedSummary(m, words)).toBe(
+      "2 panels. 2 categories. 2023. Highest Coal 3, lowest Gas 2. 2024. Highest Gas 2, lowest Coal 1.",
+    );
+  });
+
+  it("reads the chart's rules once, then each panel's own after its name, before the notes", () => {
+    const m = model({
+      marks: [{ mark: "rule", y: 1, label: "Chart" }],
+      facets: {
+        panels: [
+          line(
+            "North",
+            [1, 2, 3, 4],
+            [
+              { mark: "rule", y: 2, label: "Only north" },
+              { mark: "text", x: 1, y: 2, text: "Strike" },
+            ],
+          ),
+          line("South", [4, 3, 2, 1], [{ mark: "rule", x: 2, label: "Only south" }]),
+        ],
+      },
+    });
+    expect(generatedSummary(m, words)).toBe(
+      "2 panels. 0 to 3, every 1. North: last 4, low 1, high 4. South: last 1, low 1, high 4. Chart 1. North, Only north 2. South, Only south 2. North, 1: Strike.",
+    );
+    const own = model({
+      marks: [],
+      facets: { panels: [line("North", [1, 2, 3, 4], [{ mark: "rule", y: 2, label: "Cap" }])] },
+    });
+    expect(generatedSummary(own, chartWords({ panelAt: (p, at) => `${at} (${p})` }))).toContain(
+      "Cap (North) 2.",
+    );
+  });
+
+  it("shares nothing in a grid of one, so the panel's series sentence leads and names it once", () => {
+    const m = model({ marks: [], facets: { panels: [line("North", [1, 2, 3, 4])] } });
+    expect(generatedSummary(m, words)).toBe(
+      "1 panel. North: last 4, low 1, high 4. 0 to 3, every 1.",
+    );
+  });
+
+  it("writes the summary in the app's words for the head and each panel", () => {
+    const own = chartWords({
+      facetSummary: (count) => `Panels: ${count}.`,
+      panel: (name, sentences) => `[${name}] ${sentences}`,
+    });
+    const m = model({
+      marks: [],
+      facets: {
+        panels: ["A", "B"].map((name, k) => ({
+          name,
+          marks: [
+            {
+              mark: "pie" as const,
+              slices: [
+                { name: "X", value: k + 1 },
+                { name: "Y", value: 1 },
+              ],
+            },
+          ],
+        })),
+      },
+    });
+    expect(generatedSummary(m, own)).toBe(
+      "Panels: 2 panels. [A] 2: X 50%, Y 50%. [B] 3: X 67%, Y 33%.",
+    );
+  });
+});

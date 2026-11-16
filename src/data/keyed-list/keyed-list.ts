@@ -9,7 +9,7 @@
 import { until, whenAborted } from "../../core/lifetime/lifetime.js";
 import { announce } from "../../feedback/announce/announce.js";
 import { focusOn, landing } from "../list-row/row.js";
-import { scrollerOf, scrollsItself, seenOf } from "../list-row/scroller.js";
+import { scrollerOf, seenOf, viewOf } from "../list-row/scroller.js";
 
 /** A row's key, or `undefined` for a row not loaded yet. */
 export type KeyedListKeys = readonly (string | undefined)[];
@@ -85,6 +85,8 @@ interface Pass {
   readonly refocus?: () => void;
   /** A row to draw whether it is in view or not. */
   readonly also?: number | undefined;
+  /** The key of the row the view keeps, in place of the first in view. */
+  readonly keep?: string;
 }
 
 const numbers = new Intl.NumberFormat();
@@ -93,6 +95,22 @@ const defaultCount = (n: number, of: number): string =>
   `${numbers.format(n)} of ${numbers.format(of)} titles`;
 
 const clamp = (n: number, low: number, high: number): number => Math.min(Math.max(n, low), high);
+
+/** The first index of the rising `sums` whose value is past `y`, or their
+ *  length. */
+function past(sums: Float64Array, y: number): number {
+  let lo = 0;
+  let hi = sums.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if ((sums[mid] ?? 0) > y) {
+      hi = mid;
+    } else {
+      lo = mid + 1;
+    }
+  }
+  return lo;
+}
 
 /** The rows a reconcile can leave where they are: a longest increasing
  *  subsequence of `seq`, through `must` when `must` is in it. */
@@ -139,8 +157,8 @@ function rising(seq: readonly number[]): number[] {
 export function enhanceKeyedList(container: Body, options: KeyedListOptions): KeyedList {
   const { row, need, signal, overscan = 5, settle = 500 } = options;
   const windowed = options.window ?? true;
-  // Tiles share a line, so a grid's rows have no one pitch: it is drawn
-  // whole, and windowed again once it is back to rows.
+  // Tiles share a line, so a grid's rows have no height of their own: it
+  // is drawn whole, and windowed again once it is back to rows.
   const windows = (): boolean => windowed && container.dataset["layout"] !== "grid";
   const table = container instanceof HTMLTableSectionElement;
   const words = options.words?.count ?? defaultCount;
@@ -154,26 +172,35 @@ export function enhanceKeyedList(container: Body, options: KeyedListOptions): Ke
   const loading = new Map<number, HTMLElement>();
   const sized = new WeakMap<HTMLElement, number>();
   const mids: HTMLElement[] = [];
-  let pitch = 3 * (Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16);
-  let edge = 0;
+  // A row's slot is its height, its line included, and the gap before it.
+  // A row drawn once keeps its slot by key; the rest take the mean of the
+  // rows past the first, which has no line above it.
+  const slots = new Map<string, number>();
+  const pool = new Map<string, number>();
+  let sum = 0;
+  let blank = 3 * (Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16);
+  let seed = blank;
+  let gap = 0;
+  let fitted = "";
+  let sums = new Float64Array(1);
+  let stale = true;
   let asked = "";
   let said: string | undefined;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let frame = 0;
+  const soon = (): void => {
+    if (frame === 0) {
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        draw();
+      });
+    }
+  };
   // A drawn row or the list resizing, such as at a pointer tier change,
-  // moves the pitch. Drawing inside the observer's own callback resizes
+  // moves the slots. Drawing inside the observer's own callback resizes
   // what it observes and raises "ResizeObserver loop completed", so it
   // waits a frame.
-  const sizes = windowed
-    ? new ResizeObserver(() => {
-        if (frame === 0) {
-          frame = requestAnimationFrame(() => {
-            frame = 0;
-            draw();
-          });
-        }
-      })
-    : undefined;
+  const sizes = windowed ? new ResizeObserver(soon) : undefined;
 
   const spacer = (): HTMLElement => {
     const el = document.createElement(table ? "tr" : "li");
@@ -226,6 +253,51 @@ export function enhanceKeyedList(container: Body, options: KeyedListOptions): Ke
     keys = next;
     at = index;
     of = total ?? of;
+    for (const key of slots.keys()) {
+      if (!index.has(key)) {
+        slots.delete(key);
+        sum -= pool.get(key) ?? 0;
+        pool.delete(key);
+      }
+    }
+    stale = true;
+  };
+
+  /** A slot for a row not drawn yet: the drawn rows' mean, or the last
+   *  one known. */
+  const guess = (): number => (pool.size > 0 ? sum / pool.size : seed);
+
+  /** `sums[i]` is the sum of the slots before row `i`, `sums[n]` of all. */
+  const sumsOf = (): Float64Array => {
+    if (stale) {
+      const n = keys.length;
+      const mean = guess();
+      sums = new Float64Array(n + 1);
+      for (let i = 0; i < n; i += 1) {
+        const key = keys[i];
+        sums[i + 1] = (sums[i] ?? 0) + (key === undefined ? blank : (slots.get(key) ?? mean));
+      }
+      stale = false;
+    }
+    return sums;
+  };
+
+  /** A new gap, text size or pointer tier moves every row, so the slots
+   *  kept are dropped. A new width keeps them: a row it wraps anew takes
+   *  its slot again when it is drawn. */
+  const fit = (): void => {
+    const style = getComputedStyle(container);
+    const g = Number.parseFloat(style.rowGap) || 0;
+    const now = `${getComputedStyle(document.documentElement).fontSize} ${style.getPropertyValue("--cp-control-h-sm")}`;
+    if (g !== gap || now !== fitted) {
+      gap = g;
+      fitted = now;
+      seed = guess();
+      slots.clear();
+      pool.clear();
+      sum = 0;
+      stale = true;
+    }
   };
 
   const rowFor = (key: string, i: number): HTMLElement => {
@@ -292,7 +364,9 @@ export function enhanceKeyedList(container: Body, options: KeyedListOptions): Ke
 
   const shown = (): boolean => container.getClientRects().length > 0;
 
-  const range = (): readonly [number, number] => {
+  /** The rows to draw, about `mark`'s row put back at its top when given,
+   *  as the draw's correction will. */
+  const range = (mark?: Mark): readonly [number, number] => {
     const n = keys.length;
     if (!windows()) {
       return [0, n];
@@ -301,9 +375,17 @@ export function enhanceKeyedList(container: Body, options: KeyedListOptions): Ke
       return [0, Math.min(n, Math.max(1, overscan))];
     }
     const band = seenOf(container, true);
-    const top = startOf();
-    const start = clamp(Math.floor((band.top - top) / pitch) - overscan, 0, n);
-    return [start, clamp(Math.ceil((band.bottom - top) / pitch) + overscan, start, n)];
+    const tops = sumsOf();
+    const i = mark === undefined ? undefined : at.get(mark.key);
+    // A row measured since the last layout moves the slots the page has not
+    // taken yet, so the rows' start is read off the kept row, never the page.
+    const top =
+      mark === undefined || i === undefined || !drawn.has(mark.key)
+        ? startOf()
+        : mark.top - (tops[i] ?? 0);
+    // Row i spans tops[i] to tops[i + 1] - gap below the first child's top.
+    const start = clamp(past(tops, band.top - top + gap) - 1 - overscan, 0, n);
+    return [start, clamp(past(tops, band.bottom - top) + overscan, start, n)];
   };
 
   /** The container's child that holds focus, if any. */
@@ -425,9 +507,9 @@ export function enhanceKeyedList(container: Body, options: KeyedListOptions): Ke
         el.remove();
       }
     }
-    const gap = Number.parseFloat(getComputedStyle(container).rowGap) || 0;
     const want: HTMLElement[] = [];
     const rows: { el: HTMLElement; i: number }[] = [];
+    const tops = sumsOf();
     let mid = 0;
     let next = 0;
     const fill = (from: number, to: number): void => {
@@ -442,10 +524,9 @@ export function enhanceKeyedList(container: Body, options: KeyedListOptions): Ke
       if (el !== head && el !== tail) {
         mid += 1;
       }
-      // A list draws its line above each item but the first, so the
-      // spacer for the first rows has one line fewer than they have. A
-      // collapsed table's line is inside its row's height.
-      const px = Math.max(0, (to - from) * pitch - gap - (from === 0 ? edge : 0));
+      // A spacer's own line is inside its border-box height, and the gap
+      // before it stands for the first of its rows' gaps.
+      const px = Math.max(0, (tops[to] ?? 0) - (tops[from] ?? 0) - gap);
       if (sized.get(el) !== px) {
         sized.set(el, px);
         el.style.blockSize = `${String(px)}px`;
@@ -495,39 +576,33 @@ export function enhanceKeyedList(container: Body, options: KeyedListOptions): Ke
     return rows;
   };
 
-  /** The line a list draws above each item but its first. */
-  const lineOf = (): number => {
-    const second = container.children[1];
-    return table || second === undefined
-      ? edge
-      : Number.parseFloat(getComputedStyle(second).borderBlockStartWidth) || 0;
-  };
-
-  /** The rows' pitch, from the longest run of drawn rows in a row. It
-   *  reads their bottoms, since the first row has no line above it. */
-  const measure = (rows: readonly { readonly el: HTMLElement; readonly i: number }[]): number => {
-    let best: readonly [HTMLElement, HTMLElement, number] | undefined;
-    let from = 0;
-    rows.forEach((r, j) => {
-      if (j > 0 && r.i !== (rows[j - 1]?.i ?? 0) + 1) {
-        from = j;
+  /** Keeps each drawn row's slot, and says whether one is half a px or
+   *  more from the slot it was placed in. */
+  const measure = (rows: readonly { readonly el: HTMLElement; readonly i: number }[]): boolean => {
+    const placed = sumsOf();
+    let moved = false;
+    for (const { el, i } of rows) {
+      const slot = el.getBoundingClientRect().height + gap;
+      moved ||= Math.abs(slot - ((placed[i + 1] ?? 0) - (placed[i] ?? 0))) >= 0.5;
+      const key = keys[i];
+      const was = key === undefined ? blank : slots.get(key);
+      if (slot === was) {
+        continue;
       }
-      const first = rows[from];
-      if (first !== undefined && (best === undefined || r.i - first.i > best[2])) {
-        best = [first.el, r.el, r.i - first.i];
+      if (key === undefined) {
+        blank = slot;
+      } else {
+        sum += (i > 0 ? slot : 0) - (pool.get(key) ?? 0);
+        slots.set(key, slot);
+        if (i > 0) {
+          pool.set(key, slot);
+        } else {
+          pool.delete(key);
+        }
       }
-    });
-    if (best === undefined) {
-      return pitch;
+      stale = true;
     }
-    const [first, last, span] = best;
-    if (span === 0) {
-      const gap = Number.parseFloat(getComputedStyle(container).rowGap) || 0;
-      return first.getBoundingClientRect().height + gap || pitch;
-    }
-    return (
-      (last.getBoundingClientRect().bottom - first.getBoundingClientRect().bottom) / span || pitch
-    );
+    return moved;
   };
 
   const ask = (rows: readonly { readonly i: number }[]): void => {
@@ -545,17 +620,51 @@ export function enhanceKeyedList(container: Body, options: KeyedListOptions): Ke
     }
   };
 
+  /** The row the last draw kept in view, where it was in the scroller's
+   *  view, and the scroller and its offset then. */
+  let last:
+    | {
+        readonly key: string;
+        readonly off: number;
+        readonly scroller: HTMLElement;
+        readonly scroll: number;
+      }
+    | undefined;
+
+  const markOf = (key: string): Mark | undefined => {
+    const el = drawn.get(key);
+    return el === undefined ? undefined : { key, top: el.getBoundingClientRect().top };
+  };
+
   const draw = (pass: Pass = {}): void => {
-    const scroller = scrollsItself(container) ? container : scrollerOf(container);
+    // The list itself only while its rows overflow it: a list set to scroll
+    // whose box grows with its rows moves with the box around it.
+    const scroller = scrollerOf(container, true);
     const anchoring = scroller.style.overflowAnchor;
-    // The engine's own anchoring would add its correction to this one;
-    // WebKit has none, so the module keeps the place itself.
+    // The engine's own anchoring would add its correction to this one.
     scroller.style.overflowAnchor = "none";
     let rows: readonly { readonly el: HTMLElement; readonly i: number }[] = [];
     try {
-      const mark = pass.anchor === false ? undefined : anchorOf(pass.before ?? at);
-      for (let round = 0; round < 3; round += 1) {
-        const [start, end] = range();
+      fit();
+      // With no scroll since the last draw, a row that moved moved because
+      // one above it changed height, so it goes back to where it was.
+      const still =
+        last !== undefined &&
+        pass.before === undefined &&
+        scroller === last.scroller &&
+        scroller.scrollTop === last.scroll
+          ? last
+          : undefined;
+      let mark =
+        pass.anchor === false
+          ? undefined
+          : pass.keep !== undefined
+            ? markOf(pass.keep)
+            : still !== undefined && drawn.has(still.key)
+              ? { key: still.key, top: viewOf(scroller).top + still.off }
+              : anchorOf(pass.before ?? at);
+      for (let round = 0; round < 6; round += 1) {
+        const [start, end] = range(mark);
         rows = layout(
           start,
           end,
@@ -572,24 +681,34 @@ export function enhanceKeyedList(container: Body, options: KeyedListOptions): Ke
             : kept.getBoundingClientRect().top - mark.top;
         const scrolled = Math.abs(by) >= 0.5;
         if (scrolled) {
-          scroller.scrollTo({ top: scroller.scrollTop + by, behavior: "instant" });
+          // Relative, so a scroll the reader makes meanwhile is added to,
+          // never undone by an offset read before it.
+          scroller.scrollBy({ top: by, behavior: "instant" });
         }
         if (!windows()) {
           break;
         }
-        // A new pitch or scroll moves the window, so it is drawn again.
-        const measured = measure(rows);
-        const line = lineOf();
-        const moved = Math.abs(measured - pitch) > 0.5 || line !== edge;
-        pitch = measured;
-        edge = line;
+        // A row placed in the wrong slot or a scroll moves the window, so
+        // it is drawn again, about the row in view.
+        const moved = measure(rows);
         if (!moved && !scrolled) {
           break;
         }
+        mark ??= anchorOf(at);
       }
     } finally {
       scroller.style.overflowAnchor = anchoring;
     }
+    const seen = anchorOf(at);
+    last =
+      seen === undefined
+        ? undefined
+        : {
+            key: seen.key,
+            off: seen.top - viewOf(scroller).top,
+            scroller,
+            scroll: scroller.scrollTop,
+          };
     ask(rows);
   };
 
@@ -620,18 +739,18 @@ export function enhanceKeyedList(container: Body, options: KeyedListOptions): Ke
     }, settle);
   };
 
+  /** Scrolls the list's start into view by a relative scroll, as `draw`'s
+   *  correction does. */
   const toStart = (): void => {
-    if (scrollsItself(container)) {
-      container.scrollTop = 0;
-      return;
-    }
-    if (!shown()) {
-      return;
-    }
-    const by = startOf() - seenOf(container, true).top;
+    const scroller = scrollerOf(container, true);
+    const by =
+      scroller === container
+        ? -container.scrollTop
+        : shown()
+          ? startOf() - seenOf(container, true).top
+          : 0;
     if (by < 0) {
-      const scroller = scrollerOf(container);
-      scroller.scrollTo({ top: scroller.scrollTop + by, behavior: "instant" });
+      scroller.scrollBy({ top: by, behavior: "instant" });
     }
   };
 
@@ -672,22 +791,23 @@ export function enhanceKeyedList(container: Body, options: KeyedListOptions): Ke
 
   if (sizes !== undefined && signal?.aborted !== true) {
     const listen = until(signal);
-    const follow = (): void => {
-      draw();
-    };
     document.addEventListener(
       "scroll",
       (e) => {
         const t = e.target;
         if (t === document || (t instanceof Node && t.contains(container))) {
-          draw();
+          // Laying out a change inside a scroll event's dispatch stops WebKit
+          // anchoring that scroller for good (the FIXME in
+          // https://commits.webkit.org/325991@main), so the draw waits for
+          // the frame's animation callbacks, which run before its paint.
+          soon();
         }
       },
       { ...until(signal, true), passive: true },
     );
-    addEventListener("resize", follow, listen);
-    window.visualViewport?.addEventListener("resize", follow, listen);
-    window.visualViewport?.addEventListener("scroll", follow, listen);
+    addEventListener("resize", soon, listen);
+    window.visualViewport?.addEventListener("resize", soon, listen);
+    window.visualViewport?.addEventListener("scroll", soon, listen);
     sizes.observe(container);
   }
   whenAborted(signal, () => {
@@ -716,7 +836,7 @@ export function enhanceKeyedList(container: Body, options: KeyedListOptions): Ke
       draw({ also: i });
       if (how?.scroll !== false) {
         drawn.get(key)?.scrollIntoView({ block: "nearest", behavior: "instant" });
-        draw({ also: i });
+        draw({ also: i, keep: key });
       }
       return drawn.get(key);
     },

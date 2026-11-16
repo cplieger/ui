@@ -1,9 +1,9 @@
 /**
  * geometry.ts — the SVG path of each mark inside a plot `width` by `height`
  * px, y down: rects with their gaps, lines and areas reduced per device
- * pixel and cut at the plot's ends, rows of dots, bars and points along
- * their rows, a slope's lines and ends, a scatter's dots, a grid's cells,
- * boxes with their whiskers and outliers, rules and the axis lines.
+ * pixel and cut at the plot's ends, rows of dots, bars and points, a slope's
+ * lines and ends, a scatter's dots, a grid's cells, boxes with their whiskers
+ * and outliers, a pie's slices, a treemap's tiles, rules and the axis lines.
  * @module
  */
 
@@ -11,13 +11,15 @@ import { reduce, upperBound, type Point } from "../scale/reduce.js";
 
 import { dayPlace, type Weeks } from "./calendar.js";
 import { classOf } from "./classes.js";
+import { rimPoint, sliceAngles, TURN, type PieFrame } from "./pie.js";
 import {
   barsApart,
+  barLengths,
   barTotal,
-  barValue,
   drawnTotal,
   drawnValue,
   sampleValue,
+  subRows,
   type AreaModel,
   type BarModel,
   type BoxModel,
@@ -25,12 +27,15 @@ import {
   type CellModel,
   type DotRowModel,
   type LineModel,
+  type PieModel,
   type PointModel,
   type RectModel,
   type SampleModel,
   type ScatterModel,
   type SlopeModel,
+  type TreeModel,
 } from "./model.js";
+import type { Box } from "./notes.js";
 import type { Continuous } from "./scales.js";
 
 /** The px a device pixel grid is snapped to at `dpr`. */
@@ -470,8 +475,7 @@ export function barReach(m: BarModel, i: number): { readonly lo: number; readonl
   }
   let lo = 0;
   let hi = 0;
-  for (const s of m.series) {
-    const v = barValue(m, s, i);
+  for (const v of barLengths(m, i)) {
     if (barsApart(m)) {
       lo = Math.min(lo, v);
       hi = Math.max(hi, v);
@@ -490,8 +494,10 @@ const SUB_BAR = 0.75;
 /** The px across a row that `m`'s bars of `thick` px take: one bar, or the
  *  bars of a group or a folded split and the 1 px between them. A split in
  *  panels takes one bar's `thick`. */
-export const barBlock = (m: BarModel, thick: number): number =>
-  barsApart(m) ? m.series.length * thick * SUB_BAR + (m.series.length - 1) * GAP : thick;
+export function barBlock(m: BarModel, thick: number): number {
+  const n = subRows(m);
+  return barsApart(m) ? n * thick * SUB_BAR + (n - 1) * GAP : thick;
+}
 
 /** The centre across its row of series `k`'s bar in a row of `m` centred
  *  at `cy`: `cy` itself unless the row's bars stand one under another, as
@@ -573,8 +579,7 @@ export function barSegments(
   }
   const base = { lo: 0, hi: 0 };
   const drawn = { lo: false, hi: false };
-  return m.series.map((s) => {
-    const v = barValue(m, s, i);
+  return barLengths(m, i).map((v) => {
     if (v === 0) {
       return undefined;
     }
@@ -935,6 +940,32 @@ export function scatterPaths(m: ScatterModel, f: Frame): string[] {
   );
 }
 
+/** A context dot's radius, half a scatter dot's, so it reads as background. */
+const CONTEXT_RADIUS = 2;
+
+/** Small multiples' context behind a panel on frame `f`, the chart's scales
+ *  in that panel's px: every series of `others`, the other panels' marks,
+ *  as one path, lines as drawn and dots at `CONTEXT_RADIUS`. */
+export function contextPath(others: readonly (LineModel | ScatterModel)[], f: Frame): string {
+  const out: string[] = [];
+  const dot = arcs(CONTEXT_RADIUS);
+  for (const m of others) {
+    m.series.forEach((_, k) => {
+      if (m.kind === "line") {
+        out.push(linePath(m, k, f));
+        return;
+      }
+      for (const i of m.shown[k] ?? []) {
+        const c = scatterAt(m, k, i, f);
+        if (c !== undefined) {
+          out.push(circle(c, CONTEXT_RADIUS, dot));
+        }
+      }
+    });
+  }
+  return out.join("");
+}
+
 /** A cell under this many px across, inset, gives up its gap on that axis. */
 const CELL_MIN = 3;
 
@@ -1042,7 +1073,7 @@ const MEDIAN_W = 2;
 export const OUTLIER_RADIUS = 3;
 
 /** The px across a row that `m`'s boxes take: one box, or a sub-row each. */
-export const boxBlock = (m: BoxModel): number => BOX * m.series.length;
+export const boxBlock = (m: BoxModel): number => BOX * subRows(m);
 
 /** Series `k`'s box in a row of `m` centred at `cy`: its centre line and
  *  its thickness across the row. */
@@ -1174,3 +1205,103 @@ export function ruleXs(value: number, f: Pick<Frame, "x" | "xAt" | "panels">): n
 /** The 4 px tick vectors under the plot at `ats`, from its bottom edge. */
 export const tickPath = (ats: readonly number[], dpr: number): string =>
   ats.map((at) => `M${num(snap(at, dpr) + 0.5)} 0v4`).join("");
+
+/** Half the 1 px gap between neighbouring slices: each straight edge moves
+ *  this far into its slice, so a gap is as wide at the rim as at the centre. */
+const HALF_GAP = 0.5;
+
+const pt = (p: { x: number; y: number }): string => `${num(p.x)} ${num(p.y)}`;
+
+const arcTo = (r: number, large: boolean, clockwise: boolean, to: { x: number; y: number }) =>
+  `A${num(r)} ${num(r)} 0 ${large ? "1" : "0"} ${clockwise ? "1" : "0"} ${pt(to)}`;
+
+// The whole circle as two half arcs, a donut's hole drawn the other way so
+// the nonzero fill leaves it open.
+function wholePie(p: PieFrame): string {
+  const ring = (r: number, clockwise: boolean) => {
+    const top = { x: p.cx, y: p.cy - r };
+    const bottom = { x: p.cx, y: p.cy + r };
+    return `M${pt(top)}${arcTo(r, true, clockwise, bottom)}${arcTo(r, true, clockwise, top)}Z`;
+  };
+  return ring(p.r, true) + (p.inner > 0 ? ring(p.inner, false) : "");
+}
+
+// A slice whose arc at the rim is under 2 px is too thin to keep 1 px beside
+// its gaps, and a circle no wider than the gap has no rim to move an edge on.
+const sliceGap = (p: PieFrame, span: number): number =>
+  p.r * span < 4 * HALF_GAP || p.r <= HALF_GAP ? 0 : HALF_GAP;
+
+/**
+ * The slice from angle `from` to `to` on `p`, its straight edges each moved
+ * 0.5 px into it. A slice whose arc at the rim is under 2 px, too thin to
+ * keep 1 px beside its gaps, keeps its edges and touches its neighbours; a
+ * slice of the whole turn is the whole circle.
+ */
+export function slicePath(p: PieFrame, from: number, to: number): string {
+  return to - from >= TURN ? wholePie(p) : sliceOutline(p, from, to, sliceGap(p, to - from));
+}
+
+/** The ring's path round the slice `slicePath` draws, 1 px inside its edges,
+ *  so its 2 px stroke stays on the slice; a slice too thin to hold it
+ *  takes it on its own edges. */
+export function sliceRing(p: PieFrame, from: number, to: number): string {
+  const r = p.r - 1;
+  const inner = p.inner > 0 ? p.inner + 1 : 0;
+  const shrunk = { ...p, r, inner };
+  if (to - from >= TURN) {
+    return wholePie(shrunk);
+  }
+  const g = sliceGap(p, to - from) + 1;
+  const span = to - from;
+  // The moved edges must still leave the rim an arc between them.
+  return r > Math.max(inner, g) && (span > Math.PI || r * Math.sin(span / 2) > g)
+    ? sliceOutline(shrunk, from, to, g)
+    : slicePath(p, from, to);
+}
+
+// The slice from `from` to `to` on `p`, its straight edges each moved `g` into it.
+function sliceOutline(p: PieFrame, from: number, to: number, g: number): string {
+  const span = to - from;
+  const d = p.r > 0 ? Math.asin(g / p.r) : 0;
+  const outer = `M${pt(rimPoint(p, from + d, p.r))}${arcTo(p.r, span - 2 * d > Math.PI, true, rimPoint(p, to - d, p.r))}`;
+  const di = p.inner > 0 ? Math.asin(Math.min(1, g / p.inner)) : 0;
+  if (p.inner > 0 && span - 2 * di > 0) {
+    const back = arcTo(p.inner, span - 2 * di > Math.PI, false, rimPoint(p, from + di, p.inner));
+    return `${outer}L${pt(rimPoint(p, to - di, p.inner))}${back}Z`;
+  }
+  if (g === 0 || span <= Math.PI) {
+    // The moved edges meet on the bisector, g / sin(span / 2) out, past
+    // a donut's hole when it leaves the slice no inner arc.
+    const apex = g === 0 ? 0 : g / Math.sin(span / 2);
+    return `${outer}L${pt(rimPoint(p, (from + to) / 2, apex))}Z`;
+  }
+  // Past a half turn the moved edges never meet: each stops g from the
+  // centre, joined round it, so every point stays g from the other slices.
+  const end = rimPoint(p, to - Math.PI / 2, g);
+  const start = rimPoint(p, from + Math.PI / 2, g);
+  return `${outer}L${pt(end)}${arcTo(g, false, false, start)}Z`;
+}
+
+/** Each slice `m` draws on `p`, with its slot. */
+export const piePaths = (m: PieModel, p: PieFrame): { slot: number; d: string }[] =>
+  sliceAngles(m).map((s) => ({
+    slot: m.slices[s.index]?.slot ?? 1,
+    d: slicePath(p, s.from, s.to),
+  }));
+
+/** A tree's tiles, one path per slot in the order the slots first appear. */
+export function treePaths(
+  m: TreeModel,
+  tiles: readonly (Box | undefined)[],
+): { slot: number; d: string }[] {
+  const paths = new Map<number, string>();
+  tiles.forEach((b, i) => {
+    if (b === undefined || b.right <= b.left || b.bottom <= b.top) {
+      return;
+    }
+    const slot = m.parts[i]?.slot ?? 1;
+    const d = `M${num(b.left)} ${num(b.top)}H${num(b.right)}V${num(b.bottom)}H${num(b.left)}Z`;
+    paths.set(slot, (paths.get(slot) ?? "") + d);
+  });
+  return Array.from(paths, ([slot, d]) => ({ slot, d }));
+}

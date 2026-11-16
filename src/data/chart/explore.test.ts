@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { cdp, server, userEvent } from "vitest/browser";
 
 import { installAnnouncer } from "../../feedback/announce/announce.js";
+import { spoken } from "../../feedback/test-helpers/spoken.js";
 import { forgetMeasures } from "../scale/measure.js";
 
 import { renderChart, type Chart, type ChartSpec } from "./chart.js";
@@ -140,10 +141,6 @@ function key(el: HTMLElement, name: string): KeyboardEvent {
   return e;
 }
 
-async function says(text: string): Promise<void> {
-  await expect.poll(polite).toBe(text);
-}
-
 // A pointer event at plot px (x, y), from the plot's drawing area.
 function point(
   b: Built,
@@ -177,7 +174,7 @@ describe("keys on a stacked column chart", () => {
   it("focus selects the newest bucket and says it", async () => {
     const b = build(bars);
     b.plot.focus();
-    await says(`${span(45, 60)}: Announce 2, Path 1. Total 3.`);
+    await spoken(`${span(45, 60)}: Announce 2, Path 1. Total 3.`);
     expect(legendText(b)).toBe(`${span(45, 60)} · Announce · 2 · Path · 1 · 3`);
     expect(ring(b)).not.toBe(null);
     expect(crosshair(b)).not.toBe(null);
@@ -201,7 +198,7 @@ describe("keys on a stacked column chart", () => {
       const e = key(b.plot, name);
       expect(e.defaultPrevented, name).toBe(true);
       if (text !== "") {
-        await says(text);
+        await spoken(text);
       }
     }
   });
@@ -224,7 +221,7 @@ describe("keys on a stacked column chart", () => {
     key(b.plot, "Home");
     key(b.plot, "Escape");
     key(b.plot, "ArrowRight");
-    await says(`${span(0, 15)}: Announce 12, Path 9. Total 21.`);
+    await spoken(`${span(0, 15)}: Announce 12, Path 9. Total 21.`);
     expect(ring(b)).not.toBe(null);
   });
 
@@ -239,7 +236,7 @@ describe("keys on a stacked column chart", () => {
     await expect
       .element(b.plot)
       .toHaveAccessibleDescription("Arrow keys read the values. Tab leaves the chart.");
-    await says(`${span(45, 60)}: Announce 2, Path 1. Total 3.`);
+    await spoken(`${span(45, 60)}: Announce 2, Path 1. Total 3.`);
   });
 
   it("never cancels Tab, Space or Enter, and Tab leaves the plot", async () => {
@@ -305,13 +302,13 @@ describe("keys on a step line", () => {
   it("step through the leading gap, the first sample, each change and the last sample", async () => {
     const b = build(step);
     b.plot.focus();
-    await says(`${time(7)}: Live 10, Active 2.`);
+    await spoken(`${time(7)}: Live 10, Active 2.`);
     key(b.plot, "Home");
-    await says(`${time(0)}: No data.`);
+    await spoken(`${time(0)}: No data.`);
     const stops = [2, 4, 5, 7];
     for (const m of stops) {
       key(b.plot, "ArrowRight");
-      await says(`${time(m)}: Live ${String(m < 5 ? 4 : 10)}, Active ${String(m < 4 ? 1 : 2)}.`);
+      await spoken(`${time(m)}: Live ${String(m < 5 ? 4 : 10)}, Active ${String(m < 4 ? 1 : 2)}.`);
     }
   });
 });
@@ -334,13 +331,13 @@ describe("keys on a stacked area", () => {
     });
     expect(legendText(b)).toBe(`${time(3)} · Gas · 9 · Wind · 1 · 10`);
     b.plot.focus();
-    await says(`${time(3)}: Gas 9, Wind 1. Total 10.`);
+    await spoken(`${time(3)}: Gas 9, Wind 1. Total 10.`);
     key(b.plot, "ArrowLeft");
-    await says(`${time(2)}: Gas 7, Wind 3. Total 10.`);
+    await spoken(`${time(2)}: Gas 7, Wind 3. Total 10.`);
     key(b.plot, "ArrowUp");
-    await says(`${time(2)}: Gas 7.`);
+    await spoken(`${time(2)}: Gas 7.`);
     key(b.plot, "ArrowUp");
-    await says(`${time(2)}: Wind 3.`);
+    await spoken(`${time(2)}: Wind 3.`);
     expect(legendText(b)).toBe(`${time(2)} · Gas · 7 · Wind · 3 · 10`);
   });
 });
@@ -349,7 +346,7 @@ describe("keys on a timeline", () => {
   it("focus starts on the first row's last post", async () => {
     const b = build(agents);
     b.plot.focus();
-    await says(`lead-ui: ${time(40)}.`);
+    await spoken(`lead-ui: ${time(40)}.`);
     expect(legendText(b)).toBe(`lead-ui · ${time(40)}`);
   });
 
@@ -361,7 +358,7 @@ describe("keys on a timeline", () => {
       ]),
     );
     b.plot.focus();
-    await says("docs-bot: no posts");
+    await spoken("docs-bot: no posts");
     expect(crosshair(b)).toBe(null);
     expect(ring(b)).not.toBe(null);
   });
@@ -370,7 +367,7 @@ describe("keys on a timeline", () => {
     const b = build(agents);
     b.plot.focus();
     key(b.plot, "ArrowDown");
-    await says("docs-bot: no posts");
+    await spoken("docs-bot: no posts");
     expect(crosshair(b)).toBe(null);
     const before = legendText(b);
     for (const name of ["ArrowLeft", "ArrowRight", "Home", "End"]) {
@@ -378,7 +375,7 @@ describe("keys on a timeline", () => {
       expect(legendText(b)).toBe(before);
     }
     key(b.plot, "ArrowDown");
-    await says(`ha-agent: ${time(38)}.`);
+    await spoken(`ha-agent: ${time(38)}.`);
   });
 });
 
@@ -390,12 +387,12 @@ describe("notes in the readings", () => {
     });
     b.plot.focus();
     key(b.plot, "Home");
-    await says(`${span(0, 15)}: Announce 12, Path 9. Total 21.`);
+    await spoken(`${span(0, 15)}: Announce 12, Path 9. Total 21.`);
     key(b.plot, "ArrowRight");
-    await says(`${span(15, 30)}: Announce 3, Path 1. Total 4. Note: Deploy.`);
+    await spoken(`${span(15, 30)}: Announce 3, Path 1. Total 4. Note: Deploy.`);
     expect(legendText(b)).toBe(`${span(15, 30)} · Announce · 3 · Path · 1 · 4`);
     key(b.plot, "ArrowUp");
-    await says(`${span(15, 30)}: Announce 3. Note: Deploy.`);
+    await spoken(`${span(15, 30)}: Announce 3. Note: Deploy.`);
   });
 
   it("on a step line, the change point holding a note's sample reads it", async () => {
@@ -404,13 +401,13 @@ describe("notes in the readings", () => {
       marks: [...step.marks, { mark: "text", x: START + 3 * MIN, y: 4, text: "Restart" }],
     });
     b.plot.focus();
-    await says(`${time(7)}: Live 10, Active 2.`);
+    await spoken(`${time(7)}: Live 10, Active 2.`);
     key(b.plot, "ArrowLeft");
-    await says(`${time(5)}: Live 10, Active 2.`);
+    await spoken(`${time(5)}: Live 10, Active 2.`);
     key(b.plot, "ArrowLeft");
-    await says(`${time(4)}: Live 4, Active 2.`);
+    await spoken(`${time(4)}: Live 4, Active 2.`);
     key(b.plot, "ArrowLeft");
-    await says(`${time(2)}: Live 4, Active 1. Note: Restart.`);
+    await spoken(`${time(2)}: Live 4, Active 1. Note: Restart.`);
   });
 
   it("a silent row's reading adds its note after a full stop, a post's the note nearest it", async () => {
@@ -423,9 +420,9 @@ describe("notes in the readings", () => {
       ],
     });
     b.plot.focus();
-    await says(`lead-ui: ${time(40)}. Note: Release.`);
+    await spoken(`lead-ui: ${time(40)}. Note: Release.`);
     key(b.plot, "ArrowDown");
-    await says("docs-bot: no posts. Note: Paused.");
+    await spoken("docs-bot: no posts. Note: Paused.");
   });
 });
 
@@ -597,7 +594,7 @@ describe("keys and touch on a bar chart", () => {
     const b = build(firms);
     expect(legendText(b)).toBe(`3${nb}companies · Domestic · International`);
     b.plot.focus();
-    await says("Acme: Domestic 40, International 2. Total 42.");
+    await spoken("Acme: Domestic 40, International 2. Total 42.");
     expect(legendText(b)).toBe("Acme · Domestic · 40 · International · 2 · 42");
     expect(ring(b)).not.toBe(null);
     expect(crosshair(b)).toBe(null);
@@ -616,7 +613,7 @@ describe("keys and touch on a bar chart", () => {
     ];
     for (const [name, text] of cases) {
       expect(key(b.plot, name).defaultPrevented, name).toBe(true);
-      await says(text);
+      await spoken(text);
     }
   });
 
@@ -693,7 +690,7 @@ describe("keys and touch on a box plot", () => {
     const b = build(latency);
     expect(legendText(b)).toBe(`2${nb}endpoints · Before · After`);
     b.plot.focus();
-    await says(
+    await spoken(
       "search: Before median 3, middle half 2 to 4, whiskers 1 to 5; After median 2, middle half 2 to 3, whiskers 1 to 4.",
     );
     expect(legendText(b)).toBe("search · Before · 3 · After · 2");
@@ -707,7 +704,7 @@ describe("keys and touch on a box plot", () => {
     ];
     for (const [name, text] of cases) {
       expect(key(b.plot, name).defaultPrevented, name).toBe(true);
-      await says(text);
+      await spoken(text);
     }
   });
 
@@ -751,7 +748,7 @@ describe("keys and the pointer on a slope chart", () => {
     const b = build(pets);
     expect(legendText(b)).toBe("2015 · Cats · 34 · Dogs · 31 · Horses · No data");
     b.plot.focus();
-    await says("2015: Cats 34, Dogs 31, Horses No data.");
+    await spoken("2015: Cats 34, Dogs 31, Horses No data.");
     expect(rings(b)).toBe(2);
     expect(crosshair(b)).not.toBe(null);
   });
@@ -765,7 +762,7 @@ describe("keys and the pointer on a slope chart", () => {
       [...b.legend.querySelectorAll(".cp-chip")].map((c) => c.getBoundingClientRect().width);
     const before = widths();
     expect(key(b.plot, "ArrowUp").defaultPrevented).toBe(true);
-    await says("Dogs: 2005 40, 2015 31. Change -9.");
+    await spoken("Dogs: 2005 40, 2015 31. Change -9.");
     expect(widths()).toEqual(before);
     expect(
       getComputedStyle(b.legend.querySelectorAll(".cp-chip > bdi")[1] as Element).fontWeight,
@@ -776,7 +773,7 @@ describe("keys and the pointer on a slope chart", () => {
     // The chosen line and its ends, drawn again over the others.
     expect(b.plot.querySelectorAll('[data-part="selection"] [data-series="2"]')).toHaveLength(2);
     key(b.plot, "ArrowLeft");
-    await says("2005: Cats 50, Dogs 40, Horses 30.");
+    await spoken("2005: Cats 50, Dogs 40, Horses 30.");
     expect(legendText(b)).toBe("2005 · Cats · 50 · Dogs · 40 · Horses · 30");
     expect(chips(b)).toEqual([false, true, false]);
     key(b.plot, "Escape");
@@ -833,7 +830,7 @@ describe("keys and the pointer on a scatter plot", () => {
     const b = build(world);
     expect(legendText(b)).toBe(`4${nb}countries · Europe · 2 · Africa · 2`);
     b.plot.focus();
-    await says("Chad: Africa, GDP per capita 1.6, Life expectancy 53.");
+    await spoken("Chad: Africa, GDP per capita 1.6, Life expectancy 53.");
     expect(legendText(b)).toBe(
       "Chad · GDP per capita 1.6 · Life expectancy 53 · Europe · 2 · Africa · 2",
     );
@@ -855,7 +852,7 @@ describe("keys and the pointer on a scatter plot", () => {
     ];
     for (const [name, text] of cases) {
       expect(key(b.plot, name).defaultPrevented, name).toBe(true);
-      await says(text);
+      await spoken(text);
     }
     expect(chips(b)).toEqual([false, true]);
   });
@@ -917,7 +914,7 @@ describe("keys, the pointer and touch on a heatmap", () => {
     const b = build(grid);
     expect(legendText(b)).toBe("12 cells");
     b.plot.focus();
-    await says(`Mon, 2 PM: 3${nb}posts.`);
+    await spoken(`Mon, 2 PM: 3${nb}posts.`);
     expect(legendText(b)).toBe(`Mon, 2 PM · 3${nb}posts`);
     expect(ring(b)).not.toBe(null);
     expect(crosshair(b)).toBe(null);
@@ -935,7 +932,7 @@ describe("keys, the pointer and touch on a heatmap", () => {
     ];
     for (const [name, text] of cases) {
       expect(key(b.plot, name).defaultPrevented, name).toBe(true);
-      await says(text);
+      await spoken(text);
     }
   });
 
@@ -961,5 +958,450 @@ describe("keys, the pointer and touch on a heatmap", () => {
     point(b, "pointermove", end.x, end.y, "touch");
     expect(legendText(b)).toBe(`Tue, 5 PM · 7${nb}posts`);
     point(b, "pointerup", end.x, end.y, "touch");
+  });
+});
+
+describe("keys, the pointer and touch on a pie", () => {
+  // Germany's land by use, in km²: 51%, 30%, 14%, 3.2% and 2.3% of 357,580.
+  const land = (hole = false): ChartSpec => ({
+    marks: [
+      {
+        mark: "pie",
+        hole,
+        unit: { other: "km²" },
+        slices: [
+          { name: "Agriculture", value: 182_637 },
+          { name: "Forest", value: 106_645 },
+          { name: "Housing & traffic", value: 48_631 },
+          { name: "Other land", value: 11_443 },
+          { name: "Water", value: 8224 },
+        ],
+      },
+    ],
+  });
+  const chips =
+    "Agriculture · 51% · Forest · 30% · Housing & traffic · 14% · Other land · 3.2% · Water · 2.3%";
+  // Plot px at angle `a` clockwise from 12 o'clock, `d` from the centre of
+  // the plot, where the pie sits; its diameter is the plot's 240 px height.
+  const at = (b: Built, a: number, d: number): [number, number] => [
+    plotWidth(b) / 2 + d * Math.sin(a),
+    120 - d * Math.cos(a),
+  ];
+  const chosen = (b: Built) =>
+    [...b.legend.querySelectorAll(".cp-chip[data-selected] > bdi")].map((el) => el.textContent);
+  const labelled = (b: Built) =>
+    [...b.plot.querySelectorAll('[data-part="end"] > text[data-selected]')].map(
+      (el) => el.textContent,
+    );
+
+  it("reads the total with no selection and focus selects the first slice, ringed, with no crosshair", async () => {
+    const b = build(land());
+    expect(legendText(b)).toBe(`Total 357,580${nb}km² · ${chips}`);
+    b.plot.focus();
+    await spoken(`Agriculture: 182,637${nb}km², 51%. Total 357,580${nb}km².`);
+    expect(legendText(b)).toBe(`Agriculture 182,637${nb}km² · ${chips}`);
+    expect(chosen(b)).toEqual(["Agriculture"]);
+    expect(labelled(b)).toEqual(["Agriculture", "51%"]);
+    expect(ring(b)).not.toBe(null);
+    expect(crosshair(b)).toBe(null);
+  });
+
+  it("walks the slices with all four arrows and Home and End, leaving the Page keys to the page", async () => {
+    const b = build(land());
+    b.plot.focus();
+    const cases: [string, string][] = [
+      ["ArrowRight", `Forest: 106,645${nb}km², 30%. Total 357,580${nb}km².`],
+      ["ArrowDown", `Housing & traffic: 48,631${nb}km², 14%. Total 357,580${nb}km².`],
+      ["End", `Water: 8,224${nb}km², 2.3%. Total 357,580${nb}km².`],
+      ["ArrowUp", `Other land: 11,443${nb}km², 3.2%. Total 357,580${nb}km².`],
+      ["Home", `Agriculture: 182,637${nb}km², 51%. Total 357,580${nb}km².`],
+    ];
+    for (const [name, text] of cases) {
+      expect(key(b.plot, name).defaultPrevented, name).toBe(true);
+      await spoken(text);
+    }
+    expect(key(b.plot, "PageDown").defaultPrevented).toBe(false);
+    expect(chosen(b)).toEqual(["Agriculture"]);
+  });
+
+  it("a mouse selects the slice its angle falls in, within 8 px past the rim, and clears beyond", () => {
+    const b = build(land());
+    // Forest runs from 51% to 81% of the turn.
+    point(b, "pointermove", ...at(b, 0.66 * 2 * Math.PI, 127));
+    expect(legendText(b)).toBe(`Forest 106,645${nb}km² · ${chips}`);
+    expect(chosen(b)).toEqual(["Forest"]);
+    point(b, "pointermove", ...at(b, 0.66 * 2 * Math.PI, 129));
+    expect(ring(b)).toBe(null);
+    expect(legendText(b)).toBe(`Total 357,580${nb}km² · ${chips}`);
+    expect(chosen(b)).toEqual([]);
+  });
+
+  it("a tap selects a slice, a slide does not, and a tap in a donut's hole clears it", () => {
+    const b = build(land(true));
+    const [x, y] = at(b, 1, 90);
+    point(b, "pointerdown", x, y, "touch");
+    point(b, "pointerup", x, y, "touch");
+    expect(legendText(b)).toBe(`Agriculture 182,637${nb}km² · ${chips}`);
+    const [fx, fy] = at(b, 0.66 * 2 * Math.PI, 90);
+    point(b, "pointerdown", fx, fy, "touch");
+    point(b, "pointermove", fx + 20, fy, "touch");
+    point(b, "pointerup", fx + 20, fy, "touch");
+    expect(legendText(b)).toBe(`Agriculture 182,637${nb}km² · ${chips}`);
+    const [hx, hy] = at(b, 1, 30);
+    point(b, "pointerdown", hx, hy, "touch");
+    point(b, "pointerup", hx, hy, "touch");
+    expect(ring(b)).toBe(null);
+  });
+});
+
+describe("keys, the pointer and touch on a treemap", () => {
+  // GDP in 2023, bn USD: 62,580 in all, Asia 41%, the Americas 47% and Europe 12%.
+  const gdp: ChartSpec = {
+    marks: [
+      {
+        mark: "tree",
+        unit: { other: "bn USD" },
+        nodes: [
+          {
+            name: "Asia",
+            children: [
+              { name: "China", value: 17_795 },
+              { name: "Japan", value: 4213 },
+              { name: "India", value: 3550 },
+            ],
+          },
+          {
+            name: "Americas",
+            children: [
+              { name: "United States", value: 27_361 },
+              { name: "Brazil", value: 2174 },
+            ],
+          },
+          {
+            name: "Europe",
+            children: [
+              { name: "Germany", value: 4456 },
+              { name: "France", value: 3031 },
+            ],
+          },
+        ],
+      },
+    ],
+  };
+  const chips = "Asia · 41% · Americas · 47% · Europe · 12%";
+  const chosen = (b: Built) =>
+    [...b.legend.querySelectorAll(".cp-chip[data-selected] > bdi")].map((el) => el.textContent);
+  const marked = (b: Built, part: string) =>
+    [...b.plot.querySelectorAll(`[data-part="${part}"] > text[data-selected]`)].map(
+      (el) => el.textContent,
+    );
+  // A text's own place on the plot, inside the tile or the head band it names.
+  const textAt = (b: Built, part: string, text: string): [number, number] => {
+    const el = [...b.plot.querySelectorAll(`[data-part="${part}"] > text`)].find(
+      (t) => t.textContent === text,
+    );
+    return [Number(el?.getAttribute("x")) + 2, Number(el?.getAttribute("y"))];
+  };
+  // The ring's outline as its first corner and its far corner, in plot px.
+  const corners = (b: Built) =>
+    (ring(b)?.getAttribute("d") ?? "").match(/-?[\d.]+/gu)?.map(Number) ?? [];
+
+  it("reads the total with no selection and focus selects the first group, ringed, its head marked", async () => {
+    const b = build(gdp);
+    expect(legendText(b)).toBe(`Total 62,580${nb}bn USD · ${chips}`);
+    b.plot.focus();
+    await spoken(`Asia: 25,558${nb}bn USD, 41%, 3 parts.`);
+    expect(legendText(b)).toBe(`Asia 25,558${nb}bn USD, 41% · ${chips}`);
+    expect(chosen(b)).toEqual(["Asia"]);
+    expect(marked(b, "head")).toEqual(["Asia"]);
+    expect(marked(b, "tile")).toEqual([]);
+    expect(ring(b)).not.toBe(null);
+    expect(crosshair(b)).toBe(null);
+    // A group's ring stands 1 px outside its rectangle, which starts at the plot's corner.
+    expect(corners(b).slice(0, 2)).toEqual([-1, -1]);
+  });
+
+  it("walks the groups with Up and Down and the parts with Left and Right, leaving the Page keys", async () => {
+    const b = build(gdp);
+    b.plot.focus();
+    const cases: [string, string][] = [
+      ["ArrowDown", `Americas: 29,535${nb}bn USD, 47%, 2 parts.`],
+      ["ArrowLeft", `Asia, India: 3,550${nb}bn USD, 5.7%.`],
+      ["ArrowRight", `Americas, United States: 27,361${nb}bn USD, 44%.`],
+      ["End", `Europe, France: 3,031${nb}bn USD, 4.8%.`],
+      ["ArrowUp", `Americas: 29,535${nb}bn USD, 47%, 2 parts.`],
+      ["Home", `Asia: 25,558${nb}bn USD, 41%, 3 parts.`],
+    ];
+    for (const [name, text] of cases) {
+      expect(key(b.plot, name).defaultPrevented, name).toBe(true);
+      await spoken(text);
+    }
+    expect(key(b.plot, "PageDown").defaultPrevented).toBe(false);
+    key(b.plot, "ArrowRight");
+    await spoken(`Asia, China: 17,795${nb}bn USD, 28%.`);
+    expect(marked(b, "tile")).toEqual(["China", `17,795${nb}bn USD`]);
+    expect(marked(b, "head")).toEqual([]);
+    expect(chosen(b)).toEqual(["Asia"]);
+    // A part's ring stands 1 px inside its tile, at the plot's left edge under Asia's 18 px head.
+    expect(corners(b).slice(0, 2)).toEqual([1, 19]);
+  });
+
+  it("a mouse selects the tile or the head band under it, and clears beyond every tile's reach", () => {
+    const b = build(gdp);
+    point(b, "pointermove", ...textAt(b, "tile", "Germany"));
+    expect(legendText(b)).toBe(`Europe, Germany 4,456${nb}bn USD, 7.1% · ${chips}`);
+    expect(chosen(b)).toEqual(["Europe"]);
+    point(b, "pointermove", ...textAt(b, "head", "Americas"));
+    expect(legendText(b)).toBe(`Americas 29,535${nb}bn USD, 47% · ${chips}`);
+    point(b, "pointermove", -4.5, 100);
+    expect(ring(b)).toBe(null);
+    expect(legendText(b)).toBe(`Total 62,580${nb}bn USD · ${chips}`);
+  });
+
+  it("a tap selects a tile and a slide does not", () => {
+    const b = build(gdp);
+    const [x, y] = textAt(b, "tile", "China");
+    point(b, "pointerdown", x, y, "touch");
+    point(b, "pointerup", x, y, "touch");
+    expect(legendText(b)).toBe(`Asia, China 17,795${nb}bn USD, 28% · ${chips}`);
+    const [gx, gy] = textAt(b, "tile", "Germany");
+    point(b, "pointerdown", gx, gy, "touch");
+    point(b, "pointermove", gx + 20, gy, "touch");
+    point(b, "pointerup", gx + 20, gy, "touch");
+    expect(legendText(b)).toBe(`Asia, China 17,795${nb}bn USD, 28% · ${chips}`);
+  });
+});
+
+describe("keys, the pointer and the synced selection in small multiples", () => {
+  const months = Array.from({ length: 6 }, (_, i) => Date.UTC(2024, i, 1));
+  const regions: ChartSpec = {
+    x: { type: "time", domain: [months[0] ?? 0, months.at(-1) ?? 0] },
+    y: { label: "Unemployment", format: "percent" },
+    marks: [],
+    facets: {
+      unit: { one: "region", other: "regions" },
+      panels: [
+        {
+          marks: [
+            {
+              mark: "line",
+              x: months,
+              series: [{ name: "North", y: [5, 6, 7, 8, 9, 10].map((v) => v / 100) }],
+            },
+          ],
+        },
+        {
+          marks: [
+            {
+              mark: "line",
+              x: months,
+              series: [{ name: "South", y: [3, 3, 4, 4, 5, 5].map((v) => v / 100) }],
+            },
+          ],
+        },
+        // East starts a month late, so it has no January.
+        {
+          marks: [
+            {
+              mark: "line",
+              x: months.slice(1),
+              series: [{ name: "East", y: [2, 2, 2, 2, 2].map((v) => v / 100) }],
+            },
+          ],
+        },
+      ],
+    },
+  };
+  // Every instant is the 1st of a month in the chart's zone, so each reads as its month.
+  const instant = new Intl.DateTimeFormat("en", {
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+  const jan = instant.format(months[0]);
+  const jun = instant.format(months[5]);
+  const frames = (b: Built) => [...b.plot.querySelectorAll<HTMLElement>('[data-part="frame"]')];
+  const frame = (b: Built, k: number) => frames(b)[k] as HTMLElement;
+  const svgOf = (b: Built, k: number) => frame(b, k).querySelector("svg") as SVGSVGElement;
+  const ringIn = (b: Built, k: number) => svgOf(b, k).querySelector('[data-part="ring"]');
+  const heads = (b: Built) =>
+    [...b.plot.querySelectorAll('[data-part="head"] > [data-part="figure"]')].map(
+      (f) => f.textContent,
+    );
+  const slot = (b: Built) => b.legend.querySelector(':scope > [data-part="panel"]')?.textContent;
+  // A pointer event at plot px (x, y) of panel k's drawing area.
+  const pointIn = (b: Built, k: number, type: string, x: number, y = 10) => {
+    const svg = svgOf(b, k);
+    const area = svg.querySelector('[data-part="area"]') as SVGSVGElement;
+    const view = svg.viewBox.baseVal;
+    const box = svg.getBoundingClientRect();
+    frame(b, k).dispatchEvent(
+      new PointerEvent(type, {
+        clientX: box.left + Number(area.getAttribute("x")) - view.x + AREA_ROOM + x,
+        clientY: box.top + Number(area.getAttribute("y")) + AREA_ROOM + y,
+        pointerType: "mouse",
+        pointerId: 1,
+        bubbles: type !== "pointerleave",
+      }),
+    );
+  };
+
+  it("makes each panel's plot a tab stop and an application region, not the plot around them", async () => {
+    const b = build(regions);
+    expect(b.plot.hasAttribute("role")).toBe(false);
+    expect(b.plot.hasAttribute("tabindex")).toBe(false);
+    for (const [k, name] of ["North", "South", "East"].entries()) {
+      const f = frame(b, k);
+      expect(f.getAttribute("role")).toBe("application");
+      expect(f.getAttribute("aria-roledescription")).toBe("chart");
+      expect(f.tabIndex).toBe(0);
+      await expect
+        .element(f)
+        .toHaveAccessibleName(expect.stringMatching(new RegExp(`^${name}: Line chart, `)));
+      await expect
+        .element(f)
+        .toHaveAccessibleDescription(
+          "Arrow keys read the values. Tab moves to the next panel, then out of the chart.",
+        );
+    }
+    expect(legendText(b)).toBe(`3${nb}regions · ${jun}`);
+  });
+
+  it("Tab moves from panel to panel in grid order, carrying the selected month, then out", async () => {
+    const b = build(regions);
+    (b.figure.previousElementSibling as HTMLElement).focus();
+    await userEvent.keyboard("{Tab}");
+    expect(document.activeElement).toBe(frame(b, 0));
+    await spoken(`North, ${jun}: 10%.`);
+    expect(slot(b)).toBe("North");
+    key(frame(b, 0), "Home");
+    await spoken(`North, ${jan}: 5%.`);
+    await userEvent.keyboard("{Tab}");
+    expect(document.activeElement).toBe(frame(b, 1));
+    await spoken(`South, ${jan}: 3%.`);
+    expect(legendText(b)).toBe(`South · ${jan} · 3%`);
+    // East has no January, so it makes its own first selection, its newest month.
+    await userEvent.keyboard("{Tab}");
+    expect(document.activeElement).toBe(frame(b, 2));
+    await spoken(`East, ${jun}: 2%.`);
+    await userEvent.keyboard("{Shift>}{Tab}{/Shift}");
+    expect(document.activeElement).toBe(frame(b, 1));
+    await spoken(`South, ${jun}: 5%.`);
+    await userEvent.keyboard("{Tab}{Tab}");
+    expect(document.activeElement).toBe(b.figure.nextElementSibling);
+    expect(frames(b).map((f) => f.querySelector('[data-part="ring"]'))).toEqual([null, null, null]);
+    expect(legendText(b)).toBe(`3${nb}regions · ${jun}`);
+  });
+
+  it("syncs the selection into every panel holding its month, with a fainter ring, and the heads follow", () => {
+    const b = build(regions);
+    expect(heads(b)).toEqual(["10%", "5%", "2%"]);
+    frame(b, 0).focus();
+    key(frame(b, 0), "Home");
+    expect(svgOf(b, 0).hasAttribute("data-synced")).toBe(false);
+    expect(ringIn(b, 0)).not.toBeNull();
+    expect(svgOf(b, 1).hasAttribute("data-synced")).toBe(true);
+    expect(ringIn(b, 1)).not.toBeNull();
+    expect(svgOf(b, 1).querySelector('[data-part="crosshair"]')).not.toBeNull();
+    expect(svgOf(b, 2).hasAttribute("data-synced")).toBe(false);
+    expect(ringIn(b, 2)).toBeNull();
+    expect(heads(b)).toEqual(["5%", "3%", "2%"]);
+    const selected = [...b.plot.querySelectorAll('[data-part="panel"]')].map((p) =>
+      p.hasAttribute("data-selected"),
+    );
+    expect(selected).toEqual([true, false, false]);
+    const weights = [...b.plot.querySelectorAll('[data-part="head"] > [data-part="name"]')].map(
+      (n) => getComputedStyle(n).fontWeight,
+    );
+    expect(weights).toEqual(["500", "400", "400"]);
+    const synced = getComputedStyle(ringIn(b, 1) as Element);
+    const own = getComputedStyle(ringIn(b, 0) as Element);
+    expect(synced.strokeWidth).toBe("1px");
+    expect(own.strokeWidth).toBe("2px");
+    expect(synced.stroke).not.toBe(own.stroke);
+    key(frame(b, 0), "Escape");
+    expect(frames(b).map((f) => f.querySelector('[data-part="ring"]'))).toEqual([null, null, null]);
+    expect(heads(b)).toEqual(["10%", "5%", "2%"]);
+    expect(legendText(b)).toBe(`3${nb}regions · ${jun}`);
+  });
+
+  it("weights the selected row's name in its own panel only, the synced names keeping its ink", () => {
+    // Under 30rem the bar panels stack in one column, each naming its rows.
+    const b = build(
+      {
+        marks: [],
+        facets: {
+          panels: ["Lyon", "Nice"].map((name) => ({
+            name,
+            marks: [
+              {
+                mark: "bar",
+                y: ["Coal", "Gas", "Wind"],
+                series: [{ name: "Share", x: [1, 2, 3] }],
+              },
+            ],
+          })),
+        },
+      },
+      320,
+    );
+    frame(b, 0).focus();
+    key(frame(b, 0), "Home");
+    const picked = (k: number) =>
+      svgOf(b, k).querySelector('[data-part="y"] text[data-selected]') as Element;
+    expect(svgOf(b, 1).hasAttribute("data-synced")).toBe(true);
+    expect(getComputedStyle(picked(0)).fontWeight).toBe("500");
+    expect(getComputedStyle(picked(1)).fontWeight).toBe("400");
+    expect(getComputedStyle(picked(1)).fill).toBe(getComputedStyle(picked(0)).fill);
+  });
+
+  it("a mouse selects in the panel under it, clearing the one the keys left elsewhere", () => {
+    const b = build(regions);
+    frame(b, 0).focus();
+    const width =
+      Number(svgOf(b, 1).querySelector('[data-part="area"]')?.getAttribute("width")) -
+      2 * AREA_ROOM;
+    // The second panel's SVG starts at its plot's edge: its first month is at 0.
+    pointIn(b, 1, "pointermove", 1);
+    expect(legendText(b)).toBe(`South · ${jan} · 3%`);
+    expect(svgOf(b, 0).hasAttribute("data-synced")).toBe(true);
+    pointIn(b, 1, "pointermove", width - 1);
+    expect(legendText(b)).toBe(`South · ${jun} · 5%`);
+    pointIn(b, 1, "pointerleave", width + 40);
+    expect(legendText(b)).toBe(`3${nb}regions · ${jun}`);
+    expect(frames(b).map((f) => f.querySelector('[data-part="ring"]'))).toEqual([null, null, null]);
+  });
+
+  it("keeps the legend row's slots as the selection moves between panels", () => {
+    const b = build(regions);
+    // WebKit lays text out in 1/64 px units, so a slot may round 1/64 px wider.
+    const slots = () =>
+      [':scope > [data-part="panel"]', ':scope > [data-part="at"]', '[data-part="value"]'].map(
+        (q) => b.legend.querySelector(q)?.getBoundingClientRect().right ?? 0,
+      );
+    const none = slots();
+    const height = b.legend.getBoundingClientRect().height;
+    frame(b, 2).focus();
+    for (const [k, right] of slots().entries()) {
+      expect(right).toBeCloseTo(none[k] ?? 0, 1);
+    }
+    key(frame(b, 2), "Home");
+    for (const [k, right] of slots().entries()) {
+      expect(right).toBeCloseTo(none[k] ?? 0, 1);
+    }
+    expect(b.legend.getBoundingClientRect().height).toBe(height);
+  });
+
+  it("tears down to an image per panel, moving focus from a focused panel to the figure", () => {
+    const b = build(regions);
+    frame(b, 1).focus();
+    b.life.abort();
+    expect(document.activeElement).toBe(b.figure);
+    for (const f of frames(b)) {
+      expect(f.getAttribute("role")).toBe("img");
+      expect(f.hasAttribute("tabindex")).toBe(false);
+      expect(f.hasAttribute("aria-roledescription")).toBe(false);
+    }
+    expect(frames(b).map((f) => f.querySelector('[data-part="ring"]'))).toEqual([null, null, null]);
   });
 });

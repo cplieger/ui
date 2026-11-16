@@ -13,6 +13,8 @@ const face = measurer((t) => 7.5 * Array.from(t).length, 7.5, "en");
 const metrics: Metrics = {
   measure: face,
   mono: face,
+  hole: face,
+  holeLine: 21,
   lineHeight: 17,
   nameLine: 18,
   rem: 16,
@@ -166,6 +168,33 @@ describe("rect keys", () => {
     );
     expect(spoken(s.model, { kind: "rect", i: 2, part: 1 }, words, true)).toBe(
       `${span(30, 45)}: Path No data.`,
+    );
+  });
+
+  it("starts every place a panel's keys say with the panel's name", () => {
+    const path: Selection = { kind: "rect", i: 1, part: 1 };
+    expect(spoken(b.model, path, words, true, "Germany")).toBe(`Germany, ${span(15, 30)}: Path 9.`);
+    expect(spoken(b.model, { kind: "rect", i: 0, part: undefined }, words, false, "Germany")).toBe(
+      `Germany, ${span(0, 15)}: Announce 3, Path 1. Total 4.`,
+    );
+    const pie = chartModel(
+      {
+        marks: [
+          {
+            mark: "pie",
+            slices: [
+              { name: "Coal", value: 1 },
+              { name: "Wind", value: 3 },
+            ],
+          },
+        ],
+      },
+      "en",
+      "UTC",
+    );
+    const ownWords = chartWords({ panelAt: (panel, at) => `${at} (${panel})` });
+    expect(spoken(pie, { kind: "slice", i: 1 }, ownWords, false, "2024")).toBe(
+      "Wind (2024): 3, 75%. Total 4.",
     );
   });
 
@@ -526,6 +555,19 @@ describe("the selection across an update", () => {
     const b = built(moved).model;
     expect(rekey(a, { kind: "rect", i: 2, part: 1 }, b)).toEqual({ kind: "rect", i: 1, part: 1 });
     expect(rekey(a, { kind: "rect", i: 0, part: undefined }, b)).toBe(undefined);
+  });
+
+  it("finds a bucket by both its edges, never another bucket with the same start", () => {
+    const rect = (x2: number[]): ChartSpec => ({
+      marks: [{ mark: "rect", x1: [0, 10], x2, series: [{ name: "Reads", y: [1, 2] }] }],
+    });
+    const a = built(rect([10, 20])).model;
+    expect(rekey(a, { kind: "rect", i: 0, part: 0 }, built(rect([5, 20])).model)).toBe(undefined);
+    expect(rekey(a, { kind: "rect", i: 1, part: 0 }, built(rect([5, 20])).model)).toEqual({
+      kind: "rect",
+      i: 1,
+      part: 0,
+    });
   });
 
   it("follows a dot row by its name when the rows come in a new order", () => {
@@ -1437,6 +1479,16 @@ describe("a calendar's selection", () => {
     expect(press(b, day(0), "PageUp")).toEqual([undefined]);
   });
 
+  it("pages to the first and last day at either end of what Date holds, a month away lying past it", () => {
+    // Day 1e8 is Saturday 13 September 275760, the last Date holds; day -1e8
+    // is Tuesday 20 April -271821, the first, so -1e8 + 5 is a Sunday.
+    const sundays = (start: number, n: number): ChartSpec => ({
+      marks: [{ mark: "cell", days: { start: start * DAY, values: days(n) }, weekStart: 7 }],
+    });
+    expect(press(built(sundays(1e8 - 1, 2)), day(0), "PageDown")).toEqual([day(1)]);
+    expect(press(built(sundays(-1e8 + 5, 3)), day(2), "PageUp")).toEqual([day(0)]);
+  });
+
   it("picks the day under the pointer, and nothing above the weeks or outside the days", () => {
     const g = b.lay.days;
     const at = (column: number, row: number) =>
@@ -1571,5 +1623,273 @@ describe("box keys", () => {
       "health: After median 2, middle half 2 to 3, whiskers 1 to 4.",
     );
     expect(spoken(model, box(2, 0), words, true)).toBe("health: Before No data.");
+  });
+});
+
+describe("a pie's keys, pointer and readings", () => {
+  // Germany's land by use, in km²: 51%, 30%, 14%, 3.2% and 2.3% of 357,580.
+  const LAND = [
+    { name: "Agriculture", value: 182_637 },
+    { name: "Forest", value: 106_645 },
+    { name: "Housing & traffic", value: 48_631 },
+    { name: "Other land", value: 11_443 },
+    { name: "Water", value: 8224 },
+  ];
+  const land = (
+    slices: readonly { name: string; value: number | null }[] = LAND,
+    hole = false,
+  ): ChartSpec => ({ marks: [{ mark: "pie", hole, unit: { other: "km²" }, slices }] });
+  const slice = (i: number): Selection => ({ kind: "slice", i });
+  // Plot px at angle `a` clockwise from 12 o'clock, `d` from the pie's centre.
+  const at = (b: Built, a: number, d: number): [number, number] => {
+    const p = b.lay.pie ?? { cx: 0, cy: 0 };
+    return [p.cx + d * Math.sin(a), p.cy - d * Math.cos(a)];
+  };
+  const radius = (b: Built) => b.lay.pie?.r ?? 0;
+  const turn = (share: number) => share * 2 * Math.PI;
+
+  it("focus selects the first slice, at 12 o'clock", () => {
+    expect(initial(built(land()).model)).toEqual(slice(0));
+  });
+
+  it("walks the slices with all four arrows, stopping at the ends, Home and End to them", () => {
+    const b = built(land());
+    expect(
+      press(b, slice(0), "ArrowRight", "ArrowDown", "ArrowLeft", "ArrowUp", "ArrowUp"),
+    ).toEqual([slice(1), slice(2), slice(1), slice(0), undefined]);
+    expect(press(b, slice(1), "End", "ArrowRight")).toEqual([slice(4), undefined]);
+    expect(press(b, slice(3), "Home", "Home")).toEqual([slice(0), undefined]);
+  });
+
+  it("stops at a 0 and a gap slice, which draw nothing", () => {
+    const b = built(
+      land([...LAND.slice(0, 2), { name: "Glaciers", value: 0 }, { name: "Moor", value: null }]),
+    );
+    expect(press(b, slice(1), "ArrowRight", "ArrowRight")).toEqual([slice(2), slice(3)]);
+  });
+
+  it("leaves the Page keys and a drag to the page", () => {
+    const b = built(land());
+    expect(b.nav.pages).toBe(false);
+    expect(b.nav.drags).toBe(false);
+    expect(b.nav.crosshair(slice(0))).toBe(undefined);
+  });
+
+  it("picks the slice whose angle holds the pointer, within the rim and 8 px past it", () => {
+    const b = built(land());
+    const r = radius(b);
+    expect(b.nav.pick(...at(b, 0.1, r / 2))).toEqual(slice(0));
+    // Forest runs from 51% to 81% of the turn.
+    const forest = turn((182_637 + 106_645 / 2) / 357_580);
+    expect(b.nav.pick(...at(b, forest, r + 7.9))).toEqual(slice(1));
+    expect(b.nav.pick(...at(b, forest, r + 8.1))).toBe(undefined);
+    // Just before 12 o'clock is the last slice.
+    expect(b.nav.pick(...at(b, -0.01, r / 2))).toEqual(slice(4));
+  });
+
+  it("selects nothing inside a donut's hole", () => {
+    const b = built(land(LAND, true));
+    const inner = b.lay.pie?.inner ?? 0;
+    expect(inner).toBeGreaterThan(0);
+    expect(b.nav.pick(...at(b, 1, inner - 1))).toBe(undefined);
+    expect(b.nav.pick(...at(b, 1, inner + 1))).toEqual(slice(0));
+  });
+
+  it("keeps a slice across an update by its name, and drops one that left", () => {
+    const before = built(land()).model;
+    const after = built(land([...LAND].reverse())).model;
+    expect(rekey(before, slice(1), after)).toEqual(slice(3));
+    expect(rekey(before, slice(0), built(land(LAND.slice(1))).model)).toBe(undefined);
+  });
+
+  it("says a slice's value and share, then the whole, and a gap No data", () => {
+    const model = built(land([...LAND.slice(0, 4), { name: "Water", value: null }])).model;
+    const total = 182_637 + 106_645 + 48_631 + 11_443;
+    expect(spoken(built(land()).model, slice(0), words, false)).toBe(
+      "Agriculture: 182,637\u00A0km², 51%. Total 357,580\u00A0km².",
+    );
+    expect(spoken(model, slice(3), words, false)).toBe(
+      `Other land: 11,443\u00A0km², 3.3%. Total ${writer("number", "en")(total)}\u00A0km².`,
+    );
+    expect(spoken(model, slice(4), words, false)).toBe("Water: No data.");
+  });
+});
+
+describe("a tree's keys, pointer and readings", () => {
+  // GDP in 2023, bn USD: 62,580 in all, Asia 41%, the Americas 47% and Europe 12%.
+  interface Node {
+    readonly name: string;
+    readonly value: number | null;
+  }
+  const ASIA: Node[] = [
+    { name: "China", value: 17_795 },
+    { name: "Japan", value: 4213 },
+    { name: "India", value: 3550 },
+  ];
+  const AMERICAS: Node[] = [
+    { name: "United States", value: 27_361 },
+    { name: "Brazil", value: 2174 },
+  ];
+  const EUROPE: Node[] = [
+    { name: "Germany", value: 4456 },
+    { name: "France", value: 3031 },
+  ];
+  const gdp = (asia = ASIA, order: readonly number[] = [0, 1, 2]): ChartSpec => {
+    const groups = [
+      { name: "Asia", children: asia },
+      { name: "Americas", children: AMERICAS },
+      { name: "Europe", children: EUROPE },
+    ];
+    return {
+      marks: [
+        {
+          mark: "tree",
+          unit: { other: "bn USD" },
+          nodes: order.flatMap((g) => groups[g] ?? []),
+        },
+      ],
+    };
+  };
+  const flat = (parts: readonly Node[] = [...ASIA, ...AMERICAS]): ChartSpec => ({
+    marks: [{ mark: "tree", unit: { other: "bn USD" }, nodes: parts }],
+  });
+  const part = (i: number): Selection => ({ kind: "part", i });
+  const group = (i: number): Selection => ({ kind: "group", i });
+  const tiles = (b: Built) => b.lay.tree?.tiles ?? [];
+  const bands = (b: Built) => b.lay.tree?.bands ?? [];
+  const middle = (box: { left: number; top: number; right: number; bottom: number }) =>
+    [(box.left + box.right) / 2, (box.top + box.bottom) / 2] as const;
+
+  it("focus selects the first group, or with one level the first part", () => {
+    expect(initial(built(gdp()).model)).toEqual(group(0));
+    expect(initial(built(flat()).model)).toEqual(part(0));
+    expect(initial(built(flat([])).model)).toBe(undefined);
+  });
+
+  it("walks one level's parts with all four arrows, stopping at the ends, Home and End to them", () => {
+    const b = built(flat());
+    expect(press(b, part(0), "ArrowRight", "ArrowDown", "ArrowLeft", "ArrowUp", "ArrowUp")).toEqual(
+      [part(1), part(2), part(1), part(0), undefined],
+    );
+    expect(press(b, part(1), "End", "ArrowRight")).toEqual([part(4), undefined]);
+    expect(press(b, part(3), "Home", "Home")).toEqual([part(0), undefined]);
+  });
+
+  it("moves through two levels by the band map: Up and Down the groups, Left and Right the parts", () => {
+    const b = built(gdp());
+    expect(press(b, group(0), "ArrowDown", "ArrowDown", "ArrowDown")).toEqual([
+      group(1),
+      group(2),
+      undefined,
+    ]);
+    expect(press(b, group(0), "ArrowUp")).toEqual([undefined]);
+    // A group's Right takes its first part, its Left the last part of the group before.
+    expect(press(b, group(1), "ArrowRight")).toEqual([part(3)]);
+    expect(press(b, group(1), "ArrowLeft")).toEqual([part(2)]);
+    expect(press(b, group(0), "ArrowLeft")).toEqual([undefined]);
+    // The parts' walk crosses groups, and stops at the first and the last.
+    expect(press(b, part(1), "ArrowRight", "ArrowRight", "ArrowRight")).toEqual([
+      part(2),
+      part(3),
+      part(4),
+    ]);
+    expect(press(b, part(6), "ArrowRight")).toEqual([undefined]);
+    expect(press(b, part(0), "ArrowLeft")).toEqual([undefined]);
+    // From a part, Up and Down take the group before or after its own.
+    expect(press(b, part(3), "ArrowUp")).toEqual([group(0)]);
+    expect(press(b, part(3), "ArrowDown")).toEqual([group(2)]);
+    expect(press(b, part(0), "ArrowUp")).toEqual([undefined]);
+  });
+
+  it("takes Home and End to the first and last node at the selected level", () => {
+    const b = built(gdp());
+    expect(press(b, group(1), "Home", "Home")).toEqual([group(0), undefined]);
+    expect(press(b, group(1), "End", "End")).toEqual([group(2), undefined]);
+    expect(press(b, part(3), "Home", "End")).toEqual([part(0), part(6)]);
+  });
+
+  it("stops at a 0 and a gap part, which draw no tile", () => {
+    const b = built(
+      gdp([
+        { name: "China", value: 0 },
+        { name: "Japan", value: null },
+      ]),
+    );
+    expect(tiles(b).slice(0, 2)).toEqual([undefined, undefined]);
+    expect(press(b, group(0), "ArrowRight", "ArrowRight", "ArrowRight")).toEqual([
+      part(0),
+      part(1),
+      part(2),
+    ]);
+  });
+
+  it("leaves the Page keys and a drag to the page, and draws no crosshair", () => {
+    const b = built(gdp());
+    expect(press(b, group(0), "PageDown", "PageUp")).toEqual([undefined, undefined]);
+    expect(press(b, part(0), "PageDown")).toEqual([undefined]);
+    expect(b.nav.pages).toBe(false);
+    expect(b.nav.drags).toBe(false);
+    expect(b.nav.crosshair(part(0))).toBe(undefined);
+    expect(b.nav.crosshair(group(0))).toBe(undefined);
+  });
+
+  it("picks the tile under the pointer, or the group whose head band is under it", () => {
+    const b = built(gdp());
+    tiles(b).forEach((t, i) => {
+      expect(t === undefined ? undefined : b.nav.pick(...middle(t)), String(i)).toEqual(part(i));
+    });
+    expect(bands(b).every((band) => band !== undefined)).toBe(true);
+    bands(b).forEach((band, g) => {
+      expect(band === undefined ? undefined : b.nav.pick(...middle(band))).toEqual(group(g));
+    });
+  });
+
+  it("picks the nearest tile within 4 px in a gap or past the plot's edge, and nothing farther", () => {
+    const b = built(gdp());
+    const china = tiles(b)[0];
+    const asia = b.lay.tree?.groups[0];
+    expect(china?.left).toBe(0);
+    expect(asia?.left).toBe(0);
+    const y = china === undefined ? 0 : (china.top + china.bottom) / 2;
+    expect(b.nav.pick(-4, y)).toEqual(part(0));
+    expect(b.nav.pick(-4.1, y)).toBe(undefined);
+    // Asia's right edge stands 4 px from the next group's: 1 px out is Asia's.
+    const right = Math.max(
+      ...tiles(b)
+        .slice(0, 3)
+        .map((t) => t?.right ?? 0),
+    );
+    const edge = tiles(b)
+      .slice(0, 3)
+      .findIndex((t) => t?.right === right && t.top <= y && t.bottom >= y);
+    expect(edge).not.toBe(-1);
+    expect(b.nav.pick(right + 1, y)).toEqual(part(edge));
+  });
+
+  it("keeps a node across an update by its group's name and its own, and drops one that left", () => {
+    const before = built(gdp()).model;
+    const after = built(gdp(ASIA, [2, 0, 1])).model;
+    expect(rekey(before, group(0), after)).toEqual(group(1));
+    expect(rekey(before, part(3), after)).toEqual(part(5));
+    expect(rekey(before, part(0), built(gdp(ASIA.slice(1))).model)).toBe(undefined);
+    expect(rekey(before, part(0), built(flat()).model)).toBe(undefined);
+    expect(rekey(built(flat()).model, part(3), built(flat([...AMERICAS, ...ASIA])).model)).toEqual(
+      part(0),
+    );
+  });
+
+  it("says a part's path, value and share, a group's with its part count, and a gap No data", () => {
+    const model = built(gdp()).model;
+    expect(spoken(model, part(0), words, false)).toBe("Asia, China: 17,795\u00A0bn USD, 28%.");
+    expect(spoken(model, part(3), words, true)).toBe(
+      "Americas, United States: 27,361\u00A0bn USD, 44%.",
+    );
+    expect(spoken(model, group(0), words, false)).toBe("Asia: 25,558\u00A0bn USD, 41%, 3 parts.");
+    expect(spoken(model, group(2), words, false)).toBe("Europe: 7,487\u00A0bn USD, 12%, 2 parts.");
+    const gap = built(gdp([...ASIA.slice(0, 2), { name: "India", value: null }])).model;
+    expect(spoken(gap, part(2), words, false)).toBe("Asia, India: No data.");
+    expect(spoken(built(flat()).model, part(0), words, false)).toBe(
+      "China: 17,795\u00A0bn USD, 32%.",
+    );
   });
 });

@@ -1,11 +1,15 @@
 /**
  * table.ts — a chart's table view: the same data as the plot, one row per
  * bucket, sample, change point, dot row, category, box, slope series,
- * scatter dot, cell row or calendar week, kept in place across updates.
+ * scatter dot, cell row, calendar week, slice or tree's part, a tree's
+ * groups each in a `<tbody>` of their own, small multiples' panels each in a
+ * column group or a `<tbody>`, kept in place across updates.
  * @module
  */
 
 import { writer } from "../scale/format.js";
+import { upperBound } from "../scale/reduce.js";
+import { dateAt } from "../scale/time.js";
 
 import { dayFormat, weekCount, weekRow } from "./calendar.js";
 import type {
@@ -13,11 +17,15 @@ import type {
   BoxModel,
   CalendarModel,
   CellModel,
+  FacetsModel,
   Model,
+  PieModel,
+  TreeModel,
   PointModel,
   RectModel,
   SampleModel,
   ScatterModel,
+  SeriesModel,
   SlopeModel,
 } from "./model.js";
 import {
@@ -25,6 +33,7 @@ import {
   barTotal,
   bucketTotal,
   cellCount,
+  drawnTotal,
   pointLink,
   sampleTotal,
   slopeChange,
@@ -39,16 +48,19 @@ import {
   linkText,
   measuresOf,
   partText,
-  primaryOf,
   samplePart,
+  sliceShare,
   totalWord,
   totalled,
+  treeShare,
 } from "./readout.js";
-import { noteSentences, ruleSentences } from "./summary.js";
+import { noteSentences, panelNotes, ruleSentences } from "./summary.js";
 import type { Words } from "./words.js";
 
 /** Text, or an instant written in a `<time datetime>`, as a calendar date
- *  (`YYYY-MM-DD` of `at` in UTC) when `date` is set. */
+ *  (the UTC day of `at`) when `date` is set. HTML's date strings take a
+ *  year above 0 with no sign, so an instant before year 1 is its text alone
+ *  (https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#dates). */
 type Part = string | { readonly at: number; readonly text: string; readonly date?: boolean };
 
 interface Cell {
@@ -58,16 +70,44 @@ interface Cell {
 
 interface Row {
   /** The row's x, its dot row's name and place among rows of that name, or
-   *  its category's name. */
+   *  its category's name; unique within its `<tbody>`. */
   readonly key: string;
   readonly head: readonly Part[];
+  /** A group's head row's header names its `<tbody>`; any other row's its row. */
+  readonly scope?: "rowgroup";
+  /** How many columns the header spans, when it stands across the row. */
+  readonly span?: number;
   readonly cells: readonly Cell[];
+}
+
+/** A run of a table's rows in a `<tbody>` of its own, after its head row. */
+interface Group {
+  /** The group's name, unique among the table's groups. */
+  readonly key: string;
+  readonly head: Row;
+  /** How many of the table's rows, in order from the last group's, it holds. */
+  readonly count: number;
+}
+
+/** A head over a run of the table's columns, a `<colgroup>` of them. */
+interface Band {
+  readonly text: string;
+  readonly span: number;
 }
 
 export interface TableModel {
   readonly corner: string;
   readonly columns: readonly { readonly text: string; readonly num: boolean }[];
+  /** Heads over the columns after the first `lead`, in a row above
+   *  theirs; the corner and the lead columns head both rows. */
+  readonly bands?: readonly Band[];
+  readonly lead?: number;
   readonly rows: readonly Row[];
+  /** A tree's groups, which split `rows` into a `<tbody>` each; one
+   *  `<tbody>` for every row without them. */
+  readonly groups?: readonly Group[];
+  /** A pie's or a tree's Total row, in the table's `<tfoot>`. */
+  readonly foot?: Row;
   /** The rules' and notes' sentences after the table. */
   readonly after: string;
 }
@@ -89,9 +129,10 @@ function timed(model: Model, write: (m: Model) => string): Part[] {
   const marked: Model = {
     ...model,
     xText: (v) => mark(v, model.xText(v)),
-    xSpan: (from, to) => {
-      const [a, b] = model.xSpan(from, to);
-      return [mark(from, a), mark(to, b)];
+    xSpan: (from, to, open) => {
+      const [a, b] = model.xSpan(from, to, open);
+      const first = { at: a.at, text: mark(a.at, a.text) };
+      return b === undefined ? [first] : [first, { at: b.at, text: mark(b.at, b.text) }];
     },
   };
   return write(marked)
@@ -111,31 +152,72 @@ function rectRows(model: Model, m: RectModel, words: Words): Row[] {
       cells.push({ parts: [model.amountText(bucketTotal(m, i))], num: true });
     }
     return {
-      key: String(m.x1[i]),
+      // Both edges: panels' buckets may share a start and differ in end.
+      key: `${String(m.x1[i])} ${String(m.x2[i])}`,
       head: timed(model, (t) => bucketText(t, m, i, words)),
       cells,
     };
   });
 }
 
+// Sample `i`'s cells: each series' value where `holds` does, else No data,
+// then from two area series up their Total.
+function sampleCells(
+  model: Model,
+  m: SampleModel,
+  i: number,
+  words: Words,
+  holds: (s: SeriesModel) => boolean = () => true,
+): Cell[] {
+  const cells: Cell[] = m.series.map((s) => ({
+    parts: [holds(s) ? samplePart(model, m, s, i, words) : words.noData],
+    num: true,
+  }));
+  if (m.kind === "area" && m.series.length > 1) {
+    const total = m.series.every(holds) ? sampleTotal(m, i) : null;
+    cells.push({
+      parts: [total === null ? words.noData : model.amountText(total)],
+      num: true,
+    });
+  }
+  return cells;
+}
+
 function lineRows(model: Model, m: SampleModel, words: Words): Row[] {
   const indices = m.step
     ? stepStops(m)
     : Array.from({ length: m.to - m.from }, (_, k) => m.from + k);
-  return indices.map((i) => {
-    const cells: Cell[] = m.series.map((s) => ({
-      parts: [samplePart(model, m, s, i, words)],
-      num: true,
-    }));
-    if (m.kind === "area" && m.series.length > 1) {
-      const total = sampleTotal(m, i);
-      cells.push({
-        parts: [total === null ? words.noData : model.amountText(total)],
-        num: true,
-      });
-    }
-    return { key: String(m.x[i]), head: timed(model, (t) => t.xText(m.x[i] ?? 0)), cells };
-  });
+  return indices.map((i) => ({
+    key: String(m.x[i]),
+    head: timed(model, (t) => t.xText(m.x[i] ?? 0)),
+    cells: sampleCells(model, m, i, words),
+  }));
+}
+
+/** The cells a step line or stepped area draws at `x`, none of its rows:
+ *  the level of its last sample at or before `x`, the one beyond the
+ *  domain's start included, as the plot holds it until the next sample;
+ *  undefined before that, and No data where a gap or its end stops the
+ *  drawn step. */
+function heldCells(model: Model, m: SampleModel, x: number, words: Words): Cell[] | undefined {
+  const i = upperBound(m.x, x) - 1;
+  if (i < 0 || i < m.from - 1) {
+    return undefined;
+  }
+  const next = i + 1;
+  if (m.x[i] === x) {
+    return sampleCells(model, m, i, words);
+  }
+  // An area draws a held step only between two drawn samples: a gap in any
+  // series, or a share's zero total, at either end breaks every layer.
+  const whole = m.kind !== "area" || (drawnTotal(m, i) !== null && drawnTotal(m, next) !== null);
+  return sampleCells(
+    model,
+    m,
+    i,
+    words,
+    (s) => next < m.x.length && whole && (s.y[next] ?? null) !== null,
+  );
 }
 
 // A row per category, a column per series, and from two stacked series up
@@ -294,6 +376,70 @@ function cellTable(model: Model, m: CellModel, words: Words, after: string): Tab
   };
 }
 
+// A row per slice in the app's order, its value bare under the unit's
+// plural, then its share, and the whole in the foot.
+function pieTable(model: Model, m: PieModel, words: Words, after: string): TableModel {
+  const rows = m.slices.map((s, i): Row => ({
+    key: s.name,
+    head: [s.name],
+    cells: [
+      { parts: [s.value === null ? words.noData : model.amountText(s.value)], num: true },
+      { parts: [sliceShare(model, m, i, words)], num: true },
+    ],
+  }));
+  return {
+    corner: "",
+    columns: [
+      { text: m.unit?.other ?? words.value, num: true },
+      { text: words.share, num: true },
+    ],
+    rows,
+    foot: {
+      key: "",
+      head: [words.total],
+      cells: [
+        { parts: [model.amountText(m.total)], num: true },
+        { parts: [model.shareText(1)], num: true },
+      ],
+    },
+    after,
+  };
+}
+
+// A row per part in the app's order, its value bare under the unit's
+// plural, then its share of the whole; with two levels each group's parts
+// after its own head row, its sum and share; the whole in the foot.
+function treeTable(model: Model, m: TreeModel, words: Words, after: string): TableModel {
+  const amounts = (v: number | null): Cell[] => [
+    { parts: [v === null ? words.noData : model.amountText(v)], num: true },
+    { parts: [v === null ? words.noData : treeShare(model, m, v)], num: true },
+  ];
+  const rows = m.parts.map((p): Row => ({ key: p.name, head: [p.name], cells: amounts(p.value) }));
+  const groups = m.groups.map((g): Group => ({
+    key: g.name,
+    head: { key: "", head: [g.name], scope: "rowgroup", cells: amounts(g.value) },
+    count: g.count,
+  }));
+  return {
+    corner: "",
+    columns: [
+      { text: m.unit?.other ?? words.value, num: true },
+      { text: words.share, num: true },
+    ],
+    rows,
+    ...(groups.length > 0 ? { groups } : {}),
+    foot: {
+      key: "",
+      head: [words.total],
+      cells: [
+        { parts: [model.amountText(m.total)], num: true },
+        { parts: [model.shareText(1)], num: true },
+      ],
+    },
+    after,
+  };
+}
+
 // A row per category, or per category and series from two series up with a
 // Series column, its five numbers Low to High and its outliers ascending.
 function boxTable(model: Model, m: BoxModel, words: Words, after: string): TableModel {
@@ -367,22 +513,144 @@ function calendarTable(model: Model, m: CalendarModel, words: Words, after: stri
   };
 }
 
+// A box mark's whiskers convention, said after the table.
+const whiskersAfter = (model: Model, words: Words): string[] => {
+  const m = model.primary;
+  return m?.kind === "box" && m.whiskers !== undefined ? [words.whiskersNote(m.whiskers)] : [];
+};
+
+// Marks whose rows are a panel's own items: dots, a grid's rows, a
+// calendar's weeks.
+const OWN_ROWS = new Set(["scatter", "cell", "calendar"]);
+
+// Marks whose rows are positions on x, kept in the order of their values.
+const ON_X = new Set(["rect", "line", "area"]);
+
+/**
+ * Small multiples' one table. Marks whose rows are positions shared across
+ * panels take a row per position any panel holds and a column group per
+ * panel, a panel's one column headed by its name; marks whose rows are a
+ * panel's own items take a `<tbody>` per panel. The rules follow once, then
+ * each panel's notes.
+ */
+function facetTable(model: Model, facets: FacetsModel, words: Words): TableModel {
+  const after = [
+    ...whiskersAfter(model, words),
+    ...ruleSentences(model, words),
+    ...panelNotes(facets, words),
+  ].join(" ");
+  const tables = facets.panels.map((p) => tableModel(p.model, words));
+  const [first] = tables;
+  const m = model.primary;
+  if (first === undefined || m === undefined) {
+    return { corner: "", columns: [], rows: [], after };
+  }
+  if (OWN_ROWS.has(m.kind)) {
+    const span = first.columns.length + 1;
+    const groups = facets.panels.map((p, k): Group => ({
+      key: p.name,
+      head: { key: "", head: [p.name], scope: "rowgroup", span, cells: [] },
+      count: tables[k]?.rows.length ?? 0,
+    }));
+    return { ...first, rows: tables.flatMap((t) => t.rows), groups, after };
+  }
+  // A box chart's Series column names the row with its category, so it
+  // stands once, before the groups.
+  const lead = m.kind === "box" && m.series.length > 1 ? 1 : 0;
+  const width = (t: TableModel) => t.columns.length - lead;
+  const byKey = tables.map((t) => new Map(t.rows.map((r) => [r.key, r])));
+  const heads = new Map<string, Row>();
+  for (const t of tables) {
+    for (const r of t.rows) {
+      if (!heads.has(r.key)) {
+        heads.set(r.key, r);
+      }
+    }
+  }
+  const keys = [...heads.keys()];
+  if (ON_X.has(m.kind)) {
+    // A bucket's key is its two edges, a sample's its x.
+    const edges = (k: string) => k.split(" ").map(Number);
+    keys.sort((a, b) => {
+      const [a1 = 0, a2 = 0] = edges(a);
+      const [b1 = 0, b2 = 0] = edges(b);
+      return a1 - b1 || a2 - b2;
+    });
+  }
+  const missing = (n: number): Cell[] =>
+    Array.from({ length: n }, () => ({ parts: [words.noData], num: true }));
+  // A step's table lists only its change points; between them it holds.
+  const held = (k: number, key: string): Cell[] | undefined => {
+    const p = facets.panels[k]?.model;
+    const s = p?.primary;
+    return p !== undefined && (s?.kind === "line" || s?.kind === "area") && s.step
+      ? heldCells(p, s, Number(key), words)
+      : undefined;
+  };
+  const rows = keys.map((key): Row => {
+    const head = heads.get(key);
+    const cells = tables.flatMap((t, k) => {
+      const r = byKey[k]?.get(key);
+      return r === undefined ? (held(k, key) ?? missing(width(t))) : r.cells.slice(lead);
+    });
+    return {
+      key,
+      head: head?.head ?? [key],
+      cells: [...(head?.cells ?? []).slice(0, lead), ...cells],
+    };
+  });
+  const feet = tables.map((t) => t.foot);
+  const foot =
+    first.foot === undefined
+      ? undefined
+      : {
+          ...first.foot,
+          cells: feet.flatMap((f, k) => f?.cells ?? missing(width(tables[k] ?? first))),
+        };
+  const single = lead === 0 && tables.every((t) => t.columns.length === 1);
+  const base = { corner: first.corner, rows, after, ...(foot === undefined ? {} : { foot }) };
+  if (single) {
+    return {
+      ...base,
+      columns: facets.panels.map((p, k) => ({
+        text: p.name,
+        num: tables[k]?.columns[0]?.num ?? true,
+      })),
+    };
+  }
+  return {
+    ...base,
+    columns: [...first.columns.slice(0, lead), ...tables.flatMap((t) => t.columns.slice(lead))],
+    bands: facets.panels.map((p, k) => ({ text: p.name, span: width(tables[k] ?? first) })),
+    lead,
+  };
+}
+
 /** Whether the table's row heads are the app's names, each set in a `<bdi>`
- *  so a right-to-left name keeps its place: a band's rows, a slope's series
- *  or a scatter's dots. */
+ *  so a right-to-left name keeps its place: a band's rows, a slope's series,
+ *  a scatter's dots, a pie's slices or a treemap's groups and parts. */
 export const namedRows = (model: Model): boolean => {
-  const kind = primaryOf(model)?.kind;
-  return model.y.type === "band" || kind === "slope" || kind === "scatter";
+  const kind = model.primary?.kind;
+  return (
+    model.y.type === "band" ||
+    kind === "slope" ||
+    kind === "scatter" ||
+    kind === "pie" ||
+    kind === "tree"
+  );
 };
 
 /** What the table view shows for `model`. */
 export function tableModel(model: Model, words: Words): TableModel {
-  const m = primaryOf(model);
-  const whiskers =
-    m?.kind === "box" && m.whiskers !== undefined ? [words.whiskersNote(m.whiskers)] : [];
-  const after = [...whiskers, ...ruleSentences(model, words), ...noteSentences(model, words)].join(
-    " ",
-  );
+  if (model.facets !== undefined) {
+    return facetTable(model, model.facets, words);
+  }
+  const m = model.primary;
+  const after = [
+    ...whiskersAfter(model, words),
+    ...ruleSentences(model, words),
+    ...noteSentences(model, words),
+  ].join(" ");
   if (m === undefined) {
     return { corner: "", columns: [], rows: [], after };
   }
@@ -435,6 +703,12 @@ export function tableModel(model: Model, words: Words): TableModel {
   if (m.kind === "box") {
     return boxTable(model, m, words, after);
   }
+  if (m.kind === "pie") {
+    return pieTable(model, m, words, after);
+  }
+  if (m.kind === "tree") {
+    return treeTable(model, m, words, after);
+  }
   const columns = m.series.map((s) => ({ text: s.name, num: true }));
   if (m.kind === "rect" ? totalled(m) : m.kind === "area" && m.series.length > 1) {
     columns.push({ text: words.total, num: true });
@@ -448,25 +722,35 @@ export function tableModel(model: Model, words: Words): TableModel {
 }
 
 function write(el: HTMLElement, parts: readonly Part[], isolate: boolean): void {
-  const nodes = parts.map((p) => {
+  const text = (s: string): Node | string => {
+    if (!isolate) {
+      return s;
+    }
+    const bdi = document.createElement("bdi");
+    bdi.textContent = s;
+    return bdi;
+  };
+  const nodes = document.createDocumentFragment();
+  for (const p of parts) {
     if (typeof p === "string") {
-      if (!isolate) {
-        return p;
-      }
-      const bdi = document.createElement("bdi");
-      bdi.textContent = p;
-      return bdi;
+      nodes.append(text(p));
+      continue;
+    }
+    const at = dateAt(p.at, "renderChart: an instant the table writes");
+    if (at.getUTCFullYear() < 1) {
+      nodes.append(text(p.text));
+      continue;
     }
     const time = document.createElement("time");
-    const iso = new Date(p.at).toISOString();
-    time.dateTime = p.date === true ? iso.slice(0, 10) : iso;
+    const iso = at.toISOString().replace(/^\+/u, "");
+    time.dateTime = p.date === true ? iso.slice(0, iso.indexOf("T")) : iso;
     time.textContent = p.text;
-    return time;
-  });
-  el.replaceChildren(...nodes);
+    nodes.append(time);
+  }
+  el.replaceChildren(nodes);
 }
 
-function headCell(text: string, num: boolean): HTMLElement {
+function headCell(text: string, num: boolean): HTMLTableCellElement {
   const th = document.createElement("th");
   th.scope = "col";
   if (num) {
@@ -480,8 +764,12 @@ function bodyRow(row: Row, isolate: boolean): HTMLTableRowElement {
   const tr = document.createElement("tr");
   tr.dataset["key"] = row.key;
   const th = document.createElement("th");
-  th.scope = "row";
-  write(th, row.head, isolate);
+  th.scope = row.scope ?? "row";
+  if (row.span !== undefined) {
+    th.colSpan = row.span;
+  }
+  // A group's head is always the app's name: a tree's group, a panel.
+  write(th, row.head, isolate || row.scope === "rowgroup");
   tr.append(th);
   for (const c of row.cells) {
     const td = document.createElement("td");
@@ -506,13 +794,166 @@ function cornerCell(text: string): HTMLTableCellElement {
 }
 
 const headSignature = (t: TableModel): string =>
-  JSON.stringify([t.corner, t.columns.map((c) => c.text)]);
+  JSON.stringify([t.corner, t.columns.map((c) => c.text), t.bands ?? [], t.lead ?? 0]);
+
+// The head's rows: the column heads, under the bands' heads when the table
+// has bands, beside the corner and the lead columns, which head both rows.
+function writeHead(table: HTMLTableElement, t: TableModel): void {
+  const bands = t.bands ?? [];
+  const lead = t.lead ?? 0;
+  const tall = bands.length > 0;
+  if (tall) {
+    // scope="colgroup" names the columns of the <colgroup> its cell starts.
+    const outside = document.createElement("colgroup");
+    outside.span = 1 + lead;
+    table.append(outside);
+    for (const b of bands) {
+      const group = document.createElement("colgroup");
+      group.span = b.span;
+      table.append(group);
+    }
+  }
+  const thead = table.createTHead();
+  const top = thead.insertRow();
+  const corner = cornerCell(t.corner);
+  top.append(corner);
+  const columns = t.columns.map((c) => headCell(c.text, c.num));
+  if (!tall) {
+    for (const th of columns) {
+      top.append(th);
+    }
+    return;
+  }
+  corner.rowSpan = 2;
+  for (const th of columns.slice(0, lead)) {
+    th.rowSpan = 2;
+    top.append(th);
+  }
+  for (const b of bands) {
+    const th = document.createElement("th");
+    th.scope = "colgroup";
+    th.colSpan = b.span;
+    write(th, [b.text], true);
+    top.append(th);
+  }
+  const below = thead.insertRow();
+  for (const th of columns.slice(lead)) {
+    below.append(th);
+  }
+}
 
 // Rewrites `el`'s children only when they differ, so the cell itself, and
 // a reader's place on it, stays.
 function rewrite(el: Element, fresh: Element): void {
   if (el.innerHTML !== fresh.innerHTML) {
-    el.replaceChildren(...fresh.childNodes);
+    const children = document.createRange();
+    children.selectNodeContents(fresh);
+    el.replaceChildren(children.extractContents());
+  }
+}
+
+// Writes `foot` as the table's `<tfoot>` row, its cells rewritten in place.
+function syncFoot(table: HTMLTableElement, foot: Row | undefined, named: boolean): void {
+  if (foot === undefined) {
+    table.tFoot?.remove();
+    return;
+  }
+  const fresh = bodyRow(foot, named);
+  const tr = table.tFoot?.rows[0];
+  if (tr === undefined) {
+    table.createTFoot().append(fresh);
+    return;
+  }
+  [...tr.cells].forEach((cell, k) => {
+    const now = fresh.cells[k];
+    if (now !== undefined) {
+      rewrite(cell, now);
+    }
+  });
+}
+
+// Each `<tbody>` of `t` with its rows: a group's head row first, or one
+// `<tbody>` keyed "" for every row.
+function bodiesOf(t: TableModel): { readonly key: string; readonly rows: readonly Row[] }[] {
+  if (t.groups === undefined) {
+    return [{ key: "", rows: t.rows }];
+  }
+  let from = 0;
+  return t.groups.map((g) => {
+    const rows = [g.head, ...t.rows.slice(from, from + g.count)];
+    from += g.count;
+    return { key: g.key, rows };
+  });
+}
+
+// Puts `rows` in `body` by key: changed cells rewritten in place, new rows
+// inserted and rows that left removed.
+function syncRows(body: HTMLTableSectionElement, rows: readonly Row[], named: boolean): void {
+  // Rows that left go first, so no kept row is moved, which would blur it.
+  const keys = new Set(rows.map((r) => r.key));
+  const old = new Map<string, HTMLTableRowElement>();
+  for (const tr of [...body.rows]) {
+    const key = tr.dataset["key"] ?? "";
+    if (keys.has(key)) {
+      old.set(key, tr);
+    } else {
+      tr.remove();
+    }
+  }
+  let after: HTMLTableRowElement | null = null;
+  for (const row of rows) {
+    const fresh = bodyRow(row, named);
+    let tr = old.get(row.key);
+    if (tr === undefined) {
+      tr = fresh;
+    } else {
+      [...tr.cells].forEach((cell, k) => {
+        const now = fresh.cells[k];
+        if (now !== undefined) {
+          rewrite(cell, now);
+        }
+      });
+    }
+    const placed: boolean =
+      after === null ? body.firstElementChild === tr : after.nextElementSibling === tr;
+    if (!placed) {
+      if (after === null) {
+        body.prepend(tr);
+      } else {
+        after.after(tr);
+      }
+    }
+    after = tr;
+  }
+}
+
+// Puts `t`'s `<tbody>`s after `table`'s head by key, as `syncRows` puts rows.
+function syncBodies(table: HTMLTableElement, t: TableModel, named: boolean): void {
+  const bodies = bodiesOf(t);
+  const keys = new Set(bodies.map((b) => b.key));
+  const old = new Map<string, HTMLTableSectionElement>();
+  for (const tb of [...table.tBodies]) {
+    const key = tb.dataset["key"] ?? "";
+    if (keys.has(key)) {
+      old.set(key, tb);
+    } else {
+      tb.remove();
+    }
+  }
+  let after: Element | null = table.tHead;
+  for (const b of bodies) {
+    let tb = old.get(b.key);
+    if (tb === undefined) {
+      tb = document.createElement("tbody");
+      if (b.key !== "") {
+        tb.dataset["key"] = b.key;
+      }
+    }
+    syncRows(tb, b.rows, named);
+    if (after?.nextElementSibling !== tb) {
+      after?.after(tb);
+    }
+    after = tb;
   }
 }
 
@@ -529,13 +970,9 @@ export function syncTable(panel: HTMLElement, t: TableModel, title: string, name
     table.dataset["head"] = headSignature(t);
     const caption = table.createCaption();
     caption.textContent = title;
-    const head = table.createTHead().insertRow();
-    head.append(cornerCell(t.corner), ...t.columns.map((c) => headCell(c.text, c.num)));
-    // One append per row, since a long line's rows overflow an argument list.
-    const body = table.createTBody();
-    for (const r of t.rows) {
-      body.append(bodyRow(r, named));
-    }
+    writeHead(table, t);
+    // Filled before it is shown, so its rows cost no layout.
+    syncBodies(table, t, named);
     panel.querySelector("table")?.remove();
     panel.prepend(table);
   } else {
@@ -543,44 +980,9 @@ export function syncTable(panel: HTMLElement, t: TableModel, title: string, name
     if (caption !== null && caption.textContent !== title) {
       caption.textContent = title;
     }
-    const body = table.tBodies[0] ?? table.createTBody();
-    // Rows that left go first, so no kept row is moved, which would blur it.
-    const keys = new Set(t.rows.map((r) => r.key));
-    const old = new Map<string, HTMLTableRowElement>();
-    for (const tr of [...body.rows]) {
-      const key = tr.dataset["key"] ?? "";
-      if (keys.has(key)) {
-        old.set(key, tr);
-      } else {
-        tr.remove();
-      }
-    }
-    let after: HTMLTableRowElement | null = null;
-    for (const row of t.rows) {
-      const fresh = bodyRow(row, named);
-      let tr = old.get(row.key);
-      if (tr === undefined) {
-        tr = fresh;
-      } else {
-        [...tr.cells].forEach((cell, k) => {
-          const now = fresh.cells[k];
-          if (now !== undefined) {
-            rewrite(cell, now);
-          }
-        });
-      }
-      const placed: boolean =
-        after === null ? body.firstElementChild === tr : after.nextElementSibling === tr;
-      if (!placed) {
-        if (after === null) {
-          body.prepend(tr);
-        } else {
-          after.after(tr);
-        }
-      }
-      after = tr;
-    }
+    syncBodies(table, t, named);
   }
+  syncFoot(table, t.foot, named);
   let after = panel.querySelector<HTMLElement>('[data-part="after"]');
   if (t.after === "") {
     after?.remove();

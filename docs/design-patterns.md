@@ -1,6 +1,6 @@
 # Design patterns
 
-This page covers the patterns of the design language in `@cplieger/ui/css/system`, for loading, forms, tables, lists, tabs, dialogs, notifications, messages, first run, navigation, language and words. It builds on [Design language](design.md), which covers type, layout, touch and motion, on [Colour](design-colour.md), and on [Components](design-components.md), which lists the classes. [Settings](design-settings.md) covers the settings page, and [Account and sign-in](design-account.md) the screens around an app's accounts.
+This page covers the patterns of the design language in `@cplieger/ui/css/system`, for loading, forms, tables, lists, tabs, dialogs, notifications, the header status, messages, first run, navigation, language and words. It builds on [Design language](design.md), which covers type, layout, touch and motion, on [Colour](design-colour.md), and on [Components](design-components.md), which lists the classes. [Settings](design-settings.md) covers the settings page, and [Account and sign-in](design-account.md) the screens around an app's accounts.
 
 ## Loading
 
@@ -50,7 +50,7 @@ Every region that loads data has four designed states, for loading, empty, error
 ```
 
 1. Retry turns busy while the work runs again, and the state and its reason stay until the answer comes, so the item never shows two spinners.
-2. When the work is done, the state turns `done` and Retry leaves. If Retry had focus, focus the item before removing Retry, so focus never falls to the page; the item carries `tabindex="-1"` so it can take focus.
+2. When the work is done, the state turns `done` and Retry leaves. If Retry had focus, focus the item before removing Retry, so focus never falls to the page. The item carries `tabindex="-1"` so it can take focus.
 3. When it fails again, the reason changes to the new one and Retry is back at rest.
 4. Announce the outcome through `@cplieger/ui/announce`, assertively for a failure of what the person just did.
 
@@ -103,7 +103,7 @@ Rows are never interactive. A row's actions are buttons in its last cell, and a 
 
 ## Charts
 
-Pick the form by the question the data answers, after [Datawrapper's guide to chart types](https://www.datawrapper.de/blog/chart-types-guide). A chart with axes is a [chart](data/chart.md), whose [Choosing a chart](data/chart.md#choosing-a-chart) says which form answers which question, from stacked columns per time bucket and bars by category to a timeline strip of who acts when. Outside it:
+Pick the form by the question the data answers, after [Datawrapper's guide to chart types](https://www.datawrapper.de/blog/chart-types-guide). A chart with axes, or a pie or treemap of one whole, is a [chart](data/chart.md), whose [Choosing a chart](data/chart.md#choosing-a-chart) says which form answers which question, from stacked columns per time bucket and bars by category to a timeline strip of who acts when. Outside it:
 
 - A number now is a `.cp-figure` from [Components](design-components.md), with a [sparkline](data/sparkline.md) for how it moved over the range.
 - A count that is almost always zero, such as failed checks, is a `.cp-figure`, since a chart of zeros says less than the number.
@@ -121,7 +121,7 @@ Pick the form by the question the data answers, after [Datawrapper's guide to ch
 3. Neighbouring edges differ by a factor of 2 to 3, so on a log axis no bin is over 1.6 times another's width. A bar's height can then be its count. A histogram whose bins range wider plots each bin's count per unit of log width, so that its area carries the count. Its y label says so.
 4. The ladder grows by adding edges above 90 days, such as 180 and 365, never by moving one below, so stored bins keep their edges.
 
-**Charts that share an x.** Charts stacked on one time range pass the range as their x `domain`. They sit in one `.cp-chart-stack`, which sets the y labels' and end labels' gutters once for all of them, so their plots start and end at the same edges. The eye then runs straight down the screen at one moment. Under 30rem the label gutter is 0, since lines drop their end labels there.
+**Charts that share an x.** Charts stacked on one time range pass the range as their x `domain`. They sit in one `.cp-chart-stack`, which sets the y labels' and end labels' gutters once for all of them, so their plots start and end at the same edges. The eye then runs straight down the screen at one moment. Under 30rem the label gutter is 0, since lines drop their end labels there. Series of one measure that tangle on one plot go in one chart's [small multiples](data/chart.md#small-multiples) instead, whose panels share the y scale too.
 
 ## Lists
 
@@ -201,6 +201,16 @@ A sheet is a `.cp-dialog` marked `data-variant="sheet"`, with the same header, b
 - Toasts announce themselves, confirmations politely and errors assertively, so use an error toast only for a failure of what the person just did. A failure of background work, such as a refresh, is a notice, announced politely.
 - A notice that appears announces through `@cplieger/ui/announce`, politely, and only one that blocks the person's current task uses `role="alert"`.
 - One message per event. A problem shown in a notice is not also a toast.
+
+## Header status
+
+The header status is one pill and the panel it opens, kept by [header-status](navigation/header-status.md) from the app's own model.
+
+1. The pill says whether the app needs the person and whether work runs, worst first: offline, a problem (it needs the person), a warning (degraded, and usually ends by itself), working, then "All good". It counts the worst level only. "All good", never "OK", which reads as a confirm on a button.
+2. A condition the app flags urgent, because it reaches every screen (it stops the app doing its job, leaves it open, or changes it at the next restart), takes the pill's words by name unless a worse level holds, comes first in its level in the panel, and stands as the every-screen banner in its level's tone, first among the page's banners. Urgent is how far a condition reaches, never how bad it is: an urgent warning stays a warning.
+3. The panel lists the work a person can start, every condition with where it is fixed, the running work with its Stop, the lasting notices, the last five events, and a link to the app's history page at its foot. Stopping is on the running row: a start never turns into Cancel. A start that cannot run now says why under it and stays focusable, and one the server refuses shows the refusal the same way.
+4. A lost stream reads "Reconnecting…" for 10 seconds before the pill turns offline, and the rows in the panel then say what time they are from.
+5. There is no notification pane: no second panel, no read or unread state and no badge to clear. The history lives on each app's own page, which the panel's foot links to, so a pane would repeat it with a read state on top. That changes when an app has events addressed to one person that they need to sort through, which would be an element of its own beside the status.
 
 ## Messages
 

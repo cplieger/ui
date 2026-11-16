@@ -1,13 +1,13 @@
 /**
- * layout.ts — where a chart's parts sit in its SVG at a width: the y gutter
- * and the label gutter, the rule labels' band and the y title above the
- * plot, the x axis under it, the lines' and areas' end labels, a band
- * chart's rows, a bar chart's panels and value labels, a box plot's rows, a slope's columns
- * and end labels, a scatter's inset axes, and the text marks' notes.
+ * layout.ts — where a chart's parts sit in its SVG at a width: gutters, the
+ * rule band and y title, the x axis, end labels, a band chart's rows, a bar
+ * chart's panels and value labels, a slope's columns and end labels, a
+ * scatter's inset axes, a pie's circle, outside labels and hole, a
+ * treemap's tiles, heads and labels, and notes.
  * @module
  */
 
-import type { Measure } from "../scale/measure.js";
+import { widestOf, type Measure } from "../scale/measure.js";
 import { position } from "../scale/position.js";
 
 import {
@@ -35,6 +35,7 @@ import {
   POINT_RADIUS,
   ruleXs,
   SCATTER_RADIUS,
+  snap,
   type DayGrid,
   type Frame,
   type Panel,
@@ -43,18 +44,23 @@ import {
   barsApart,
   dayOf,
   sampleValue,
+  thinnestBin,
   type BarModel,
   type BoxModel,
   type CalendarModel,
   type CellModel,
   type Model,
+  type PieModel,
   type ScatterModel,
   type SlopeModel,
+  type TreeModel,
 } from "./model.js";
 import { dayFormat, dayPlace, foldSize, monthFirst, weekCount, weekRow } from "./calendar.js";
 import { MARKER_RADIUS, NOTE_REM, notePoint, placeNote, wrapNote, type Box } from "./notes.js";
-import { lastSample, lastStack, samplePart } from "./readout.js";
+import { rimPoint, sliceAngles, type PieFrame } from "./pie.js";
+import { lastSample, lastStack, partAmount, samplePart } from "./readout.js";
 import type { Continuous } from "./scales.js";
+import { resquarify, squarify, type Row } from "./treemap.js";
 import type { Words } from "./words.js";
 
 /** What the page gives the layout, read outside any draw. */
@@ -74,6 +80,9 @@ export interface Metrics {
   readonly labelGroup: number;
   /** The plot's height when the spec gives none, from `--cp-chart-height`. */
   readonly height: number;
+  /** A donut's total's face, `[data-hole]`, and a line of it in px. */
+  readonly hole: Measure;
+  readonly holeLine: number;
   readonly dpr: number;
 }
 
@@ -89,10 +98,34 @@ export interface Text {
   readonly x: number;
   readonly y: number;
   readonly anchor: "start" | "middle" | "end";
-  /** A slope's end label's series. */
+  /** A slope's end label's series, a pie's outside label's slice, a tree's
+   *  head's group or a tree's tile label's part. */
   readonly series?: number;
   /** A cell chart's column a band x label names. */
   readonly column?: number;
+}
+
+/** What a tree's next layout keeps while its names, their order at every
+ *  level and the plot's size stay the same: each level's rows. */
+export interface TreeKept {
+  readonly key: string;
+  readonly top: readonly Row[];
+  /** Each group's parts' rows, none with one level. */
+  readonly inner: readonly (readonly Row[])[];
+}
+
+/** A treemap on the plot, in plot px, edges snapped to device px. */
+interface TreeFrame {
+  /** Each part's tile in part order; undefined for a 0 or no data, which
+   *  draws none. */
+  readonly tiles: readonly (Box | undefined)[];
+  /** Each group's rectangle, its head band included. */
+  readonly groups: readonly Box[];
+  /** Each group's head band, undefined for a group with no head. */
+  readonly bands: readonly (Box | undefined)[];
+  /** The tiles' labels, a name and then its value, each `series` its part. */
+  readonly labels: readonly Text[];
+  readonly kept: TreeKept;
 }
 
 /** A line from `from` to `to`, in SVG px. */
@@ -121,6 +154,13 @@ export interface Layout {
   readonly cells: { readonly xs: readonly number[]; readonly ys: readonly number[] } | undefined;
   /** A calendar's days on the plot. */
   readonly days: DayGrid | undefined;
+  /** A pie's circle on the plot. */
+  readonly pie: PieFrame | undefined;
+  /** A donut's total in its hole, in plot px: `words.total` over the value;
+   *  absent when the value is wider than the hole less 16 px. */
+  readonly hole: { readonly label: Text; readonly total: Text } | undefined;
+  /** A treemap's tiles on the plot. */
+  readonly tree: TreeFrame | undefined;
   /** A whole bar's thickness, which a group's thinner bars derive from
    *  (`barBlock`); 0 without a bar mark. */
   readonly bar: number;
@@ -139,13 +179,19 @@ export interface Layout {
   /** Text inside the plot, in plot px: a y rule's label. */
   readonly plotLabels: readonly Text[];
   readonly endLabels: readonly Text[];
-  /** A slope's end labels moved off their dots' heights, each joined to its dot. */
+  /** A slope's end labels moved off their dots' heights, each joined to
+   *  its dot, or a pie's outside labels, each joined to its slice's rim. */
   readonly leaders: readonly Leader[];
   /** The notes drawn, in spec order: those whose point lies in the plot. */
   readonly notes: readonly Note[];
   /** Every note is drawn as its numbered marker, its words listed below
    *  the plot: under 30rem, or when two notes overlap or one cannot fit. */
   readonly numbered: boolean;
+  /** A panel beside the grid's y gutter: the SVG starts at the plot's
+   *  edge, and holds no y labels. */
+  readonly clip?: boolean;
+  /** A panel with a panel below it draws no x ticks. Default true. */
+  readonly ticks?: boolean;
 }
 
 /** A text mark's note laid out beside its point, in plot px. */
@@ -167,7 +213,7 @@ const PAD = 8;
 const TICK = 4;
 /** Under this many rem a chart draws no end labels, its notes as numbered
  *  markers, and a bar row's or a point row's name on its own line above it. */
-const NARROW_REM = 30;
+export const NARROW_REM = 30;
 /** A row's bars take its height less this, half above them and half below. */
 const BAR_SPACE = 8;
 /** A mirrored row's bars take its height less this, so neighbouring rows
@@ -179,8 +225,8 @@ const NAME_GAP = 2;
 const VALUE_GAP = 4;
 /** The room between a row's last bar, or its label, and a note's point there. */
 const END_GAP = 4;
-/** The room between a split bar chart's panels. */
-const PANEL_GAP = 16;
+/** The room between panels: a split bar chart's, and small multiples' rows and columns. */
+export const PANEL_GAP = 16;
 /** The spine between a mirrored bar chart's two sides. */
 const SPINE = 8;
 /** A point chart's x runs this far inside each end of the plot: the
@@ -269,7 +315,7 @@ function notesOf(
     const x = day?.x ?? (at.x === undefined ? rowEnd(at.y) : frame.xAt(at.x));
     const y = day?.y ?? (m.row ? (rows[at.y]?.y ?? 0) : frame.yAt(at.y));
     const texts = wrapNote(m.text, max, metrics.measure.text);
-    const w = Math.max(...texts.map(metrics.measure.text));
+    const w = widestOf(texts, metrics.measure.text);
     const h = texts.length * metrics.lineHeight;
     const placed = placeNote(x, y, m.side, w, h, frame.width, frame.height);
     const { box, side } = placed;
@@ -300,13 +346,48 @@ const overlap = (a: Box, b: Box): boolean =>
   a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
 
 // All notes switch together, so a reader never matches some on the plot and
-// some in the list below it.
-function numberedNotes(notes: readonly Note[], narrow: boolean): boolean {
-  return (
-    notes.length > 0 &&
-    (narrow ||
-      notes.some((n, k) => !n.fits || notes.slice(k + 1).some((o) => overlap(n.box, o.box))))
-  );
+// some in the list below it. The sweep by left, then right, edge keeps the boxes
+// passed so far sorted by top with no two sharing a row, so a box can overlap
+// only the run whose rows meet its own; a run it misses has ended at its left
+// edge (the right-edge tie order makes this hold for a zero-width box too), so
+// the box takes the run's place. That is n log n edge reads, and a splice moves
+// at most the kept boxes, plot height / line height of them.
+export function numberedNotes(notes: readonly Note[], narrow: boolean): boolean {
+  if (notes.length === 0) {
+    return false;
+  }
+  if (narrow || notes.some((n) => !n.fits)) {
+    return true;
+  }
+  const boxes = notes.map((n) => n.box).sort((a, b) => a.left - b.left || a.right - b.right);
+  const kept: Box[] = [];
+  for (const box of boxes) {
+    const { top, bottom } = box;
+    const from = firstPast(kept, (k) => k.bottom > top);
+    const to = firstPast(kept, (k) => k.top >= bottom);
+    if (kept.slice(from, to).some((k) => overlap(k, box))) {
+      return true;
+    }
+    kept.splice(from, to - from, box);
+  }
+  return false;
+}
+
+// The first index of `list` from which `past` holds, which it does from some
+// index on; list.length when it never does.
+function firstPast<T>(list: readonly T[], past: (item: T) => boolean): number {
+  let lo = 0;
+  let hi = list.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >>> 1;
+    const item = list[mid];
+    if (item !== undefined && past(item)) {
+      hi = mid;
+    } else {
+      lo = mid + 1;
+    }
+  }
+  return lo;
 }
 
 /** A bar's value label: the value it writes, its row, and the series whose
@@ -447,7 +528,9 @@ export function dodge(want: readonly number[], step: number, lo: number, hi: num
       if (a === undefined || b === undefined || a.top + a.members.length * step <= b.top + 1e-6) {
         break;
       }
-      a.members.push(...b.members);
+      for (const member of b.members) {
+        a.members.push(member);
+      }
       a.sum += b.sum;
       groups.pop();
       place(a);
@@ -497,7 +580,7 @@ function slopeLayout(
   );
   const [left = [], right = []] = sides;
   const widest = (side: readonly { text: string }[]) =>
-    Math.max(0, ...side.map((e) => measure.number(e.text)));
+    widestOf(side, (e) => measure.number(e.text));
   const axisW = Math.max(ceil(axisGutter(widest(left), metrics.axisGroup)), floors.axis);
   const labelW = Math.max(ceil(widest(right) + PAD), ceil(metrics.labelGroup), floors.label);
   const plotW = Math.max(1, width - axisW - labelW);
@@ -556,6 +639,9 @@ function slopeLayout(
     rows: [],
     cells: undefined,
     days: undefined,
+    pie: undefined,
+    hole: undefined,
+    tree: undefined,
     mono: false,
     gutters: { axis: axisW, label: labelW },
     bar: 0,
@@ -581,13 +667,8 @@ function binnedHeight(
   height: number,
   row: number,
 ): number {
-  const at = position(y.type, y.lo, y.hi, 0, 1);
-  let least = 1;
-  for (let i = 1; i < edges.length; i++) {
-    least = Math.min(least, at(edges[i] ?? 0) - at(edges[i - 1] ?? 0));
-  }
   // A float share (5 / 35) leaves 24 / share a hair over its whole px.
-  return Math.max(height, Math.ceil(row / least - 1e-9));
+  return Math.max(height, Math.ceil(row / thinnestBin(y.type, edges) - 1e-9));
 }
 
 /** The space between a calendar's folded blocks. */
@@ -608,7 +689,7 @@ function calendarLayout(
   const lead = weekRow(m.day, m.weekStart);
   const weekday = dayFormat(model.locale, { weekday: "short" });
   const names = Array.from({ length: 7 }, (_, r) => weekday(m.day - lead + r));
-  const widest = Math.max(0, ...names.map(measure.text));
+  const widest = widestOf(names, measure.text);
   const axisW = Math.max(ceil(axisGutter(widest, metrics.axisGroup)), floors.axis);
   const labelW = Math.max(ceil(metrics.labelGroup), floors.label);
   const plotW = Math.max(1, width - axisW - labelW);
@@ -680,6 +761,9 @@ function calendarLayout(
     rows: [],
     cells: undefined,
     days: grid,
+    pie: undefined,
+    hole: undefined,
+    tree: undefined,
     mono: false,
     gutters: { axis: axisW, label: labelW },
     bar: 0,
@@ -697,6 +781,301 @@ function calendarLayout(
   };
 }
 
+/** A pie's outside label column is at most this many rem wide, and at most
+ *  PIE_COLUMN of the chart's width. */
+const PIE_COLUMN_REM = 12;
+const PIE_COLUMN = 0.25;
+/** The widest pie a panel of small multiples draws, in px. */
+const PANEL_PIE = 240;
+/** The room a donut's total keeps from its hole's edge, in px, all told. */
+const HOLE_ROOM = 16;
+
+/**
+ * A pie's layout: its circle centred on the plot, as tall as the plot or as
+ * wide as the label columns leave it. From 30rem up each drawn slice's name
+ * and share sit in a column on the side its middle angle falls on, dodged
+ * a name line each apart, joined to the rim at that angle; when a side's
+ * labels cannot fit the plot's height none is drawn and the legend row
+ * names the slices, as it does under 30rem. A `panel`'s pie is as wide as
+ * its plot, at most PANEL_PIE px, and draws no outside labels.
+ */
+function pieLayout(
+  model: Model,
+  m: PieModel,
+  words: Words,
+  metrics: Metrics,
+  width: number,
+  floors: Floors,
+  chart: number,
+  panel: boolean,
+): Layout {
+  const { measure, lineHeight, dpr, nameLine } = metrics;
+  const height = model.spec.height ?? (panel ? Math.min(width, PANEL_PIE) : metrics.height);
+  const slices = sliceAngles(m);
+  const step = 2 * nameLine;
+  const mids = slices.map((s) => (s.from + s.to) / 2);
+  const right = mids.filter((a) => a < Math.PI).length;
+  const labelled =
+    !panel &&
+    chart >= NARROW_REM * metrics.rem &&
+    Math.max(right, slices.length - right) * step <= height;
+  const column = labelled ? Math.min(PIE_COLUMN_REM * metrics.rem, PIE_COLUMN * chart) : 0;
+  const r = Math.max(0, Math.min(height, width - 2 * column)) / 2;
+  const p: PieFrame = { cx: width / 2, cy: height / 2, r, inner: m.hole ? r / 2 : 0 };
+  const endLabels: Text[] = [];
+  const leaders: Leader[] = [];
+  for (const side of labelled ? [1, -1] : []) {
+    const on = mids.flatMap((mid, k) => (mid < Math.PI === (side === 1) ? [k] : []));
+    const rims = on.map((k) => rimPoint(p, mids[k] ?? 0, r));
+    const want = rims.map((pt) => Math.min(Math.max(pt.y, step / 2), height - step / 2));
+    const at = dodge(want, step, step / 2, height - step / 2);
+    const edge = p.cx + side * r;
+    on.forEach((k, j) => {
+      const slice = slices[k];
+      const s = slice === undefined ? undefined : m.slices[slice.index];
+      const rim = rims[j];
+      const y = at[j] ?? 0;
+      if (slice === undefined || s === undefined || rim === undefined) {
+        return;
+      }
+      const x = edge + side * PAD;
+      const anchor = side === 1 ? "start" : "end";
+      const share = model.shareText((s.value ?? 0) / m.total);
+      endLabels.push(
+        {
+          text: cutName(s.name, column - PAD, measure.text),
+          x,
+          y: y - nameLine / 2,
+          anchor,
+          series: slice.index,
+        },
+        { text: share, x, y: y + nameLine / 2, anchor, series: slice.index },
+      );
+      // Out along the rim's height past the circle, which a level line from
+      // a point on its own half never crosses, then to the label.
+      const bend = { x: edge + side * LEADER_GAP, y: rim.y };
+      leaders.push({ from: rim, to: bend }, { from: bend, to: { x: x - side * LEADER_GAP, y } });
+    });
+  }
+  let hole: Layout["hole"];
+  if (m.hole && m.total > 0) {
+    const value = partAmount(model, m, m.total);
+    const room = 2 * p.inner - HOLE_ROOM;
+    if (metrics.hole.number(value) <= room && measure.text(words.total) <= room) {
+      const top = p.cy - (lineHeight + metrics.holeLine) / 2;
+      hole = {
+        label: { text: words.total, x: p.cx, y: top + lineHeight / 2, anchor: "middle" },
+        total: {
+          text: value,
+          x: p.cx,
+          y: top + lineHeight + metrics.holeLine / 2,
+          anchor: "middle",
+        },
+      };
+    }
+  }
+  const frame: Frame = { width, height, dpr, yAt: (v) => v, x: model.x, xAt: (v) => v };
+  return {
+    width,
+    height,
+    left: 0,
+    top: 0,
+    frame,
+    xAxis: { lo: 0, hi: 1, at: (v) => v, ticks: [] },
+    yAxis: undefined,
+    rows: [],
+    cells: undefined,
+    days: undefined,
+    pie: p,
+    hole,
+    tree: undefined,
+    mono: false,
+    gutters: floors,
+    bar: 0,
+    valueLabels: [],
+    heads: [],
+    xLabels: [],
+    yLabels: [],
+    titles: [],
+    ruleLabels: [],
+    plotLabels: [],
+    endLabels,
+    leaders,
+    notes: [],
+    numbered: false,
+  };
+}
+
+/** Half the 1 px gap between a tree's parts, and of the 4 px between its groups. */
+const PART_INSET = 0.5;
+const GROUP_INSET = 2;
+/** A group at least HEAD_WIDE by HEAD_TALL px gives its top HEAD_BAND px
+ *  to its name, its parts below. */
+const HEAD_WIDE = 48;
+const HEAD_TALL = 54;
+const HEAD_BAND = 18;
+/** A part's tile at least this tall carries its name over its value,
+ *  TILE_PAD px in from its top-left corner. */
+const TILE_LABEL = 40;
+const TILE_PAD = 4;
+/** A tile's label needs room for this many characters of its name. */
+const TILE_CHARS = 4;
+
+let graphemes: Intl.Segmenter | undefined;
+
+const lead = (name: string): string => {
+  graphemes ??= new Intl.Segmenter(undefined, { granularity: "grapheme" });
+  return Array.from(graphemes.segment(name), (g) => g.segment)
+    .slice(0, TILE_CHARS)
+    .join("");
+};
+
+const grown = (b: Box, g: number): Box => ({
+  left: b.left - g,
+  top: b.top - g,
+  right: b.right + g,
+  bottom: b.bottom + g,
+});
+
+// `b` moved `g` in on each axis it spans 2g + 2 px or more of, so no gap
+// leaves a tile under 2 px, a thinner one touching its neighbour; kept in
+// `within`, which the tiling grew by `g` so the outer edges sit flush.
+function inset(b: Box, g: number, within: Box, dpr: number): Box {
+  const gx = b.right - b.left >= 2 * g + 2 ? g : 0;
+  const gy = b.bottom - b.top >= 2 * g + 2 ? g : 0;
+  return {
+    left: snap(Math.max(b.left + gx, within.left), dpr),
+    top: snap(Math.max(b.top + gy, within.top), dpr),
+    right: snap(Math.min(b.right - gx, within.right), dpr),
+    bottom: snap(Math.min(b.bottom - gy, within.bottom), dpr),
+  };
+}
+
+/**
+ * A treemap's layout: the groups squarified over the plot in the app's
+ * order, then each group's parts over its rectangle below its head band;
+ * with one level the parts over the plot. A layout whose `kept` has the
+ * same names in the same order and the same size keeps every level's rows,
+ * so an update moves tile edges and never reorders tiles.
+ */
+function treeLayout(
+  model: Model,
+  m: TreeModel,
+  metrics: Metrics,
+  width: number,
+  floors: Floors,
+  kept: TreeKept | undefined,
+): Layout {
+  const { measure, lineHeight, dpr } = metrics;
+  const height = model.spec.height ?? metrics.height;
+  const names =
+    m.groups.length > 0
+      ? m.groups.map((g) => [g.name, m.parts.slice(g.first, g.first + g.count).map((p) => p.name)])
+      : m.parts.map((p) => p.name);
+  const key = `${String(width)} ${String(height)} ${JSON.stringify(names)}`;
+  const keep = kept?.key === key ? kept : undefined;
+  const tile = (values: readonly number[], b: Box, rows: readonly Row[] | undefined) =>
+    rows === undefined ? squarify(values, b) : { boxes: resquarify(values, b, rows), rows };
+  const plot: Box = { left: 0, top: 0, right: width, bottom: height };
+  const tiles: (Box | undefined)[] = [];
+  const parts = (first: number, count: number, area: Box, rows: readonly Row[] | undefined) => {
+    const list = m.parts.slice(first, first + count);
+    const t = tile(
+      list.map((p) => p.value ?? 0),
+      grown(area, PART_INSET),
+      rows,
+    );
+    list.forEach((p, k) => {
+      const b = t.boxes[k];
+      tiles.push(
+        b !== undefined && (p.value ?? 0) > 0 ? inset(b, PART_INSET, area, dpr) : undefined,
+      );
+    });
+    return t.rows;
+  };
+  const groups: Box[] = [];
+  const bands: (Box | undefined)[] = [];
+  const heads: Text[] = [];
+  const inner: (readonly Row[])[] = [];
+  let top: readonly Row[];
+  if (m.groups.length > 0) {
+    const t = tile(
+      m.groups.map((g) => g.value),
+      grown(plot, GROUP_INSET),
+      keep?.top,
+    );
+    top = t.rows;
+    m.groups.forEach((g, k) => {
+      const box = inset(t.boxes[k] ?? plot, GROUP_INSET, plot, dpr);
+      groups.push(box);
+      const headed = box.right - box.left >= HEAD_WIDE && box.bottom - box.top >= HEAD_TALL;
+      bands.push(headed ? { ...box, bottom: box.top + HEAD_BAND } : undefined);
+      if (headed) {
+        heads.push({
+          text: cutName(g.name, box.right - box.left - 2 * TILE_PAD, measure.text),
+          x: box.left + TILE_PAD,
+          y: box.top + HEAD_BAND / 2,
+          anchor: "start",
+          series: k,
+        });
+      }
+      const area = headed ? { ...box, top: box.top + HEAD_BAND } : box;
+      inner.push(parts(g.first, g.count, area, keep?.inner[k]));
+    });
+  } else {
+    top = parts(0, m.parts.length, plot, keep?.top);
+  }
+  const labels: Text[] = [];
+  tiles.forEach((b, i) => {
+    const p = m.parts[i];
+    if (b === undefined || p === undefined || p.value === null) {
+      return;
+    }
+    const room = b.right - b.left - 2 * TILE_PAD;
+    if (b.bottom - b.top < TILE_LABEL || measure.text(lead(p.name)) > room) {
+      return;
+    }
+    const x = b.left + TILE_PAD;
+    const y = b.top + TILE_PAD + lineHeight / 2;
+    labels.push({ text: cutName(p.name, room, measure.text), x, y, anchor: "start", series: i });
+    // A value is never cut, so one wider than its tile leaves the name alone.
+    const value = partAmount(model, m, p.value);
+    if (measure.number(value) <= room) {
+      labels.push({ text: value, x, y: y + lineHeight, anchor: "start", series: i });
+    }
+  });
+  const frame: Frame = { width, height, dpr, yAt: (v) => v, x: model.x, xAt: (v) => v };
+  return {
+    width,
+    height,
+    left: 0,
+    top: 0,
+    frame,
+    xAxis: { lo: 0, hi: 1, at: (v) => v, ticks: [] },
+    yAxis: undefined,
+    rows: [],
+    cells: undefined,
+    days: undefined,
+    pie: undefined,
+    hole: undefined,
+    tree: { tiles, groups, bands, labels, kept: { key, top, inner } },
+    mono: false,
+    gutters: floors,
+    bar: 0,
+    valueLabels: [],
+    heads,
+    xLabels: [],
+    yLabels: [],
+    titles: [],
+    ruleLabels: [],
+    plotLabels: [],
+    endLabels: [],
+    leaders: [],
+    notes: [],
+    numbered: false,
+  };
+}
+
 /** An x rule's label on the plot: its words and value, or off the axis. */
 function ruleText(model: Model, words: Words, label: string, value: number, off: boolean): string {
   const written = model.xText(value);
@@ -708,7 +1087,9 @@ function ruleText(model: Model, words: Words, label: string, value: number, off:
  * measured ones, the group's and `floors`; the caller keeps the result's
  * `gutters` as the next update's floors so the plot never moves sideways.
  * `chart` is the chart's own width, which the 30rem rule and the band
- * names' cut read, `width` by default.
+ * names' cut read, `width` by default. `kept` is the last layout's
+ * `tree.kept`, which a treemap of the same names and size keeps. A
+ * `panel` of small multiples draws no end labels, which the heads replace.
  */
 export function layout(
   model: Model,
@@ -717,6 +1098,8 @@ export function layout(
   width: number,
   floors: Floors,
   chart = width,
+  kept?: TreeKept,
+  panel = false,
 ): Layout {
   const slope = model.marks.find((m) => m.kind === "slope");
   if (slope !== undefined) {
@@ -725,6 +1108,14 @@ export function layout(
   const calendar = model.marks.find((m) => m.kind === "calendar");
   if (calendar !== undefined) {
     return calendarLayout(model, calendar, metrics, width, floors, chart);
+  }
+  const pie = model.marks.find((m) => m.kind === "pie");
+  if (pie !== undefined) {
+    return pieLayout(model, pie, words, metrics, width, floors, chart, panel);
+  }
+  const tree = model.marks.find((m) => m.kind === "tree");
+  if (tree !== undefined) {
+    return treeLayout(model, tree, metrics, width, floors, kept);
   }
   const { measure, lineHeight, dpr } = metrics;
   const ctx = { locale: model.locale, timeZone: model.timeZone, measure };
@@ -803,15 +1194,15 @@ export function layout(
     const face = mono ? metrics.mono : measure;
     const limit = bandLimit(metrics.axisGroup, chart, metrics.rem);
     names = band.rows.map((n) => cutName(n, limit, face.text));
-    widestY = Math.max(0, ...names.map(face.text));
+    widestY = widestOf(names, face.text);
   }
   const axisW = above ? 0 : Math.max(ceil(axisGutter(widestY, metrics.axisGroup)), floors.axis);
 
   // A group's label gutter holds every end label, as its axis gutter holds
   // band names, so a long series name never moves one plot off the shared edge.
   const endLimit = metrics.labelGroup > 0 ? metrics.labelGroup - PAD : Number.POSITIVE_INFINITY;
-  const ends = narrow ? [] : endTexts(model, words, measure, endLimit);
-  const widestEnd = Math.max(0, ...ends.map((e) => measure.number(e.text)));
+  const ends = narrow || panel ? [] : endTexts(model, words, measure, endLimit);
+  const widestEnd = widestOf(ends, (e) => measure.number(e.text));
   const labelW = Math.max(
     ends.length > 0 ? ceil(widestEnd + PAD) : 0,
     ceil(metrics.labelGroup),
@@ -925,7 +1316,10 @@ export function layout(
       // A rule drawn more than once labels its first panel's line, or its
       // right-hand line on both sides of a spine or a diverging 0.
       const xs = ruleXs(r.place.at, across);
-      const at = bars?.arrange === "split" ? (xs[0] ?? 0) : Math.max(...xs);
+      const at =
+        bars?.arrange === "split"
+          ? (xs[0] ?? 0)
+          : xs.reduce((most, x) => Math.max(most, x), Number.NEGATIVE_INFINITY);
       bandLabels.push({ at, width: w });
     }
   }
@@ -1051,12 +1445,12 @@ export function layout(
     if (at === undefined || bars === undefined) {
       return;
     }
-    const reach = barReach(bars, t.row);
     const panel = t.series === undefined ? undefined : panels[t.series];
+    const reach = t.series === undefined ? barReach(bars, t.row) : undefined;
     const end =
       panel !== undefined
         ? panel.at(held(t.value))
-        : xAx.at(held(t.series !== undefined ? t.value : t.value < 0 ? reach.lo : reach.hi));
+        : xAx.at(held(reach === undefined ? t.value : t.value < 0 ? reach.lo : reach.hi));
     const leftward = panel?.leftward ?? t.value < 0 !== reverse;
     const text = valueTexts[i] ?? "";
     const x = leftward ? end - VALUE_GAP : end + VALUE_GAP;
@@ -1148,6 +1542,9 @@ export function layout(
               Array.from({ length: rows.length + 1 }, (_, r) => r * rowH),
           },
     days: undefined,
+    pie: undefined,
+    hole: undefined,
+    tree: undefined,
     mono,
     gutters: { axis: axisW, label: labelW },
     bar: thick,

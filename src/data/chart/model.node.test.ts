@@ -16,7 +16,12 @@ import {
 } from "./model.js";
 import type { ChartSpec, Mark } from "./spec.js";
 
+type Slot = NonNullable<Extract<Mark, { mark: "line" }>["series"][number]["slot"]>;
+
 const build = (spec: unknown) => chartModel(spec as ChartSpec, "en", "UTC");
+
+// A million-value spec runs past node's 5 s default on a loaded host.
+const MILLION = { timeout: 30_000 };
 
 const rect = (
   y: readonly (number | null)[],
@@ -112,6 +117,17 @@ describe("spec errors", () => {
       RangeError,
     ],
     ["a height of 0", { x: {}, height: 0, marks: [] }, RangeError],
+    ["a height past the most px a plot may be", { x: {}, height: 1e301, marks: [] }, RangeError],
+    [
+      "a format whose unit Intl refuses",
+      { x: {}, y: { format: { style: "unit", unit: "" } }, marks: [] },
+      RangeError,
+    ],
+    [
+      "a format option that is a function",
+      { x: {}, y: { format: { style: (() => "x") as never } }, marks: [] },
+      TypeError,
+    ],
     ["a series shorter than its x", { x: {}, marks: [line([1], { x: [0, 1] })] }, TypeError],
     ["dots beside a line", { x: {}, marks: [line([1]), { mark: "dot", rows: [] }] }, TypeError],
     ["a line beside a rect", { x: {}, marks: [rect([1]), line([1])] }, TypeError],
@@ -273,6 +289,639 @@ describe("spec errors", () => {
     expect(() => build(spec)).toThrow(type);
   });
 
+  it("names a domain that is not an array and a bigint format option", () => {
+    const like = { 0: 0, 1: 10, length: 2 };
+    for (const axis of ["x", "y"]) {
+      expect(() => build({ x: {}, [axis]: { domain: like }, marks: [line([1, 2])] })).toThrow(
+        `renderChart: ${axis}.domain must be an array of a low and a high`,
+      );
+    }
+    expect(() => build({ x: {}, y: { format: { maximumFractionDigits: 1n } }, marks: [] })).toThrow(
+      new TypeError(
+        "renderChart: y.format.maximumFractionDigits must be a string, a number or a boolean",
+      ),
+    );
+  });
+
+  it("names a unit's form that is not a string or no plural form", () => {
+    expect(() => build({ x: {}, y: { unit: { one: 5, other: "posts" } }, marks: [] })).toThrow(
+      new TypeError("renderChart: y.unit.one must be a string"),
+    );
+    expect(() =>
+      build({ x: {}, marks: [{ mark: "dot", unit: { few: Symbol("a"), other: "x" }, rows: [] }] }),
+    ).toThrow(new TypeError("renderChart: marks[0].unit.few must be a string"));
+    expect(() =>
+      build({ x: {}, y: { unit: { single: "post", other: "posts" } }, marks: [] }),
+    ).toThrow(
+      new TypeError(
+        "renderChart: y.unit.single is no plural form; a unit takes zero, one, two, few, many and other",
+      ),
+    );
+    const forms = { zero: "a", one: "b", two: "c", few: "d", many: "e", other: "f" };
+    expect(build({ x: {}, y: { unit: forms }, marks: [line([1])] }).kind).toBe("line");
+  });
+
+  it("names the format Intl refuses and the most px a height may be", () => {
+    expect(() => build({ x: {}, y: { format: { style: "unit", unit: "" } }, marks: [] })).toThrow(
+      /^renderChart: y\.format holds options Intl refuses/u,
+    );
+    expect(() => build({ x: {}, y: { format: { style: "currency" } }, marks: [] })).toThrow(
+      new TypeError(
+        "renderChart: y.format holds options Intl refuses: Currency code is required with currency style.",
+      ),
+    );
+    expect(() => build({ x: {}, height: 40_001, marks: [] })).toThrow(
+      new RangeError("renderChart: height must be a number of px above 0 and at most 40000"),
+    );
+    expect(build({ x: {}, height: 40_000, marks: [line([1])] }).spec.height).toBe(40_000);
+  });
+
+  it("names the most rows a plot and the most weeks a calendar may hold", () => {
+    const names = (n: number) => Array.from({ length: n }, (_, i) => `r${String(i)}`);
+    const bars = (n: number): Mark => ({
+      mark: "bar",
+      y: names(n),
+      series: [{ name: "a", x: names(n).map(() => 1) }],
+    });
+    expect(() => build({ marks: [bars(1_001)] })).toThrow(
+      new RangeError("renderChart: marks[0].y must name at most 1000 rows"),
+    );
+    expect(build({ marks: [bars(1_000)] }).kind).toBe("bar");
+    const rows = (n: number): Mark => ({
+      mark: "dot",
+      rows: names(n).map((name) => ({ name, x: [] })),
+    });
+    expect(() => build({ x: {}, marks: [rows(1_001)] })).toThrow(
+      new RangeError("renderChart: marks[0].rows must hold at most 1000 rows"),
+    );
+    expect(build({ x: {}, marks: [rows(1_000)] }).kind).toBe("timeline");
+    const grid = (n: number): Mark => ({
+      mark: "cell",
+      x: names(n),
+      y: names(1),
+      values: [names(n).map(() => 1)],
+    });
+    expect(build({ marks: [grid(1_001)] }).kind).toBe("heatmap");
+    expect(() =>
+      build({
+        marks: [{ mark: "cell", x: ["a"], y: names(1_001), values: names(1_001).map(() => [1]) }],
+      }),
+    ).toThrow(new RangeError("renderChart: marks[0].y must name at most 1000 rows"));
+    // 1 January 1970 was a Thursday, so with weeks from Thursday 7,000 days are 1,000 weeks.
+    const days = (n: number): Mark => ({
+      mark: "cell",
+      weekStart: 4,
+      days: { start: 0, values: Array.from({ length: n }, () => 1) },
+    });
+    expect(() => build({ marks: [days(7_001)] })).toThrow(
+      new RangeError("renderChart: the days of a calendar must fit in 1000 weeks"),
+    );
+    expect(build({ marks: [days(7_000)] }).kind).toBe("calendar");
+  });
+
+  // A series of bars standing apart or of boxes takes a sub-row of each row.
+  it("names the most sub-rows a band's series may take, and the most series a slope names", () => {
+    const names = (n: number) => Array.from({ length: n }, (_, i) => `r${String(i)}`);
+    const ones = (n: number) => names(n).map(() => 1);
+    const bars = (n: number, k: number, arrange: "group" | "split" | "stack"): Mark => ({
+      mark: "bar",
+      y: names(n),
+      arrange,
+      series: names(k).map((name) => ({ name, x: ones(n) })),
+    });
+    const boxes = (n: number, k: number): Mark => {
+      const v = ones(n);
+      return {
+        mark: "box",
+        y: names(n),
+        series: names(k).map((name) => ({ name, low: v, q1: v, median: v, q3: v, high: v })),
+      };
+    };
+    const subRows = new RangeError(
+      "renderChart: marks[0].series must take at most 2500 sub-rows, a sub-row per series in each row, since the plot is as tall as its rows",
+    );
+    for (const mark of [bars(1_000, 3, "group"), bars(1_000, 3, "split"), boxes(1_000, 3)]) {
+      expect(() => build({ marks: [mark] })).toThrow(subRows);
+    }
+    expect(build({ marks: [bars(1_000, 2, "group")] }).kind).toBe("groupedBar");
+    expect(build({ marks: [bars(1_000, 3, "stack")] }).kind).toBe("stackedBar");
+    expect(build({ marks: [boxes(1_000, 2)] }).kind).toBe("box");
+    const ends = (k: number): Mark => ({
+      mark: "slope",
+      x: ["2005", "2015"],
+      series: Array.from({ length: k }, (_, s) => ({
+        name: `s${String(s)}`,
+        slot: 1,
+        y: [s, s + 1],
+      })),
+    });
+    expect(() => build({ marks: [ends(1_001)] })).toThrow(
+      new RangeError(
+        "renderChart: marks[0].series must hold at most 1000 series, since each end names every series on a line of its own",
+      ),
+    );
+    expect(build({ marks: [ends(1_000)] }).kind).toBe("slope");
+  });
+
+  it("names the field that takes a spec past a million values", MILLION, () => {
+    const zeros = (n: number) => new Array<number>(n).fill(0);
+    const past = (field: string) =>
+      new RangeError(
+        `renderChart: ${field} must not take the spec past 1000000 values, its samples, bars, dots, cells, parts, rules and notes together`,
+      );
+    const lines = (n: number, k: number): Mark => ({
+      mark: "line",
+      x: Array.from({ length: n }, (_, i) => i),
+      series: Array.from({ length: k }, (_, s) => ({ name: `s${String(s)}`, y: zeros(n) })),
+    });
+    expect(build({ x: {}, marks: [lines(500_000, 2)] }).kind).toBe("line");
+    expect(() => build({ x: {}, marks: [lines(333_334, 3)] })).toThrow(
+      past("marks[0].series[2].y"),
+    );
+    expect(() =>
+      build({ x: {}, marks: [lines(500_000, 2), { mark: "rule", y: 0, label: "Zero" }] }),
+    ).toThrow(past("marks[1]"));
+    const timeline = (last: number): Mark => ({
+      mark: "dot",
+      rows: [
+        { name: "a", x: zeros(600_000) },
+        { name: "b", x: zeros(last) },
+      ],
+    });
+    expect(build({ x: {}, marks: [timeline(400_000)] }).kind).toBe("timeline");
+    expect(() => build({ x: {}, marks: [timeline(400_001)] })).toThrow(past("marks[0].rows[1].x"));
+  });
+
+  it("counts a series with no samples as one value", MILLION, () => {
+    const rule: Mark = { mark: "rule", y: 0, label: "Zero" };
+    const empty: Mark = {
+      mark: "line",
+      x: [],
+      series: Array.from({ length: 1_000_000 }, (_, s) => ({
+        name: `s${String(s)}`,
+        slot: ((s % 9) + 1) as Slot,
+        y: [],
+      })),
+    };
+    expect(build({ x: {}, marks: [empty] }).kind).toBe("line");
+    expect(() => build({ x: {}, marks: [empty, rule] })).toThrow(
+      new RangeError(
+        "renderChart: marks[1] must not take the spec past 1000000 values, its samples, bars, dots, cells, parts, rules and notes together",
+      ),
+    );
+    const scatter: Mark = {
+      mark: "scatter",
+      series: Array.from({ length: 1_000_000 }, (_, s) => ({
+        name: `s${String(s)}`,
+        slot: ((s % 9) + 1) as Slot,
+        x: [],
+        y: [],
+        names: [],
+      })),
+    };
+    expect(() => build({ x: {}, marks: [scatter, rule] })).toThrow("renderChart: marks[1] must");
+  });
+
+  it("counts a cell grid's columns when it has no rows", MILLION, () => {
+    const past = new RangeError(
+      "renderChart: marks[1] must not take the spec past 1000000 values, its samples, bars, dots, cells, parts, rules and notes together",
+    );
+    const rule: Mark = { mark: "rule", x: 1, label: "a" };
+    const named: Mark = {
+      mark: "cell",
+      x: Array.from({ length: 1_000_000 }, (_, i) => `c${String(i)}`),
+      y: [],
+      values: [],
+    };
+    expect(build({ x: {}, marks: [named] }).kind).toBe("heatmap");
+    expect(() => build({ x: {}, marks: [named, rule] })).toThrow(past);
+    const binned: Mark = {
+      mark: "cell",
+      x: { edges: Array.from({ length: 1_000_001 }, (_, i) => i) },
+      y: [],
+      values: [],
+    };
+    expect(build({ x: {}, marks: [binned] }).kind).toBe("heatmap");
+    expect(() => build({ x: {}, marks: [binned, rule] })).toThrow(past);
+  });
+
+  it("refuses a list of more entries than a spec holds values, before reading one", () => {
+    const most = (field: string, n = 1_000_000, why = "the most values a spec takes") =>
+      new RangeError(`renderChart: ${field} must hold at most ${String(n)} entries, ${why}`);
+    expect(() =>
+      build({ x: {}, marks: [{ mark: "line", x: new Array(1_000_001), series: [] }] }),
+    ).toThrow(most("marks[0].x"));
+    const series = new Array(1_000_001);
+    expect(() => build({ x: {}, marks: [{ mark: "line", x: [], series }] })).toThrow(
+      most("marks[0].series"),
+    );
+    expect(() => build({ x: {}, marks: new Array(1_000_001) })).toThrow(most("marks"));
+    // A binned axis holds a million bins, on one more edge.
+    const bins = (edges: number): Mark => ({
+      mark: "cell",
+      x: { edges: new Array<number>(edges) },
+      y: [],
+      values: [],
+    });
+    expect(() => build({ x: {}, marks: [bins(1_000_002)] })).toThrow(
+      most("marks[0].x.edges", 1_000_001, "a bin per value a spec takes"),
+    );
+    // A Proxy over an array passes Array.isArray and may claim any length.
+    const nan = new Proxy([], {
+      get: (target, key) => (key === "length" ? Number.NaN : Reflect.get(target, key)),
+    });
+    const instants = (): number[] => new Array<number>(600_000).fill(0);
+    const timeline: Mark = {
+      mark: "dot",
+      rows: [
+        { name: "a", x: nan },
+        { name: "b", x: instants() },
+        { name: "c", x: instants() },
+      ],
+    };
+    expect(() => build({ x: {}, marks: [timeline] })).toThrow(most("marks[0].rows[0].x"));
+  });
+
+  // An array may lie about its entries after the door has counted them.
+  it("builds from the lists as the door read them, once each", () => {
+    const y = [1, 2];
+    let pulls = 0;
+    Object.defineProperty(y, Symbol.iterator, {
+      *value() {
+        for (let i = 0; i < 1_500_000; i++) {
+          pulls++;
+          yield 1;
+        }
+      },
+    });
+    const own = build({ x: {}, marks: [line(y)] });
+    expect(own.marks[0]).toMatchObject({ kind: "line", series: [{ y: [1, 2] }] });
+    expect(pulls).toBe(0);
+
+    let reads = 0;
+    const x = new Proxy([0, 1, 2], {
+      get: (target, key) => {
+        if (key !== "length") {
+          return Reflect.get(target, key) as unknown;
+        }
+        reads++;
+        return reads === 1 ? 3 : 1_000_001;
+      },
+    });
+    const growing = build({
+      x: {},
+      marks: [{ mark: "line", x, series: [{ name: "a", y: [1, 2, 3] }] }],
+    });
+    expect(growing.marks[0]).toMatchObject({ kind: "line", x: [0, 1, 2] });
+    expect(reads).toBe(1);
+
+    let gets = 0;
+    const series = {
+      name: "a",
+      get y(): number[] {
+        gets++;
+        return gets === 1 ? [1, 2] : new Array<number>(1_500_000).fill(1);
+      },
+    };
+    const swapped = build({ x: {}, marks: [{ mark: "line", x: [0, 1], series: [series] }] });
+    expect(swapped.marks[0]).toMatchObject({ kind: "line", series: [{ y: [1, 2] }] });
+    expect(gets).toBe(1);
+    const [held] = swapped.spec.marks;
+    expect(held?.mark === "line" ? held.series[0] : undefined).not.toBe(series);
+  });
+
+  // The values ceiling; a list is charged where it sits, before it is read.
+  const MOST = 1_000_000;
+  const past = (field: string) =>
+    new RangeError(
+      `renderChart: ${field} must not take the spec past 1000000 values, its samples, bars, dots, cells, parts, rules and notes together`,
+    );
+  const counted = (length: number, entry: unknown) => {
+    const read = { n: 0 };
+    const list = new Proxy(new Array<unknown>(length).fill(entry), {
+      get: (target, key) => {
+        if (typeof key === "string" && /^\d+$/u.test(key)) {
+          read.n++;
+        }
+        return Reflect.get(target, key) as unknown;
+      },
+    });
+    return { list, read };
+  };
+  const times = <T>(n: number, make: (i: number) => T): T[] =>
+    Array.from({ length: n }, (_, i) => make(i));
+
+  it("reads a list shared across series or marks only up to the ceiling", MILLION, () => {
+    const cases: readonly (readonly [string, (list: unknown) => unknown, unknown])[] = [
+      [
+        "series y",
+        (y) => ({
+          marks: [
+            { mark: "line", x: [0], series: times(2_000, (s) => ({ name: `s${String(s)}`, y })) },
+          ],
+        }),
+        past("marks[0].series[1000].y"),
+      ],
+      [
+        "box outliers",
+        (outliers) => ({
+          marks: [
+            {
+              mark: "box",
+              y: ["a"],
+              series: times(2_000, (s) => ({
+                name: `s${String(s)}`,
+                low: [1],
+                q1: [2],
+                median: [3],
+                q3: [4],
+                high: [5],
+                outliers,
+              })),
+            },
+          ],
+        }),
+        past("marks[0].series[1000].median"),
+      ],
+      [
+        "rect x2",
+        (x2) => ({ marks: times(2_000, () => ({ mark: "rect", x1: [0], x2, series: [] })) }),
+        "renderChart: marks[1] is a second data mark beside marks[0]",
+      ],
+      [
+        "cell y",
+        (y) => ({ marks: times(2_000, () => ({ mark: "cell", x: ["a"], y, values: [] })) }),
+        "renderChart: marks[1] is a second data mark beside marks[0]",
+      ],
+    ];
+    for (const [what, spec, error] of cases) {
+      const shared = counted(1_000, what === "cell y" ? "a" : 1);
+      expect(() => build({ x: {}, ...(spec(shared.list) as object) }), what).toThrow(
+        error as string,
+      );
+      expect(shared.read.n, what).toBeLessThanOrEqual(MOST);
+    }
+  });
+
+  it("reads a list the panels' marks share only up to the ceiling", MILLION, () => {
+    const one = { name: "a", y: [1] };
+    const cases: readonly (readonly [string, (list: unknown) => unknown, unknown])[] = [
+      ["line x", (x) => ({ mark: "line", x, series: [one] }), 1],
+      ["area x", (x) => ({ mark: "area", x, series: [] }), 1],
+      ["rect x1", (x1) => ({ mark: "rect", x1, x2: [1], series: [one] }), 0],
+      ["bar y", (y) => ({ mark: "bar", y, series: [{ name: "a", x: [1] }] }), "a"],
+      ["point y", (y) => ({ mark: "point", y, series: [] }), "a"],
+      [
+        "box y",
+        (y) => ({
+          mark: "box",
+          y,
+          series: [{ name: "a", low: [1], q1: [2], median: [3], q3: [4], high: [5] }],
+        }),
+        "a",
+      ],
+    ];
+    for (const [what, mark, entry] of cases) {
+      const shared = counted(181_819, entry);
+      const field = what.split(" ")[1] ?? "";
+      const facets = { panels: times(11, () => ({ marks: [mark(shared.list)] })) };
+      expect(() => build({ x: {}, marks: [], facets } as ChartSpec), what).toThrow(
+        past(`facets.panels[5].marks[0].${field}`),
+      );
+      expect(shared.read.n, what).toBe(5 * 181_819);
+    }
+  });
+
+  it("charges each series' samples before it copies them", MILLION, () => {
+    const y = (): number[] => new Array<number>(200_000).fill(1);
+    const series = times(8, (s) => ({ name: `s${String(s)}`, y: y() }));
+    expect(() => build({ x: {}, marks: [{ mark: "line", x: [0], series }] })).toThrow(
+      past("marks[0].series[5].y"),
+    );
+    const shared = counted(MOST, 1);
+    const line = {
+      mark: "line",
+      x: times(MOST, (i) => i),
+      series: times(3, (s) => ({ name: `s${String(s)}`, y: shared.list })),
+    };
+    expect(() => build({ x: {}, marks: [line] })).toThrow(past("marks[0].series[1].y"));
+    expect(shared.read.n).toBe(MOST);
+    const second = counted(600_000, 0);
+    const timeline: Mark = {
+      mark: "dot",
+      rows: [
+        { name: "a", x: new Array<number>(600_000).fill(0) },
+        { name: "b", x: second.list as number[] },
+      ],
+    };
+    expect(() => build({ x: {}, marks: [timeline] })).toThrow(past("marks[0].rows[1].x"));
+    expect(second.read.n).toBe(0);
+  });
+
+  it("reads a list its series, rows or nodes share only up to the ceiling", MILLION, () => {
+    const named = (prefix: string) => (i: number) => `${prefix}${String(i)}`;
+    const cases: readonly (readonly [string, (list: unknown) => unknown, unknown, string])[] = [
+      [
+        "scatter x",
+        (x) => ({
+          mark: "scatter",
+          series: times(2_000, (s) => ({ name: named("s")(s), names: ["a"], x, y: [1] })),
+        }),
+        1,
+        "marks[0].series[1000].names",
+      ],
+      [
+        "cell rows",
+        (row) => ({
+          mark: "cell",
+          x: ["a"],
+          y: times(2_000, named("r")),
+          values: times(2_000, () => row),
+        }),
+        1,
+        "marks[0].values[1000]",
+      ],
+      [
+        "tree children",
+        (children) => ({
+          mark: "tree",
+          nodes: times(2_000, (k) => ({ name: named("n")(k), children })),
+        }),
+        { name: "p", value: 1 },
+        "marks[0].nodes[998].children",
+      ],
+      [
+        "box outlier rows",
+        (row) => ({
+          mark: "box",
+          y: ["a"],
+          series: times(2_000, (s) => ({
+            name: named("s")(s),
+            low: [1],
+            q1: [2],
+            median: [3],
+            q3: [4],
+            high: [5],
+            outliers: [row],
+          })),
+        }),
+        6,
+        "marks[0].series[999].outliers[0]",
+      ],
+    ];
+    for (const [what, mark, entry, field] of cases) {
+      const shared = counted(1_000, entry);
+      expect(() => build({ x: {}, marks: [mark(shared.list)] }), what).toThrow(past(field));
+      expect(shared.read.n, what).toBeLessThanOrEqual(MOST);
+    }
+  });
+
+  it("counts each slice, node and day value as one value", MILLION, () => {
+    const rule: Mark = { mark: "rule", x: 1, label: "a" };
+    const million = <T>(entry: T): T[] => new Array<T>(MOST).fill(entry);
+    const marks: readonly (readonly [string, unknown])[] = [
+      ["pie", { mark: "pie", slices: million({ name: "a", value: 1 }) }],
+      ["tree", { mark: "tree", nodes: million({ name: "a", value: 1 }) }],
+      ["calendar", { mark: "cell", days: { start: 0, values: million(1) } }],
+    ];
+    for (const [what, mark] of marks) {
+      expect(() => build({ x: {}, marks: [mark, rule] }), what).toThrow(past("marks[1]"));
+    }
+  });
+
+  // A field of a million entries beside one series or row charges what it
+  // holds past the series' or row's values: the spec totals the ceiling, so a
+  // rule after it crosses, and `leading` rules before it cross at the field.
+  it("charges a list what it holds past the values charged for it elsewhere", MILLION, () => {
+    const rule: Mark = { mark: "rule", x: 1, label: "a" };
+    const million = <T>(entry: T): T[] => new Array<T>(MOST).fill(entry);
+    const cases: readonly (readonly [string, unknown, number, string])[] = [
+      [
+        "rect x2",
+        { mark: "rect", x1: [0], x2: million(1), series: [{ name: "a", y: [1] }] },
+        2,
+        "x2",
+      ],
+      ["slope x", { mark: "slope", x: million(1), series: [{ name: "a", y: [1, 2] }] }, 3, "x"],
+      ["cell y", { mark: "cell", x: ["a"], y: million("r"), values: [[1]] }, 1, "y"],
+      [
+        "cell y edges",
+        {
+          mark: "cell",
+          x: ["a"],
+          y: { edges: new Array<number>(MOST + 1).fill(0) },
+          values: [[1]],
+        },
+        1,
+        "y.edges",
+      ],
+    ];
+    for (const [what, mark, leading, field] of cases) {
+      expect(() => build({ x: {}, marks: [mark, rule] }), what).toThrow(past("marks[1]"));
+      const marks = [...times(leading, () => rule), mark];
+      expect(() => build({ x: {}, marks }), what).toThrow(
+        past(`marks[${String(leading)}].${field}`),
+      );
+    }
+  });
+
+  it("counts a timeline row whose x is no array as one value", () => {
+    const timeline: Mark = {
+      mark: "dot",
+      rows: [
+        { name: "a", x: { length: Number.NaN } as never },
+        { name: "b", x: new Array<number>(999_999).fill(0) },
+      ],
+    };
+    expect(() => build({ x: {}, marks: [timeline, note()] })).toThrow(
+      new RangeError(
+        "renderChart: marks[1] must not take the spec past 1000000 values, its samples, bars, dots, cells, parts, rules and notes together",
+      ),
+    );
+    expect(() => build({ x: {}, marks: [timeline] })).toThrow(
+      new TypeError("renderChart: marks[0].rows[0].x must be an array of numbers"),
+    );
+  });
+
+  // Each list is a plain array, so a typed array or an object with a length
+  // is a TypeError naming its field, whatever its length says.
+  it.each<[string, (list: unknown) => Mark, string]>([
+    ["an area's x", (x) => ({ mark: "area", x, series: [] }) as never, "marks[0].x must be"],
+    [
+      "a rect's x1",
+      (x1) => ({ mark: "rect", x1, x2: [1], series: [] }) as never,
+      "marks[0].x1 must be",
+    ],
+    [
+      "a series' y",
+      (y) => ({ mark: "line", x: [0], series: [{ name: "a", y }] }) as never,
+      "marks[0].series[0].y must be",
+    ],
+    [
+      "a bar's names",
+      (y) => ({ mark: "bar", y, series: [{ name: "a", x: [1] }] }) as never,
+      "marks[0].y must be",
+    ],
+    [
+      "a cell's columns, read as bins",
+      (x) => ({ mark: "cell", x, y: ["a"], values: [[1]] }) as never,
+      "marks[0].x.edges must be",
+    ],
+    [
+      "a scatter's names",
+      (names) => ({ mark: "scatter", series: [{ name: "a", names, x: [1], y: [1] }] }) as never,
+      "marks[0].series[0].names must be",
+    ],
+    ["a pie's slices", (slices) => ({ mark: "pie", slices }) as never, "marks[0].slices must be"],
+    ["a timeline's rows", (rows) => ({ mark: "dot", rows }) as never, "marks[0].rows must be"],
+    ["a tree's nodes", (nodes) => ({ mark: "tree", nodes }) as never, "marks[0].nodes must be"],
+  ])("refuses %s that is no array", (_, mark, message) => {
+    const scales = (m: Mark) =>
+      m.mark === "scatter"
+        ? { x: { label: "x" }, y: { label: "y" } }
+        : m.mark === "pie" || m.mark === "tree" || m.mark === "cell"
+          ? {}
+          : { x: {} };
+    for (const list of [
+      new Float64Array([1]),
+      { length: 1, 0: "a" },
+      { length: 1, 0: 1 },
+      ...[-1, 1.5, Number.NaN, Number.POSITIVE_INFINITY, 1e7, 2 ** 32].map((length) => ({
+        length,
+      })),
+    ]) {
+      const m = mark(list);
+      expect(() => build({ ...scales(m), marks: [m] }), JSON.stringify(list)).toThrow(
+        new RegExp(`^renderChart: ${message.replaceAll(/[.*+?^${}()|[\]\\]/gu, "\\$&")}`, "u"),
+      );
+      expect(() => build({ ...scales(m), marks: [m] })).toThrow(TypeError);
+    }
+  });
+
+  it("refuses a sparse array's hole as the entry it stands for", () => {
+    const holes = new Array<number>(2);
+    expect(() => build({ x: {}, marks: [line([1, 2], { x: holes })] })).toThrow(
+      new RangeError("renderChart: marks[0].x must hold finite numbers"),
+    );
+    expect(() => build({ x: {}, marks: [line(holes, { x: [0, 1] })] })).toThrow(
+      new TypeError("renderChart: marks[0].series[0].y must hold numbers or null"),
+    );
+    expect(() => build({ marks: [{ mark: "bar", y: new Array<string>(1), series: [] }] })).toThrow(
+      new TypeError("renderChart: marks[0].y must be an array of the categories' names"),
+    );
+    expect(() =>
+      build({
+        marks: [{ mark: "cell", x: { edges: new Array<number>(2) }, y: ["a"], values: [[1]] }],
+      }),
+    ).toThrow(new TypeError("renderChart: marks[0].x.edges must be an array of numbers"));
+  });
+
+  it("refuses marks that are no array", () => {
+    expect(() => build({ marks: { length: 1, 0: note() } })).toThrow(
+      new TypeError("renderChart: marks must be an array"),
+    );
+  });
+
   it("names the rule it breaks", () => {
     expect(() => build({ x: {}, marks: [line([1, 2], { x: [0, 0] })] })).toThrow(
       "renderChart: marks[0].x must strictly increase",
@@ -283,7 +932,7 @@ describe("spec errors", () => {
     expect(() =>
       build({ x: {}, marks: [{ mark: "rule", x: 1, label: "Median" }, line([1]), rect([1])] }),
     ).toThrow(
-      "renderChart: marks[2] is a second data mark beside marks[1]; a chart holds one rect, line, area, dot, bar, point, slope, scatter, cell or box mark and any rules and text marks",
+      "renderChart: marks[2] is a second data mark beside marks[1]; a chart holds one rect, line, area, dot, bar, point, slope, scatter, cell, box, pie or tree mark and any rules and text marks",
     );
   });
 
@@ -1052,7 +1701,7 @@ describe("the point mark", () => {
       "renderChart: a point's x must be above 0 on a log x",
     );
     expect(() => build({ x: {}, marks: [{ mark: "plot" }] })).toThrow(
-      'renderChart: marks[0].mark must be "rect", "line", "area", "dot", "bar", "point", "slope", "scatter", "cell", "box", "rule" or "text"',
+      'renderChart: marks[0].mark must be "rect", "line", "area", "dot", "bar", "point", "slope", "scatter", "cell", "box", "pie", "tree", "rule" or "text"',
     );
   });
 
@@ -1290,7 +1939,7 @@ describe("the slope mark", () => {
     });
     expect(m.kind).toBe("slope");
     expect([m.xText(0), m.xText(1)]).toEqual(["2005", "2015"]);
-    expect(m.xSpan(0, 1)).toEqual(["2005", "2015"]);
+    expect(m.xSpan(0, 1).map((p) => p.text)).toEqual(["2005", "2015"]);
     expect(m.amountText(34)).toBe("34");
   });
 
@@ -1543,6 +2192,7 @@ describe("the scatter mark", () => {
       shown: [[0], []],
       size: undefined,
       drawn: [{ series: 0, i: 0 }],
+      at: new Map([[2, new Map([[8, { series: 0, i: 0 }]])]]),
     });
     expect(m.kind).toBe("scatter");
     expect(m.empty).toBe(false);
@@ -1798,6 +2448,14 @@ describe("the cell mark", () => {
     expect(() => build(spec)).toThrow(type);
   });
 
+  it("is a heatmap when written with days: undefined, as its check reads it", () => {
+    const m = build({ marks: [{ ...cell(), days: undefined }] });
+    expect(m.kind).toBe("heatmap");
+    expect([m.x.lo, m.x.hi]).toEqual([0, 3]);
+    expect(m.y).toEqual({ type: "band", rows: ["Mon", "Tue"], mono: false });
+    expect((m.marks[0] as CellModel).kind).toBe("cell");
+  });
+
   it("is a heatmap whose x holds its columns from 0 to their count and whose y is a band of its rows", () => {
     const m = build({ marks: [cell()] });
     expect(m.kind).toBe("heatmap");
@@ -1880,6 +2538,26 @@ describe("a cell mark's binned axes", () => {
   it("takes a height on a binned y, which a named y refuses", () => {
     expect(build({ height: 120, marks: [bins(["a", "b"], life)] }).spec.height).toBe(120);
     expect(() => build({ height: 120, marks: [bins(gdp, ["a", "b"])] })).toThrow(TypeError);
+  });
+
+  it("refuses a binned y whose thinnest bin is under a thousandth of the axis", () => {
+    const thin = new RangeError(
+      "renderChart: marks[0].y.edges' thinnest bin must be at least 1/1000 of the axis, since the plot grows until it is a row tall",
+    );
+    for (const edges of [
+      [0, 1, 1e9],
+      [0, 1, 1e6],
+      [0, 999, 1000, 1001],
+    ]) {
+      expect(() => build({ marks: [bins(["a"], { edges })] }), String(edges)).toThrow(thin);
+    }
+    expect(() =>
+      build({ y: { type: "log" }, marks: [bins(["a"], { edges: [1, 1.001, 10] })] }),
+    ).toThrow(thin);
+    expect(build({ marks: [bins(["a"], { edges: [0, 1, 1000] })] }).kind).toBe("heatmap");
+    expect(
+      build({ y: { type: "log" }, marks: [bins(["a"], { edges: [1, 10, 1e300] })] }).kind,
+    ).toBe("heatmap");
   });
 });
 
@@ -2188,6 +2866,492 @@ describe("the largest value", () => {
   it("refuses a calendar's start past Date's range with a RangeError", () => {
     expect(() => build({ marks: [{ mark: "cell", days: { start: 1e16, values: [1] } }] })).toThrow(
       RangeError,
+    );
+  });
+});
+
+describe("an instant's words on a time x", () => {
+  const over = (lo: number, hi: number) =>
+    build({ x: { type: "time" }, marks: [line([1, 2], { x: [lo, hi] })] });
+  // Noon, so the instants keep their minute.
+  const newYear = Date.UTC(2026, 0, 1, 12);
+
+  it("adds the year when the domain's ends lie in different years, and the era before year 1", () => {
+    expect(over(newYear, newYear + 10 * 86_400_000).xText(newYear)).toBe("Jan 1, 12:00 PM");
+    expect(over(newYear - 86_400_000, newYear + 86_400_000).xText(newYear)).toBe(
+      "Jan 1, 2026, 12:00 PM",
+    );
+    const bc = new Date(newYear).setUTCFullYear(-500);
+    expect(over(bc, newYear).xText(bc)).toBe("Jan 1, 501 BC, 12:00 PM");
+    expect(
+      over(bc, newYear)
+        .xSpan(bc, newYear)
+        .map((p) => p.text),
+    ).toEqual(["Jan 1, 501 BC, 12:00 PM", "Jan 1, 2026 AD, 12:00 PM"]);
+    // Two New Year's midnights are years, each with its era before year 1.
+    const midnight = Date.UTC(2026, 0, 1);
+    const bcYear = new Date(midnight).setUTCFullYear(-500);
+    expect(over(bcYear, midnight).xText(bcYear)).toBe("501 BC");
+    expect(over(bcYear, midnight).xText(midnight)).toBe("2026 AD");
+  });
+
+  it("refuses a time x past what Date holds, naming the limit", () => {
+    expect(() => over(0, 8.64e15 + 1)).toThrow(
+      "renderChart: marks[0].x[1] must lie within 8.64e15 ms either side of 1970, the range Date holds",
+    );
+    expect(over(-8.64e15, 8.64e15).x.lo).toBe(-8.64e15);
+    expect(() =>
+      build({
+        x: { type: "time" },
+        marks: [line([1, 2], { x: [0, 1] }), { mark: "text", x: -1e16, y: 1, text: "far" }],
+      }),
+    ).toThrow(
+      "renderChart: marks[1].x must lie within 8.64e15 ms either side of 1970, the range Date holds",
+    );
+    expect(() => build({ marks: [{ mark: "cell", days: { start: 1e16, values: [1] } }] })).toThrow(
+      "renderChart: a calendar's days.start must lie within 8.64e15 ms either side of 1970",
+    );
+    expect(() =>
+      build({
+        marks: [
+          { mark: "cell", days: { start: 0, values: [1] } },
+          { mark: "text", x: 9e15, text: "far" },
+        ],
+      }),
+    ).toThrow("renderChart: marks[1].x must lie within 8.64e15 ms");
+    expect(() =>
+      build({
+        marks: [{ mark: "cell", days: { start: 8.64e15 - 86_400_000, values: [1, 2, 3, 4] } }],
+      }),
+    ).toThrow(
+      "renderChart: the days of a calendar's last week must lie within 8.64e15 ms either side of 1970, the range Date holds",
+    );
+    expect(
+      build({ marks: [{ mark: "cell", days: { start: 8.64e15 - 86_400_000, values: [1] } }] }).x.hi,
+    ).toBe(8.64e15);
+  });
+
+  it("names every instant past what Date holds on a time x, whatever its domain", () => {
+    const limit = "must lie within 8.64e15 ms either side of 1970, the range Date holds";
+    const x = { type: "time", domain: [0, 1000] };
+    const cases: [unknown, string][] = [
+      [{ x, marks: [line([1]), { mark: "rule", x: -9e15, label: "far" }] }, "marks[1].x"],
+      [{ x, marks: [rect([1, 2], { x1: [-9e15, 1], x2: [1, 2] })] }, "marks[0].x1[0]"],
+      [{ x, marks: [rect([1], { x1: [0], x2: [9e15] })] }, "marks[0].x2[0]"],
+      [{ x, marks: [area([[1, 2]], { x: [0, 9e15] })] }, "marks[0].x[1]"],
+      [
+        { x, marks: [{ mark: "dot", rows: [{ name: "a", x: [0, 9e15] }] }] },
+        "marks[0].rows[0].x[1]",
+      ],
+      [
+        { x, marks: [{ mark: "point", y: ["a"], series: [{ name: "s", x: [9e15] }] }] },
+        "marks[0].series[0].x[0]",
+      ],
+      [
+        {
+          x: { type: "time" },
+          marks: [{ mark: "cell", x: { edges: [0, 9e15] }, y: ["a"], values: [[1]] }],
+        },
+        "marks[0].x.edges[1]",
+      ],
+      [{ x: { type: "time", domain: [-9e15, 0] }, marks: [] }, "x.domain[0]"],
+      [{ x, marks: [line([1]), note({ x: 9e15 })] }, "marks[1].x"],
+    ];
+    for (const [spec, field] of cases) {
+      expect(() => build(spec)).toThrow(new RangeError(`renderChart: ${field} ${limit}`));
+    }
+    expect(build({ x, marks: [rect([1], { x1: [-8.64e15], x2: [8.64e15] })] }).x.lo).toBe(0);
+  });
+
+  // 8.64e15 ms is Saturday 13 September 275760, -8.64e15 a Tuesday.
+  const days = (start: number, values: number[], locale: string, timeZone: string) =>
+    chartModel({ marks: [{ mark: "cell", days: { start, values } }] }, locale, timeZone);
+
+  it("refuses a calendar whose first week starts before what Date holds, west of UTC too", () => {
+    const first =
+      "renderChart: the days of a calendar's first week must lie within 8.64e15 ms either side of 1970, the range Date holds";
+    // A week from Sunday in en starts two days before the Tuesday.
+    expect(() => days(-8.64e15, [1], "en", "UTC")).toThrow(first);
+    // New York's wall clock puts -8.64e15 on the Monday before it.
+    expect(() => days(-8.64e15, [1], "en", "America/New_York")).toThrow(first);
+    expect(() => days(-8.64e15 + 2 * 86_400_000, [1], "en-GB", "UTC")).toThrow(first);
+    expect(days(-8.64e15 + 5 * 86_400_000, [1], "en", "UTC").x.lo).toBe(-8.64e15 + 5 * 86_400_000);
+  });
+
+  it("refuses a calendar whose last week ends after what Date holds, and draws one ending at it", () => {
+    // fr's week from Monday puts the Friday's week end on Sunday 14 September.
+    expect(() => days(8.64e15 - 86_400_000, [1], "fr", "UTC")).toThrow(
+      "renderChart: the days of a calendar's last week must lie within 8.64e15 ms either side of 1970, the range Date holds",
+    );
+    // en's week from Sunday ends on the Saturday, the last day Date holds.
+    const m = days(8.64e15 - 86_400_000, [1, 2], "en", "UTC");
+    expect(m.kind).toBe("calendar");
+    expect(m.x.hi).toBe(8.64e15 + 86_400_000);
+  });
+});
+
+describe("the pie mark", () => {
+  const land = (more: Record<string, unknown> = {}, slices?: unknown) => ({
+    mark: "pie",
+    unit: { other: "km²" },
+    slices: slices ?? [
+      { name: "Agriculture", value: 182_637 },
+      { name: "Forest", slot: 5, value: 106_000 },
+      { name: "Water", value: null },
+      { name: "Other", value: Number.NaN },
+    ],
+    ...more,
+  });
+
+  it("keeps the slices in the app's order, each in its slot, a gap as null, totalling the rest", () => {
+    const model = build({ marks: [land()] });
+    const m = model.marks[0];
+    expect(m?.kind).toBe("pie");
+    if (m?.kind !== "pie") {
+      return;
+    }
+    expect(m.slices).toEqual([
+      { name: "Agriculture", slot: 1, value: 182_637 },
+      { name: "Forest", slot: 5, value: 106_000 },
+      { name: "Water", slot: 3, value: null },
+      { name: "Other", slot: 4, value: null },
+    ]);
+    expect(m.total).toBe(288_637);
+    expect(m.hole).toBe(false);
+    expect(model.amountText(m.total)).toBe("288,637");
+    expect(model.shareText(182_637 / 288_637)).toBe("63%");
+  });
+
+  it("is a pie chart, or with a hole a donut chart, and writes values in its own format", () => {
+    expect(build({ marks: [land()] }).kind).toBe("pie");
+    const donut = build({ marks: [land({ hole: true, format: "percent" })] });
+    expect(donut.kind).toBe("donut");
+    expect(donut.amountText(0.5)).toBe("50%");
+  });
+
+  it("is empty when every slice is 0 or no data", () => {
+    const zero = [
+      { name: "A", value: 0 },
+      { name: "B", value: null },
+    ];
+    expect(build({ marks: [land({}, zero)] }).empty).toBe(true);
+    expect(build({ marks: [land({}, [])] }).empty).toBe(true);
+    expect(build({ marks: [land()] }).empty).toBe(false);
+  });
+
+  it("takes a height, since its circle is as tall as the plot", () => {
+    expect(build({ height: 300, marks: [land()] }).spec.height).toBe(300);
+  });
+
+  it("refuses scales, rules and notes, which have no axis to sit on", () => {
+    expect(() => build({ x: {}, marks: [land()] })).toThrow(
+      new TypeError("renderChart: a pie takes no x scale; it has no axes"),
+    );
+    expect(() => build({ y: {}, marks: [land()] })).toThrow(
+      new TypeError("renderChart: a pie takes no y scale; it has no axes"),
+    );
+    expect(() => build({ marks: [land(), { mark: "rule", y: 1, label: "Target" }] })).toThrow(
+      new TypeError(
+        "renderChart: marks[1] is a rule mark beside a pie, which has no scale to place it on",
+      ),
+    );
+    expect(() => build({ marks: [{ mark: "text", x: 1, y: 1, text: "Note" }, land()] })).toThrow(
+      new TypeError(
+        "renderChart: marks[0] is a text mark beside a pie, which has no scale to place it on",
+      ),
+    );
+    expect(() => build({ marks: [land(), rect([1])] })).toThrow(TypeError);
+  });
+
+  it("refuses slices of the wrong type with a TypeError", () => {
+    for (const bad of [
+      land({}, "slices"),
+      land({ hole: "yes" }),
+      land({}, [{ value: 1 }]),
+      land({}, [{ name: "A", value: "1" }]),
+      land({}, [{ name: "A", value: 1, slot: "1" }]),
+      land({ unit: "km²" }),
+      land({ format: "money" }),
+    ]) {
+      expect(() => build({ marks: [bad] }), JSON.stringify(bad)).toThrow(TypeError);
+    }
+  });
+
+  it("refuses negative, infinite, unnamed and repeated slices with a RangeError", () => {
+    const one = (slice: Record<string, unknown>) => land({}, [{ name: "A", value: 1 }, slice]);
+    for (const bad of [
+      one({ name: "B", value: -1 }),
+      one({ name: "B", value: Number.POSITIVE_INFINITY }),
+      one({ name: "B", value: 1e301 }),
+      one({ name: "", value: 1 }),
+      one({ name: "A", value: 2 }),
+      one({ name: "B", value: 1, slot: 10 }),
+    ]) {
+      expect(() => build({ marks: [bad] }), JSON.stringify(bad)).toThrow(RangeError);
+    }
+    expect(() => build({ marks: [one({ name: "B", value: -1 })] })).toThrow(
+      "renderChart: marks[0].slices[1].value cannot be negative; a slice is a part of the whole",
+    );
+    expect(() => build({ marks: [one({ name: "A", value: 2 })] })).toThrow(
+      'renderChart: marks[0].slices must name each slice once, never ""',
+    );
+  });
+
+  it("refuses a total past what a scale holds", () => {
+    const big = [
+      { name: "A", value: 1e300 },
+      { name: "B", value: 1e300 },
+    ];
+    expect(() => build({ marks: [land({}, big)] })).toThrow(
+      new RangeError("renderChart: the total of a pie's slices must lie within ±1e300"),
+    );
+  });
+});
+
+describe("the tree mark", () => {
+  const regions = (more: Record<string, unknown> = {}, nodes?: unknown) => ({
+    mark: "tree",
+    unit: { other: "USD" },
+    nodes: nodes ?? [
+      {
+        name: "Asia",
+        children: [
+          { name: "China", value: 17.8e12 },
+          { name: "Japan", value: 4.2e12 },
+          { name: "Other", value: null },
+        ],
+      },
+      {
+        name: "Europe",
+        slot: 7,
+        children: [
+          { name: "Germany", value: 4.5e12 },
+          { name: "Other", value: Number.NaN },
+        ],
+      },
+      { name: "Americas", children: [{ name: "United States", value: 27.4e12 }] },
+    ],
+    ...more,
+  });
+  const countries = (more: Record<string, unknown> = {}) =>
+    regions(more, [
+      { name: "United States", value: 27.4e12 },
+      { name: "China", slot: 3, value: 17.8e12 },
+      { name: "Germany", value: 4.5e12 },
+      { name: "Chad", value: 0 },
+    ]);
+
+  it("sums each group's parts, each part taking its group's slot and a group the series rule's", () => {
+    const model = build({ marks: [regions()] });
+    const m = model.marks[0];
+    expect(m?.kind).toBe("tree");
+    if (m?.kind !== "tree") {
+      return;
+    }
+    expect(m.groups).toEqual([
+      { name: "Asia", slot: 1, value: 22e12, first: 0, count: 3 },
+      { name: "Europe", slot: 7, value: 4.5e12, first: 3, count: 2 },
+      { name: "Americas", slot: 3, value: 27.4e12, first: 5, count: 1 },
+    ]);
+    expect(m.parts).toEqual([
+      { name: "China", slot: 1, value: 17.8e12, group: 0 },
+      { name: "Japan", slot: 1, value: 4.2e12, group: 0 },
+      { name: "Other", slot: 1, value: null, group: 0 },
+      { name: "Germany", slot: 7, value: 4.5e12, group: 1 },
+      { name: "Other", slot: 7, value: null, group: 1 },
+      { name: "United States", slot: 3, value: 27.4e12, group: 2 },
+    ]);
+    expect(m.total).toBe(53.9e12);
+    expect(model.kind).toBe("treemap");
+    expect(model.amountText(m.total)).toBe("53,900,000,000,000");
+  });
+
+  it("fills one level's tiles with the mark's slot, 1 by default, a part's own slot picking it out", () => {
+    const one = build({ marks: [countries()] }).marks[0];
+    const slotted = build({ marks: [countries({ slot: 4 })] }).marks[0];
+    expect(one?.kind === "tree" && one.parts.map((p) => [p.slot, p.group])).toEqual([
+      [1, -1],
+      [3, -1],
+      [1, -1],
+      [1, -1],
+    ]);
+    expect(one?.kind === "tree" && one.groups).toEqual([]);
+    expect(slotted?.kind === "tree" && slotted.parts.map((p) => p.slot)).toEqual([4, 3, 4, 4]);
+  });
+
+  it("takes a node written with children: undefined as a part, as its check does", () => {
+    const parts = (more: Record<string, unknown> = {}) =>
+      build({
+        marks: [
+          regions({}, [
+            { name: "Spain", value: 1.6e12, children: undefined, ...more },
+            { name: "Italy", value: 2.3e12 },
+          ]),
+        ],
+      }).marks[0];
+    const plain = parts();
+    const slotted = parts({ slot: 5 });
+    expect(plain?.kind === "tree" && plain.parts[0]).toEqual({
+      name: "Spain",
+      slot: 1,
+      value: 1.6e12,
+      group: -1,
+    });
+    expect(plain?.kind === "tree" && plain.groups).toEqual([]);
+    expect(slotted?.kind === "tree" && slotted.parts.map((p) => p.slot)).toEqual([5, 1]);
+  });
+
+  it("writes values in its own format and is empty when every part is 0 or no data", () => {
+    expect(build({ marks: [countries({ format: "integer" })] }).amountText(1.5e3)).toBe("1,500");
+    const none = [
+      { name: "A", value: 0 },
+      { name: "B", value: null },
+    ];
+    expect(build({ marks: [regions({}, none)] }).empty).toBe(true);
+    expect(build({ marks: [regions({}, [{ name: "G", children: none }])] }).empty).toBe(true);
+    expect(build({ marks: [regions({}, [])] }).empty).toBe(true);
+    expect(build({ marks: [countries()] }).empty).toBe(false);
+  });
+
+  it("refuses scales, rules and notes, which have no axis to sit on", () => {
+    expect(() => build({ x: {}, marks: [countries()] })).toThrow(
+      new TypeError("renderChart: a tree takes no x scale; it has no axes"),
+    );
+    expect(() => build({ y: {}, marks: [countries()] })).toThrow(
+      new TypeError("renderChart: a tree takes no y scale; it has no axes"),
+    );
+    expect(() => build({ marks: [countries(), { mark: "rule", x: 1, label: "Target" }] })).toThrow(
+      new TypeError(
+        "renderChart: marks[1] is a rule mark beside a tree, which has no scale to place it on",
+      ),
+    );
+    expect(() =>
+      build({ marks: [{ mark: "text", x: 1, y: 1, text: "Note" }, countries()] }),
+    ).toThrow(
+      new TypeError(
+        "renderChart: marks[0] is a text mark beside a tree, which has no scale to place it on",
+      ),
+    );
+    expect(() => build({ marks: [countries(), rect([1])] })).toThrow(TypeError);
+  });
+
+  it("refuses a third level, mixed levels, empty groups and slots on grouped parts with a TypeError", () => {
+    const group = (children: unknown, more: Record<string, unknown> = {}) => ({
+      name: "G",
+      children,
+      ...more,
+    });
+    const cases: [unknown, string][] = [
+      [regions({}, "nodes"), "marks[0].nodes must be an array"],
+      [
+        regions({}, [{ name: "A" }]),
+        "marks[0].nodes[0] must hold a value or children, not both or neither",
+      ],
+      [
+        regions({}, [group([{ name: "a", value: 1 }], { value: 1 })]),
+        "marks[0].nodes[0] must hold a value or children, not both or neither",
+      ],
+      [
+        regions({}, [group([{ name: "a", children: [{ name: "x", value: 1 }] }])]),
+        "marks[0].nodes[0].children[0] cannot hold children; a tree has two levels at most",
+      ],
+      [
+        regions({}, [{ name: "A", value: 1 }, group([{ name: "a", value: 1 }])]),
+        "marks[0].nodes must be all parts or all groups",
+      ],
+      [regions({}, [group([])]), "marks[0].nodes[0].children must hold a part"],
+      [regions({}, [group("parts")]), "marks[0].nodes[0].children must be an array"],
+      [regions({}, [group([{ name: "a" }])]), "marks[0].nodes[0].children[0] must hold a value"],
+      [
+        regions({}, [group([{ name: "a", slot: 2, value: 1 }])]),
+        "marks[0].nodes[0].children[0].slot has no place inside a group, whose slot its parts take",
+      ],
+      [regions({ slot: 2 }), "marks[0].slot has no place beside groups, which take a slot each"],
+      [regions({}, [{ value: 1 }]), "marks[0].nodes[0] must have a name"],
+      [
+        regions({}, [group([{ name: 3, value: 1 }])]),
+        "marks[0].nodes[0].children[0] must have a name",
+      ],
+      [
+        regions({}, [{ name: "A", value: "1" }]),
+        "marks[0].nodes[0].value must be a number or null",
+      ],
+    ];
+    for (const [bad, message] of cases) {
+      expect(() => build({ marks: [bad] }), message).toThrow(
+        new TypeError(`renderChart: ${message}`),
+      );
+    }
+    for (const bad of [
+      countries({ unit: "USD" }),
+      countries({ format: "money" }),
+      countries({ slot: "1" }),
+    ]) {
+      expect(() => build({ marks: [bad] }), JSON.stringify(bad)).toThrow(TypeError);
+    }
+  });
+
+  it("refuses negative, infinite, unnamed and repeated siblings with a RangeError", () => {
+    const parts = (part: Record<string, unknown>) => regions({}, [{ name: "A", value: 1 }, part]);
+    const cases: [unknown, string][] = [
+      [
+        parts({ name: "B", value: -1 }),
+        "marks[0].nodes[1].value cannot be negative; a part is a part of the whole",
+      ],
+      [
+        parts({ name: "B", value: Number.NEGATIVE_INFINITY }),
+        "marks[0].nodes[1].value cannot be infinite",
+      ],
+      [parts({ name: "B", value: 1e301 }), "marks[0].nodes[1].value must lie within ±1e300"],
+      [parts({ name: "", value: 1 }), 'marks[0].nodes must name each node once, never ""'],
+      [parts({ name: "A", value: 2 }), 'marks[0].nodes must name each node once, never ""'],
+      [parts({ name: "B", slot: 10, value: 1 }), "marks[0].nodes[1].slot must be 1 to 9"],
+      [
+        regions({}, [
+          {
+            name: "G",
+            children: [
+              { name: "a", value: 1 },
+              { name: "a", value: 2 },
+            ],
+          },
+        ]),
+        'marks[0].nodes[0].children must name each part once, never ""',
+      ],
+      [
+        regions({}, [{ name: "G", children: [{ name: "a", value: -2 }] }]),
+        "marks[0].nodes[0].children[0].value cannot be negative; a part is a part of the whole",
+      ],
+      [
+        regions(
+          {},
+          Array.from({ length: 10 }, (_, g) => ({
+            name: `G${String(g)}`,
+            children: [{ name: "a", value: 1 }],
+          })),
+        ),
+        "marks[0].nodes[9] needs a slot, since series past the ninth take none of their own",
+      ],
+    ];
+    for (const [bad, message] of cases) {
+      expect(() => build({ marks: [bad] }), message).toThrow(
+        new RangeError(`renderChart: ${message}`),
+      );
+    }
+    // Two groups may each hold an "Other": only siblings must differ.
+    expect(() => build({ marks: [regions()] })).not.toThrow();
+    // Parts of one level take the mark's slot, so a tenth needs none of its own.
+    const many = Array.from({ length: 30 }, (_, i) => ({ name: `P${String(i)}`, value: i + 1 }));
+    expect(build({ marks: [regions({}, many)] }).empty).toBe(false);
+  });
+
+  it("refuses a total past what a scale holds", () => {
+    const big = [
+      { name: "A", value: 1e300 },
+      { name: "B", value: 1e300 },
+    ];
+    expect(() => build({ marks: [regions({}, big)] })).toThrow(
+      new RangeError("renderChart: the total of a tree's nodes must lie within ±1e300"),
     );
   });
 });
