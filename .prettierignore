@@ -8,3 +8,5 @@ docs/system/*.html
 # as each element's card moves onto src/.
 gallery/pages/
 gallery/legacy/
+# chartdata's contract, vendored byte for byte by npm run frames:sync.
+src/data/frame/contract/

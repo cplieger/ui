@@ -66,7 +66,7 @@ interface PanelPlace {
   readonly gutter: boolean;
 }
 
-export interface FacetLayout {
+interface FacetLayout {
   readonly columns: number;
   /** The gutter is at the grid's right, under a reversed x. */
   readonly reverse: boolean;
@@ -129,7 +129,7 @@ export function facetLayout(
       gutter: edge,
       lay: {
         ...full,
-        height: axis ? full.height : top + full.frame.height,
+        height: axis ? full.height : top + full.projection.height,
         yLabels: edge ? full.yLabels : [],
         xLabels: axis ? full.xLabels : [],
         // A title above the plot is y's, said once; one below it is x's.
@@ -289,7 +289,7 @@ interface Item {
 /** Small multiples' panels: each panel's plot a region of its own, read
  *  by its own keys, pointer and touch, with one legend row and the
  *  selection synced into every panel that holds its position. */
-export interface PanelGrid {
+interface PanelGrid {
   /** The `[data-part="panels"]` grid, in the lone SVG's place. */
   readonly element: HTMLElement;
   /** `model`'s panels replace the data: each keeps its element and its

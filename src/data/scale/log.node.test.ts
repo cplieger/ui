@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import { logTickLists } from "./log.js";
 
-const S = 1_000;
+// Durations are seconds.
+const S = 1;
 const MIN = 60 * S;
 const HR = 60 * MIN;
 const DAY = 24 * HR;

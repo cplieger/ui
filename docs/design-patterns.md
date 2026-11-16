@@ -114,7 +114,7 @@ Pick the form by the question the data answers, after [Datawrapper's guide to ch
 
 **Five series at most in a stack.** Each 3px segment on a phone must stand apart from its neighbours and in the legend. Group the smallest into "Other". Give each series a slot of the [series colours](design-colour.md#series-colours), the same slot for the same category on every chart of a screen.
 
-**The duration ladder.** Waits are binned on one ladder. Its edges are 0, 1 sec, 2 sec, 5 sec, 10 sec and 30 sec. In minutes they are 1, 2, 5, 10 and 30, and in hours 1, 2, 6 and 12. In days they are 1, 3, 7, 14, 30 and 90. `durationEdges` from [chart](data/chart.md) returns its edges in milliseconds, and a server in another language bins on the same numbers.
+**The duration ladder.** Waits are binned on one ladder. Its edges are 0, 1 sec, 2 sec, 5 sec, 10 sec and 30 sec. In minutes they are 1, 2, 5, 10 and 30, and in hours 1, 2, 6 and 12. In days they are 1, 3, 7, 14, 30 and 90. chartdata's `DurationEdges` returns its edges in seconds, the edges a Go service bins waits on and a [chart](data/chart.md#a-histogram-of-waits)'s duration axis ticks on, and a server in another language bins on the same numbers.
 
 1. Each bin is `[edge, next edge)`, and the last is closed, so every wait from 0 to the last edge lands in exactly one bin.
 2. The ladder ends at the first edge at or above the longest wait the data can hold. That is the larger of the retention and the longest wait stored. A retention lowered after older data was written leaves that data in place.

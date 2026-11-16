@@ -1,13 +1,24 @@
 import { describe, expect, it } from "vitest";
 
+import type { FrameRef, FrameSeries, FrameTreePart } from "../frame/frame.js";
 import { writer } from "../scale/format.js";
-import { durationEdges } from "../scale/ladder.js";
 import { measurer } from "../scale/measure.js";
 
 import { barSegments } from "./geometry.js";
 import { dodge, layout, numberedNotes, type Metrics, type Note, type TreeKept } from "./layout.js";
 import { chartModel, type BarModel } from "./model.js";
-import type { ChartSpec } from "./spec.js";
+import type { ChartSpec, Mark } from "./spec.js";
+import {
+  binsFrame,
+  boxes,
+  events,
+  grid,
+  ladder,
+  points,
+  seriesFrame,
+  tree,
+  unitBins,
+} from "./test-helpers/frames.js";
 import { chartWords } from "./words.js";
 
 // A face 7.5 px a character, digits included.
@@ -35,45 +46,72 @@ const lay = (
   floors = { axis: 0, label: 0 },
 ) => layout(chartModel(spec, "en", "UTC"), words, metrics(more), width, floors);
 
-const edges = durationEdges();
-const readDelays = (median: number, p95: number): ChartSpec => ({
-  x: {
-    type: "log",
-    format: "duration",
-    label: "Time from post to read",
-    domain: [1_000, edges.at(-1) ?? 0],
-  },
-  y: { label: "Reads", unit: { one: "read", other: "reads" } },
-  marks: [
-    {
-      mark: "rect",
-      x1: edges.slice(0, -1),
-      x2: edges.slice(1),
-      series: [{ name: "Reads", y: edges.slice(1).map(() => 3) }],
-    },
-    { mark: "rule", x: median, label: "Median" },
-    { mark: "rule", x: p95, label: "95th percentile" },
-  ],
-});
+type Values = readonly (number | null)[];
+type More = Omit<ChartSpec, "data" | "mark" | "facets">;
 
-const line = (y: (number | null)[][]): ChartSpec => ({
-  x: {},
-  marks: [
-    {
-      mark: "line",
-      x: (y[0] ?? []).map((_, i) => i),
-      series: y.map((values, k) => ({ name: `s${String(k)}`, y: values })),
+// Series keyed by their names, in order.
+const named = (series: readonly (readonly [string, Values])[]): FrameSeries[] =>
+  series.map(([key, values]) => ({ key, values: [...values] }));
+
+// A categories frame of `names` and its named series, drawn by `mark`.
+const rows = (
+  names: readonly string[],
+  series: readonly (readonly [string, Values])[],
+  mark: Mark,
+  more: More = {},
+  unit = "count",
+): ChartSpec =>
+  ({
+    data: { type: "categories", name: "c", unit, names: [...names], series: named(series) },
+    mark,
+    ...more,
+  }) as ChartSpec;
+
+// `spec` with refs keyed by their labels.
+const withRefs = (spec: ChartSpec, refs: readonly (readonly [string, number])[]): ChartSpec =>
+  ({
+    ...spec,
+    data: {
+      ...(spec.data as NonNullable<ChartSpec["data"]>),
+      refs: refs.map(([key, value]): FrameRef => ({ key, value })),
     },
-  ],
+  }) as ChartSpec;
+
+const edges = ladder();
+const readDelays = (median: number, p95: number): ChartSpec =>
+  withRefs(
+    {
+      data: binsFrame(edges.slice(0, -1), edges.slice(1), [edges.slice(1).map(() => 3)], {
+        axis: "value",
+        unit: "seconds",
+      }),
+      mark: { mark: "rect" },
+      x: { type: "log", label: "Time from post to read", domain: [1, edges.at(-1) ?? 0] },
+      y: { label: "Reads", unit: { one: "read", other: "reads" } },
+    },
+    [
+      ["Median", median],
+      ["95th percentile", p95],
+    ],
+  );
+
+// A line over samples 0, 1, ..., its series keyed s0, s1, ....
+const line = (y: readonly Values[]): ChartSpec => ({
+  data: seriesFrame(
+    (y[0] ?? []).map((_, i) => i),
+    [],
+    { series: named(y.map((values, k) => [`s${String(k)}`, values])) },
+  ),
+  mark: { mark: "line" },
 });
 
 describe("rule labels", () => {
   it("lays the read histogram's rules on the 276 px phone plot: the median runs right, the 95th percentile ends at its rule on the second line", () => {
-    const l = lay(readDelays(42_000, 1_087_000), 80 + 276, { axisGroup: 80 });
-    expect(l.frame.width).toBe(276);
+    const l = lay(readDelays(42, 1_087), 80 + 276, { axisGroup: 80 });
+    expect(l.projection.width).toBe(276);
     const [median, p95] = l.ruleLabels;
-    expect(median?.text).toBe(`Median ${writer("duration", "en")(42_000)}`);
-    expect(median?.x).toBeCloseTo(80 + l.frame.xAt(42_000), 6);
+    expect(median?.text).toBe(`Median ${writer("duration", "en")(42)}`);
+    expect(median?.x).toBeCloseTo(80 + l.projection.xAt(42), 6);
     expect(p95?.x).toBe(80);
     expect(p95?.y).toBeGreaterThan(median?.y ?? 0);
     // The y title shares the band's first line, so the band is two lines tall.
@@ -82,16 +120,14 @@ describe("rule labels", () => {
   });
 
   it("writes a rule outside the domain as a label flush with its end", () => {
-    const l = lay(readDelays(42_000, 4 * 86_400_000), 80 + 276, { axisGroup: 80 });
+    const l = lay(readDelays(42, 4 * 86_400), 80 + 276, { axisGroup: 80 });
     const off = l.ruleLabels[1];
-    expect(off?.text).toBe(
-      `95th percentile ${writer("duration", "en")(4 * 86_400_000)}, off the axis`,
-    );
+    expect(off?.text).toBe(`95th percentile ${writer("duration", "en")(4 * 86_400)}, off the axis`);
     expect((off?.x ?? 0) + face.number(off?.text ?? "")).toBe(80 + 276);
   });
 
   it("puts the y title on its own line when a rule's label would touch it", () => {
-    const l = lay(readDelays(1_000, 1_000), 300);
+    const l = lay(readDelays(1, 1), 300);
     expect(l.titles[0]?.y).toBeLessThan(l.ruleLabels[0]?.y ?? 0);
     expect(l.top).toBe(3 * 17 + 4);
   });
@@ -109,35 +145,23 @@ describe("gutters", () => {
 
   it("cuts band names to the group gutter, so the gutter is the group's", () => {
     const spec: ChartSpec = {
-      x: {},
+      data: events({ "a-very-long-agent-name": [1], b: [2] }),
+      mark: { mark: "dot" },
       y: { type: "band", mono: true },
-      marks: [
-        {
-          mark: "dot",
-          rows: [
-            { name: "a-very-long-agent-name", x: [1] },
-            { name: "b", x: [2] },
-          ],
-        },
-      ],
     };
     const l = lay(spec, 400, { axisGroup: 80 });
     expect(l.gutters.axis).toBe(80);
     expect(l.rows[0]?.name.endsWith("…")).toBe(true);
     expect(face.text(l.rows[0]?.name ?? "")).toBeLessThanOrEqual(72);
-    expect(l.frame.height).toBe(2 * 24);
+    expect(l.projection.height).toBe(2 * 24);
     expect(l.rows.map((r) => r.y)).toEqual([12, 36]);
   });
 
   it("keeps a column chart's label gutter at the group's, empty", () => {
-    const spec: ChartSpec = {
-      x: {},
-      marks: [{ mark: "rect", x1: [0], x2: [1], series: [{ name: "a", y: [1] }] }],
-    };
-    const l = lay(spec, 600, { labelGroup: 80 });
+    const l = lay({ data: unitBins([[1]]), mark: { mark: "rect" } }, 600, { labelGroup: 80 });
     expect(l.gutters.label).toBe(80);
     expect(l.endLabels).toEqual([]);
-    expect(l.left + l.frame.width).toBe(600 - 80);
+    expect(l.left + l.projection.width).toBe(600 - 80);
   });
 });
 
@@ -154,7 +178,7 @@ describe("end labels", () => {
     const widest = Math.max(face.number("s0 5"), face.number("s1 3"));
     expect(l.gutters.label).toBe(Math.ceil(widest + 8));
     for (const e of l.endLabels) {
-      expect(e.x).toBe(l.left + l.frame.width + 8);
+      expect(e.x).toBe(l.left + l.projection.width + 8);
     }
   });
 
@@ -178,17 +202,13 @@ describe("end labels", () => {
 
   it("cuts a name to the group's label gutter less its pad, keeping the value whole", () => {
     const spec: ChartSpec = {
-      x: {},
-      marks: [
-        {
-          mark: "line",
-          x: [0, 1],
-          series: [
-            { name: "Agents waiting on review", y: [3, 12_345] },
-            { name: "Live", y: [1, 4] },
-          ],
-        },
-      ],
+      data: seriesFrame([0, 1], [], {
+        series: named([
+          ["Agents waiting on review", [3, 12_345]],
+          ["Live", [1, 4]],
+        ]),
+      }),
+      mark: { mark: "line" },
     };
     const l = lay(spec, 600, { labelGroup: 80 });
     // 80 - 8 px less " 12,345" leaves 19.5 px, two characters at 7.5 px.
@@ -197,6 +217,14 @@ describe("end labels", () => {
     expect(lay(spec, 600).endLabels.map((e) => e.text)).toContain(
       "Agents waiting on review 12,345",
     );
+  });
+
+  it("names each line by its words in mark.keys", () => {
+    const spec: ChartSpec = {
+      ...line([[1, 5]]),
+      mark: { mark: "line", keys: [{ key: "s0", name: "Live" }] },
+    };
+    expect(lay(spec, 480).endLabels.map((e) => e.text)).toEqual(["Live 5"]);
   });
 
   it("reads 30rem off the chart's width, which the plot's borders make wider than its drawing", () => {
@@ -210,22 +238,15 @@ describe("end labels", () => {
     const l = lay({ ...line([[1, 5]]), x: { reverse: true } }, 600);
     expect(l.left).toBe(l.gutters.label);
     expect(l.endLabels[0]).toMatchObject({ x: l.left - 8, anchor: "end" });
-    expect(l.yLabels[0]).toMatchObject({ x: l.left + l.frame.width + 8, anchor: "start" });
+    expect(l.yLabels[0]).toMatchObject({ x: l.left + l.projection.width + 8, anchor: "start" });
   });
 });
 
 describe("an area's end labels", () => {
-  const area = (y: (number | null)[][], arrange?: "share"): ChartSpec => ({
-    x: {},
+  const area = (y: readonly Values[], arrange?: "share"): ChartSpec => ({
+    ...line(y),
+    mark: { mark: "area", ...(arrange === undefined ? {} : { arrange }) },
     height: 200,
-    marks: [
-      {
-        mark: "area",
-        x: (y[0] ?? []).map((_, i) => i),
-        ...(arrange === undefined ? {} : { arrange }),
-        series: y.map((values, k) => ({ name: `s${String(k)}`, y: values })),
-      },
-    ],
   });
 
   it("labels each layer at the middle of its thickness at the last whole stack", () => {
@@ -239,9 +260,9 @@ describe("an area's end labels", () => {
     );
     expect(l.endLabels.map((e) => e.text)).toEqual(["s1 60", "s0 40"]);
     const [upper, lower] = l.endLabels;
-    expect(lower?.y).toBeCloseTo(l.top + l.frame.yAt(20), 6);
-    expect(upper?.y).toBeCloseTo(l.top + l.frame.yAt(70), 6);
-    expect(lower?.x).toBe(l.left + l.frame.width + 8);
+    expect(lower?.y).toBeCloseTo(l.top + l.projection.yAt(20), 6);
+    expect(upper?.y).toBeCloseTo(l.top + l.projection.yAt(70), 6);
+    expect(lower?.x).toBe(l.left + l.projection.width + 8);
   });
 
   it("writes shares under share, the middle of each share's thickness on the 0 to 1 axis", () => {
@@ -256,8 +277,8 @@ describe("an area's end labels", () => {
       480,
     );
     expect(l.endLabels.map((e) => e.text)).toEqual(["s1 75%", "s0 25%"]);
-    expect(l.endLabels[1]?.y).toBeCloseTo(l.top + l.frame.yAt(0.125), 6);
-    expect(l.endLabels[0]?.y).toBeCloseTo(l.top + l.frame.yAt(0.625), 6);
+    expect(l.endLabels[1]?.y).toBeCloseTo(l.top + l.projection.yAt(0.125), 6);
+    expect(l.endLabels[0]?.y).toBeCloseTo(l.top + l.projection.yAt(0.625), 6);
   });
 
   it("moves thin layers' labels apart, the lower one down", () => {
@@ -272,7 +293,7 @@ describe("an area's end labels", () => {
     const ys = l.endLabels.map((e) => e.y);
     expect(l.endLabels.map((e) => e.text)).toEqual(["s2 98", "s1 1", "s0 1"]);
     expect((ys[2] ?? 0) - (ys[1] ?? 0)).toBe(17);
-    expect(ys[1]).toBeCloseTo(l.top + l.frame.yAt(1.5), 6);
+    expect(ys[1]).toBeCloseTo(l.top + l.projection.yAt(1.5), 6);
   });
 
   it("draws none with no whole stack, nor under 30rem", () => {
@@ -286,9 +307,9 @@ describe("an area's end labels", () => {
 describe("the plot's height", () => {
   it("is the spec's height, or the page's default", () => {
     const spec = line([[1, 2]]);
-    expect(lay(spec, 600).frame.height).toBe(240);
-    expect(lay(spec, 600, { height: 200 }).frame.height).toBe(200);
-    expect(lay({ ...spec, height: 120 }, 600).frame.height).toBe(120);
+    expect(lay(spec, 600).projection.height).toBe(240);
+    expect(lay(spec, 600, { height: 200 }).projection.height).toBe(200);
+    expect(lay({ ...spec, height: 120 }, 600).projection.height).toBe(120);
   });
 });
 
@@ -303,7 +324,11 @@ describe("a note", () => {
       const text = new Array<string>(300_000).fill("a").join(" ");
       const spec = line([[1, 2]]);
       const [note] = lay(
-        { ...spec, marks: [...spec.marks, { mark: "text", x: 0, y: 1, text }] },
+        {
+          ...spec,
+          data: { ...(spec.data as NonNullable<ChartSpec["data"]>), notes: [{ key: "n", at: 0 }] },
+          notes: [{ key: "n", text }],
+        } as ChartSpec,
         600,
         { measure: wide },
       ).notes;
@@ -314,20 +339,13 @@ describe("a note", () => {
 });
 
 describe("a bar chart", () => {
-  const countries: ChartSpec = {
-    x: {},
-    marks: [
-      {
-        mark: "bar",
-        y: ["Holy See", "Monaco", "Japan"],
-        series: [{ name: "Median age", x: [57.4, 54.5, -9] }],
-      },
-    ],
-  };
+  const countries = rows(["Holy See", "Monaco", "Japan"], [["Median age", [57.4, 54.5, -9]]], {
+    mark: "bar",
+  });
 
   it("sets a row of --cp-chart-row per category, its name in the gutter, from 30rem up", () => {
     const l = lay(countries, 600);
-    expect(l.frame.height).toBe(3 * 24);
+    expect(l.projection.height).toBe(3 * 24);
     expect(l.bar).toBe(16);
     expect(l.rows.map((r) => r.y)).toEqual([12, 36, 60]);
     expect(l.gutters.axis).toBe(7.5 * "Holy See".length + 8);
@@ -338,17 +356,14 @@ describe("a bar chart", () => {
     const l = lay(countries, 479);
     expect(l.gutters.axis).toBe(0);
     expect(l.left).toBe(0);
-    expect(l.frame.height).toBe(3 * 44);
+    expect(l.projection.height).toBe(3 * 44);
     // The name's 18 px line, 2 px, then the 16 px bar centred in the row's 24 px.
     expect(l.rows.map((r) => r.y)).toEqual([28, 72, 116]);
     expect(l.yLabels[1]).toEqual({ text: "Monaco", x: 0, y: 44 + 9, anchor: "start" });
   });
 
   it("cuts a name above its bar to the plot's width", () => {
-    const long: ChartSpec = {
-      x: {},
-      marks: [{ mark: "bar", y: ["A very long country name"], series: [{ name: "a", x: [1] }] }],
-    };
+    const long = rows(["A very long country name"], [["a", [1]]], { mark: "bar" });
     const l = lay(long, 100);
     expect((l.yLabels[0]?.text.length ?? 0) * 7.5).toBeLessThanOrEqual(100);
     expect(l.yLabels[0]?.text.endsWith("…")).toBe(true);
@@ -363,51 +378,43 @@ describe("a bar chart", () => {
     expect(holy).toMatchObject({ text: "+57.4", anchor: "start", y: 12 });
     expect(japan).toMatchObject({ text: "-9", anchor: "end", y: 60 });
     // "+57.4" and "-9" with their gaps leave the plot at both ends.
-    expect(l.frame.xAt(57.4) + 4 + 5 * 7.5).toBeCloseTo(l.frame.width);
-    expect(l.frame.xAt(-9) - 4 - 2 * 7.5).toBeCloseTo(0);
-    expect(holy?.x).toBeCloseTo(l.frame.xAt(57.4) + 4);
-    expect(l.height).toBe(l.top + l.frame.height);
+    expect(l.projection.xAt(57.4) + 4 + 5 * 7.5).toBeCloseTo(l.projection.width);
+    expect(l.projection.xAt(-9) - 4 - 2 * 7.5).toBeCloseTo(0);
+    expect(holy?.x).toBeCloseTo(l.projection.xAt(57.4) + 4);
+    expect(l.height).toBe(l.top + l.projection.height);
   });
 
   it("labels a stack's total at the end of its whole bar, none for a row of gaps", () => {
     const l = lay(
-      {
-        x: {},
-        marks: [
-          {
-            mark: "bar",
-            y: ["a", "b"],
-            series: [
-              { name: "p", x: [2, null] },
-              { name: "q", x: [3, null] },
-            ],
-          },
+      rows(
+        ["a", "b"],
+        [
+          ["p", [2, null]],
+          ["q", [3, null]],
         ],
-      },
+        { mark: "bar" },
+      ),
       600,
     );
     expect(l.valueLabels.map((t) => t.text)).toEqual(["5"]);
-    expect(l.valueLabels[0]?.x).toBeCloseTo(l.frame.xAt(5) + 4);
+    expect(l.valueLabels[0]?.x).toBeCloseTo(l.projection.xAt(5) + 4);
   });
 
   it("signs a diverging bar's labels and keeps the widest label's room on each side", () => {
     const l = lay(
-      {
-        x: { format: "percent" },
-        marks: [
-          {
-            mark: "bar",
-            y: ["Utah", "Texas", "Puerto Rico"],
-            series: [{ name: "Change", x: [0.16, 0, -0.143] }],
-          },
-        ],
-      },
+      rows(
+        ["Utah", "Texas", "Puerto Rico"],
+        [["Change", [0.16, 0, -0.143]]],
+        { mark: "bar" },
+        {},
+        "ratio",
+      ),
       600,
     );
     expect(l.valueLabels.map((t) => t.text)).toEqual(["+16%", "0%", "-14%"]);
     // 7.5 px a character and the 4 px gap: "+16%" on the right, "-14%" on the left.
-    expect(l.frame.xAt(-0.143) - 4 - 4 * 7.5).toBeCloseTo(0);
-    expect(l.frame.xAt(0.16) + 4 + 4 * 7.5).toBeCloseTo(l.frame.width);
+    expect(l.projection.xAt(-0.143) - 4 - 4 * 7.5).toBeCloseTo(0);
+    expect(l.projection.xAt(0.16) + 4 + 4 * 7.5).toBeCloseTo(l.projection.width);
     expect(l.valueLabels[2]).toMatchObject({ anchor: "end" });
   });
 
@@ -416,51 +423,43 @@ describe("a bar chart", () => {
     t.anchor === "end" ? [t.x - 7.5 * t.text.length, t.x] : [t.x, t.x + 7.5 * t.text.length];
 
   it("writes a value past a passed domain at its bar's cut end, inside the plot", () => {
-    const one = (domain: [number, number], x: number[]): ChartSpec => ({
-      x: { domain },
-      marks: [{ mark: "bar", y: ["a", "b"], series: [{ name: "Age", x }] }],
-    });
+    const one = (domain: [number, number], x: number[]): ChartSpec =>
+      rows(["a", "b"], [["Age", x]], { mark: "bar" }, { x: { domain } });
     const high = lay(one([0, 50], [57.4, 49.8]), 600);
     expect(high.valueLabels.map((t) => t.text)).toEqual(["57.4", "49.8"]);
-    expect(high.valueLabels[0]?.x).toBeCloseTo(high.frame.xAt(50) + 4);
+    expect(high.valueLabels[0]?.x).toBeCloseTo(high.projection.xAt(50) + 4);
     const low = lay(one([-10, 50], [-30, 20]), 600);
     expect(low.valueLabels[0]).toMatchObject({ text: "-30", anchor: "end" });
-    expect(low.valueLabels[0]?.x).toBeCloseTo(low.frame.xAt(-10) - 4);
+    expect(low.valueLabels[0]?.x).toBeCloseTo(low.projection.xAt(-10) - 4);
     for (const l of [high, low]) {
       for (const t of l.valueLabels) {
         const [a = 0, b = 0] = span(t);
         expect(a).toBeGreaterThanOrEqual(-1e-6);
-        expect(b).toBeLessThanOrEqual(l.frame.width + 1e-6);
+        expect(b).toBeLessThanOrEqual(l.projection.width + 1e-6);
       }
     }
   });
 
-  const sexes: ChartSpec = {
-    x: {},
-    marks: [
-      {
-        mark: "bar",
-        y: ["Japan", "Italy"],
-        arrange: "group",
-        series: [
-          { name: "Combined", x: [49.8, 48.4] },
-          { name: "Female", x: [51.1, null] },
-          { name: "Male", x: [48.4, -3] },
-        ],
-      },
+  const sexes = rows(
+    ["Japan", "Italy"],
+    [
+      ["Combined", [49.8, 48.4]],
+      ["Female", [51.1, null]],
+      ["Male", [48.4, -3]],
     ],
-  };
+    { mark: "bar", arrange: "group" },
+  );
 
   it("makes a grouped row its 12 px bars, the 1 px between them and 8 px, from 30rem up", () => {
     const l = lay(sexes, 600);
     // 3 × 12 + 2 + 8 = 46 px a row, the bars' block centred in it.
-    expect(l.frame.height).toBe(2 * 46);
+    expect(l.projection.height).toBe(2 * 46);
     expect(l.rows.map((r) => r.y)).toEqual([23, 69]);
   });
 
   it("puts a grouped row's name above its bars under 30rem, 18 + 2 + 38 + 8 px a row", () => {
     const l = lay(sexes, 479);
-    expect(l.frame.height).toBe(2 * 66);
+    expect(l.projection.height).toBe(2 * 66);
     expect(l.rows.map((r) => r.y)).toEqual([18 + 2 + 19, 66 + 18 + 2 + 19]);
   });
 
@@ -468,75 +467,69 @@ describe("a bar chart", () => {
     const l = lay(sexes, 600);
     expect(l.valueLabels.map((t) => t.text)).toEqual(["49.8", "51.1", "48.4", "48.4", "-3"]);
     const [combined, female, male, , below] = l.valueLabels;
-    expect(combined?.x).toBeCloseTo(l.frame.xAt(49.8) + 4);
-    expect(female?.x).toBeCloseTo(l.frame.xAt(51.1) + 4);
+    expect(combined?.x).toBeCloseTo(l.projection.xAt(49.8) + 4);
+    expect(female?.x).toBeCloseTo(l.projection.xAt(51.1) + 4);
     // Each label sits across its own 12 px bar: the block runs 4 to 42 in the first row.
     expect([combined?.y, female?.y, male?.y]).toEqual([10, 23, 36]);
     expect(below).toMatchObject({ anchor: "end", y: 46 + 36 });
-    expect(below?.x).toBeCloseTo(l.frame.xAt(-3) - 4);
+    expect(below?.x).toBeCloseTo(l.projection.xAt(-3) - 4);
     // x reaches the largest single value, not a row's sum.
-    expect(l.frame.xAt(51.1) + 4 + 4 * 7.5).toBeCloseTo(l.frame.width);
+    expect(l.projection.xAt(51.1) + 4 + 4 * 7.5).toBeCloseTo(l.projection.width);
   });
 
   it("draws an x axis with its ticks and title when labels are off", () => {
-    const off: ChartSpec = {
-      x: { label: "Years" },
-      marks: [{ mark: "bar", y: ["a", "b"], labels: false, series: [{ name: "a", x: [12, 47] }] }],
-    };
+    const off = rows(
+      ["a", "b"],
+      [["a", [12, 47]]],
+      { mark: "bar", labels: false },
+      {
+        x: { label: "Years" },
+      },
+    );
     const l = lay(off, 600);
     expect(l.valueLabels).toEqual([]);
     expect(l.xAxis.ticks.map((t) => t.value)).toContain(0);
     expect(l.xLabels.length).toBeGreaterThan(0);
     expect(l.titles.map((t) => t.text)).toEqual(["Years"]);
-    expect(l.frame.xAt(0)).toBe(0);
+    expect(l.projection.xAt(0)).toBe(0);
   });
 
   it("draws a 100% chart's x axis in percent across the whole plot, with no value labels", () => {
-    const share: ChartSpec = {
-      x: { label: "Answers" },
-      marks: [
-        {
-          mark: "bar",
-          y: ["a", "b"],
-          arrange: "share",
-          series: [
-            { name: "No", x: [3, 1] },
-            { name: "Yes", x: [1, 1] },
-          ],
-        },
+    const share = rows(
+      ["a", "b"],
+      [
+        ["No", [3, 1]],
+        ["Yes", [1, 1]],
       ],
-    };
+      { mark: "bar", arrange: "share" },
+      { x: { label: "Answers" } },
+    );
     const l = lay(share, 600);
     expect(l.valueLabels).toEqual([]);
     expect(l.xLabels.at(0)?.text).toBe("0%");
     expect(l.xLabels.at(-1)?.text).toBe("100%");
     expect(l.titles.map((t) => t.text)).toEqual(["Answers"]);
-    expect([l.frame.xAt(0), l.frame.xAt(1)]).toEqual([0, l.frame.width]);
+    expect([l.projection.xAt(0), l.projection.xAt(1)]).toEqual([0, l.projection.width]);
   });
 
-  const survey = (more: Partial<NonNullable<ChartSpec["x"]>> = {}, labels = true): ChartSpec => ({
-    x: more,
-    marks: [
-      {
-        mark: "bar",
-        y: ["Instagram", "Facebook"],
-        arrange: "split",
-        labels,
-        series: [
-          { name: "Daily", x: [34, 20] },
-          { name: "Weekly", x: [8, 43] },
-          { name: "Never", x: [7, null] },
-        ],
-      },
-    ],
-  });
+  const answers: [string, Values][] = [
+    ["Daily", [34, 20]],
+    ["Weekly", [8, 43]],
+    ["Never", [7, null]],
+  ];
+  const survey = (
+    more: NonNullable<ChartSpec["x"]> = {},
+    labels = true,
+    series: readonly (readonly [string, Values])[] = answers,
+  ): ChartSpec =>
+    rows(["Instagram", "Facebook"], series, { mark: "bar", arrange: "split", labels }, { x: more });
 
   it("sets a panel per series 16 px apart on one shared scale, each headed by its name", () => {
     const l = lay(survey(), 600);
     // "Instagram" and its pad make a 76 px gutter, so the 524 px plot holds
     // three 164 px panels and two 16 px gaps.
-    expect(l.frame.width).toBe(524);
-    const panels = l.frame.panels ?? [];
+    expect(l.projection.width).toBe(524);
+    const panels = l.projection.panels ?? [];
     expect(panels.map((p) => [p.left, p.right])).toEqual([
       [0, 164],
       [180, 344],
@@ -546,7 +539,7 @@ describe("a bar chart", () => {
     for (const p of panels) {
       expect(p.at(20) - p.at(0)).toBeCloseTo(panels[0]?.at(20) ?? 0);
     }
-    expect(l.frame.height).toBe(2 * 24);
+    expect(l.projection.height).toBe(2 * 24);
     expect(l.bar).toBe(16);
     // The heads take one line above the plot.
     expect(l.top).toBe(17 + 4);
@@ -559,7 +552,7 @@ describe("a bar chart", () => {
 
   it("writes each bar's value inside its panel, every panel ending short by the widest label", () => {
     const l = lay(survey(), 600);
-    const panels = l.frame.panels ?? [];
+    const panels = l.projection.panels ?? [];
     expect(l.valueLabels.map((t) => t.text)).toEqual(["34", "8", "7", "20", "43"]);
     const [daily, weekly, , , most] = l.valueLabels;
     expect(daily).toMatchObject({ x: (panels[0]?.at(34) ?? 0) + 4, y: 12, anchor: "start" });
@@ -573,22 +566,17 @@ describe("a bar chart", () => {
   });
 
   it("writes a value past a passed domain at its bar's cut end, inside its own panel", () => {
-    const spec: ChartSpec = {
-      x: { domain: [0, 30] },
-      marks: [
-        {
-          mark: "bar",
-          y: ["Instagram"],
-          arrange: "split",
-          series: [
-            { name: "Daily", x: [43] },
-            { name: "Weekly", x: [8] },
-          ],
-        },
+    const spec = rows(
+      ["Instagram"],
+      [
+        ["Daily", [43]],
+        ["Weekly", [8]],
       ],
-    };
+      { mark: "bar", arrange: "split" },
+      { x: { domain: [0, 30] } },
+    );
     const l = lay(spec, 600);
-    const panels = l.frame.panels ?? [];
+    const panels = l.projection.panels ?? [];
     expect(l.valueLabels.map((t) => t.text)).toEqual(["43", "8"]);
     l.valueLabels.forEach((t, k) => {
       const [a = 0, b = 0] = span(t);
@@ -597,23 +585,12 @@ describe("a bar chart", () => {
     });
     expect(l.valueLabels[0]?.x).toBeCloseTo((panels[0]?.at(30) ?? 0) + 4);
     const bars = chartModel(spec, "en", "UTC").marks[0] as BarModel;
-    const [daily] = barSegments(bars, 0, l.frame, l.rows[0]?.y ?? 0, l.bar);
+    const [daily] = barSegments(bars, 0, l.projection, l.rows[0]?.y ?? 0, l.bar);
     expect(daily?.right).toBeCloseTo(panels[0]?.at(30) ?? Number.NaN);
   });
 
   it("cuts a panel's name to its width", () => {
-    const long = survey();
-    const bar = long.marks[0];
-    if (bar?.mark !== "bar") {
-      throw new Error("a bar mark");
-    }
-    const l = lay(
-      {
-        ...long,
-        marks: [{ ...bar, series: [{ name: "A few times a week", x: [1, 2] }, ...bar.series] }],
-      },
-      600,
-    );
+    const l = lay(survey({}, true, [["A few times a week", [1, 2]], ...answers]), 600);
     const head = l.heads[0]?.text ?? "";
     // Four 119 px panels: "A few times a week" is 135 px, so it is cut.
     expect(head.endsWith("…")).toBe(true);
@@ -622,15 +599,15 @@ describe("a bar chart", () => {
 
   it("folds the panels into one under 30rem, each row's bars one under another, with no heads", () => {
     const l = lay(survey(), 479);
-    expect(l.frame.panels).toBeUndefined();
+    expect(l.projection.panels).toBeUndefined();
     expect(l.heads).toEqual([]);
     expect(l.top).toBe(0);
     // A name's 18 px line, 2 px, three 12 px bars with 1 px between, and 8 px.
-    expect(l.frame.height).toBe(2 * (18 + 2 + 38 + 8));
+    expect(l.projection.height).toBe(2 * (18 + 2 + 38 + 8));
     const [daily, weekly, never] = l.valueLabels;
     expect([daily?.y, weekly?.y, never?.y]).toEqual([20 + 6, 20 + 19, 20 + 32]);
-    expect(daily?.x).toBeCloseTo(l.frame.xAt(34) + 4);
-    expect(l.frame.xAt(43) + 4 + 2 * 7.5).toBeCloseTo(l.frame.width);
+    expect(daily?.x).toBeCloseTo(l.projection.xAt(34) + 4);
+    expect(l.projection.xAt(43) + 4 + 2 * 7.5).toBeCloseTo(l.projection.width);
   });
 
   it("repeats the x axis in every panel when labels are off", () => {
@@ -642,42 +619,37 @@ describe("a bar chart", () => {
     expect(l.xLabels.length % 3).toBe(0);
     expect(l.titles.map((t) => t.text)).toEqual(["Answers"]);
     const top = Math.max(...l.xAxis.ticks.map((t) => t.value));
-    for (const p of l.frame.panels ?? []) {
+    for (const p of l.projection.panels ?? []) {
       expect(p.at(top)).toBeLessThanOrEqual(p.right + 1e-6);
     }
   });
 
   it("lays the panels right to left on a reversed x, each bar from its panel's right edge", () => {
     const l = lay(survey({ reverse: true }), 600);
-    const panels = l.frame.panels ?? [];
+    const panels = l.projection.panels ?? [];
     expect(panels.map((p) => p.left)).toEqual([360, 180, 0]);
     expect(panels.map((p) => p.at(0))).toEqual([524, 344, 164]);
     expect(l.heads[0]).toMatchObject({ text: "Daily", x: l.left + 524, anchor: "end" });
     expect(l.valueLabels[0]).toMatchObject({ x: (panels[0]?.at(34) ?? 0) - 4, anchor: "end" });
   });
 
-  const pyramid = (more: Partial<NonNullable<ChartSpec["x"]>> = {}, labels = true): ChartSpec => ({
-    x: more,
-    marks: [
-      {
-        mark: "bar",
-        y: ["90+", "45-50"],
-        arrange: "mirror",
-        labels,
-        series: [
-          { name: "Male", x: [12, 40] },
-          { name: "Female", x: [20, 36] },
-        ],
-      },
-    ],
-  });
+  const pyramid = (more: NonNullable<ChartSpec["x"]> = {}, labels = true): ChartSpec =>
+    rows(
+      ["90+", "45-50"],
+      [
+        ["Male", [12, 40]],
+        ["Female", [20, 36]],
+      ],
+      { mark: "bar", arrange: "mirror", labels },
+      { x: more },
+    );
 
   it("sets a mirror's sides back to back around an 8 px spine, on one shared scale", () => {
     const l = lay(pyramid(), 600);
     // "45-50" and its pad make a 46 px gutter, so the 554 px plot holds two
     // 273 px sides and the spine.
-    expect(l.frame.width).toBe(554);
-    const panels = l.frame.panels ?? [];
+    expect(l.projection.width).toBe(554);
+    const panels = l.projection.panels ?? [];
     expect(panels.map((p) => [p.left, p.right, p.leftward])).toEqual([
       [0, 273, true],
       [281, 554, false],
@@ -687,7 +659,7 @@ describe("a bar chart", () => {
       (panels[1]?.at(20) ?? 0) - (panels[1]?.at(0) ?? 0),
     );
     // Rows keep 24 px, their bars the row less 2 px.
-    expect(l.frame.height).toBe(2 * 24);
+    expect(l.projection.height).toBe(2 * 24);
     expect(l.bar).toBe(22);
     expect(l.top).toBe(17 + 4);
     expect(l.heads).toEqual([
@@ -698,7 +670,7 @@ describe("a bar chart", () => {
 
   it("writes each side's values at its bars' outer ends, both sides keeping the widest label's room", () => {
     const l = lay(pyramid(), 600);
-    const panels = l.frame.panels ?? [];
+    const panels = l.projection.panels ?? [];
     expect(l.valueLabels.map((t) => t.text)).toEqual(["12", "20", "40", "36"]);
     const [, , male, female] = l.valueLabels;
     expect(male).toMatchObject({ x: (panels[0]?.at(40) ?? 0) - 4, y: 36, anchor: "end" });
@@ -712,8 +684,8 @@ describe("a bar chart", () => {
   it("keeps a mirror's names in the gutter and its 24 px rows on a phone", () => {
     const l = lay(pyramid(), 320);
     expect(l.left).toBe(46);
-    expect(l.frame.height).toBe(2 * 24);
-    expect(l.frame.panels).toHaveLength(2);
+    expect(l.projection.height).toBe(2 * 24);
+    expect(l.projection.panels).toHaveLength(2);
     expect(l.yLabels.map((t) => [t.text, t.x, t.anchor])).toEqual([
       ["90+", 38, "end"],
       ["45-50", 38, "end"],
@@ -726,7 +698,7 @@ describe("a bar chart", () => {
     expect(zeros).toEqual([273, 281]);
     expect(l.xLabels.every((t) => !t.text.startsWith("-"))).toBe(true);
     const top = Math.max(...l.xAxis.ticks.map((t) => t.value));
-    const [male, female] = l.frame.panels ?? [];
+    const [male, female] = l.projection.panels ?? [];
     const at = (v: number) => l.xAxis.ticks.filter((t) => t.value === v).map((t) => t.at);
     expect(at(top)).toEqual([male?.at(top), female?.at(top)]);
     expect(male?.at(top)).toBeGreaterThanOrEqual(-1e-6);
@@ -735,7 +707,7 @@ describe("a bar chart", () => {
 
   it("sets the first side on the right on a reversed x", () => {
     const l = lay(pyramid({ reverse: true }), 600);
-    const panels = l.frame.panels ?? [];
+    const panels = l.projection.panels ?? [];
     expect(panels.map((p) => [p.left, p.leftward])).toEqual([
       [281, false],
       [0, true],
@@ -746,23 +718,20 @@ describe("a bar chart", () => {
 });
 
 describe("a point chart", () => {
-  const ages = (x: NonNullable<ChartSpec["x"]> = { label: "Median age" }): ChartSpec => ({
-    x,
-    marks: [
-      {
-        mark: "point",
-        y: ["Holy See", "Monaco", "Japan"],
-        series: [
-          { name: "Female", x: [60.4, 54.5, 51.1] },
-          { name: "Male", x: [54.5, 51.3, 48.4] },
-        ],
-      },
-    ],
-  });
+  const ages = (x: NonNullable<ChartSpec["x"]> = { label: "Median age" }): ChartSpec =>
+    rows(
+      ["Holy See", "Monaco", "Japan"],
+      [
+        ["Female", [60.4, 54.5, 51.1]],
+        ["Male", [54.5, 51.3, 48.4]],
+      ],
+      { mark: "point" },
+      { x },
+    );
 
   it("sets a row of --cp-chart-row per category, its name in the gutter, from 30rem up", () => {
     const l = lay(ages(), 600);
-    expect(l.frame.height).toBe(3 * 24);
+    expect(l.projection.height).toBe(3 * 24);
     expect(l.rows.map((r) => r.y)).toEqual([12, 36, 60]);
     expect(l.bar).toBe(0);
     expect(l.gutters.axis).toBe(7.5 * "Holy See".length + 8);
@@ -772,7 +741,7 @@ describe("a point chart", () => {
   it("puts each name above its dots under 30rem, 38 px a row and no gutter", () => {
     const l = lay(ages(), 479);
     expect(l.gutters.axis).toBe(0);
-    expect(l.frame.height).toBe(3 * 38);
+    expect(l.projection.height).toBe(3 * 38);
     // The name's 18 px line, 2 px, then the 10 px dots and 8 px.
     expect(l.rows.map((r) => r.y)).toEqual([25, 63, 101]);
     expect(l.yLabels[1]).toEqual({ text: "Monaco", x: 0, y: 38 + 9, anchor: "start" });
@@ -781,29 +750,33 @@ describe("a point chart", () => {
   it("draws an x axis 7 px inside each end with its title, and no value labels", () => {
     const l = lay(ages(), 600);
     expect(l.valueLabels).toEqual([]);
-    expect(l.frame.xAt(l.xAxis.lo)).toBeCloseTo(7);
-    expect(l.frame.xAt(l.xAxis.hi)).toBeCloseTo(l.frame.width - 7);
+    expect(l.projection.xAt(l.xAxis.lo)).toBeCloseTo(7);
+    expect(l.projection.xAt(l.xAxis.hi)).toBeCloseTo(l.projection.width - 7);
     expect(l.xAxis.lo).toBeLessThanOrEqual(48.4);
     expect(l.xAxis.lo).toBeGreaterThan(0);
     for (const t of l.xAxis.ticks) {
-      expect(t.at).toBeCloseTo(l.frame.xAt(t.value));
+      expect(t.at).toBeCloseTo(l.projection.xAt(t.value));
       const box = t.label?.box;
       if (box !== undefined) {
         expect(box.start).toBeGreaterThanOrEqual(7);
-        expect(box.end).toBeLessThanOrEqual(l.frame.width - 7);
+        expect(box.end).toBeLessThanOrEqual(l.projection.width - 7);
       }
     }
     expect(l.xLabels.length).toBeGreaterThan(1);
     expect(l.titles).toContainEqual(
-      expect.objectContaining({ text: "Median age", x: l.left + l.frame.width, anchor: "end" }),
+      expect.objectContaining({
+        text: "Median age",
+        x: l.left + l.projection.width,
+        anchor: "end",
+      }),
     );
-    expect(l.height).toBeGreaterThan(l.top + l.frame.height);
+    expect(l.height).toBeGreaterThan(l.top + l.projection.height);
   });
 
   it("runs a reversed x from the right, still 7 px inside each end", () => {
     const l = lay(ages({ reverse: true }), 600);
-    expect(l.frame.xAt(l.xAxis.lo)).toBeCloseTo(l.frame.width - 7);
-    expect(l.frame.xAt(l.xAxis.hi)).toBeCloseTo(7);
+    expect(l.projection.xAt(l.xAxis.lo)).toBeCloseTo(l.projection.width - 7);
+    expect(l.projection.xAt(l.xAxis.hi)).toBeCloseTo(7);
   });
 });
 
@@ -811,26 +784,27 @@ describe("an x rule's label on bar rows", () => {
   const ruled = (
     arrange: "split" | "mirror" | "diverge" | undefined,
     x: NonNullable<ChartSpec["x"]> = {},
-  ): ChartSpec => ({
-    x,
-    marks: [
-      {
-        mark: "bar",
-        y: ["Instagram", "Facebook"],
-        ...(arrange === undefined ? {} : { arrange }),
-        ...(arrange === "diverge" ? { left: 1 } : {}),
-        series: [
-          { name: "Daily", x: [34, 20] },
-          { name: "Weekly", x: [8, 43] },
+  ): ChartSpec =>
+    withRefs(
+      rows(
+        ["Instagram", "Facebook"],
+        [
+          ["Daily", [34, 20]],
+          ["Weekly", [8, 43]],
         ],
-      },
-      { mark: "rule", x: 10, label: "Aim" },
-    ],
-  });
+        {
+          mark: "bar",
+          ...(arrange === undefined ? {} : { arrange }),
+          ...(arrange === "diverge" ? { left: 1 } : {}),
+        },
+        { x },
+      ),
+      [["Aim", 10]],
+    );
 
   it("starts at its line in the first panel under a split, above the heads", () => {
     const l = lay(ruled("split"), 600);
-    const first = l.frame.panels?.[0];
+    const first = l.projection.panels?.[0];
     expect(l.ruleLabels[0]).toMatchObject({ text: "Aim 10", x: l.left + (first?.at(10) ?? 0) });
     expect(l.ruleLabels[0]?.y).toBeLessThan(l.heads[0]?.y ?? 0);
     expect(l.top).toBe(2 * 17 + 4);
@@ -838,29 +812,29 @@ describe("an x rule's label on bar rows", () => {
 
   it("starts at the folded chart's one line under 30rem", () => {
     const l = lay(ruled("split"), 479);
-    expect(l.ruleLabels[0]?.x).toBeCloseTo(l.left + l.frame.xAt(10));
+    expect(l.ruleLabels[0]?.x).toBeCloseTo(l.left + l.projection.xAt(10));
   });
 
   it("starts at its right-hand line under a mirror, whichever way x runs", () => {
     const l = lay(ruled("mirror"), 600);
-    expect(l.ruleLabels[0]?.x).toBe(l.left + (l.frame.panels?.[1]?.at(10) ?? 0));
+    expect(l.ruleLabels[0]?.x).toBe(l.left + (l.projection.panels?.[1]?.at(10) ?? 0));
     const reversed = lay(ruled("mirror", { reverse: true }), 600);
     expect(reversed.ruleLabels[0]?.x).toBe(
-      reversed.left + (reversed.frame.panels?.[0]?.at(10) ?? 0),
+      reversed.left + (reversed.projection.panels?.[0]?.at(10) ?? 0),
     );
   });
 
   it("starts at its right-hand line under a diverge, at +10 or on a reversed x at -10", () => {
     const l = lay(ruled("diverge"), 600);
-    expect(l.ruleLabels[0]?.x).toBeCloseTo(l.left + l.frame.xAt(10));
+    expect(l.ruleLabels[0]?.x).toBeCloseTo(l.left + l.projection.xAt(10));
     const reversed = lay(ruled("diverge", { reverse: true }), 600);
-    expect(reversed.ruleLabels[0]?.x).toBeCloseTo(reversed.left + reversed.frame.xAt(-10));
-    expect(reversed.frame.xAt(-10)).toBeGreaterThan(reversed.frame.xAt(10));
+    expect(reversed.ruleLabels[0]?.x).toBeCloseTo(reversed.left + reversed.projection.xAt(-10));
+    expect(reversed.projection.xAt(-10)).toBeGreaterThan(reversed.projection.xAt(10));
   });
 
   it("starts at its one line on a stacked bar chart", () => {
     const l = lay(ruled(undefined), 600);
-    expect(l.ruleLabels[0]).toMatchObject({ text: "Aim 10", x: l.left + l.frame.xAt(10) });
+    expect(l.ruleLabels[0]).toMatchObject({ text: "Aim 10", x: l.left + l.projection.xAt(10) });
   });
 });
 
@@ -892,18 +866,17 @@ describe("a slope chart", () => {
   const slope = (
     ends: readonly (readonly [number | null, number | null])[],
     names = ["Cats", "Dogs", "Horses", "Mice"],
-    more: Partial<ChartSpec> = {},
-  ): ChartSpec => ({
-    marks: [
-      {
-        mark: "slope",
-        x: ["2005", "2015"],
-        // Series past the ninth need a slot given; the layout never reads it.
-        series: ends.map((y, k) => ({ name: names[k] ?? `s${String(k)}`, slot: 1, y })),
-      },
-    ],
-    ...more,
-  });
+    more: More = {},
+  ): ChartSpec => {
+    const keys = ends.map((_, k) => names[k] ?? `s${String(k)}`);
+    return rows(
+      ["2005", "2015"],
+      ends.map((y, k) => [keys[k] ?? "", y]),
+      // Series past the ninth need a slot given; the layout never reads it.
+      { mark: "slope", keys: keys.map((key) => ({ key, slot: 1 })) },
+      more,
+    );
+  };
   const pets = slope([
     [50, 34],
     [40, 4],
@@ -915,8 +888,8 @@ describe("a slope chart", () => {
     const l = lay(pets, 480);
     // "Horses 30" and "Horses 39" are the widest labels, 67.5 px, and the 8 px pad.
     expect(l.gutters).toEqual({ axis: 76, label: 76 });
-    expect(l.frame.width).toBe(480 - 76 - 76);
-    expect([l.frame.xAt(0), l.frame.xAt(1)]).toEqual([0, 328]);
+    expect(l.projection.width).toBe(480 - 76 - 76);
+    expect([l.projection.xAt(0), l.projection.xAt(1)]).toEqual([0, 328]);
     expect(l.heads).toEqual([
       { text: "2005", x: 76, y: 8.5, anchor: "start" },
       { text: "2015", x: 76 + 328, y: 8.5, anchor: "end" },
@@ -930,7 +903,7 @@ describe("a slope chart", () => {
   it("labels each end with its name and value at its dot's height, ending 8 px off the plot", () => {
     const l = lay(pets, 480);
     // y runs from 0 to 50 down the 240 px plot.
-    expect([l.frame.yAt(50), l.frame.yAt(0)]).toEqual([0, 240]);
+    expect([l.projection.yAt(50), l.projection.yAt(0)]).toEqual([0, 240]);
     const y = (v: number) => expect.closeTo(21 + 240 - (v / 50) * 240, 9);
     expect(l.endLabels).toEqual([
       { text: "Cats 50", x: 68, y: y(50), anchor: "end", series: 0 },
@@ -956,7 +929,7 @@ describe("a slope chart", () => {
     ]);
     // "50" is 15 px and the pad; "Horses 39" 67.5 px and the pad.
     expect(l.gutters).toEqual({ axis: 23, label: 76 });
-    expect(l.frame.width).toBe(320 - 23 - 76);
+    expect(l.projection.width).toBe(320 - 23 - 76);
   });
 
   it("moves crowded labels apart around their mean and joins those moved past 4 px to their dots", () => {
@@ -974,7 +947,7 @@ describe("a slope chart", () => {
     expect(right.map((e) => e.y - 21)).toEqual(
       [mean - 18, mean, mean + 18].map((v) => expect.closeTo(v, 6)),
     );
-    const edge = 76 + l.frame.width;
+    const edge = 76 + l.projection.width;
     expect(l.leaders).toEqual([
       {
         from: { x: edge, y: expect.closeTo(21 + dot(34), 9) },
@@ -992,8 +965,8 @@ describe("a slope chart", () => {
       Array.from({ length: 20 }, (_, k) => [k, k] as const),
       [],
     );
-    expect(lay(many, 600).frame.height).toBe(360);
-    expect(lay(slope([[1, 2]], ["a"], { height: 400 }), 600).frame.height).toBe(400);
+    expect(lay(many, 600).projection.height).toBe(360);
+    expect(lay(slope([[1, 2]], ["a"], { height: 400 }), 600).projection.height).toBe(400);
   });
 
   it("cuts a name so each gutter stays within 30 % of the chart", () => {
@@ -1025,25 +998,31 @@ describe("a slope chart", () => {
 });
 
 describe("a scatter's layout", () => {
+  const towns = (r?: number[]) =>
+    points([
+      {
+        key: "All",
+        names: ["Chad", "Monaco"],
+        x: [0, 100],
+        y: [50, 90],
+        ...(r === undefined ? {} : { r }),
+      },
+    ]);
   const countries: ChartSpec = {
+    data: towns(),
+    mark: { mark: "scatter" },
     x: { label: "GDP per capita", domain: [0, 100] },
     y: { label: "Life expectancy", domain: [50, 90] },
-    marks: [
-      {
-        mark: "scatter",
-        series: [{ name: "All", names: ["Chad", "Monaco"], x: [0, 100], y: [50, 90] }],
-      },
-    ],
   };
 
   it("runs both axes 6 px inside the plot, so a dot and its ring at a domain's end draw whole", () => {
     const l = lay(countries, 600);
     // The ring reaches 2 px past a 4 px dot.
-    expect(l.frame.xAt(0)).toBeCloseTo(6, 6);
-    expect(l.frame.xAt(100)).toBeCloseTo(l.frame.width - 6, 6);
-    expect(l.frame.yAt(90)).toBeCloseTo(6, 6);
-    expect(l.frame.yAt(50)).toBeCloseTo(l.frame.height - 6, 6);
-    expect(l.frame.height).toBe(240);
+    expect(l.projection.xAt(0)).toBeCloseTo(6, 6);
+    expect(l.projection.xAt(100)).toBeCloseTo(l.projection.width - 6, 6);
+    expect(l.projection.yAt(90)).toBeCloseTo(6, 6);
+    expect(l.projection.yAt(50)).toBeCloseTo(l.projection.height - 6, 6);
+    expect(l.projection.height).toBe(240);
     // The ticks and their labels move with the axes.
     expect(l.xAxis.ticks[0]?.at).toBeCloseTo(6, 6);
     expect(l.yAxis?.ticks.find((t) => t.value === 90)?.at).toBeCloseTo(6, 6);
@@ -1054,25 +1033,20 @@ describe("a scatter's layout", () => {
   it("gives a bubble chart its largest radius by width and runs its axes clear of its largest bubble", () => {
     const sized = (r: number[]): ChartSpec => ({
       ...countries,
+      data: towns(r),
       r: { label: "Population", domain: [0, 100] },
-      marks: [
-        {
-          mark: "scatter",
-          series: [{ name: "All", names: ["Chad", "Monaco"], x: [0, 100], y: [50, 90], r }],
-        },
-      ],
     });
     const wide = lay(sized([100, 25]), 600);
-    expect(wide.frame.bubble).toBe(24);
+    expect(wide.projection.bubble).toBe(24);
     // The largest bubble, at the domain's high end, and its ring's 2 px.
-    expect(wide.frame.xAt(0)).toBeCloseTo(26, 6);
-    expect(wide.frame.yAt(50)).toBeCloseTo(wide.frame.height - 26, 6);
+    expect(wide.projection.xAt(0)).toBeCloseTo(26, 6);
+    expect(wide.projection.yAt(50)).toBeCloseTo(wide.projection.height - 26, 6);
     const narrow = lay(sized([100, 25]), 300);
-    expect(narrow.frame.bubble).toBe(12);
-    expect(narrow.frame.xAt(0)).toBeCloseTo(14, 6);
+    expect(narrow.projection.bubble).toBe(12);
+    expect(narrow.projection.xAt(0)).toBeCloseTo(14, 6);
     // The largest drawn bubble is a quarter of the domain's area: half its radius.
-    expect(lay(sized([25, 0]), 600).frame.xAt(0)).toBeCloseTo(14, 6);
-    expect(lay(countries, 600).frame.bubble).toBeUndefined();
+    expect(lay(sized([25, 0]), 600).projection.xAt(0)).toBeCloseTo(14, 6);
+    expect(lay(countries, 600).projection.bubble).toBeUndefined();
   });
 
   it("titles y above its gutter and x under its ticks at the right end", () => {
@@ -1081,7 +1055,7 @@ describe("a scatter's layout", () => {
       ["Life expectancy", "start"],
       ["GDP per capita", "end"],
     ]);
-    expect(l.titles[1]?.x).toBe(l.left + l.frame.width);
+    expect(l.titles[1]?.x).toBe(l.left + l.projection.width);
   });
 });
 
@@ -1089,13 +1063,18 @@ describe("a cell chart's layout", () => {
   const hours = Array.from({ length: 24 }, (_, h) => String(h));
   const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
   const week = (x: ChartSpec["x"] = {}): ChartSpec => ({
-    x,
-    marks: [{ mark: "cell", x: hours, y: days, values: days.map(() => hours.map(() => 1)) }],
+    data: grid(
+      { names: hours },
+      { names: days },
+      days.map(() => hours.map(() => 1)),
+    ),
+    mark: { mark: "cell" },
+    ...(x === undefined ? {} : { x }),
   });
 
   it("gives each row the band's row height with its name in the y gutter", () => {
     const l = lay(week(), 400);
-    expect(l.frame.height).toBe(7 * 24);
+    expect(l.projection.height).toBe(7 * 24);
     expect(l.yAxis).toBeUndefined();
     expect(l.yLabels.map((t) => [t.text, t.y - l.top, t.anchor])).toEqual(
       days.map((d, r) => [d, (r + 0.5) * 24, "end"]),
@@ -1116,7 +1095,7 @@ describe("a cell chart's layout", () => {
 
   it("runs a reversed x's columns right to left", () => {
     const l = lay(week({ reverse: true }), 400);
-    expect(l.cells?.xs[0]).toBeCloseTo(l.frame.width, 6);
+    expect(l.cells?.xs[0]).toBeCloseTo(l.projection.width, 6);
     expect(l.cells?.xs[24]).toBeCloseTo(0, 6);
   });
 
@@ -1124,7 +1103,7 @@ describe("a cell chart's layout", () => {
     // 369 px over 24 columns is 15.4 px a column, under two-digit labels and their 8 px gap.
     const wide = lay(week(), 400);
     expect(wide.xLabels.map((t) => t.text)).toEqual(hours.filter((_, h) => h % 2 === 0));
-    const middle = (c: number) => wide.left + ((c + 0.5) * wide.frame.width) / 24;
+    const middle = (c: number) => wide.left + ((c + 0.5) * wide.projection.width) / 24;
     expect(wide.xLabels[1]?.x).toBeCloseTo(middle(2), 6);
     // 119 px is 5 px a column: every 2nd is 10 px apart, every 5th 25 px.
     expect(lay(week(), 150).xLabels.map((t) => t.text)).toEqual(["0", "5", "10", "15", "20"]);
@@ -1135,7 +1114,7 @@ describe("a cell chart's layout", () => {
   it("titles x under its labels at the plot's right end", () => {
     const l = lay(week({ label: "Hour" }), 400);
     expect(l.titles.map((t) => [t.text, t.x, t.anchor])).toEqual([
-      ["Hour", l.left + l.frame.width, "end"],
+      ["Hour", l.left + l.projection.width, "end"],
     ]);
   });
 });
@@ -1144,20 +1123,18 @@ describe("a binned cell chart's layout", () => {
   const binned = (
     x: readonly number[] | readonly string[],
     y: readonly number[],
-    more: Partial<ChartSpec> = {},
+    more: More = {},
   ): ChartSpec => {
-    const columns = x.length - (typeof x[0] === "number" ? 1 : 0);
+    const named = typeof x[0] !== "number";
+    const columns = x.length - (named ? 0 : 1);
     return {
+      data: grid(
+        named ? { names: [...(x as readonly string[])] } : { edges: [...(x as readonly number[])] },
+        { edges: [...y] },
+        y.slice(1).map(() => Array.from({ length: columns }, () => 1)),
+      ),
+      mark: { mark: "cell" },
       ...more,
-      marks: [
-        {
-          mark: "cell",
-          x:
-            typeof x[0] === "number" ? { edges: x as readonly number[] } : (x as readonly string[]),
-          y: { edges: y },
-          values: y.slice(1).map(() => Array.from({ length: columns }, () => 1)),
-        },
-      ],
     };
   };
   const life = [50, 55, 60, 65, 70, 75, 80, 85];
@@ -1167,7 +1144,7 @@ describe("a binned cell chart's layout", () => {
     const xs = l.cells?.xs ?? [];
     expect(xs).toHaveLength(4);
     expect(xs[0]).toBe(0);
-    expect(xs[3]).toBe(l.frame.width);
+    expect(xs[3]).toBe(l.projection.width);
     // On a log x, 1,000 to 2,000 and 5,000 to 10,000 are the same width.
     expect((xs[1] ?? 0) - (xs[0] ?? 0)).toBeCloseTo((xs[3] ?? 0) - (xs[2] ?? 0), 6);
     expect(l.xLabels.length).toBeGreaterThan(0);
@@ -1175,7 +1152,7 @@ describe("a binned cell chart's layout", () => {
 
   it("runs a binned y's rows up from the plot's bottom at its edges, in the plot's height", () => {
     const l = lay(binned(["a", "b"], life), 400);
-    expect(l.frame.height).toBe(240);
+    expect(l.projection.height).toBe(240);
     const ys = l.cells?.ys ?? [];
     expect(ys).toHaveLength(8);
     ys.forEach((y, r) => {
@@ -1187,19 +1164,21 @@ describe("a binned cell chart's layout", () => {
 
   it("keeps a passed height while every bin is a row tall, and grows past it until the thinnest is", () => {
     // Seven bins of 168 px are a row each.
-    expect(lay(binned(["a"], life, { height: 168 }), 400).frame.height).toBe(168);
+    expect(lay(binned(["a"], life, { height: 168 }), 400).projection.height).toBe(168);
     // Seven bins of 120 px would be 17 px: a 24 px row takes 168.
-    expect(lay(binned(["a"], life, { height: 120 }), 400).frame.height).toBe(168);
+    expect(lay(binned(["a"], life, { height: 120 }), 400).projection.height).toBe(168);
     // Twelve equal bins of 240 px would be 20 px.
     const twelve = Array.from({ length: 13 }, (_, i) => 20 + 5 * i);
-    expect(lay(binned(["a"], twelve), 400).frame.height).toBe(12 * 24);
+    expect(lay(binned(["a"], twelve), 400).projection.height).toBe(12 * 24);
   });
 
   it("grows by the thinnest bin on the scale, not the bin count", () => {
     // 0 to 1 is a fortieth of 0 to 40, so it takes 24 × 40 px.
-    expect(lay(binned(["a"], [0, 1, 40]), 400).frame.height).toBe(960);
+    expect(lay(binned(["a"], [0, 1, 40]), 400).projection.height).toBe(960);
     // On a log y, 1 to 10 and 10 to 100 are halves: 240 px holds them.
-    expect(lay(binned(["a"], [1, 10, 100], { y: { type: "log" } }), 400).frame.height).toBe(240);
+    expect(lay(binned(["a"], [1, 10, 100], { y: { type: "log" } }), 400).projection.height).toBe(
+      240,
+    );
   });
 
   it("titles a binned y above the plot, as a continuous y", () => {
@@ -1210,26 +1189,24 @@ describe("a binned cell chart's layout", () => {
 
 describe("a box plot", () => {
   const latency = (series = 1): ChartSpec => ({
+    data: boxes(
+      ["search", "export", "login", "health"],
+      Array.from({ length: series }, (_, k) => ({
+        key: k === 0 ? "Before" : "After",
+        low: [120, 300, 40, 1],
+        q1: [180, 900, 60, 2],
+        median: [240, 1400, 75, 2],
+        q3: [410, 2100, 90, 3],
+        high: [760, 4000, 130, 4],
+      })),
+    ),
+    mark: { mark: "box" },
     x: { label: "Latency" },
-    marks: [
-      {
-        mark: "box",
-        y: ["search", "export", "login", "health"],
-        series: Array.from({ length: series }, (_, k) => ({
-          name: k === 0 ? "Before" : "After",
-          low: [120, 300, 40, 1],
-          q1: [180, 900, 60, 2],
-          median: [240, 1400, 75, 2],
-          q3: [410, 2100, 90, 3],
-          high: [760, 4000, 130, 4],
-        })),
-      },
-    ],
   });
 
   it("sets a 24 px row per category with one series, its name in the gutter, from 30rem up", () => {
     const l = lay(latency(), 600);
-    expect(l.frame.height).toBe(4 * 24);
+    expect(l.projection.height).toBe(4 * 24);
     expect(l.rows.map((r) => r.y)).toEqual([12, 36, 60, 84]);
     expect(l.gutters.axis).toBe(7.5 * "health".length + 8);
     expect(l.valueLabels).toEqual([]);
@@ -1238,7 +1215,7 @@ describe("a box plot", () => {
 
   it("grows a row by a 16 px sub-row per series, 8 px to spare", () => {
     const l = lay(latency(2), 600);
-    expect(l.frame.height).toBe(4 * 40);
+    expect(l.projection.height).toBe(4 * 40);
     expect(l.rows.map((r) => r.y)).toEqual([20, 60, 100, 140]);
   });
 
@@ -1246,68 +1223,53 @@ describe("a box plot", () => {
     const names = (n: number) => Array.from({ length: n }, (_, i) => `r${String(i)}`);
     const ones = (n: number) => names(n).map(() => 1);
     const grouped = lay(
-      {
-        x: {},
-        marks: [
-          {
-            mark: "bar",
-            y: names(500),
-            arrange: "group",
-            series: names(5).map((name) => ({ name, x: ones(500) })),
-          },
-        ],
-      },
+      rows(
+        names(500),
+        names(5).map((name) => [name, ones(500)]),
+        { mark: "bar", arrange: "group" },
+      ),
       600,
     );
     // 5 × 12 + 4 + 8 px a row.
-    expect(grouped.frame.height).toBe(500 * 72);
+    expect(grouped.projection.height).toBe(500 * 72);
     const v = ones(625);
-    const boxes = lay(
+    const plot = lay(
       {
-        x: {},
-        marks: [
-          {
-            mark: "box",
-            y: names(625),
-            series: names(4).map((name) => ({ name, low: v, q1: v, median: v, q3: v, high: v })),
-          },
-        ],
+        data: boxes(
+          names(625),
+          names(4).map((key) => ({ key, low: v, q1: v, median: v, q3: v, high: v })),
+        ),
+        mark: { mark: "box" },
       },
       600,
     );
     // 4 × 16 + 8 px a row.
-    expect(boxes.frame.height).toBe(625 * 72);
+    expect(plot.projection.height).toBe(625 * 72);
   });
 
   it("puts each name above its boxes under 30rem: 44 px a row with one series, 60 with two", () => {
     const one = lay(latency(), 320);
     expect(one.gutters.axis).toBe(0);
-    expect(one.frame.height).toBe(176);
+    expect(one.projection.height).toBe(176);
     expect(one.rows[0]?.y).toBe(18 + 2 + 8);
     expect(one.yLabels[1]).toEqual({ text: "export", x: 0, y: 44 + 9, anchor: "start" });
-    expect(lay(latency(2), 320).frame.height).toBe(240);
+    expect(lay(latency(2), 320).projection.height).toBe(240);
   });
 
   it("runs x 4 px inside each end, so an outlier at the domain's end draws whole", () => {
     const l = lay(latency(), 600);
-    expect(l.frame.xAt(l.xAxis.lo)).toBeCloseTo(4);
-    expect(l.frame.xAt(l.xAxis.hi)).toBeCloseTo(l.frame.width - 4);
+    expect(l.projection.xAt(l.xAxis.lo)).toBeCloseTo(4);
+    expect(l.projection.xAt(l.xAxis.hi)).toBeCloseTo(l.projection.width - 4);
   });
 });
 
 describe("a pie", () => {
-  const land = (hole = false, values = [182_637, 106_839, 50_000, 11_443, 6_661]): ChartSpec => ({
-    marks: [
-      {
-        mark: "pie",
-        hole,
-        unit: { other: "km²" },
-        slices: ["Agriculture", "Forest", "Housing & traffic", "Other land", "Water"].map(
-          (name, i) => ({ name, value: values[i] ?? null }),
-        ),
-      },
-    ],
-  });
+  const land = (hole = false, values: Values = [182_637, 106_839, 50_000, 11_443, 6_661]) =>
+    rows(
+      ["Agriculture", "Forest", "Housing & traffic", "Other land", "Water"],
+      [["Land", values]],
+      { mark: "pie", hole, unit: { other: "km²" } },
+    );
   // The hole's face, 9 px a character, wider than the axis face.
   const hole = measurer((t) => 9 * Array.from(t).length, 9, "en");
   // A 480 px figure's 478 px plot, and a 320 px phone's 288 px figure.
@@ -1395,17 +1357,12 @@ describe("a pie", () => {
 
   it("drops every label together when a side's cannot fit the plot's height", () => {
     // n thin slices near 12 o'clock, all right of it, then one for the rest.
-    const thin = (n: number): ChartSpec => ({
-      marks: [
-        {
-          mark: "pie",
-          slices: [
-            ...Array.from({ length: n }, (_, i) => ({ name: `T${String(i)}`, value: 1 })),
-            { name: "Rest", value: 1000 },
-          ],
-        },
-      ],
-    });
+    const thin = (n: number): ChartSpec =>
+      rows(
+        [...Array.from({ length: n }, (_, i) => `T${String(i)}`), "Rest"],
+        [["Share", [...Array.from({ length: n }, () => 1), 1000]]],
+        { mark: "pie" },
+      );
     // Seven need 7 × 36 = 252 px on the right, past the 240 px plot.
     const l = wide(thin(7));
     expect(l.endLabels).toEqual([]);
@@ -1433,48 +1390,37 @@ describe("a pie", () => {
     });
     // On a phone the hole is 100 px across, 84 px of room.
     expect(phone(land(true)).hole).toBeUndefined();
-    const small: ChartSpec = {
-      marks: [
-        { mark: "pie", hole: true, unit: { other: "GB" }, slices: [{ name: "A", value: 4210 }] },
-      ],
-    };
+    const small = rows(["A"], [["Size", [4210]]], {
+      mark: "pie",
+      hole: true,
+      unit: { other: "GB" },
+    });
     expect(phone(small).hole?.total.text).toBe("4,210\u00A0GB");
     expect(wide(land()).hole).toBeUndefined();
   });
 });
 
 describe("a treemap", () => {
-  const regions = (
-    asia: readonly (number | null)[] = [3, 1],
-    europe = 4,
-    more: Partial<ChartSpec> = {},
-  ): ChartSpec => ({
+  // A part of `key`, no data for null.
+  const part = (key: string, value: number | null): FrameTreePart =>
+    value === null ? { key } : { key, value };
+  const regions = (asia: Values = [3, 1], europe = 4, more: More = {}): ChartSpec => ({
+    data: tree({
+      groups: [
+        {
+          key: "Asia",
+          children: [part("China", asia[0] ?? null), part("Japan", asia[1] ?? null)],
+        },
+        { key: "Europe", children: [part("Germany", europe)] },
+      ],
+    }),
+    mark: { mark: "tree", unit: { other: "USD" } },
     ...more,
-    marks: [
-      {
-        mark: "tree",
-        unit: { other: "USD" },
-        nodes: [
-          {
-            name: "Asia",
-            children: [
-              { name: "China", value: asia[0] ?? null },
-              { name: "Japan", value: asia[1] ?? null },
-            ],
-          },
-          { name: "Europe", children: [{ name: "Germany", value: europe }] },
-        ],
-      },
-    ],
   });
-  const parts = (values: readonly (number | null)[], more: Partial<ChartSpec> = {}): ChartSpec => ({
+  const parts = (values: Values, more: More = {}, name = "Country "): ChartSpec => ({
+    data: tree({ parts: values.map((v, i) => part(`${name}${String(i + 1)}`, v)) }),
+    mark: { mark: "tree" },
     ...more,
-    marks: [
-      {
-        mark: "tree",
-        nodes: values.map((value, i) => ({ name: `Country ${String(i + 1)}`, value })),
-      },
-    ],
   });
   const box = (b: { left: number; top: number; right: number; bottom: number } | undefined) =>
     b === undefined ? undefined : [b.left, b.top, b.right, b.bottom];
@@ -1577,9 +1523,7 @@ describe("a treemap", () => {
     expect(at(parts(moved), 590, first.tree?.kept).tree?.kept.top).toEqual(
       at(parts(moved), 590).tree?.kept.top,
     );
-    const renamed: ChartSpec = {
-      marks: [{ mark: "tree", nodes: moved.map((value, i) => ({ name: `C${String(i)}`, value })) }],
-    };
+    const renamed = parts(moved, {}, "C");
     expect(at(renamed, 600, first.tree?.kept).tree?.kept.top).toEqual(fresh.tree?.kept.top);
     // Two levels keep their parts' rows inside each group too.
     const two = at(regions([3, 1]), 600);
