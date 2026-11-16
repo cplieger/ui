@@ -1329,15 +1329,20 @@ describe("the starts", () => {
       }),
     );
     expect(f.getAttribute("aria-busy")).toBe("true");
-    expect(glyph(f).getAnimations()).toHaveLength(1);
+    const turning = glyph(f).getAnimations();
+    expect(turning).toHaveLength(1);
+    // Held half a turn in, so a slow machine neither reaches a second turn
+    // nor lets the animation end and leave getAnimations() before the check.
+    const anim = turning[0] as Animation;
+    anim.pause();
+    anim.currentTime = 450;
     full.box.finish();
     await vi.waitFor(() => {
       expect(f.textContent).toBe("Full check");
     });
     expect(f.hasAttribute("aria-busy")).toBe(false);
     // The turn in progress finishes: the animation now ends.
-    const [anim] = glyph(f).getAnimations();
-    expect(anim?.effect?.getTiming().iterations).toBe(1);
+    expect(anim.effect?.getTiming().iterations).toBe(1);
   });
 
   it("describes a start by its tip, after its reason", async () => {

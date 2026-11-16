@@ -9,21 +9,21 @@
   <section class="g-section" id="frames">
     <h2>Frames</h2>
     <div class="g-grid">
-      <div class="card g-wide" data-new>
+      <div class="card g-wide">
         <h2>App frame</h2>
         <div class="g-shell">
           <div class="g-shell-view" data-template-frame="The app page template"><iframe data-frame src="templates/app.html" title="The app page template"></iframe></div>
         </div>
         <footer><code>templates/app.html</code>, on <code>.cp-app</code>: the header across the top (the mark, the destinations, then the toolbar: the header status, the theme, the global actions, the account last), the rail of filters beside main, the status line at the foot with the freshness fact first. Main holds, in order, the banner, the heading row with the page's actions, the screen's notices and the content, at most 90rem wide and centred. Under 60rem the rail leaves and the Filters button opens it in a sheet; under 40rem the destinations move to a bar at the window's foot. A tool has no page footer: the status line is its foot. Each region and slot is named by a comment in the file. <a href="templates/app.html">Open the template</a>.</footer>
       </div>
-      <div class="card g-wide" data-new>
+      <div class="card g-wide">
         <h2>List and detail</h2>
         <div class="g-shell">
           <div class="g-shell-view" data-template-frame="The list and detail template"><iframe data-frame src="templates/list-detail.html" title="The list and detail template"></iframe></div>
         </div>
         <footer><code>templates/list-detail.html</code>: the app page whose main holds <code>.cp-list-detail</code>, a list of row links and the detail they open. The detail docks beside the list once main is 52rem wide and opens as a full-height sheet at the inline end below that, with Back closing it; <code>enhanceListDetail</code> and the app's route open it, so the template shows the list with its detail closed. It keys on main's width, not the window's. <a href="templates/list-detail.html">Open the template</a>.</footer>
       </div>
-      <div class="card g-wide" data-new>
+      <div class="card g-wide">
         <h2>Settings</h2>
         <div class="g-shell" data-frame-name="Settings">
           <div class="g-shell-view"><div class="g-shell-page">
@@ -133,7 +133,7 @@
         <h2><a href="sign-in.html">Sign-in</a></h2>
         <p>A gate page outside the app frame: username and password the same width, Show inside the password, a refusal that names neither half.</p>
       </div>
-      <div class="card" data-new>
+      <div class="card">
         <h2><a href="setup.html">First-run setup</a></h2>
         <p>Three steps with a step track, a connection test that blames the field at fault, and a finish worth marking once.</p>
       </div>

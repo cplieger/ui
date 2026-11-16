@@ -9,7 +9,7 @@ import { writer } from "../scale/format.js";
 import type { PieModel } from "./model.js";
 
 /** A pie's circle in plot px; `inner` is a donut's hole radius, else 0. */
-export interface PieFrame {
+export interface Disc {
   readonly cx: number;
   readonly cy: number;
   readonly r: number;
@@ -44,7 +44,7 @@ export function sliceAngles(m: PieModel): Slice[] {
 }
 
 /** The point at angle `a` and distance `r` from `p`'s centre. */
-export const rimPoint = (p: PieFrame, a: number, r: number): { x: number; y: number } => ({
+export const rimPoint = (p: Disc, a: number, r: number): { x: number; y: number } => ({
   x: p.cx + r * Math.sin(a),
   y: p.cy - r * Math.cos(a),
 });

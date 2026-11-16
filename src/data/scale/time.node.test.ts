@@ -1,9 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   civil,
   civilDays,
   dateAt,
+  grainOf,
   localDay,
   spansDay,
   TIME_STEPS,
@@ -327,6 +328,23 @@ describe("localDay", () => {
     const t = Date.UTC(2026, 10, 11, 23, 30);
     expect(localDay(t, "UTC")).toBe(Math.floor(t / DAY));
     expect(localDay(t, "Europe/Paris")).toBe(Math.floor(t / DAY) + 1);
+  });
+});
+
+describe("grainOf", () => {
+  it("reads the wall clock of an instant held 10,000 times as often as of one held once", () => {
+    const reads = (times: readonly number[]) => {
+      const spy = vi.spyOn(Intl.DateTimeFormat.prototype, "formatToParts");
+      try {
+        expect(grainOf(times, "Europe/Paris")).toBe("day");
+        return spy.mock.calls.length;
+      } finally {
+        spy.mockRestore();
+      }
+    };
+    // 2 January 2026, midnight in Paris.
+    const day = Date.UTC(2026, 0, 1, 23);
+    expect(reads(new Array<number>(10_000).fill(day))).toBe(reads([day]));
   });
 });
 

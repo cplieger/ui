@@ -2,7 +2,6 @@
  * chart.ts — `renderChart()` builds a chart inside an app's
  * `<figure class="cp-chart">`: its plot, legend row, summary and table
  * view, through one lifecycle of loading, empty, error and full states.
- * `durationEdges()` gives the duration ladder a histogram bins on.
  * @module
  */
 
@@ -22,8 +21,7 @@ import { shortDescription, summaryOf } from "./summary.js";
 import { namedRows, syncTable, tableModel } from "./table.js";
 import { chartWords, type ChartWords, type Words } from "./words.js";
 
-export { durationEdges } from "../scale/ladder.js";
-export type { ChartSpec, Mark } from "./spec.js";
+export type { ChartFrame, ChartSpec, Mark } from "./spec.js";
 export type { ChartWords } from "./words.js";
 
 export interface ChartOptions {

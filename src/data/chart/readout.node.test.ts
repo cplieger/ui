@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import type { FrameSeries, FrameTreePart } from "../frame/frame.js";
 import { writer } from "../scale/format.js";
-import { durationEdges } from "../scale/ladder.js";
 import { measurer } from "../scale/measure.js";
 
 import {
@@ -39,9 +39,19 @@ import {
   treeReading,
   type Reading,
 } from "./readout.js";
-import type { ChartSpec, Mark } from "./spec.js";
-
-type Slot = NonNullable<Extract<Mark, { mark: "line" }>["series"][number]["slot"]>;
+import type { ChartSpec } from "./spec.js";
+import {
+  binsFrame,
+  boxes,
+  categories,
+  events,
+  grid,
+  ladder,
+  named,
+  points,
+  seriesFrame,
+  tree as treeFrame,
+} from "./test-helpers/frames.js";
 import { chartWords } from "./words.js";
 
 const TZ = "Europe/Paris";
@@ -58,26 +68,32 @@ const span = (a: number, b: number) => `${time(a)} to ${time(b)}`;
 const model = (spec: ChartSpec): Model => chartModel(spec, "en", TZ);
 const per = <T>(n: number, f: (i: number) => T): T[] => Array.from({ length: n }, (_, i) => f(i));
 
+type Values = readonly (number | null)[];
+type Slot = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+// The slots of the keys that take another than their place's.
+const slots = (...keys: (readonly [string, Slot])[]) => keys.map(([key, slot]) => ({ key, slot }));
+
 // Posts by kind: 24 buckets of 15 minutes, the last still filling.
 const starts = per(24, (i) => START + i * 15 * MIN);
-const postsByKind: ChartSpec = {
-  x: { type: "time", domain: [START, START + 6 * 60 * MIN] },
-  y: { label: "Posts", unit: { one: "post", other: "posts" } },
-  marks: [
-    {
-      mark: "rect",
-      x1: starts,
-      x2: starts.map((t) => t + 15 * MIN),
-      open: true,
-      series: [
-        { name: "Announce", slot: 1, y: per(24, () => 5) },
-        { name: "Path", slot: 2, y: per(24, (i) => (i === 13 ? 6 : 4)) },
-        { name: "Direct", slot: 3, y: per(24, (i) => (i < 16 ? 3 : 2)) },
-        { name: "Cards", slot: 4, y: per(24, (i) => (i < 6 ? 2 : i === 23 ? null : 1)) },
-      ],
-    },
-  ],
-};
+const kinds = named(
+  ["Announce", per(24, () => 5)],
+  ["Path", per(24, (i) => (i === 13 ? 6 : 4))],
+  ["Direct", per(24, (i) => (i < 16 ? 3 : 2))],
+  ["Cards", per(24, (i) => (i < 6 ? 2 : i === 23 ? null : 1))],
+);
+const posts = (series: FrameSeries[] = kinds, mark: object = {}): ChartSpec =>
+  ({
+    data: binsFrame(
+      starts,
+      starts.map((t) => t + 15 * MIN),
+      [],
+      { open: true, series },
+    ),
+    mark: { mark: "rect", ...mark },
+    x: { domain: [START, START + 6 * 60 * MIN] },
+    y: { label: "Posts", unit: { one: "post", other: "posts" } },
+  }) as ChartSpec;
+const postsByKind = posts();
 
 const chips = (r: Reading | undefined) => r?.entries.map((e) => [e.slot, e.name, e.value]);
 
@@ -110,8 +126,7 @@ describe("the legend row of stacked columns", () => {
 });
 
 describe("the legend row of grouped columns", () => {
-  const mark = postsByKind.marks[0] as Extract<ChartSpec["marks"][number], { mark: "rect" }>;
-  const m = model({ ...postsByKind, marks: [{ ...mark, arrange: "group" }] });
+  const m = model(posts(kinds, { arrange: "group" }));
   const rect = m.marks[0] as RectModel;
 
   it("reads each series' total over the domain and no grand total", () => {
@@ -138,8 +153,7 @@ describe("the legend row of grouped columns", () => {
 });
 
 describe("the legend row of columns stacked to 100%", () => {
-  const mark = postsByKind.marks[0] as Extract<ChartSpec["marks"][number], { mark: "rect" }>;
-  const m = model({ ...postsByKind, marks: [{ ...mark, arrange: "share" }] });
+  const m = model(posts(kinds, { arrange: "share" }));
   const rect = m.marks[0] as RectModel;
 
   it("reads each series' share of the grand total and the total with its unit", () => {
@@ -158,19 +172,12 @@ describe("the legend row of columns stacked to 100%", () => {
   });
 
   it("reads a bucket whose total is 0 by its values, since it has no shares", () => {
-    const zero = model({
-      ...postsByKind,
-      marks: [
-        {
-          ...mark,
-          arrange: "share",
-          series: mark.series.map((s) => ({
-            ...s,
-            y: Array.from(s.y, (v, i) => (i === 2 ? 0 : v)),
-          })),
-        },
-      ],
-    });
+    const zero = model(
+      posts(
+        kinds.map((s) => ({ ...s, values: s.values.map((v, i) => (i === 2 ? 0 : v)) })),
+        { arrange: "share" },
+      ),
+    );
     const r = bucketReading(zero, zero.marks[0] as RectModel, 2, words);
     expect(chips(r)?.map((c) => c[2])).toEqual(["0", "0", "0", "0"]);
     expect(r.total).toBe(`0${nb}posts`);
@@ -179,15 +186,7 @@ describe("the legend row of columns stacked to 100%", () => {
 
 describe("the legend row of one series", () => {
   it("reads a column chart's count with its unit, and no total", () => {
-    const m = model({
-      ...postsByKind,
-      marks: [
-        {
-          ...(postsByKind.marks[0] as RectModel & { mark: "rect" }),
-          series: [{ name: "All", y: per(24, () => 1) }],
-        },
-      ],
-    });
+    const m = model(posts(named(["All", per(24, () => 1)])));
     const r = overall(m, words);
     expect(chips(r)).toEqual([[undefined, undefined, `24${nb}posts`]]);
     expect(r?.total).toBeUndefined();
@@ -197,27 +196,24 @@ describe("the legend row of one series", () => {
   });
 
   it("reads the underflow bin as under its edge, and the domain from under the low end, capitalised", () => {
-    const edges = durationEdges();
+    const edges = ladder();
     const m = model({
-      x: { type: "log", format: "duration", domain: [1_000, edges.at(-1) ?? 0] },
+      data: binsFrame(edges.slice(0, -1), edges.slice(1), [edges.slice(1).map(() => 2)], {
+        axis: "value",
+        unit: "seconds",
+      }),
+      mark: { mark: "rect" },
+      x: { type: "log", domain: [1, edges.at(-1) ?? 0] },
       y: { unit: { one: "read", other: "reads" } },
-      marks: [
-        {
-          mark: "rect",
-          x1: edges.slice(0, -1),
-          x2: edges.slice(1),
-          series: [{ name: "Reads", y: edges.slice(1).map(() => 2) }],
-        },
-      ],
     });
     const rect = m.marks[0] as RectModel;
     expect(overall(m, words)?.at).toBe(
-      `Under ${writer("duration", "en")(1_000)} to ${writer("duration", "en")(edges.at(-1) ?? 0)}`,
+      `Under ${writer("duration", "en")(1)} to ${writer("duration", "en")(edges.at(-1) ?? 0)}`,
     );
     expect(overall(m, words)?.entries[0]?.value).toBe(`32${nb}reads`);
-    expect(bucketReading(m, rect, 0, words).at).toBe(`Under ${writer("duration", "en")(1_000)}`);
+    expect(bucketReading(m, rect, 0, words).at).toBe(`Under ${writer("duration", "en")(1)}`);
     expect(bucketReading(m, rect, 5, words).at).toBe(
-      `${writer("duration", "en")(30_000)} to ${writer("duration", "en")(60_000)}`,
+      `${writer("duration", "en")(30)} to ${writer("duration", "en")(60)}`,
     );
   });
 });
@@ -225,19 +221,12 @@ describe("the legend row of one series", () => {
 describe("the legend row of a step line", () => {
   const x = per(6, (i) => START + i * MIN);
   const m = model({
+    data: seriesFrame(x, [], {
+      series: named(["Live", [null, 4, 4, 10, 10, 10]], ["Active", [null, 0, 2, 6, 6, null]]),
+    }),
+    mark: { mark: "line", curve: "step" },
     x: { type: "time", domain: [START, START + 10 * MIN] },
     y: { label: "Agents" },
-    marks: [
-      {
-        mark: "line",
-        curve: "step",
-        x,
-        series: [
-          { name: "Live", slot: 1, y: [null, 4, 4, 10, 10, 10] },
-          { name: "Active", slot: 2, y: [null, 0, 2, 6, 6, null] },
-        ],
-      },
-    ],
   });
   const line = m.marks[0] as LineModel;
 
@@ -261,18 +250,14 @@ describe("the legend row of a step line", () => {
 // loaded host.
 describe("the legend row of 200,000 lines", { timeout: 30_000 }, () => {
   const m = model({
+    data: seriesFrame([START, START + MIN], [], {
+      series: per(200_000, (k) => ({ key: `s${String(k)}`, values: [k, k % 2 === 0 ? 1 : null] })),
+    }),
+    mark: {
+      mark: "line",
+      keys: per(200_000, (k) => ({ key: `s${String(k)}`, slot: ((k % 9) + 1) as Slot })),
+    },
     x: { type: "time", domain: [START, START + 10 * MIN] },
-    marks: [
-      {
-        mark: "line",
-        x: [START, START + MIN],
-        series: per(200_000, (k) => ({
-          name: `s${String(k)}`,
-          slot: ((k % 9) + 1) as Slot,
-          y: [k, k % 2 === 0 ? 1 : null],
-        })),
-      },
-    ],
   });
 
   it("reads each line's last value, at the latest of them", () => {
@@ -295,18 +280,12 @@ describe("the legend row of 200,000 lines", { timeout: 30_000 }, () => {
 
 describe("the legend row of a stacked area", () => {
   const x = per(4, (i) => START + i * MIN);
-  const spec = (wind: (number | null)[]): ChartSpec => ({
+  const spec = (wind: Values): ChartSpec => ({
+    data: seriesFrame(x, [], {
+      series: named(["Gas", [1_204, 1_100, 990, 1_310]], ["Wind", wind]),
+    }),
+    mark: { mark: "area" },
     x: { type: "time", domain: [START, START + 10 * MIN] },
-    marks: [
-      {
-        mark: "area",
-        x,
-        series: [
-          { name: "Gas", slot: 1, y: [1_204, 1_100, 990, 1_310] },
-          { name: "Wind", slot: 2, y: wind },
-        ],
-      },
-    ],
   });
   const m = model(spec([980, 410, 1_020, null]));
 
@@ -343,21 +322,13 @@ describe("the legend row of a stacked area", () => {
 
 describe("the legend row of an area stacked to 100%", () => {
   const x = per(3, (i) => START + i * MIN);
-  const spec = (solar: (number | null)[]): ChartSpec => ({
+  const spec = (solar: Values, gas: Values = [0, 1_204, 1_100]): ChartSpec => ({
+    data: seriesFrame(x, [], {
+      series: named(["Gas", gas], ["Wind", [0, 980, 900]], ["Solar", solar]),
+    }),
+    mark: { mark: "area", arrange: "share" },
     x: { type: "time", domain: [START, START + 10 * MIN] },
     y: { unit: { one: "MW", other: "MW" } },
-    marks: [
-      {
-        mark: "area",
-        x,
-        arrange: "share",
-        series: [
-          { name: "Gas", slot: 1, y: [0, 1_204, 1_100] },
-          { name: "Wind", slot: 2, y: [0, 980, 900] },
-          { name: "Solar", slot: 3, y: solar },
-        ],
-      },
-    ],
   });
   const m = model(spec([0, 412, null]));
   const area = m.marks[0] as AreaModel;
@@ -383,21 +354,7 @@ describe("the legend row of an area stacked to 100%", () => {
   });
 
   it("keeps a value slot as wide as a value read where the stack has no shares", () => {
-    const wide = model({
-      ...spec([0, 412, null]),
-      marks: [
-        {
-          mark: "area",
-          x,
-          arrange: "share",
-          series: [
-            { name: "Gas", slot: 1, y: [0, 1_204, 1_100_000] },
-            { name: "Wind", slot: 2, y: [0, 980, 900] },
-            { name: "Solar", slot: 3, y: [0, 412, null] },
-          ],
-        },
-      ],
-    });
+    const wide = model(spec([0, 412, null], [0, 1_204, 1_100_000]));
     const measure = measurer((t) => 7 * Array.from(t).length, 7, "en");
     const w = readoutWidths(wide, words, measure);
     expect(w.values).toEqual([7 * "1,100,000".length, 7 * "No data".length, 7 * "No data".length]);
@@ -408,18 +365,10 @@ describe("the legend row of an area stacked to 100%", () => {
 describe("the legend row of a timeline", () => {
   const posts = [START + 10 * MIN, START + 10 * MIN, START + 12 * MIN, START + 90 * MIN];
   const m = model({
-    x: { type: "time", domain: [START, START + 360 * MIN] },
+    data: events({ "lead-ui": posts, "docs-bot": [] }),
+    mark: { mark: "dot", unit: { one: "post", other: "posts" } },
+    x: { domain: [START, START + 360 * MIN] },
     y: { type: "band", mono: true, unit: { one: "agent", other: "agents" } },
-    marks: [
-      {
-        mark: "dot",
-        unit: { one: "post", other: "posts" },
-        rows: [
-          { name: "lead-ui", x: posts },
-          { name: "docs-bot", x: [] },
-        ],
-      },
-    ],
   });
   const dots = m.marks[0] as DotModel;
 
@@ -474,12 +423,12 @@ describe("the legend row's widths", () => {
 
   it("holds every post, group and row reading of a timeline", () => {
     const rows = per(5, (r) => ({
-      name: `agent-${"x".repeat(r)}`,
-      x: per(r * 7, (i) => START + i * 13 * MIN),
+      key: `agent-${"x".repeat(r)}`,
+      at: per(r * 7, (i) => START + i * 13 * MIN),
     }));
     const m = model({
-      x: { type: "time" },
-      marks: [{ mark: "dot", unit: { one: "post", other: "posts" }, rows }],
+      data: { type: "events", name: "e", rows },
+      mark: { mark: "dot", unit: { one: "post", other: "posts" } },
     });
     const w = readoutWidths(m, words, measure);
     const dots = m.marks[0] as DotModel;
@@ -497,7 +446,7 @@ describe("the legend row's widths", () => {
     const n = 1_000;
     const y = per(n, (i) => (i === 0 ? 0 : i === n - 1 ? 9_000_000 : i === 2 ? 7_123_456.25 : 50));
     const x = per(n, (i) => (i === 5 ? 5.125 : i));
-    const m = model({ x: {}, marks: [{ mark: "line", x, series: [{ name: "a", y }] }] });
+    const m = model({ data: seriesFrame(x, [y]), mark: { mark: "line" } });
     const w = readoutWidths(m, words, measure);
     expect(w.values[0]).toBe(measure.number("7,123,456.25"));
     expect(w.at).toBe(measure.number("5.125"));
@@ -510,17 +459,20 @@ describe("the legend row's widths", () => {
   it("holds a duration wider than its extremes, writing one text per duration width", () => {
     const n = 1_000;
     const y = per(n, (i) =>
-      i === 0 ? 0 : i === n - 1 ? 9 * 60 * MIN : i === 500 ? 9_420_013 : 100 + i * 9,
+      i === 0 ? 0 : i === n - 1 ? 9 * 3_600 : i === 500 ? 9_420.013 : (100 + i * 9) / 1_000,
     );
     const m = model({
-      x: {},
-      y: { format: "duration" },
-      marks: [{ mark: "line", x: per(n, (i) => i), series: [{ name: "a", y }] }],
+      data: seriesFrame(
+        per(n, (i) => i),
+        [y],
+        { unit: "seconds" },
+      ),
+      mark: { mark: "line" },
     });
     let texts = 0;
     const counting = { ...measure, number: (t: string) => (texts++, measure.number(t)) };
     const w = readoutWidths(m, words, counting);
-    expect(w.values[0]).toBe(measure.number(writer("duration", "en")(9_420_013)));
+    expect(w.values[0]).toBe(measure.number(writer("duration", "en")(9_420.013)));
     // Six duration widths (0 ms, 109 to 999 ms, 1 sec, 2 to 9 sec, 2 hr 37 min,
     // 9 hr), with No data, the x's three digit counts and the overall row.
     expect(texts).toBeLessThan(20);
@@ -533,17 +485,9 @@ describe("the legend row's widths", () => {
   it("holds every sample of a line", () => {
     const x = per(500, (i) => START + i * MIN);
     const m = model({
+      data: seriesFrame(x, [x.map((_, i) => (i % 97) * 1.5), x.map(() => null)]),
+      mark: { mark: "line" },
       x: { type: "time" },
-      marks: [
-        {
-          mark: "line",
-          x,
-          series: [
-            { name: "a", y: x.map((_, i) => (i % 97) * 1.5) },
-            { name: "b", y: x.map(() => null) },
-          ],
-        },
-      ],
     });
     const w = readoutWidths(m, words, measure);
     const line = m.marks[0] as LineModel;
@@ -555,30 +499,24 @@ describe("the legend row's widths", () => {
 
 describe("the legend row of a bar chart", () => {
   const ages = (unit?: { one: string; other: string }): ChartSpec => ({
+    data: categories(["Holy See", "Monaco", "Japan"], [], {
+      series: named(["Median age", [57.4, null, 49.8]]),
+    }),
+    mark: { mark: "bar" },
     x: { unit: { one: "year", other: "years" } },
     ...(unit === undefined ? {} : { y: { unit } }),
-    marks: [
-      {
-        mark: "bar",
-        y: ["Holy See", "Monaco", "Japan"],
-        series: [{ name: "Median age", x: [57.4, null, 49.8] }],
-      },
-    ],
   });
-  const firms: ChartSpec = {
-    x: {},
+  const firms = (arrange?: "group" | "split"): ChartSpec => ({
+    data: categories(["Acme", "Brill"], [], {
+      series: named(["Domestic", [40, 3]], ["International", [2, null]]),
+    }),
+    mark: {
+      mark: "bar",
+      ...(arrange === undefined ? {} : { arrange }),
+      keys: slots(["International", 3]),
+    },
     y: { unit: { one: "company", other: "companies" } },
-    marks: [
-      {
-        mark: "bar",
-        y: ["Acme", "Brill"],
-        series: [
-          { name: "Domestic", slot: 1, x: [40, 3] },
-          { name: "International", slot: 3, x: [2, null] },
-        ],
-      },
-    ],
-  };
+  });
 
   it("reads the row count in the y unit, or as categories, with a blank value", () => {
     expect(overall(model(ages({ one: "country", other: "countries" })), words)).toEqual({
@@ -587,15 +525,12 @@ describe("the legend row of a bar chart", () => {
       total: undefined,
     });
     expect(overall(model(ages()), words)?.at).toBe("3 categories");
-    const one: ChartSpec = {
-      x: {},
-      marks: [{ mark: "bar", y: ["Japan"], series: [{ name: "Median age", x: [49.8] }] }],
-    };
+    const one: ChartSpec = { data: categories(["Japan"], [[49.8]]), mark: { mark: "bar" } };
     expect(overall(model(one), words)?.at).toBe("1 category");
   });
 
   it("names the series of a stack with their value and total slots blank", () => {
-    expect(overall(model(firms), words)).toEqual({
+    expect(overall(model(firms()), words)).toEqual({
       at: `2${nb}companies`,
       entries: [
         { slot: 1, name: "Domestic", value: "" },
@@ -615,14 +550,9 @@ describe("the legend row of a bar chart", () => {
 
   it("signs a diverging bar's readings but 0's", () => {
     const m = model({
+      data: categories(["Utah", "Texas", "Puerto Rico"], [[0.16, 0, -0.143]]),
+      mark: { mark: "bar" },
       x: { format: { style: "percent", maximumFractionDigits: 1 } },
-      marks: [
-        {
-          mark: "bar",
-          y: ["Utah", "Texas", "Puerto Rico"],
-          series: [{ name: "Change", x: [0.16, 0, -0.143] }],
-        },
-      ],
     });
     const bar = m.marks[0] as BarModel;
     expect([0, 1, 2].map((r) => barReading(m, bar, r, words).entries[0]?.value)).toEqual([
@@ -633,7 +563,7 @@ describe("the legend row of a bar chart", () => {
   });
 
   it("reads a stacked row's parts and total, a gap counting for nothing", () => {
-    const m = model(firms);
+    const m = model(firms());
     const bar = m.marks[0] as BarModel;
     expect(barReading(m, bar, 1, words)).toEqual({
       at: "Brill",
@@ -645,10 +575,7 @@ describe("the legend row of a bar chart", () => {
     });
   });
 
-  const grouped: ChartSpec = {
-    ...firms,
-    marks: [{ ...(firms.marks[0] as Extract<Mark, { mark: "bar" }>), arrange: "group" }],
-  };
+  const grouped = firms("group");
 
   it("reads a grouped row's values with no total, and names the series with no total slot", () => {
     const m = model(grouped);
@@ -665,11 +592,7 @@ describe("the legend row of a bar chart", () => {
   });
 
   it("reads a split row's values with no total, and names the series with no total slot", () => {
-    const split: ChartSpec = {
-      ...firms,
-      marks: [{ ...(firms.marks[0] as Extract<Mark, { mark: "bar" }>), arrange: "split" }],
-    };
-    const m = model(split);
+    const m = model(firms("split"));
     const bar = m.marks[0] as BarModel;
     expect(barReading(m, bar, 0, words)).toEqual({
       at: "Acme",
@@ -684,18 +607,10 @@ describe("the legend row of a bar chart", () => {
 
   it("reads a mirrored row's two sides and its total", () => {
     const m = model({
-      x: {},
-      marks: [
-        {
-          mark: "bar",
-          y: ["45-50", "90+"],
-          arrange: "mirror",
-          series: [
-            { name: "Male", x: [2_734_000, null] },
-            { name: "Female", x: [2_690_000, 520_000] },
-          ],
-        },
-      ],
+      data: categories(["45-50", "90+"], [], {
+        series: named(["Male", [2_734_000, null]], ["Female", [2_690_000, 520_000]]),
+      }),
+      mark: { mark: "bar", arrange: "mirror" },
     });
     const bars = m.marks[0] as BarModel;
     const r = barReading(m, bars, 0, words);
@@ -712,23 +627,17 @@ describe("the legend row of a bar chart", () => {
 
   it("reads a diverging row's values in series order and its total", () => {
     const m = model({
-      x: { format: "percent" },
-      marks: [
-        {
-          mark: "bar",
-          y: ["Item 3"],
-          arrange: "diverge",
-          left: 2,
-          centre: true,
-          series: [
-            { name: "Strongly disagree", x: [0.1] },
-            { name: "Disagree", x: [0.15] },
-            { name: "Neutral", x: [0.2] },
-            { name: "Agree", x: [0.3] },
-            { name: "Strongly agree", x: [0.25] },
-          ],
-        },
-      ],
+      data: categories(["Item 3"], [], {
+        unit: "ratio",
+        series: named(
+          ["Strongly disagree", [0.1]],
+          ["Disagree", [0.15]],
+          ["Neutral", [0.2]],
+          ["Agree", [0.3]],
+          ["Strongly agree", [0.25]],
+        ),
+      }),
+      mark: { mark: "bar", arrange: "diverge", left: 2, centre: true },
     });
     const r = barReading(m, m.marks[0] as BarModel, 0, words);
     expect(r?.entries.map((e) => `${e.name} ${e.value}`)).toEqual([
@@ -741,19 +650,19 @@ describe("the legend row of a bar chart", () => {
     expect(r?.total).toBe("100%");
   });
 
-  const shared = (rows: (number | null)[][]): ChartSpec => ({
-    x: { unit: { one: "respondent", other: "respondents" } },
-    marks: [
+  const shared = (rows: Values[]): ChartSpec => ({
+    data: categories(
+      rows.map((_, i) => `Item ${String(i + 1)}`),
+      [],
       {
-        mark: "bar",
-        y: rows.map((_, i) => `Item ${String(i + 1)}`),
-        arrange: "share",
-        series: [
-          { name: "No", slot: 1, x: rows.map((r) => r[0] ?? null) },
-          { name: "Yes", slot: 2, x: rows.map((r) => r[1] ?? null) },
-        ],
+        series: named(
+          ["No", rows.map((r) => r[0] ?? null)],
+          ["Yes", rows.map((r) => r[1] ?? null)],
+        ),
       },
-    ],
+    ),
+    mark: { mark: "bar", arrange: "share" },
+    x: { unit: { one: "respondent", other: "respondents" } },
   });
 
   it("reads a 100% row's shares and its absolute total in the x unit", () => {
@@ -783,7 +692,7 @@ describe("the legend row of a bar chart", () => {
 
   it("keeps slots as wide as every row's reading and the whole chart's", () => {
     const measure = measurer((t) => 7 * Array.from(t).length, 6, "en");
-    const m = model(firms);
+    const m = model(firms());
     const w = readoutWidths(m, words, measure);
     const bar = m.marks[0] as BarModel;
     for (const r of [0, 1]) {
@@ -799,23 +708,13 @@ describe("the legend row of a bar chart", () => {
 });
 
 describe("the legend row of a point chart", () => {
-  const degrees = (
-    x: NonNullable<ChartSpec["x"]> = {},
-    ...series: (number | null)[][]
-  ): ChartSpec => ({
+  const degrees = (x: NonNullable<ChartSpec["x"]> = {}, ...series: Values[]): ChartSpec => ({
+    data: categories(["Doctorate", "Master's"], [], {
+      series: series.map((v, k) => ({ key: k === 0 ? "Women" : "Men", values: [...v] })),
+    }),
+    mark: { mark: "point", keys: slots(["Women", 2], ["Men", 3]) },
     x,
     y: { unit: { one: "degree", other: "degrees" } },
-    marks: [
-      {
-        mark: "point",
-        y: ["Doctorate", "Master's"],
-        series: series.map((v, k) => ({
-          name: k === 0 ? "Women" : "Men",
-          slot: (k + 2) as 2,
-          x: v,
-        })),
-      },
-    ],
   });
   const pointOf = (m: Model) => m.marks[0] as PointModel;
 
@@ -876,22 +775,15 @@ describe("the legend row of a range or arrow plot", () => {
   const plot = (
     link: "range" | "arrow",
     x: NonNullable<ChartSpec["x"]>,
-    women: (number | null)[],
-    men: (number | null)[],
+    women: Values,
+    men: Values,
   ): Model =>
     model({
+      data: categories(["Doctorate", "Master's", "Bachelor's"], [], {
+        series: named(["Women", women], ["Men", men]),
+      }),
+      mark: { mark: "point", link },
       x,
-      marks: [
-        {
-          mark: "point",
-          y: ["Doctorate", "Master's", "Bachelor's"],
-          link,
-          series: [
-            { name: "Women", x: women },
-            { name: "Men", x: men },
-          ],
-        },
-      ],
     });
   const pointOf = (m: Model) => m.marks[0] as PointModel;
 
@@ -903,10 +795,7 @@ describe("the legend row of a range or arrow plot", () => {
     const m = plot("range", {}, [1, 2, 3], [4, 5, 6]);
     expect(totalWord(m, words)).toBe("Gap");
     expect(totalWord(plot("arrow", {}, [1, 2, 3], [4, 5, 6]), words)).toBe("Change");
-    const dots = model({
-      x: {},
-      marks: [{ mark: "point", y: ["a"], series: [{ name: "A", x: [1] }] }],
-    });
+    const dots = model({ data: categories(["a"], [[1]]), mark: { mark: "point" } });
     expect(overall(dots, words)?.total).toBeUndefined();
     expect(totalWord(dots, words)).toBe("Total");
   });
@@ -939,14 +828,14 @@ describe("the legend row of a range or arrow plot", () => {
     const later = START + 90 * MIN;
     const range = plot("range", { type: "time" }, [later, START, START], [START, later, START]);
     expect(pointReading(range, pointOf(range), 0, words).total).toBe(
-      writer("duration", "en")(90 * MIN),
+      writer("duration", "en")(90 * 60),
     );
     const arrow = plot("arrow", { type: "time" }, [later, START, START], [START, later, START]);
     expect(pointReading(arrow, pointOf(arrow), 0, words).total).toBe(
-      writer("duration", "en")(-90 * MIN),
+      writer("duration", "en")(-90 * 60),
     );
     expect(pointReading(arrow, pointOf(arrow), 1, words).total).toBe(
-      `+${writer("duration", "en")(90 * MIN)}`,
+      `+${writer("duration", "en")(90 * 60)}`,
     );
   });
 
@@ -960,16 +849,13 @@ describe("the legend row of a range or arrow plot", () => {
 });
 
 describe("the legend row of a slope chart", () => {
-  const pets = (y: ChartSpec["y"], ...series: (number | null)[][]): Model =>
+  const pets = (y: ChartSpec["y"], ...series: Values[]): Model =>
     model({
+      data: categories(["2005", "2015"], [], {
+        series: series.map((ends, k) => ({ key: ["Cats", "Horses"][k] ?? "", values: [...ends] })),
+      }),
+      mark: { mark: "slope" },
       ...(y === undefined ? {} : { y }),
-      marks: [
-        {
-          mark: "slope",
-          x: ["2005", "2015"],
-          series: series.map((ends, k) => ({ name: ["Cats", "Horses"][k] ?? "", y: ends })),
-        },
-      ],
     });
   const slope = (m: Model) => m.marks[0] as SlopeModel;
 
@@ -1014,24 +900,24 @@ describe("a scatter's legend row with no selection", () => {
   const scatter = (series: number): Model =>
     chartModel(
       {
+        data: points(
+          [
+            {
+              key: "Europe",
+              names: ["Albania", "Andorra", "Monaco"],
+              x: [1, 2, null],
+              y: [3, 4, 5],
+            },
+            { key: "Africa", names: ["Chad"], x: [6], y: [7] },
+          ].slice(0, series),
+        ),
+        mark: {
+          mark: "scatter",
+          unit: { one: "country", other: "countries" },
+          keys: slots(["Europe", 2], ["Africa", 5]),
+        },
         x: { label: "GDP per capita" },
         y: { label: "Life expectancy" },
-        marks: [
-          {
-            mark: "scatter",
-            unit: { one: "country", other: "countries" },
-            series: [
-              {
-                name: "Europe",
-                slot: 2 as const,
-                names: ["Albania", "Andorra", "Monaco"],
-                x: [1, 2, null],
-                y: [3, 4, 5],
-              },
-              { name: "Africa", slot: 5 as const, names: ["Chad"], x: [6], y: [7] },
-            ].slice(0, series),
-          },
-        ],
       },
       "en",
       "UTC",
@@ -1059,23 +945,20 @@ describe("a scatter's legend row with no selection", () => {
 describe("a scatter's legend row with a dot selected", () => {
   const world = (series: number): Model =>
     model({
+      data: points(
+        [
+          {
+            key: "Europe",
+            names: ["Albania", "Liechtenstein", "Norway"],
+            x: [19, 140, 82],
+            y: [79.8, 84.3, 83.2],
+          },
+          { key: "Africa", names: ["Chad"], x: [1.6], y: [53] },
+        ].slice(0, series),
+      ),
+      mark: { mark: "scatter", keys: slots(["Europe", 2], ["Africa", 5]) },
       x: { label: "GDP per capita" },
       y: { label: "Life expectancy" },
-      marks: [
-        {
-          mark: "scatter",
-          series: [
-            {
-              name: "Europe",
-              slot: 2 as const,
-              names: ["Albania", "Liechtenstein", "Norway"],
-              x: [19, 140, 82],
-              y: [79.8, 84.3, 83.2],
-            },
-            { name: "Africa", slot: 5 as const, names: ["Chad"], x: [1.6], y: [53] },
-          ].slice(0, series),
-        },
-      ],
     });
   const scatterOf = (m: Model) => m.marks[0] as ScatterModel;
 
@@ -1121,21 +1004,17 @@ describe("a scatter's legend row with a dot selected", () => {
   it("finds each measure's widest reading among thousands of dots, past their extremes", () => {
     const n = 5_000;
     const m = model({
+      data: points([
+        {
+          key: "All",
+          names: per(n, (i) => `d${String(i)}`),
+          x: per(n, (i) => (i === 2_345 ? 12_345 : i % 10)),
+          y: per(n, (i) => (i === 3_001 ? -42 : 1)),
+        },
+      ]),
+      mark: { mark: "scatter" },
       x: { label: "x" },
       y: { label: "y" },
-      marks: [
-        {
-          mark: "scatter",
-          series: [
-            {
-              name: "All",
-              names: per(n, (i) => `d${String(i)}`),
-              x: per(n, (i) => (i === 2_345 ? 12_345 : i % 10)),
-              y: per(n, (i) => (i === 3_001 ? -42 : 1)),
-            },
-          ],
-        },
-      ],
     });
     const w = readoutWidths(
       m,
@@ -1148,14 +1027,10 @@ describe("a scatter's legend row with a dot selected", () => {
     const n = 1_000;
     const x = per(n, (i) => (i === 0 ? 0 : i === n - 1 ? 100 : i === 2 ? 71.25 : 50));
     const m = model({
+      data: points([{ key: "All", names: per(n, (i) => `d${String(i)}`), x, y: x }]),
+      mark: { mark: "scatter" },
       x: { label: "x" },
       y: { label: "y" },
-      marks: [
-        {
-          mark: "scatter",
-          series: [{ name: "All", names: per(n, (i) => `d${String(i)}`), x, y: x }],
-        },
-      ],
     });
     const w = readoutWidths(
       m,
@@ -1174,21 +1049,17 @@ describe("a scatter's legend row with a dot selected", () => {
   it("writes every value of a format it cannot key, such as a function's", () => {
     const n = 1_000;
     const m = model({
+      data: points([
+        {
+          key: "All",
+          names: per(n, (i) => `d${String(i)}`),
+          x: per(n, (i) => (i === 3 ? 7 : i === n - 1 ? 100 : i)),
+          y: per(n, () => 1),
+        },
+      ]),
+      mark: { mark: "scatter" },
       x: { label: "x", format: (v) => (v === 7 ? "seven" : String(v)) },
       y: { label: "y" },
-      marks: [
-        {
-          mark: "scatter",
-          series: [
-            {
-              name: "All",
-              names: per(n, (i) => `d${String(i)}`),
-              x: per(n, (i) => (i === 3 ? 7 : i === n - 1 ? 100 : i)),
-              y: per(n, () => 1),
-            },
-          ],
-        },
-      ],
     });
     const w = readoutWidths(
       m,
@@ -1201,25 +1072,20 @@ describe("a scatter's legend row with a dot selected", () => {
 
 describe("a bubble chart's legend row", () => {
   const world = model({
+    data: points([
+      {
+        key: "Asia",
+        names: ["Japan", "Laos"],
+        x: [48, 8.4],
+        y: [84.5, 68],
+        r: [124_000_000, null],
+      },
+      { key: "Europe", names: ["Monaco"], x: [140], y: [85.9], r: [0] },
+    ]),
+    mark: { mark: "scatter", keys: slots(["Asia", 3], ["Europe", 2]) },
     x: { label: "GDP per capita" },
     y: { label: "Life expectancy" },
     r: { label: "Population", format: { notation: "compact" } },
-    marks: [
-      {
-        mark: "scatter",
-        series: [
-          {
-            name: "Asia",
-            slot: 3 as const,
-            names: ["Japan", "Laos"],
-            x: [48, 8.4],
-            y: [84.5, 68],
-            r: [124_000_000, null],
-          },
-          { name: "Europe", slot: 2 as const, names: ["Monaco"], x: [140], y: [85.9], r: [0] },
-        ],
-      },
-    ],
   });
   const bubbleOf = world.marks[0] as ScatterModel;
 
@@ -1266,20 +1132,14 @@ describe("a bubble chart's legend row", () => {
 describe("a cell chart's legend row", () => {
   const nb = "\u00A0";
   const hist: ChartSpec = {
+    data: grid({ edges: [500, 1000, 2000] }, { edges: [55, 60, 65] }, [
+      [3, 12],
+      [null, 1],
+    ]),
+    mark: { mark: "cell" },
     x: { label: "GDP per capita" },
     y: { label: "Life expectancy" },
     colour: { unit: { one: "country", other: "countries" } },
-    marks: [
-      {
-        mark: "cell",
-        x: { edges: [500, 1000, 2000] },
-        y: { edges: [55, 60, 65] },
-        values: [
-          [3, 12],
-          [null, 1],
-        ],
-      },
-    ],
   };
   const cellOf = (m: Model) => m.marks[0] as CellModel;
   const width = (t: string) => 7 * Array.from(t).length;
@@ -1314,7 +1174,7 @@ describe("a cell chart's legend row", () => {
 
   it("names a category grid's cell by its row, then its column", () => {
     const m = chartModel(
-      { marks: [{ mark: "cell", x: ["2 PM"], y: ["Tuesday"], values: [[42]] }] },
+      { data: grid({ names: ["2 PM"] }, { names: ["Tuesday"] }, [[42]]), mark: { mark: "cell" } },
       "en",
       TZ,
     );
@@ -1324,18 +1184,12 @@ describe("a cell chart's legend row", () => {
   it("keeps the slots as wide as the widest place and value", () => {
     const m = chartModel(
       {
+        data: grid({ names: ["a", "longest"] }, { names: ["Wednesday", "Mon"] }, [
+          [1, 1000],
+          [null, 2],
+        ]),
+        mark: { mark: "cell" },
         colour: { unit: { one: "post", other: "posts" } },
-        marks: [
-          {
-            mark: "cell",
-            x: ["a", "longest"],
-            y: ["Wednesday", "Mon"],
-            values: [
-              [1, 1000],
-              [null, 2],
-            ],
-          },
-        ],
       },
       "en",
       TZ,
@@ -1349,35 +1203,33 @@ describe("a cell chart's legend row", () => {
 describe("the legend row of a box plot", () => {
   const latency = (two = false): ChartSpec => ({
     y: { unit: { one: "endpoint", other: "endpoints" } },
-    marks: [
-      {
-        mark: "box",
-        y: ["search", "health"],
-        series: [
-          {
-            name: "Before",
-            low: [120, null],
-            q1: [180, null],
-            median: [240, null],
-            q3: [410, null],
-            high: [760, null],
-            outliers: [[1100, 2600], []],
-          },
-          ...(two
-            ? [
-                {
-                  name: "After",
-                  low: [100, 1],
-                  q1: [150, 2],
-                  median: [190, 2],
-                  q3: [300, 3],
-                  high: [600, 4],
-                },
-              ]
-            : []),
-        ],
-      },
-    ],
+    mark: { mark: "box" },
+    data: boxes(
+      ["search", "health"],
+      [
+        {
+          key: "Before",
+          low: [120, null],
+          q1: [180, null],
+          median: [240, null],
+          q3: [410, null],
+          high: [760, null],
+          outliers: [[1100, 2600], []],
+        },
+        ...(two
+          ? [
+              {
+                key: "After",
+                low: [100, 1],
+                q1: [150, 2],
+                median: [190, 2],
+                q3: [300, 3],
+                high: [600, 4],
+              },
+            ]
+          : []),
+      ],
+    ),
   });
   const boxOf = (m: Model) => m.marks[0] as BoxModel;
 
@@ -1434,19 +1286,11 @@ describe("the legend row of a box plot", () => {
 describe("the legend row of a pie", () => {
   // Germany's land by use, in km², with water missing: 52%, 31%, 14% and 3.3% of 349,356.
   const land: ChartSpec = {
-    marks: [
-      {
-        mark: "pie",
-        unit: { other: "km²" },
-        slices: [
-          { name: "Agriculture", value: 182_637 },
-          { name: "Forest", slot: 5, value: 106_645 },
-          { name: "Housing & traffic", value: 48_631 },
-          { name: "Other land", value: 11_443 },
-          { name: "Water", value: null },
-        ],
-      },
-    ],
+    data: categories(
+      ["Agriculture", "Forest", "Housing & traffic", "Other land", "Water"],
+      [[182_637, 106_645, 48_631, 11_443, null]],
+    ),
+    mark: { mark: "pie", unit: { other: "km²" }, keys: slots(["Forest", 5]) },
   };
   const pie = (m: Model) => m.marks[0] as PieModel;
   const shares = [
@@ -1483,51 +1327,27 @@ describe("the legend row of a pie", () => {
 
 describe("the legend row of a treemap", () => {
   // GDP in 2023, bn USD: 62,580 in all, Asia 41%, the Americas 47% and Europe 12%.
+  // A part of `key`, no data for null.
+  const part = (key: string, value: number | null): FrameTreePart =>
+    value === null ? { key } : { key, value };
   const gdp = (india: number | null = 3550): ChartSpec => ({
-    marks: [
-      {
-        mark: "tree",
-        unit: { other: "bn USD" },
-        nodes: [
-          {
-            name: "Asia",
-            children: [
-              { name: "China", value: 17_795 },
-              { name: "Japan", value: 4213 },
-              { name: "India", value: india },
-            ],
-          },
-          {
-            name: "Americas",
-            slot: 6,
-            children: [
-              { name: "United States", value: 27_361 },
-              { name: "Brazil", value: 2174 },
-            ],
-          },
-          {
-            name: "Europe",
-            children: [
-              { name: "Germany", value: 4456 },
-              { name: "France", value: 3031 },
-            ],
-          },
-        ],
-      },
-    ],
+    data: treeFrame({
+      groups: [
+        {
+          key: "Asia",
+          children: [part("China", 17_795), part("Japan", 4213), part("India", india)],
+        },
+        { key: "Americas", children: [part("United States", 27_361), part("Brazil", 2174)] },
+        { key: "Europe", children: [part("Germany", 4456), part("France", 3031)] },
+      ],
+    }),
+    mark: { mark: "tree", unit: { other: "bn USD" }, keys: slots(["Americas", 6]) },
   });
   const flat: ChartSpec = {
-    marks: [
-      {
-        mark: "tree",
-        unit: { other: "bn USD" },
-        nodes: [
-          { name: "United States", value: 27_361 },
-          { name: "China", slot: 3, value: 17_795 },
-          { name: "Germany", value: 4456 },
-        ],
-      },
-    ],
+    data: treeFrame({
+      parts: [part("United States", 27_361), part("China", 17_795), part("Germany", 4456)],
+    }),
+    mark: { mark: "tree", unit: { other: "bn USD" }, keys: slots(["China", 3]) },
   };
   const tree = (m: Model) => m.marks[0] as TreeModel;
   const shares = [

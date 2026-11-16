@@ -8,6 +8,7 @@ import { chartModel, type Model, type SeriesModel } from "./model.js";
 import type { ChartSpec } from "./spec.js";
 import { generatedSummary } from "./summary.js";
 import { tableModel } from "./table.js";
+import type { FrameSeries } from "../frame/frame.js";
 import { chartWords } from "./words.js";
 
 const face = measurer((t) => 7.5 * Array.from(t).length, 7.5, "en");
@@ -32,8 +33,10 @@ const SAMPLES = 2;
 // each series reads the whole stack once a series, SERIES times this.
 const MOST_READS = 20 * SERIES * SAMPLES;
 
-const named = (y: (s: number) => number[]) =>
-  Array.from({ length: SERIES }, (_, s) => ({ name: `s${String(s)}`, slot: 1 as const, y: y(s) }));
+const named = (values: (s: number) => number[]): FrameSeries[] =>
+  Array.from({ length: SERIES }, (_, s) => ({ key: `s${String(s)}`, values: values(s) }));
+// Past the ninth a series takes no slot of its own, so each takes slot 1.
+const keys = Array.from({ length: SERIES }, (_, s) => ({ key: `s${String(s)}`, slot: 1 as const }));
 
 // Builds `spec`'s model, then counts every read of a series' value from it on.
 function counted(spec: ChartSpec): { model: Model; reads: () => number } {
@@ -61,15 +64,21 @@ describe("a stack's totals", () => {
     "are found once, so an area of 2,000 series under %s reads each value a few times",
     (arrange) => {
       const { model, reads } = counted({
-        x: {},
-        marks: [{ mark: "area", x: [0, 1], arrange, series: named((s) => [1 + (s % 5), 2]) }],
+        data: {
+          type: "series",
+          name: "s",
+          unit: "count",
+          x: [0, 1],
+          series: named((s) => [1 + (s % 5), 2]),
+        },
+        mark: { mark: "area", arrange, keys },
       });
       const [area] = model.marks;
       if (area?.kind !== "area") {
         throw new Error("no area");
       }
       const lay = layout(model, words, metrics, 800, { axis: 0, label: 0 });
-      expect(areaPaths(area, lay.frame)).toHaveLength(SERIES);
+      expect(areaPaths(area, lay.projection)).toHaveLength(SERIES);
       expect(generatedSummary(model, words)).not.toBe("");
       expect(tableModel(model, words).rows).toHaveLength(SAMPLES);
       expect(reads()).toBeLessThanOrEqual(MOST_READS);
@@ -78,23 +87,23 @@ describe("a stack's totals", () => {
 
   it("are found once, so a share rect of 2,000 series reads each value a few times", () => {
     const { model, reads } = counted({
-      x: {},
-      marks: [
-        {
-          mark: "rect",
-          x1: [0, 1],
-          x2: [1, 2],
-          arrange: "share",
-          series: named((s) => [1 + (s % 5), 2]),
-        },
-      ],
+      data: {
+        type: "bins",
+        name: "b",
+        unit: "count",
+        axis: "value",
+        x1: [0, 1],
+        x2: [1, 2],
+        series: named((s) => [1 + (s % 5), 2]),
+      },
+      mark: { mark: "rect", arrange: "share", keys },
     });
     const [rect] = model.marks;
     if (rect?.kind !== "rect") {
       throw new Error("no rect");
     }
     const lay = layout(model, words, metrics, 800, { axis: 0, label: 0 });
-    expect(rectPaths(rect, lay.frame)).toHaveLength(SERIES);
+    expect(rectPaths(rect, lay.projection)).toHaveLength(SERIES);
     expect(generatedSummary(model, words)).not.toBe("");
     expect(tableModel(model, words).rows).toHaveLength(SAMPLES);
     expect(reads()).toBeLessThanOrEqual(MOST_READS);
