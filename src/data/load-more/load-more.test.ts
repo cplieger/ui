@@ -258,8 +258,10 @@ describe("enhanceLoadMore", () => {
     const { button } = footed();
     button.textContent = "Show all 5 running";
     const wait = Promise.withResolvers<LoadMorePage>();
-    enhance(button, { load: () => wait.promise });
+    // The width is measured at enhance; with the page font settled first, a
+    // font that lands later can't re-measure it between the two readings.
     await document.fonts.ready;
+    enhance(button, { load: () => wait.promise });
     const content = () => {
       const parts = [
         ...button.querySelectorAll<HTMLElement>(":scope > .cp-icon, :scope > .cp-roll"),
