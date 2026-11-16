@@ -1016,7 +1016,14 @@ function checkInstants(frame: Frame, f: string, x: Rec | undefined, refsOnX: boo
 }
 
 // The checks that read the plot's scales beside its data mark.
-function checkPlot(spec: Rec, scales: Scales, c: MarkCopy, input: Rec, most: Room): void {
+function checkPlot(
+  spec: Rec,
+  scales: Scales,
+  c: MarkCopy,
+  input: Rec,
+  f: string,
+  most: Room,
+): void {
   if (c.kind === "scatter") {
     const list = input["series"] as readonly Rec[];
     const sized = list[0]?.["r"] !== undefined;
@@ -1058,7 +1065,7 @@ function checkPlot(spec: Rec, scales: Scales, c: MarkCopy, input: Rec, most: Roo
       thinnestBin(log ? "log" : "linear", edges) * most.rows < 1 - 1e-9
     ) {
       fail(
-        `data.y.edges' thinnest bin must be at least 1/${String(most.rows)} of the axis${most.each}, since the plot grows until it is a row tall`,
+        `${f}.y.edges' thinnest bin must be at least 1/${String(most.rows)} of the axis${most.each}, since the plot grows until it is a row tall`,
         RangeError,
       );
     }
@@ -1144,7 +1151,7 @@ function readPanel(
   const frame = readFrame(v, f, d, MARKS[c.kind][0]);
   const scales = scalesOf(spec, frame, c);
   const input = dataInput(frame, f, c, most);
-  checkPlot(spec, scales, c, input, most);
+  checkPlot(spec, scales, c, input, f, most);
   const [axis] = refAxes(c.kind, frame);
   const refsOnX = (frame.refs ?? []).some(
     (ref) => (words.refs.get(ref.key)?.["axis"] ?? axis) === "x",
@@ -1246,6 +1253,14 @@ function readFacets(facets: unknown, c: MarkCopy, words: Words, d: Door, spec: R
     return fail("facets.panels must be a non-empty array, a panel each");
   }
   const theirs = sharedFields(head.read.frame);
+  const shares =
+    c.kind === "pie"
+      ? "set of slices"
+      : head.read.frame.type === "calendar"
+        ? "calendar"
+        : head.read.frame.type === "grid"
+          ? "grid"
+          : "band of rows";
   for (const { read: r } of read.slice(1)) {
     if (r.frame.type !== head.read.frame.type) {
       fail(
@@ -1254,18 +1269,13 @@ function readFacets(facets: unknown, c: MarkCopy, words: Words, d: Door, spec: R
     }
     sharedFields(r.frame).forEach(([field, value], j) => {
       if (!same(value, theirs[j]?.[1])) {
-        fail(
-          `${r.f}.${field} must be facets.panels[0]'s; the panels share one ${r.frame.type === "calendar" ? "calendar" : r.frame.type === "grid" ? "grid" : "band of rows"}`,
-        );
+        fail(`${r.f}.${field} must be facets.panels[0]'s; the panels share one ${shares}`);
       }
     });
   }
   const lists = read.map((p) => seriesKeys(p.read.frame, c.kind));
   const [first = []] = lists;
   const alike = lists.every((l) => l.length === first.length && l.every((n, i) => n === first[i]));
-  if (c.kind === "pie" && !alike) {
-    fail("facets.panels must each hold the same slices in the same order");
-  }
   const perSeries = lists.every((l) => l.length === 1);
   if (!perSeries && !alike) {
     fail("facets.panels must each hold one series, or all the same series in the same order");
