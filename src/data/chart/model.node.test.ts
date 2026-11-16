@@ -431,18 +431,35 @@ describe("spec errors", () => {
     expect(() => build(lines(500_000, 2, { refs: [{ key: "zero", value: 0 }] }))).toThrow(
       past("data.refs"),
     );
-    // The page's words for the frame's keys, refs and notes are no values.
-    expect(build({ ...lines(500_000, 2), notes: [{ key: "n" }], refs: [{ key: "r" }] }).kind).toBe(
-      "line",
-    );
-    const tenth = { ...lines(100_000, 10), mark: { mark: "line", keys: [{ key: "j", slot: 1 }] } };
-    expect(build(tenth).kind).toBe("line");
+  });
+
+  it("names the row that takes a timeline past a million values", MILLION, () => {
+    const zeros = (n: number) => new Array<number>(n).fill(0);
     const timeline = (last: number) => ({
       data: events({ a: zeros(600_000), b: zeros(last) }),
       mark: { mark: "dot" },
     });
     expect(build(timeline(400_000)).kind).toBe("timeline");
     expect(() => build(timeline(400_001))).toThrow(past("data.rows[1].at"));
+  });
+
+  it("charges no values for the page's words for the frame's keys, refs and notes", MILLION, () => {
+    const lines = (n: number, k: number) =>
+      seriesFrame(
+        index(n),
+        index(k).map(() => new Array<number>(n).fill(0)),
+      );
+    expect(() =>
+      check({
+        data: lines(500_000, 2),
+        mark: { mark: "line" },
+        notes: [{ key: "n" }],
+        refs: [{ key: "r" }],
+      }),
+    ).not.toThrow();
+    expect(() =>
+      check({ data: lines(100_000, 10), mark: { mark: "line", keys: [{ key: "j", slot: 1 }] } }),
+    ).not.toThrow();
   });
 
   it("counts a series with no samples as one value", MILLION, () => {

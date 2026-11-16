@@ -1216,8 +1216,8 @@ function ownShared(frame: Frame): [string, unknown][] {
   }
 }
 
-/** Splits the panels' refs into the chart's, each a key and value every
- *  panel holds, drawn once, and each panel's own, the rest. Linear in the refs. */
+/** Splits the panels' refs into the chart's, each key and value as many times
+ *  as every panel holds it, and each panel's own, the rest. Linear in the refs. */
 export function sharedRefs(panels: readonly (readonly FrameRef[])[]): {
   shared: FrameRef[];
   own: FrameRef[][];
@@ -1312,15 +1312,15 @@ function readFacets(facets: unknown, c: MarkCopy, words: Words, d: Door, spec: R
     return fail("facets.panels must be a non-empty array, a panel each");
   }
   const theirs = sharedFields(head.read.frame);
-  const shares =
+  const shares = (field: string): string =>
     c.kind === "pie"
       ? "set of slices"
-      : head.read.frame.type === "calendar"
-        ? "calendar"
-        : head.read.frame.type === "grid"
-          ? "grid"
-          : head.read.frame.type === "points"
-            ? "set of scales"
+      : field === "unit" || field === "axis" || field === "units"
+        ? "set of scales"
+        : head.read.frame.type === "calendar"
+          ? "calendar"
+          : head.read.frame.type === "grid"
+            ? "grid"
             : "band of rows";
   for (const { read: r } of read.slice(1)) {
     if (r.frame.type !== head.read.frame.type) {
@@ -1330,7 +1330,7 @@ function readFacets(facets: unknown, c: MarkCopy, words: Words, d: Door, spec: R
     }
     sharedFields(r.frame).forEach(([field, value], j) => {
       if (!same(value, theirs[j]?.[1])) {
-        fail(`${r.f}.${field} must be facets.panels[0]'s; the panels share one ${shares}`);
+        fail(`${r.f}.${field} must be facets.panels[0]'s; the panels share one ${shares(field)}`);
       }
     });
   }

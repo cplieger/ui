@@ -456,7 +456,11 @@ describe("facets", () => {
           ],
         },
       }),
-    ).toThrow(/facets\.panels\[1\]\.data\.unit must be facets\.panels\[0\]'s/);
+    ).toThrow(
+      new TypeError(
+        "renderChart: facets.panels[1].data.unit must be facets.panels[0]'s; the panels share one set of scales",
+      ),
+    );
   });
 
   it("refuses bins panels on a time axis and a value axis, in either order", () => {
@@ -467,7 +471,9 @@ describe("facets", () => {
       [value, time],
     ]) {
       expect(() => check({ mark: { mark: "rect" }, facets: { panels } })).toThrow(
-        /facets\.panels\[1\]\.data\.axis must be facets\.panels\[0\]'s/,
+        new TypeError(
+          "renderChart: facets.panels[1].data.axis must be facets.panels[0]'s; the panels share one set of scales",
+        ),
       );
     }
   });
@@ -492,7 +498,9 @@ describe("facets", () => {
     ]) {
       const labels = { x: { label: "X" }, y: { label: "Y" }, r: { label: "R" } };
       expect(() => check({ mark: { mark: "scatter" }, ...labels, facets: { panels } })).toThrow(
-        /facets\.panels\[1\]\.data\.units must be facets\.panels\[0\]'s/,
+        new TypeError(
+          "renderChart: facets.panels[1].data.units must be facets.panels[0]'s; the panels share one set of scales",
+        ),
       );
     }
   });
@@ -502,7 +510,7 @@ describe("chartdata's frame fixtures", () => {
   const dir = join(import.meta.dirname, "..", "frame", "contract", "fixtures");
   const fixture = (name: string): Record<string, unknown> =>
     JSON.parse(readFileSync(join(dir, `frame-${name}.json`), "utf8")) as Record<string, unknown>;
-  // The frame types no chart mark takes: the elements and the flow marks read them.
+  // The frame types no chart mark draws.
   const ELSEWHERE = new Set(["flow", "flow-stages", "states", "value"]);
   const labels = { x: { label: "X" }, y: { label: "Y" }, r: { label: "R" } };
   const cases: readonly (readonly [string, string, object])[] = [
