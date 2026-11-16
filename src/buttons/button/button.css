@@ -44,7 +44,11 @@
   color: var(--cp-tone-on);
 }
 
+/* A quiet button presses with the wash, through the icon-only press rule's
+ * fill, so its press reads on any surface as its hover does. */
 .cp-button[data-variant="quiet"] {
+  --cp-fill-active: var(--cp-wash-active);
+
   background: transparent;
   color: var(--cp-ink-muted);
 }
@@ -69,10 +73,8 @@
       background: var(--cp-tone-10);
     }
 
-    /* A surface whose own hover fill is --cp-fill, such as a hovered row,
-     * sets --cp-quiet-hover, so a quiet button on it still shows its own. */
     .cp-button[data-variant="quiet"]:hover:not(:disabled, [aria-disabled="true"]) {
-      background: var(--cp-quiet-hover, var(--cp-fill));
+      background: var(--cp-wash-hover);
       color: var(--cp-ink);
     }
 

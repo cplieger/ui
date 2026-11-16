@@ -2242,6 +2242,11 @@
   --cp-fill: var(--cp-neutral-4);
   --cp-fill-hover: var(--cp-neutral-5);
   --cp-fill-active: var(--cp-neutral-6);
+  /* A quiet control's hover and press: the ink over whatever it sits on, so
+   * the step holds on every surface, about 1.23:1 and 1.38:1 at the least
+   * (light, sunken), where a fixed grey is 1.07:1 on the sunken surface. */
+  --cp-wash-hover: color-mix(in oklch, var(--cp-ink) 10%, transparent);
+  --cp-wash-active: color-mix(in oklch, var(--cp-ink) 16%, transparent);
   --cp-line: var(--cp-neutral-6);
   --cp-border: var(--cp-neutral-7);
   --cp-border-strong: var(--cp-neutral-8);
@@ -3742,7 +3747,11 @@ a.cp-wordmark {
   color: var(--cp-tone-on);
 }
 
+/* A quiet button presses with the wash, through the icon-only press rule's
+ * fill, so its press reads on any surface as its hover does. */
 .cp-button[data-variant="quiet"] {
+  --cp-fill-active: var(--cp-wash-active);
+
   background: transparent;
   color: var(--cp-ink-muted);
 }
@@ -3767,10 +3776,8 @@ a.cp-wordmark {
       background: var(--cp-tone-10);
     }
 
-    /* A surface whose own hover fill is --cp-fill, such as a hovered row,
-     * sets --cp-quiet-hover, so a quiet button on it still shows its own. */
     .cp-button[data-variant="quiet"]:hover:not(:disabled, [aria-disabled="true"]) {
-      background: var(--cp-quiet-hover, var(--cp-fill));
+      background: var(--cp-wash-hover);
       color: var(--cp-ink);
     }
 
@@ -5497,8 +5504,6 @@ th[aria-sort="descending"] > .cp-sort::after {
     }
 
     .cp-table tbody tr:hover :is(td, th) {
-      --cp-quiet-hover: var(--cp-fill-hover);
-
       background: var(--cp-fill);
     }
 
@@ -7491,8 +7496,6 @@ button.cp-list-row[aria-pressed] .cp-badge {
 @media (any-hover: hover) {
   @scope (:root:not([data-pointer="coarse"])) {
     .cp-list-row:not([data-skeleton]):hover {
-      --cp-quiet-hover: var(--cp-fill-hover);
-
       background: var(--cp-list-row-hover, var(--cp-fill));
     }
 

@@ -4072,6 +4072,8 @@ describe("css/system.css lists, feeds and counts", () => {
       HTMLButtonElement,
     ];
     const fill = resolved("var(--cp-fill)", "backgroundColor");
+    const wash = resolved("var(--cp-wash-hover)", "backgroundColor");
+    const washed = resolved("var(--cp-wash-active)", "backgroundColor");
     for (const [more, under] of [
       [inRow, row(el)],
       [inTable, el.querySelector("td") as HTMLElement],
@@ -4080,13 +4082,9 @@ describe("css/system.css lists, feeds and counts", () => {
       more.style.transition = "none";
       await userEvent.hover(more);
       expect(getComputedStyle(under).backgroundColor).toBe(fill);
-      expect(getComputedStyle(more).backgroundColor).toBe(
-        resolved("var(--cp-fill-hover)", "backgroundColor"),
-      );
+      expect(getComputedStyle(more).backgroundColor).toBe(wash);
       more.toggleAttribute("data-cp-pressed", true);
-      expect(getComputedStyle(more).backgroundColor).toBe(
-        resolved("var(--cp-fill-active)", "backgroundColor"),
-      );
+      expect(getComputedStyle(more).backgroundColor).toBe(washed);
       more.disabled = true;
       more.toggleAttribute("data-cp-pressed", false);
       expect(getComputedStyle(more).backgroundColor).toBe(
@@ -4099,12 +4097,47 @@ describe("css/system.css lists, feeds and counts", () => {
     ).firstElementChild as HTMLElement;
     bare.style.transition = "none";
     await userEvent.hover(bare);
-    expect(getComputedStyle(bare).backgroundColor).toBe(fill);
+    expect(getComputedStyle(bare).backgroundColor).toBe(wash);
     bare.toggleAttribute("data-cp-pressed", true);
-    expect(getComputedStyle(bare).backgroundColor).toBe(
-      resolved("var(--cp-fill-active)", "backgroundColor"),
-    );
+    expect(getComputedStyle(bare).backgroundColor).toBe(washed);
     await userEvent.unhover(bare);
+  });
+
+  it("sets a quiet button's hover and press 1.2:1 apart from every surface, in both themes", async () => {
+    root.dataset["pointer"] = "fine";
+    /** `over` painted on `surface`, read back as one opaque sRGB colour. */
+    const on = (surface: string, over: string): string => {
+      const ctx = new OffscreenCanvas(1, 1).getContext("2d") as OffscreenCanvasRenderingContext2D;
+      ctx.fillStyle = surface;
+      ctx.fillRect(0, 0, 1, 1);
+      ctx.fillStyle = over;
+      ctx.fillRect(0, 0, 1, 1);
+      const [r = 0, g = 0, b = 0] = ctx.getImageData(0, 0, 1, 1).data;
+      return `rgb(${String(r)}, ${String(g)}, ${String(b)})`;
+    };
+    for (const t of ["light", "dark"] as const) {
+      theme(t);
+      for (const surface of ["page", "raised", "sunken", "overlay"]) {
+        const box = build(
+          `<div style="background: var(--cp-surface-${surface})"><button class="cp-button" data-variant="quiet" type="button" aria-label="Copy"><span class="cp-icon"></span></button></div>`,
+        );
+        const ground = getComputedStyle(box.firstElementChild as Element).backgroundColor;
+        const b = box.querySelector("button") as HTMLButtonElement;
+        b.style.transition = "none";
+        await userEvent.hover(b);
+        const hover = getComputedStyle(b).backgroundColor;
+        b.toggleAttribute("data-cp-pressed", true);
+        const press = getComputedStyle(b).backgroundColor;
+        await userEvent.unhover(b);
+        const base = on(ground, "transparent");
+        expect(contrast(on(ground, hover), base), `${t} ${surface} hover`).toBeGreaterThanOrEqual(
+          1.2,
+        );
+        expect(contrast(on(ground, press), base), `${t} ${surface} press`).toBeGreaterThan(
+          contrast(on(ground, hover), base),
+        );
+      }
+    }
   });
 
   it("ends a row that opens a page with its chevron, which turns to face right to left", () => {
