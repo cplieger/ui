@@ -566,11 +566,18 @@ function refAxes(kind: Kind, frame: Frame): readonly [("x" | "y") | undefined, r
 
 // Whether a note has an x place: a split, diverging or mirrored bar's x is
 // a place in every panel or on both sides, and a slope's, a grid of names'
-// or a whole's x is no value.
+// or a whole's x is no value. A split of one series draws a plain bar.
 function notesPlaced(kind: Kind, input: Rec): boolean {
   switch (kind) {
-    case "bar":
-      return !["split", "diverge", "mirror"].includes(String(input["arrange"]));
+    case "bar": {
+      const { arrange } = input;
+      const series = (input["series"] as readonly unknown[]).length;
+      return !(
+        arrange === "diverge" ||
+        arrange === "mirror" ||
+        (arrange === "split" && series > 1)
+      );
+    }
     case "cell":
       return input["days"] !== undefined || !isArray(input["x"]);
     case "slope":
@@ -952,10 +959,10 @@ function dataInput(frame: Frame, f: string, c: MarkCopy, most: Room): Rec {
   }
 }
 
-// Every instant a time x places is written through Intl, so each is held to
-// what Date holds by its own field, whatever the domain.
+// Every instant a time x or a calendar places is written through Intl, so
+// each is held to what Date holds by its own field, whatever the domain.
 function checkInstants(frame: Frame, f: string, x: Rec | undefined, refsOnX: boolean): void {
-  if (x?.["type"] !== "time") {
+  if (x?.["type"] !== "time" && frame.type !== "calendar") {
     return;
   }
   const each = (values: readonly (number | null)[] | undefined, what: string): void => {
@@ -965,7 +972,7 @@ function checkInstants(frame: Frame, f: string, x: Rec | undefined, refsOnX: boo
       }
     });
   };
-  if (isArray(x["domain"])) {
+  if (isArray(x?.["domain"])) {
     each(x["domain"] as readonly number[], "x.domain");
   }
   switch (frame.type) {
