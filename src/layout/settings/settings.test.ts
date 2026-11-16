@@ -2,16 +2,20 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cdp, server, userEvent } from "vitest/browser";
 
 import { enhanceConfirm } from "../../buttons/confirm/confirm.js";
+import { enhanceRovingFocus } from "../../core/roving-focus/roving-focus.js";
 import { guardChanges } from "../../forms/form/form.js";
 import { enhanceSettings } from "./settings.js";
 
 let life = new AbortController();
 
-afterEach(() => {
+afterEach(async () => {
   life.abort();
   life = new AbortController();
   document.body.replaceChildren();
   scrollTo(0, 0);
+  // The next case's press must not meet this scroll's late events.
+  await new Promise(requestAnimationFrame);
+  await new Promise(requestAnimationFrame);
 });
 
 const task = (): Promise<void> => new Promise((r) => setTimeout(r));
@@ -79,6 +83,17 @@ const entered = (el: Element): Promise<void> =>
 async function holdLast(links: readonly HTMLAnchorElement[]): Promise<void> {
   const seen = entered(document.getElementById("s-chk") as HTMLElement);
   links[2]?.click();
+  await seen;
+  await new Promise(requestAnimationFrame);
+  await task();
+}
+
+/** Moves the first section into the band with no scroll, as a layout
+ *  change would, and waits for the module's observer to see it. */
+async function shiftFirstIntoBand(): Promise<void> {
+  const first = document.getElementById("s-con") as HTMLElement;
+  const seen = entered(first);
+  first.style.translate = `0 ${String(innerHeight * 0.3 - first.getBoundingClientRect().bottom)}px`;
   await seen;
   await new Promise(requestAnimationFrame);
   await task();
@@ -290,6 +305,47 @@ describe("enhanceSettings", () => {
     expect(pressed).toEqual(["#s-dis"]);
   });
 
+  it("keeps a key choice waiting for Enter while the current category moves", async () => {
+    const { form, nav, links } = page();
+    enhanceSettings(form, { signal: life.signal });
+    const pressed: string[] = [];
+    nav.addEventListener("click", (e) => {
+      e.preventDefault();
+      pressed.push((e.target as HTMLAnchorElement).hash);
+    });
+    const select = nav.querySelector("select") as HTMLSelectElement;
+    select.focus();
+    select.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+    select.selectedIndex = 2;
+    select.dispatchEvent(new Event("change"));
+    links[0]?.removeAttribute("aria-current");
+    links[1]?.setAttribute("aria-current", "location");
+    await task();
+    expect(select.selectedIndex).toBe(2);
+    select.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    expect(pressed).toEqual(["#s-dis"]);
+  });
+
+  it("keeps a key choice on its category when update adds one before it", () => {
+    const { form, nav } = page();
+    const s = enhanceSettings(form, { signal: life.signal });
+    const pressed: string[] = [];
+    nav.addEventListener("click", (e) => {
+      e.preventDefault();
+      pressed.push((e.target as HTMLAnchorElement).hash);
+    });
+    const select = nav.querySelector("select") as HTMLSelectElement;
+    select.focus();
+    select.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+    select.selectedIndex = 2;
+    select.dispatchEvent(new Event("change"));
+    nav.querySelector("ul")?.insertAdjacentHTML("afterbegin", row("Alerts", "#s-alerts"));
+    s.update();
+    expect(select.options[select.selectedIndex]?.text).toBe("Display");
+    select.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    expect(pressed).toEqual(["#s-dis"]);
+  });
+
   it.runIf(server.browser === "chromium")(
     "waits for Enter after a letter Chromium sends as a key and then its character",
     async () => {
@@ -394,31 +450,111 @@ describe("enhanceSettings", () => {
     await new Promise(requestAnimationFrame);
     await task();
     expect(current()).toBe(2);
-    dispatchEvent(new WheelEvent("wheel"));
     scrollTo(0, 0);
     await vi.waitFor(() => {
       expect(current()).toBe(0);
     });
   });
 
-  it("ends a pressed category's hold on a wheel, a touch drag or a scrolling key over the categories", async () => {
+  it("ends a pressed category's hold on a page scroll that no wheel, touch or key made", async () => {
     const { form, links } = page(true);
     enhanceSettings(form, { signal: life.signal });
     const current = (): number => links.findIndex((l) => l.hasAttribute("aria-current"));
-    for (const gesture of [
-      new WheelEvent("wheel", { bubbles: true }),
-      new Event("touchmove", { bubbles: true }),
-      new KeyboardEvent("keydown", { key: "PageDown", bubbles: true }),
-      new KeyboardEvent("keydown", { key: " ", bubbles: true }),
-    ]) {
-      await holdLast(links);
-      expect(current(), gesture.type).toBe(2);
-      links[2]?.dispatchEvent(gesture);
-      scrollTo(0, 0);
-      await vi.waitFor(() => {
-        expect(current(), gesture.type).toBe(0);
+    await holdLast(links);
+    expect(current()).toBe(2);
+    scrollTo(0, 0);
+    await new Promise(requestAnimationFrame);
+    await vi.waitFor(() => {
+      expect(current()).toBe(0);
+    });
+  });
+
+  it("keeps a pressed category through its own gliding jump, and ends the hold on a later scroll", async () => {
+    const { form, links } = page(true);
+    enhanceSettings(form, { signal: life.signal });
+    const current = (): number => links.findIndex((l) => l.hasAttribute("aria-current"));
+    document.documentElement.style.scrollBehavior = "smooth";
+    try {
+      const landed = new Promise((r) => {
+        addEventListener("scrollend", r, { once: true });
       });
+      links[2]?.click();
+      await landed;
+      await new Promise(requestAnimationFrame);
+      await task();
+      expect([current(), scrollY > 0]).toEqual([2, true]);
+    } finally {
+      document.documentElement.style.scrollBehavior = "";
     }
+    scrollTo(0, 0);
+    await vi.waitFor(() => {
+      expect(current()).toBe(0);
+    });
+  });
+
+  it("ends the hold of a press at the page's end, which scrolls nothing, on the next scroll", async () => {
+    const { form, links } = page(true);
+    enhanceSettings(form, { signal: life.signal });
+    const current = (): number => links.findIndex((l) => l.hasAttribute("aria-current"));
+    await holdLast(links);
+    const before = scrollY;
+    links[2]?.click();
+    await new Promise(requestAnimationFrame);
+    await task();
+    expect([current(), scrollY]).toEqual([2, before]);
+    scrollTo(0, 0);
+    await vi.waitFor(() => {
+      expect(current()).toBe(0);
+    });
+  });
+
+  it("ends the hold of a press that scrolled nothing on the person's scroll toward its section", async () => {
+    const { form, links } = page(true);
+    enhanceSettings(form, { signal: life.signal });
+    const current = (): number => links.findIndex((l) => l.hasAttribute("aria-current"));
+    await holdLast(links);
+    const before = scrollY;
+    links[2]?.click();
+    await new Promise(requestAnimationFrame);
+    await task();
+    expect([current(), scrollY]).toEqual([2, before]);
+    const display = document.getElementById("s-dis") as HTMLElement;
+    display.insertAdjacentHTML("afterend", '<div style="block-size: 200vh"></div>');
+    dispatchEvent(new WheelEvent("wheel", { deltaY: 100 }));
+    scrollBy(0, 100);
+    await new Promise(requestAnimationFrame);
+    await task();
+    await shiftFirstIntoBand();
+    expect(current()).toBe(0);
+  });
+
+  it("keeps a pressed category through a widget's key and a box's own scroll, which leave the page still", async () => {
+    const { form, links } = page(true);
+    const section = document.getElementById("s-dis") as HTMLElement;
+    section.insertAdjacentHTML(
+      "beforeend",
+      '<div class="cp-cluster"><button type="button">PGS</button><button type="button">VobSub</button></div>' +
+        '<textarea rows="2">1\n2\n3\n4\n5\n6\n7\n8</textarea>',
+    );
+    const group = section.querySelector(".cp-cluster") as HTMLElement;
+    enhanceRovingFocus(group, { signal: life.signal });
+    enhanceSettings(form, { signal: life.signal });
+    const current = (): number => links.findIndex((l) => l.hasAttribute("aria-current"));
+    await holdLast(links);
+    const buttons = [...group.querySelectorAll("button")];
+    buttons[1]?.focus();
+    const home = new KeyboardEvent("keydown", { key: "Home", bubbles: true, cancelable: true });
+    buttons[1]?.dispatchEvent(home);
+    expect([home.defaultPrevented, document.activeElement]).toEqual([true, buttons[0]]);
+    const notes = section.querySelector("textarea") as HTMLTextAreaElement;
+    const boxScrolled = new Promise((r) => {
+      notes.addEventListener("scroll", r, { once: true });
+    });
+    notes.dispatchEvent(new WheelEvent("wheel", { bubbles: true, deltaY: 40 }));
+    notes.scrollTop = 40;
+    await boxScrolled;
+    await shiftFirstIntoBand();
+    expect(current()).toBe(2);
   });
 
   it("keeps a pressed category through keys a field takes, which scroll nothing", async () => {
@@ -430,11 +566,7 @@ describe("enhanceSettings", () => {
     for (const key of ["a", "ArrowDown", "Home", " "]) {
       theme.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
     }
-    const top = entered(document.getElementById("s-con") as HTMLElement);
-    scrollTo(0, 0);
-    await top;
-    await new Promise(requestAnimationFrame);
-    await task();
+    await shiftFirstIntoBand();
     expect(current()).toBe(2);
   });
 
@@ -459,7 +591,6 @@ describe("enhanceSettings", () => {
     const currents = (): (string | null)[] => links.map((l) => l.getAttribute("aria-current"));
     links[1]?.click();
     expect(currents()).toEqual([null, "page", null]);
-    dispatchEvent(new WheelEvent("wheel"));
     scrollTo(0, 0);
     await new Promise(requestAnimationFrame);
     await task();
@@ -501,49 +632,39 @@ describe("enhanceSettings", () => {
     expect(dots(links)).toEqual(["", "Checks, unsaved changes"]);
   });
 
-  it("keeps a pressed category through a key inside the nav in a shadow root", async () => {
+  it("follows a scroller in the form's shadow root: the press's own jump keeps the hold, a later scroll ends it", async () => {
     const host = document.createElement("div");
     document.body.append(host);
     const shadow = host.attachShadow({ mode: "open" });
     const tall = ' style="min-block-size: 120vh"';
     shadow.innerHTML =
-      '<div class="cp-settings"><nav class="cp-settings-nav"><ul class="cp-list">' +
+      '<div class="cp-settings" style="block-size: 80vh; overflow-y: auto"><nav class="cp-settings-nav"><ul class="cp-list">' +
       row("Connections", "#s-con", ' aria-current="location"') +
       row("Checks", "#s-chk") +
       row("Display", "#s-dis") +
       `</ul></nav><form><section id="s-con"${tall}><input></section>` +
       `<section id="s-chk"${tall}><input></section><section id="s-dis"><input></section></form></div>`;
+    const scroller = shadow.querySelector(".cp-settings") as HTMLElement;
     const form = shadow.querySelector("form") as HTMLFormElement;
     const links = [...shadow.querySelectorAll<HTMLAnchorElement>("a.cp-list-row")];
     for (const link of links) {
       link.addEventListener("click", (e) => {
         e.preventDefault();
+        shadow.getElementById(link.hash.slice(1))?.scrollIntoView();
       });
     }
     enhanceSettings(form, { signal: life.signal });
     const current = (): number => links.findIndex((l) => l.hasAttribute("aria-current"));
-    const checks = shadow.getElementById("s-chk") as HTMLElement;
-    const seen = new Promise<void>((resolve) => {
-      const probe = new IntersectionObserver(
-        (entries) => {
-          if (entries.some((e) => e.isIntersecting)) {
-            probe.disconnect();
-            resolve();
-          }
-        },
-        { rootMargin: "-20% 0px -60% 0px" },
-      );
-      probe.observe(checks);
-    });
+    const seen = entered(shadow.getElementById("s-chk") as HTMLElement);
     links[2]?.click();
-    links[2]?.dispatchEvent(
-      new KeyboardEvent("keydown", { key: "Tab", bubbles: true, composed: true }),
-    );
-    checks.scrollIntoView();
     await seen;
     await new Promise(requestAnimationFrame);
     await task();
-    expect(current()).toBe(2);
+    expect([current(), scroller.scrollTop > 0]).toEqual([2, true]);
+    scroller.scrollTop = 0;
+    await vi.waitFor(() => {
+      expect(current()).toBe(0);
+    });
   });
 
   it("finds a section whose fragment does not percent-decode whole, as the browser does", () => {

@@ -63,42 +63,7 @@ const MOVES = new Set([
   "PageUp",
   "PageDown",
 ]);
-// Keys that scroll the page unless the focused element takes them.
-const SCROLLS = new Set([" ", "ArrowUp", "ArrowDown", "Home", "End", "PageUp", "PageDown"]);
-// Input types whose keys move a caret or a value.
-const ENTRIES = new Set([
-  "text",
-  "search",
-  "url",
-  "tel",
-  "email",
-  "password",
-  "number",
-  "date",
-  "datetime-local",
-  "month",
-  "week",
-  "time",
-  "range",
-]);
 let seq = 0;
-
-/** Whether the focused `el` acts on `key` itself, so the page does not
- *  scroll: a text entry or a select takes every key, a radio its arrows,
- *  and any other control its Space. */
-function takes(el: EventTarget | undefined, key: string): boolean {
-  if (el instanceof HTMLInputElement) {
-    return ENTRIES.has(el.type) || key === " " || (el.type === "radio" && key.startsWith("Arrow"));
-  }
-  if (!(el instanceof HTMLElement)) {
-    return false;
-  }
-  return (
-    el.isContentEditable ||
-    el.matches("textarea, select") ||
-    (key === " " && el.matches("button, summary"))
-  );
-}
 
 const isCurrent = (link: Element): boolean => {
   const v = link.getAttribute("aria-current");
@@ -234,25 +199,27 @@ export function enhanceSettings(form: HTMLFormElement, options: SettingsOptions 
   box.append(select);
   field.append(label, box);
 
-  // A key choice waiting for Enter (see the select's listeners below).
+  // The category a key chose, waiting for Enter (see the select's listeners
+  // below).
   let keyed = false;
-  let waiting = false;
+  let choice: HTMLAnchorElement | null = null;
   const sync = (): void => {
     const at = links.findIndex(isCurrent);
     select.selectedIndex = at === -1 ? 0 : at;
   };
   const fillSelect = (): void => {
-    const chosen = select.selectedIndex;
-    const options = links.map((link) => {
-      const name = nameOf(link);
-      return new Option(changed.has(link) ? words.marked(name) : name);
-    });
-    select.replaceChildren(...options);
-    if (waiting && chosen >= 0 && chosen < options.length) {
-      select.selectedIndex = chosen;
-    } else {
-      waiting = false;
+    select.replaceChildren(
+      ...links.map((link) => {
+        const name = nameOf(link);
+        return new Option(changed.has(link) ? words.marked(name) : name);
+      }),
+    );
+    const at = choice === null ? -1 : links.indexOf(choice);
+    if (at === -1) {
+      choice = null;
       sync();
+    } else {
+      select.selectedIndex = at;
     }
   };
 
@@ -297,10 +264,25 @@ export function enhanceSettings(form: HTMLFormElement, options: SettingsOptions 
     paintBar();
   };
 
-  // A held link stays current until the person scrolls on their own, so a
-  // last section too short to reach the band still reads as current after
-  // its link is pressed.
+  // A pressed link stays current until the page scrolls after the press's
+  // own jump, so a last section too short to reach the band still reads as
+  // current. The jump may come tasks after the click (Firefox) or glide
+  // (`scroll-behavior: smooth`), so it ends at the `scrollend` after its
+  // scroll, or at the person's next input when it scrolled nothing. The
+  // section's place on screen is read then; a later scroll that leaves it
+  // there, such as a box's own, keeps the hold.
   let held: HTMLAnchorElement | null = null;
+  let heldAt: string | null = null;
+  let jumping = false;
+  // The section's top at the press and where the jump brings it: a scroll
+  // before the jump ends that moves it away or past is the person's, as
+  // after a press at the page's end, which moves nothing.
+  let from = 0;
+  let to = 0;
+  const placeOf = (link: HTMLAnchorElement): string => {
+    const box = targets.get(link)?.getBoundingClientRect();
+    return box === undefined ? "" : `${String(box.left)} ${String(box.top)}`;
+  };
   // A link the app marks "page" means its router shows one section at a
   // time and owns which is current.
   const routed = (): boolean => links.some((l) => l.getAttribute("aria-current") === "page");
@@ -310,11 +292,7 @@ export function enhanceSettings(form: HTMLFormElement, options: SettingsOptions 
     }
     for (const other of targets.keys()) {
       if (other === link) {
-        // A same-value write still reaches `currents`, whose sync would put
-        // back a key choice waiting for Enter.
-        if (other.getAttribute("aria-current") !== "location") {
-          other.setAttribute("aria-current", "location");
-        }
+        other.setAttribute("aria-current", "location");
       } else if (other.getAttribute("aria-current") === "location") {
         other.removeAttribute("aria-current");
       }
@@ -340,25 +318,49 @@ export function enhanceSettings(form: HTMLFormElement, options: SettingsOptions 
     },
     { rootMargin: "-20% 0px -60% 0px" },
   );
-  // A wheel or a touch drag anywhere scrolls the page, since the nav never
-  // scrolls while the script runs (a row of links at 48rem and wider, the
-  // select below it). A key ends the hold only when it scrolls the page, so
-  // Tab, a letter, or keys a field or the select take keep it.
-  const release = (): void => {
-    held = null;
+  const settled = (): void => {
+    if (held !== null && heldAt === null) {
+      heldAt = placeOf(held);
+    }
   };
-  for (const type of ["wheel", "touchmove"]) {
-    addEventListener(type, release, { ...listen, passive: true });
-  }
-  addEventListener(
-    "keydown",
-    (e) => {
-      if (SCROLLS.has(e.key) && !takes(e.composedPath()[0], e.key)) {
+  const scrolled = (): void => {
+    if (held === null) {
+      return;
+    }
+    if (heldAt !== null) {
+      if (placeOf(held) !== heldAt) {
         held = null;
       }
-    },
-    { ...listen, passive: true },
-  );
+      return;
+    }
+    const top = targets.get(held)?.getBoundingClientRect().top ?? from;
+    if (Math.abs(top - from) < 1) {
+      return;
+    }
+    const away = Math.sign(top - from) !== Math.sign(to - from);
+    if (away || Math.abs(top - from) > Math.abs(to - from) + 1) {
+      held = null;
+    } else {
+      jumping = true;
+    }
+  };
+  const early = { ...until(signal, true), passive: true };
+  // A box's scroll does not bubble, and one inside a shadow root stops there.
+  for (const at of root instanceof ShadowRoot ? [window, root] : [window]) {
+    at.addEventListener("scroll", scrolled, early);
+    at.addEventListener(
+      "scrollend",
+      () => {
+        if (jumping) {
+          settled();
+        }
+      },
+      early,
+    );
+  }
+  for (const type of ["pointerdown", "wheel", "touchstart", "keydown"]) {
+    addEventListener(type, settled, early);
+  }
   nav.addEventListener(
     "click",
     (e) => {
@@ -370,6 +372,16 @@ export function enhanceSettings(form: HTMLFormElement, options: SettingsOptions 
       const link = e.target instanceof Element ? e.target.closest("a") : null;
       if (link !== null && targets.has(link)) {
         held = link;
+        heldAt = null;
+        jumping = false;
+        const target = targets.get(link);
+        from = target?.getBoundingClientRect().top ?? 0;
+        // scroll-padding computes to "auto" when unset.
+        to =
+          target === undefined
+            ? from
+            : (parseFloat(getComputedStyle(target).scrollMarginTop) || 0) +
+              (parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop) || 0);
         setCurrent(link);
       }
     },
@@ -392,16 +404,17 @@ export function enhanceSettings(form: HTMLFormElement, options: SettingsOptions 
         spy.observe(target);
       }
     }
-    if (links.length > 0) {
-      nav.append(field);
-    } else {
+    if (links.length === 0) {
       field.remove();
+    } else if (field.parentNode !== nav) {
+      // Moving the select again would blur it under the person's keys.
+      nav.append(field);
     }
     paint(last);
   };
 
-  const go = (): void => {
-    links[select.selectedIndex]?.click();
+  const go = (link: HTMLAnchorElement | null | undefined): void => {
+    link?.click();
     sync();
   };
   // A closed select's arrow and letter keys change its value at each press
@@ -423,13 +436,14 @@ export function enhanceSettings(form: HTMLFormElement, options: SettingsOptions 
   select.addEventListener(
     "keydown",
     (e) => {
-      if (e.key === "Enter" && waiting) {
+      if (e.key === "Enter" && choice !== null) {
         // Chromium on Linux and Windows would also open the picker.
         e.preventDefault();
-        waiting = false;
-        go();
-      } else if (e.key === "Escape" && waiting) {
-        waiting = false;
+        const link = choice;
+        choice = null;
+        go(link);
+      } else if (e.key === "Escape" && choice !== null) {
+        choice = null;
         sync();
       }
       keyed = false;
@@ -451,10 +465,11 @@ export function enhanceSettings(form: HTMLFormElement, options: SettingsOptions 
   select.addEventListener(
     "change",
     () => {
+      const link = links[select.selectedIndex];
       if (keyed) {
-        waiting = true;
+        choice = link ?? null;
       } else {
-        go();
+        go(link);
       }
     },
     listen,
@@ -462,15 +477,19 @@ export function enhanceSettings(form: HTMLFormElement, options: SettingsOptions 
   select.addEventListener(
     "blur",
     () => {
-      if (waiting) {
-        waiting = false;
+      if (choice !== null) {
+        choice = null;
         sync();
       }
     },
     listen,
   );
 
-  const currents = new MutationObserver(sync);
+  const currents = new MutationObserver(() => {
+    if (choice === null) {
+      sync();
+    }
+  });
   currents.observe(nav, { subtree: true, attributeFilter: ["aria-current"] });
   const rest = new MutationObserver(paintBar);
   const size = new ResizeObserver(([entry]) => {
