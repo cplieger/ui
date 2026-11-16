@@ -13,6 +13,9 @@
       .cp-state-history > details
     )
 ) {
+  --cp-disclosure-chevron: 0.875rem;
+  --cp-disclosure-gap: 0.25rem;
+
   & > summary {
     list-style: none;
     cursor: pointer;
@@ -25,8 +28,8 @@
   & > summary::before {
     content: "";
     flex: none;
-    inline-size: 0.875rem;
-    block-size: 0.875rem;
+    inline-size: var(--cp-disclosure-chevron);
+    block-size: var(--cp-disclosure-chevron);
     background: currentcolor;
     mask: url("../icons/svg/chevron-down.svg") center / contain no-repeat;
     transition: rotate var(--cp-dur-short) var(--cp-ease-out);
@@ -48,7 +51,7 @@
       display: flex;
       align-items: center;
       inline-size: fit-content;
-      gap: 0.25rem;
+      gap: var(--cp-disclosure-gap);
       color: var(--cp-accent-11);
     }
 
@@ -79,6 +82,15 @@
 
     & > summary + * {
       margin-block-start: var(--cp-space-2);
+    }
+
+    /* What the summary opens starts where its words do, past the chevron:
+     * the section is inset and the summary pulled back, so the inset holds
+     * whatever margin the opened element sets. */
+    padding-inline-start: calc(var(--cp-disclosure-chevron) + var(--cp-disclosure-gap));
+
+    & > summary {
+      margin-inline-start: calc(-1 * (var(--cp-disclosure-chevron) + var(--cp-disclosure-gap)));
     }
   }
 }

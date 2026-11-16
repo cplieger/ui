@@ -98,7 +98,7 @@ Rows are never interactive. A row's actions are buttons in its last cell, and a 
 
 1. It shows the range and the total, such as "1 to 25 of 412", then Previous and Next as links. At the first or the last page that link has `aria-disabled="true"` and no `href`.
 2. The page and the page size are in the URL. Offer a page size choice only when people need it.
-3. After a page change, focus moves to the table's caption or the first row's title link, and the scroll returns to the top of the table.
+3. After a page change, focus moves to the heading that names the table, which carries `tabindex="-1"`, or the first row's title link, and the scroll returns to the top of the table.
 4. When the last page empties, such as after a delete, the list moves to the new last page.
 
 ## Charts

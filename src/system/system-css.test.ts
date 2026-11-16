@@ -550,7 +550,7 @@ describe("css/system.css sparkline", () => {
     const path = fourth.querySelector("path") as SVGPathElement;
     expect(getComputedStyle(fourth).color).toBe(slot(4));
     expect(getComputedStyle(path).fill).toBe("none");
-    expect(getComputedStyle(path).strokeWidth).toBe("2px");
+    expect(getComputedStyle(path).strokeWidth).toBe("1.5px");
     expect(getComputedStyle(path).vectorEffect).toBe("non-scaling-stroke");
     const ink = host("");
     ink.style.color = "var(--cp-ink)";
@@ -986,6 +986,22 @@ describe("css/system.css meter", () => {
     expect(getComputedStyle(marks[0] as Element).fontSize).toBe("13px");
   });
 
+  it("rings each tick in the surface it sits on, its ink at 3:1 on that surface, in both themes", () => {
+    for (const t of ["light", "dark"] as const) {
+      for (const surface of ["--cp-surface-page", "--cp-surface-raised"]) {
+        const el = meter('<meter max="100" low="80" high="90" value="95"></meter>');
+        theme(t);
+        el.style.setProperty("--cp-chart-surface", `var(${surface})`);
+        const ring = token(surface);
+        for (const mark of el.querySelectorAll('[data-part="marks"] > span')) {
+          const tick = getComputedStyle(mark, "::before");
+          expect(tick.boxShadow).toBe(`${ring} 0px 0px 0px 1px`);
+          expect(contrast(tick.backgroundColor, ring)).toBeGreaterThanOrEqual(3);
+        }
+      }
+    }
+  });
+
   it("measures marks from the end in a right-to-left page", () => {
     const el = meter('<meter max="100" low="80" value="1"></meter>', "", "rtl");
     const bar = box(el.querySelector('[data-part="bar"]'));
@@ -1023,6 +1039,22 @@ describe("css/system.css ranked bars", () => {
       bar: box(r.querySelector('[data-part="bar"]')),
       fill: r.querySelector('[data-part="bar"] > span'),
     }));
+
+  it("ends a bar column's header where its numbers end, in either direction", () => {
+    for (const dir of ["ltr", "rtl"]) {
+      const table = ranked(row(1000) + row(25), "", dir);
+      const words = document.createRange();
+      words.selectNodeContents(table.querySelector("thead th[data-bar]") as Element);
+      const head = words.getBoundingClientRect();
+      for (const p of parts(table)) {
+        if (dir === "ltr") {
+          expect(Math.abs(head.right - p.number.right)).toBeLessThanOrEqual(1);
+        } else {
+          expect(Math.abs(head.left - p.number.left)).toBeLessThanOrEqual(1);
+        }
+      }
+    }
+  });
 
   it("draws a 6rem bar after each number, the bars on one start, each filled to its share", () => {
     const table = ranked(row(1000) + row(250) + row(1));
@@ -1606,7 +1638,7 @@ describe("css/system.css", () => {
     panel.hidePopover();
   });
 
-  it("runs a listbox's covered options edge to edge, a title over its facts, 2px apart", () => {
+  it("runs a listbox's covered options edge to edge, a title over its facts, the covers flush", () => {
     theme("light");
     const option = (title: string) =>
       `<li role="option"><span class="cp-cover" data-harmony="2"><span class="cp-icon"></span></span><strong>${title}</strong><small>2023 · TV</small></li>`;
@@ -1627,7 +1659,7 @@ describe("css/system.css", () => {
     expect(Math.round(cover.left - box.left)).toBe(1);
     expect([cover.width, cover.height]).toEqual([32, 48]);
     expect(first.getBoundingClientRect().top - box.top).toBe(1);
-    expect(second.getBoundingClientRect().top - first.getBoundingClientRect().bottom).toBe(2);
+    expect(second.getBoundingClientRect().top - first.getBoundingClientRect().bottom).toBe(0);
     const title = (first.querySelector("strong") as Element).getBoundingClientRect();
     const facts = (first.querySelector("small") as Element).getBoundingClientRect();
     expect(facts.top).toBeGreaterThanOrEqual(title.bottom);
@@ -1674,7 +1706,7 @@ describe("css/system.css", () => {
       '<div class="cp-app"><header class="cp-header"><nav class="cp-nav"><a class="cp-nav-item" href="#a" aria-current="page"><span class="cp-nav-label">Overview</span></a><a class="cp-nav-item" href="#b"><span class="cp-nav-label">Library</span></a></nav></header><main class="cp-main">Main</main></div>',
     );
     const nav = el.querySelector(".cp-nav") as HTMLElement;
-    expect(getComputedStyle(nav).position).toBe("static");
+    expect(getComputedStyle(nav).position).toBe("relative");
     await page.viewport(390, 800);
     expect(getComputedStyle(nav).position).toBe("fixed");
     expect(Math.round(nav.getBoundingClientRect().bottom)).toBe(800);
@@ -3146,7 +3178,7 @@ describe("css/system.css", () => {
     );
   });
 
-  it("gives a lone row action the width of its column", () => {
+  it("sizes a lone row action to its words, not to its column", () => {
     theme("light");
     const el = build(
       '<table class="cp-table"><tbody>' +
@@ -3155,7 +3187,7 @@ describe("css/system.css", () => {
         "</tbody></table>",
     );
     const [a, b] = [...el.querySelectorAll("button")].map((x) => x.getBoundingClientRect().width);
-    expect(a).toBe(b);
+    expect(a).toBeLessThan(b as number);
   });
 });
 
@@ -4043,6 +4075,25 @@ describe("css/system.css lists, feeds and counts", () => {
     expect(contrast(quiet.color, quiet.backgroundColor)).toBeGreaterThanOrEqual(4.5);
   });
 
+  it("centres a badge's figures on their cap height, the same in every engine", () => {
+    theme("light");
+    const el = build(
+      '<span class="cp-badge">3</span><span class="cp-badge" data-variant="quiet">12</span>',
+    );
+    for (const badge of el.querySelectorAll<HTMLElement>(".cp-badge")) {
+      const baseline = document.createElement("span");
+      baseline.style.cssText = "display: inline-block; inline-size: 1px; block-size: 0";
+      const cap = document.createElement("span");
+      cap.style.cssText = "position: absolute; block-size: 100cap";
+      badge.append(baseline, cap);
+      const box = badge.getBoundingClientRect();
+      const base = baseline.getBoundingClientRect().bottom - box.top;
+      const capHeight = cap.getBoundingClientRect().height / 100;
+      expect(box.height).toBe(20);
+      expect(Math.abs(base - capHeight - (box.height - base))).toBeLessThanOrEqual(1);
+    }
+  });
+
   it.skipIf(!emulates)(
     "outlines a badge in forced colours, where its fill is dropped",
     async () => {
@@ -4106,6 +4157,8 @@ describe("css/system.css lists, feeds and counts", () => {
       HTMLButtonElement,
     ];
     const fill = resolved("var(--cp-fill)", "backgroundColor");
+    const wash = resolved("var(--cp-wash-hover)", "backgroundColor");
+    const washed = resolved("var(--cp-wash-active)", "backgroundColor");
     for (const [more, under] of [
       [inRow, row(el)],
       [inTable, el.querySelector("td") as HTMLElement],
@@ -4114,13 +4167,9 @@ describe("css/system.css lists, feeds and counts", () => {
       more.style.transition = "none";
       await userEvent.hover(more);
       expect(getComputedStyle(under).backgroundColor).toBe(fill);
-      expect(getComputedStyle(more).backgroundColor).toBe(
-        resolved("var(--cp-fill-hover)", "backgroundColor"),
-      );
+      expect(getComputedStyle(more).backgroundColor).toBe(wash);
       more.toggleAttribute("data-cp-pressed", true);
-      expect(getComputedStyle(more).backgroundColor).toBe(
-        resolved("var(--cp-fill-active)", "backgroundColor"),
-      );
+      expect(getComputedStyle(more).backgroundColor).toBe(washed);
       more.disabled = true;
       more.toggleAttribute("data-cp-pressed", false);
       expect(getComputedStyle(more).backgroundColor).toBe(
@@ -4133,12 +4182,47 @@ describe("css/system.css lists, feeds and counts", () => {
     ).firstElementChild as HTMLElement;
     bare.style.transition = "none";
     await userEvent.hover(bare);
-    expect(getComputedStyle(bare).backgroundColor).toBe(fill);
+    expect(getComputedStyle(bare).backgroundColor).toBe(wash);
     bare.toggleAttribute("data-cp-pressed", true);
-    expect(getComputedStyle(bare).backgroundColor).toBe(
-      resolved("var(--cp-fill-active)", "backgroundColor"),
-    );
+    expect(getComputedStyle(bare).backgroundColor).toBe(washed);
     await userEvent.unhover(bare);
+  });
+
+  it("sets a quiet button's hover and press 1.2:1 apart from every surface, in both themes", async () => {
+    root.dataset["pointer"] = "fine";
+    /** `over` painted on `surface`, read back as one opaque sRGB colour. */
+    const on = (surface: string, over: string): string => {
+      const ctx = new OffscreenCanvas(1, 1).getContext("2d") as OffscreenCanvasRenderingContext2D;
+      ctx.fillStyle = surface;
+      ctx.fillRect(0, 0, 1, 1);
+      ctx.fillStyle = over;
+      ctx.fillRect(0, 0, 1, 1);
+      const [r = 0, g = 0, b = 0] = ctx.getImageData(0, 0, 1, 1).data;
+      return `rgb(${String(r)}, ${String(g)}, ${String(b)})`;
+    };
+    for (const t of ["light", "dark"] as const) {
+      theme(t);
+      for (const surface of ["page", "raised", "sunken", "overlay"]) {
+        const box = build(
+          `<div style="background: var(--cp-surface-${surface})"><button class="cp-button" data-variant="quiet" type="button" aria-label="Copy"><span class="cp-icon"></span></button></div>`,
+        );
+        const ground = getComputedStyle(box.firstElementChild as Element).backgroundColor;
+        const b = box.querySelector("button") as HTMLButtonElement;
+        b.style.transition = "none";
+        await userEvent.hover(b);
+        const hover = getComputedStyle(b).backgroundColor;
+        b.toggleAttribute("data-cp-pressed", true);
+        const press = getComputedStyle(b).backgroundColor;
+        await userEvent.unhover(b);
+        const base = on(ground, "transparent");
+        expect(contrast(on(ground, hover), base), `${t} ${surface} hover`).toBeGreaterThanOrEqual(
+          1.2,
+        );
+        expect(contrast(on(ground, press), base), `${t} ${surface} press`).toBeGreaterThan(
+          contrast(on(ground, hover), base),
+        );
+      }
+    }
   });
 
   it("ends a row that opens a page with its chevron, which turns to face right to left", () => {
@@ -5402,34 +5486,81 @@ describe("css/system.css data tables", () => {
     );
   });
 
-  it("writes a caption small and muted at the table's start", () => {
+  it("draws no title inside a table: a caption keeps the table's own type", () => {
     theme("light");
     const el = build(
-      '<table class="cp-table"><caption>Library, 1 to 4 of 412 entries</caption></table>',
+      '<table class="cp-table"><caption>Library</caption><tbody><tr><td>Mushishi</td></tr></tbody></table>',
     );
-    const caption = getComputedStyle(el.querySelector("caption") as Element);
-    expect([caption.color, caption.textAlign]).toEqual([resolve("var(--cp-ink-muted)"), "start"]);
-    expect(caption.fontSize).toBe(
-      getComputedStyle(host("", { style: "font-size: var(--cp-text-xs)" })).fontSize,
-    );
+    const [caption, cell] = ["caption", "td"].map((s) =>
+      getComputedStyle(el.querySelector(s) as Element),
+    ) as [CSSStyleDeclaration, CSSStyleDeclaration];
+    expect(caption.fontSize).toBe(cell.fontSize);
+    expect(caption.color).toBe(cell.color);
   });
 
-  it("sizes a title cell's cover to its row less 1px each side, in a cell or a row's header", () => {
+  it("hugs a number column and a bar column to their widest cell, the text column taking the rest", () => {
     theme("light");
+    const el = build(
+      '<table class="cp-table" style="inline-size: 800px"><thead><tr><th data-col="num">Slot</th><th>Name</th><th data-bar>Sent</th><th data-col="num">Size</th></tr></thead>' +
+        '<tbody><tr><td data-col="num">1</td><td>On the best</td><td data-bar><data value="9">9</data></td><td data-col="num">33.0 GB</td></tr>' +
+        '<tr><td data-col="num">12</td><td>Missing</td><td data-bar><data value="3">3</data></td><td data-col="num">1.4 GB</td></tr></tbody></table>',
+    );
+    const head = [...el.querySelectorAll("thead th")] as HTMLElement[];
+    for (const i of [0, 2, 3]) {
+      const th = head[i] as HTMLElement;
+      const cs = getComputedStyle(th);
+      const pad = parseFloat(cs.paddingInlineStart) + parseFloat(cs.paddingInlineEnd);
+      const widest = Math.max(
+        ...[...el.querySelectorAll(`tr > :nth-child(${String(i + 1)})`)].map((c) => {
+          const words = document.createRange();
+          words.selectNodeContents(c);
+          return words.getBoundingClientRect().width;
+        }),
+      );
+      expect(th.getBoundingClientRect().width).toBeLessThanOrEqual(widest + pad + 1);
+    }
+    expect((head[1] as HTMLElement).getBoundingClientRect().width).toBeGreaterThan(500);
+  });
+
+  it("centres a one-line cell in a two-line row, and never breaks a number or a date", () => {
+    theme("light");
+    const el = build(
+      '<table class="cp-table" style="inline-size: 200px"><tbody><tr><td><div class="cp-cell-stack">Frieren<span class="cp-meta">TV, 2023</span></div></td>' +
+        '<td data-col="num">1.4 GB</td><td><time datetime="2023-10-20">2023-10-20</time></td></tr></tbody></table>',
+    );
+    const [, size, added] = [...el.querySelectorAll("td")] as HTMLElement[];
+    const row = (el.querySelector("tr") as Element).getBoundingClientRect();
+    for (const cell of [size, added]) {
+      const words = document.createRange();
+      words.selectNodeContents(cell as HTMLElement);
+      expect(new Set([...words.getClientRects()].map((r) => Math.round(r.bottom))).size).toBe(1);
+      const box = words.getBoundingClientRect();
+      expect(Math.abs(box.top + box.height / 2 - (row.top + row.height / 2))).toBeLessThanOrEqual(
+        1,
+      );
+    }
+  });
+
+  it("insets a title cell's 2:3 cover 6px from its row's edges, in a cell or a row's header", () => {
+    theme("light");
+    root.dataset["pointer"] = "fine";
     const cell = (tag: "td" | "th") =>
       `<tr><${tag}><div class="cp-title-cell"><span class="cp-cover" data-harmony="4"><span class="cp-icon" data-cp-icon="tv"></span></span>` +
       `<div class="cp-cell-stack"><a href="#t">Mushishi</a><span class="cp-meta">TV, 2005</span></div></div></${tag}></tr>`;
     const el = build(`<table class="cp-table"><tbody>${cell("td")}${cell("th")}</tbody></table>`);
+    const radius = getComputedStyle(
+      host("", { style: "border-radius: var(--cp-radius-control)" }),
+    ).borderStartStartRadius;
     for (const row of el.querySelectorAll("tr")) {
       const cover = row.querySelector(".cp-cover") as Element;
       const box = cover.getBoundingClientRect();
-      expect([box.width, box.height]).toEqual([36, 54]);
-      expect(getComputedStyle(row.cells[0] as Element).paddingBlockStart).toBe("1px");
-      expect(getComputedStyle(cover).borderStartStartRadius).toBe(
-        getComputedStyle(
-          host("", { style: "border-radius: calc(var(--cp-radius-control) - 0.125rem)" }),
-        ).borderStartStartRadius,
-      );
+      const cs = getComputedStyle(row.cells[0] as Element);
+      expect([box.width, box.height]).toEqual([32, 48]);
+      expect([cs.paddingBlockStart, cs.paddingBlockEnd]).toEqual(["6px", "6px"]);
+      expect(
+        (row.cells[0] as Element).getBoundingClientRect().height - box.height,
+      ).toBeLessThanOrEqual(13);
+      expect(getComputedStyle(cover).borderStartStartRadius).toBe(radius);
       expect((cover.querySelector(".cp-icon") as Element).getBoundingClientRect().width).toBe(16);
     }
   });
@@ -5819,7 +5950,7 @@ describe("css/system.css data tables", () => {
     const list = el.querySelector("dl") as Element;
     const [dt, dd] = [list.querySelector("dt"), list.querySelector("dd")] as Element[];
     const style = getComputedStyle(list);
-    expect([style.rowGap, style.columnGap, style.margin]).toEqual(["8px", "20px", "0px"]);
+    expect([style.rowGap, style.columnGap, style.margin]).toEqual(["4px", "20px", "0px"]);
     expect(getComputedStyle(dt as Element).color).toBe(resolve("var(--cp-ink-muted)"));
     expect(getComputedStyle(dd as Element).margin).toBe("0px");
     expect((dd as Element).getBoundingClientRect().top).toBe(

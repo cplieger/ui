@@ -2242,6 +2242,11 @@
   --cp-fill: var(--cp-neutral-4);
   --cp-fill-hover: var(--cp-neutral-5);
   --cp-fill-active: var(--cp-neutral-6);
+  /* A quiet control's hover and press: the ink over whatever it sits on, so
+   * the step holds on every surface, about 1.23:1 and 1.38:1 at the least
+   * (light, sunken), where a fixed grey is 1.07:1 on the sunken surface. */
+  --cp-wash-hover: color-mix(in oklch, var(--cp-ink) 10%, transparent);
+  --cp-wash-active: color-mix(in oklch, var(--cp-ink) 16%, transparent);
   --cp-line: var(--cp-neutral-6);
   --cp-border: var(--cp-neutral-7);
   --cp-border-strong: var(--cp-neutral-8);
@@ -2351,6 +2356,8 @@
   --cp-control-pad-x: 0.75rem;
   --cp-hit-min: 24px;
   --cp-row-h: 2.25rem;
+  --cp-cover-row-w: 2rem;
+  --cp-cover-inset: 0.375rem;
   --cp-focus-w: 2px;
   --cp-focus-offset: 2px;
   --cp-icon-ui: 1.125rem;
@@ -2571,9 +2578,9 @@
   color: inherit;
 }
 
-/* A heading or caption that takes focus by script, so a screen reader
- * lands on a new step or page, is no control: it draws no ring. */
-:where(.cp) :where(h1, h2, h3, h4, caption)[tabindex="-1"]:focus {
+/* A heading that takes focus by script, so a screen reader lands on a new
+ * step or page, is no control: it draws no ring. */
+:where(.cp) :where(h1, h2, h3, h4)[tabindex="-1"]:focus {
   outline: none;
 }
 
@@ -3402,8 +3409,15 @@ a.cp-wordmark {
 /* Navigation: destinations read as navigation; the current one is a fill
  * and weight, never an edge. */
 .cp-nav {
+  position: relative;
   display: flex;
   gap: var(--cp-space-1);
+}
+
+/* @cplieger/ui/pill slides the bottom bar's selection; the header at its
+ * full width keeps each link's own fill, so the pill shows only there. */
+.cp-nav > .cp-pill {
+  display: none;
 }
 
 /* Positioned, so a label hidden under 60rem stays inside its link and a
@@ -3521,6 +3535,20 @@ a.cp-wordmark {
 
   .cp-header > .cp-nav > .cp-nav-item:hover {
     background: none;
+  }
+
+  /* With the pill, the selection is the pill, inset as the link's own mark
+   * is, and it slides from one destination to the next. */
+  .cp-header > .cp-nav > .cp-pill:not([hidden]) {
+    display: block;
+    border-radius: 0;
+    background: var(--cp-selected);
+    box-shadow: none;
+    clip-path: inset(0.25rem 0.375rem round var(--cp-radius-surface));
+  }
+
+  .cp-nav:has(> .cp-pill) > .cp-nav-item[aria-current]::before {
+    content: none;
   }
 
   /* A destination's badge sits on its icon's top end, off the word below. */
@@ -3803,7 +3831,11 @@ a.cp-wordmark {
   color: var(--cp-tone-on);
 }
 
+/* A quiet button presses with the wash, through the icon-only press rule's
+ * fill, so its press reads on any surface as its hover does. */
 .cp-button[data-variant="quiet"] {
+  --cp-fill-active: var(--cp-wash-active);
+
   background: transparent;
   color: var(--cp-ink-muted);
 }
@@ -3828,10 +3860,8 @@ a.cp-wordmark {
       background: var(--cp-tone-10);
     }
 
-    /* A surface whose own hover fill is --cp-fill, such as a hovered row,
-     * sets --cp-quiet-hover, so a quiet button on it still shows its own. */
     .cp-button[data-variant="quiet"]:hover:not(:disabled, [aria-disabled="true"]) {
-      background: var(--cp-quiet-hover, var(--cp-fill));
+      background: var(--cp-wash-hover);
       color: var(--cp-ink);
     }
 
@@ -5108,7 +5138,8 @@ textarea.cp-input {
   mask: url("../icons/svg/x.svg") center / contain no-repeat;
 }
 
-.cp-rules [data-add-target]:empty::before {
+/* As specific as the × rule above and later in the file, so + wins on the add. */
+.cp-rules [data-part] [data-add-target]:empty::before {
   mask-image: url("../icons/svg/plus.svg");
 }
 
@@ -5333,14 +5364,6 @@ textarea.cp-input {
   gap: var(--cp-space-1);
 }
 
-/* The caption names the table and its range. */
-.cp-table > caption {
-  padding: var(--cp-space-3) var(--cp-space-3) var(--cp-space-1);
-  color: var(--cp-ink-muted);
-  font-size: var(--cp-text-xs);
-  text-align: start;
-}
-
 /* A sortable header's button (@cplieger/ui/table). Its arrow shows on the
  * sorted column and turns over for descending. */
 .cp-sort {
@@ -5385,9 +5408,8 @@ th[aria-sort="descending"] > .cp-sort::after {
   }
 }
 
-/* The title cell: a .cp-cover beside the title and its line. The cover
- * fills its row less 1px each side, so pictures in stacked rows
- * sit 2px apart; the words keep their own padding. */
+/* The title cell: a .cp-cover beside the title and its line, inset by the
+ * shared cover tokens, so the row takes the cover's height. */
 .cp-title-cell {
   display: flex;
   align-items: center;
@@ -5395,17 +5417,16 @@ th[aria-sort="descending"] > .cp-sort::after {
 }
 
 .cp-table :is(td, th):has(> .cp-title-cell) {
-  padding-block: 1px;
+  padding-block: var(--cp-cover-inset);
 }
 
 .cp-title-cell > .cp-cell-stack {
-  padding-block: var(--cp-space-2);
+  padding-block: 0;
 }
 
 .cp-title-cell > .cp-cover {
   flex: none;
-  inline-size: 2.25rem;
-  border-radius: calc(var(--cp-radius-control) - 0.125rem);
+  inline-size: var(--cp-cover-row-w);
 }
 
 .cp-title-cell > .cp-cover > .cp-icon {
@@ -5424,9 +5445,21 @@ th[aria-sort="descending"] > .cp-sort::after {
   background: var(--cp-surface-raised);
 }
 
+/* A number column, and a bar column (ranked-bars), hugs its widest cell, as
+ * the actions column does, so the text columns take the table's leftover
+ * width. A number or a date never breaks from its unit or at its hyphens. */
 .cp-table [data-col="num"] {
+  inline-size: 1%;
   text-align: end;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.cp-table [data-bar] {
+  inline-size: 1%;
+}
+
+.cp-table :is(td, th) time {
   white-space: nowrap;
 }
 
@@ -5482,10 +5515,6 @@ th[aria-sort="descending"] > .cp-sort::after {
   margin-inline-end: auto;
   font-weight: var(--cp-weight-strong);
   font-variant-numeric: tabular-nums;
-}
-
-.cp-table [data-col="actions"] > .cp-button:only-child {
-  inline-size: 100%;
 }
 
 .cp-table [data-col="actions"] {
@@ -5578,8 +5607,6 @@ th[aria-sort="descending"] > .cp-sort::after {
     }
 
     .cp-table tbody tr:hover :is(td, th) {
-      --cp-quiet-hover: var(--cp-fill-hover);
-
       background: var(--cp-fill);
     }
 
@@ -5811,7 +5838,7 @@ th[aria-sort="descending"] > .cp-sort::after {
   padding: var(--cp-space-2) var(--cp-space-3);
   border-block-end: var(--cp-line-w) solid var(--cp-line);
   text-align: start;
-  vertical-align: top;
+  vertical-align: middle;
 }
 
 .cp-prose :where(th) {
@@ -5828,6 +5855,12 @@ th[aria-sort="descending"] > .cp-sort::after {
  * wider than its box sits at its min-content, a word a line. */
 .cp-prose :where(td[data-cp-wrap]) {
   min-inline-size: 12em;
+}
+
+/* A short cell, such as a size or a date, never breaks from its unit or at
+ * its hyphens; the region scrolls instead. */
+.cp-prose :where(td[data-cp-line]) {
+  white-space: nowrap;
 }
 
 /* anywhere counts every character toward a cell's min-content, which would
@@ -6045,7 +6078,7 @@ th[aria-sort="descending"] > .cp-sort::after {
 .cp-facts {
   display: grid;
   grid-template-columns: max-content minmax(0, 1fr);
-  gap: var(--cp-space-2) var(--cp-space-5);
+  gap: var(--cp-space-1) var(--cp-space-5);
   margin: 0;
   font-size: var(--cp-text-sm);
 }
@@ -7649,8 +7682,6 @@ button.cp-list-row[aria-pressed] .cp-badge {
 @media (any-hover: hover) {
   @scope (:root:not([data-pointer="coarse"])) {
     .cp-list-row:not([data-skeleton]):hover {
-      --cp-quiet-hover: var(--cp-fill-hover);
-
       background: var(--cp-list-row-hover, var(--cp-fill));
     }
 
@@ -8295,10 +8326,13 @@ div.cp-list-foot {
  * for one that only informs. A count is not a state, so it takes the
  * accent rather than a tone. */
 .cp-badge {
-  display: inline-grid;
-  place-items: center;
+  display: inline-block;
   min-inline-size: 1.25rem;
   block-size: 1.25rem;
+  /* The line is trimmed to the figures' cap height and centred by its top
+   * padding, rounded to a whole pixel, because a font's ascent and descent
+   * are not even and each engine centres a line box in its own way. */
+  padding-block: calc(round(nearest, (1.25rem + 1cap) / 2, 1px) - 1cap) 0;
   padding-inline: 0.375rem;
   border-radius: var(--cp-radius-round);
   background: var(--cp-accent);
@@ -8307,6 +8341,9 @@ div.cp-list-foot {
   font-weight: var(--cp-weight-heading);
   font-variant-numeric: tabular-nums;
   line-height: 1;
+  text-align: center;
+  white-space: nowrap;
+  text-box: trim-both cap alphabetic;
 }
 
 .cp-badge[data-variant="quiet"] {
@@ -9137,6 +9174,9 @@ div.cp-list-foot {
       .cp-state-history > details
     )
 ) {
+  --cp-disclosure-chevron: 0.875rem;
+  --cp-disclosure-gap: 0.25rem;
+
   & > summary {
     list-style: none;
     cursor: pointer;
@@ -9149,8 +9189,8 @@ div.cp-list-foot {
   & > summary::before {
     content: "";
     flex: none;
-    inline-size: 0.875rem;
-    block-size: 0.875rem;
+    inline-size: var(--cp-disclosure-chevron);
+    block-size: var(--cp-disclosure-chevron);
     background: currentcolor;
     mask: url("../icons/svg/chevron-down.svg") center / contain no-repeat;
     transition: rotate var(--cp-dur-short) var(--cp-ease-out);
@@ -9172,7 +9212,7 @@ div.cp-list-foot {
       display: flex;
       align-items: center;
       inline-size: fit-content;
-      gap: 0.25rem;
+      gap: var(--cp-disclosure-gap);
       color: var(--cp-accent-11);
     }
 
@@ -9203,6 +9243,15 @@ div.cp-list-foot {
 
     & > summary + * {
       margin-block-start: var(--cp-space-2);
+    }
+
+    /* What the summary opens starts where its words do, past the chevron:
+     * the section is inset and the summary pulled back, so the inset holds
+     * whatever margin the opened element sets. */
+    padding-inline-start: calc(var(--cp-disclosure-chevron) + var(--cp-disclosure-gap));
+
+    & > summary {
+      margin-inline-start: calc(-1 * (var(--cp-disclosure-chevron) + var(--cp-disclosure-gap)));
     }
   }
 }
@@ -9775,7 +9824,7 @@ div.cp-list-foot {
 .cp-sparkline path {
   fill: none;
   stroke: currentcolor;
-  stroke-width: 2px;
+  stroke-width: 1.5px;
   stroke-linecap: round;
   stroke-linejoin: round;
   vector-effect: non-scaling-stroke;
@@ -10066,7 +10115,8 @@ button.cp-figure[aria-expanded="true"]::after {
 }
 
 /* Each mark is a point on the bar's line: its tick rises over the bar and
- * its words centre under it. */
+ * its words centre under it. A ring in the surface's colour parts the tick
+ * from any fill under it, as a chart parts a mark from its series. */
 .cp-meter > [data-part="marks"] {
   position: relative;
   block-size: 1lh;
@@ -10091,6 +10141,7 @@ button.cp-figure[aria-expanded="true"]::after {
   inline-size: 2px;
   block-size: calc(var(--cp-meter-h) + var(--cp-space-1));
   background: var(--cp-ink-muted);
+  box-shadow: 0 0 0 1px var(--cp-chart-surface);
 }
 
 .cp-meter > [data-part="words"] {
@@ -10141,6 +10192,12 @@ button.cp-figure[aria-expanded="true"]::after {
   text-align: end;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+
+/* A bar column's header ends where its numbers end, past the bar and its
+ * gap, as every number column's header ends over its numbers. */
+.cp-table thead th[data-bar] {
+  padding-inline-end: calc(var(--cp-space-3) + var(--cp-bar-w) + var(--cp-space-2));
 }
 
 .cp-table [data-bar] > [data-part="bar"] {
@@ -11276,9 +11333,9 @@ button.cp-figure[aria-expanded="true"]::after {
   font-size: var(--cp-text-sm);
 }
 
-/* Options led by a .cp-cover run edge to edge: a cover sits flush with its
- * row's start, its title over a line of facts, and 2px part one row's cover
- * from the next. */
+/* Options led by a .cp-cover run edge to edge: the covers stack into one
+ * square-cornered strip at the list's start, each beside its title over a
+ * line of facts. The list's own clip rounds the strip's two outer corners. */
 .cp-listbox:has([role="option"] > .cp-cover) {
   padding: 0;
 }
@@ -11292,13 +11349,11 @@ button.cp-figure[aria-expanded="true"]::after {
   border-radius: 0;
 }
 
-.cp-listbox :not([hidden]):has(> .cp-cover) ~ [role="option"] {
-  margin-block-start: 2px;
-}
-
 .cp-listbox [role="option"] > .cp-cover {
   grid-row: 1 / 3;
+  align-self: stretch;
   inline-size: 2rem;
+  border-radius: 0;
 }
 
 .cp-listbox [role="option"] > .cp-cover > .cp-icon {
@@ -11660,7 +11715,13 @@ button.cp-figure[aria-expanded="true"]::after {
     background-color 600ms var(--cp-ease-out),
     color 600ms var(--cp-ease-out),
     transform var(--cp-dur-press) var(--cp-ease-out),
-    margin-inline-end 300ms var(--cp-ease-out);
+    margin-inline 300ms var(--cp-ease-out);
+}
+
+/* A held width shows each state's content centred in it at once, so the
+ * words never slide sideways as they roll. */
+.cp-button[data-cp-confirm="fixed"] > .cp-roll {
+  transition: none;
 }
 
 /* (0,4,1) lifts this over the primary and quiet hover fills, (0,4,0) rules
@@ -11678,8 +11739,10 @@ button.cp-button[data-tone="danger"][data-cp-state="done"]:not(:disabled) {
 }
 
 /* Only a button's parts: a row, a form or a state also takes a
- * data-cp-state, and its own icons stay. */
+ * data-cp-state, and its own icons stay. Any button's busy and done parts
+ * are hidden from the first paint, before the script marks it. */
 :where(.cp-button[data-cp-confirm]) > .cp-icon[data-part],
+:where(.cp-button) > .cp-icon:is([data-part="busy"], [data-part="done"]),
 .cp-button[data-cp-state="busy"] > .cp-icon:not([data-part="busy"]),
 .cp-button[data-cp-state="done"] > .cp-icon:not([data-part="done"]) {
   display: none;
@@ -12299,14 +12362,15 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
 }
 
 /* @cplieger/ui/icons paints a drawing through a mask in currentcolor, at
- * the size its data-cp-icon-size names. */
+ * the size its data-cp-icon-size names. A name with no drawing yet, before
+ * createIcons runs, paints nothing rather than a filled square. */
 :where(.cp) .cp-icon {
   display: inline-block;
   flex: none;
   inline-size: var(--cp-icon-size, var(--cp-icon-ui));
   block-size: var(--cp-icon-size, var(--cp-icon-ui));
   background-color: currentcolor;
-  mask: var(--cp-icon-image, none) center / contain no-repeat;
+  mask: var(--cp-icon-image, linear-gradient(transparent, transparent)) center / contain no-repeat;
 }
 
 :where(.cp) .cp-icon[data-cp-icon-size="inline"] {
@@ -12342,6 +12406,10 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
 
 :where(.cp) .cp-icon:where([data-cp-icon="bell-ring"]) {
   --cp-icon-image: url("../icons/svg/bell-ring.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="bell-ring-filled"]) {
+  --cp-icon-image: url("../icons/svg/bell-ring-filled.svg");
 }
 
 :where(.cp) .cp-icon:where([data-cp-icon="check"]) {

@@ -360,7 +360,7 @@ export function renderChart(
       grid.clear();
     }
     if (tableOn && tableStale) {
-      syncTable(panel, tableModel(drawn, words), title.textContent, namedRows(drawn));
+      syncTable(panel, tableModel(drawn, words), title.id, namedRows(drawn));
       tableStale = false;
     }
     panel.hidden = !tableOn;
@@ -421,7 +421,7 @@ export function renderChart(
       arrange([legend, plot, panel]);
       plotStale = true;
       if (tableOn && !panel.hidden) {
-        syncTable(panel, tableModel(model, words), title.textContent, namedRows(model));
+        syncTable(panel, tableModel(model, words), title.id, namedRows(model));
         tableStale = false;
       } else {
         tableStale = true;

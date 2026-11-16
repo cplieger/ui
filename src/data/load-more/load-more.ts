@@ -290,6 +290,7 @@ export function enhanceLoadMore(button: HTMLButtonElement, options: LoadMoreOpti
   const cycle = enhanceConfirm(button, {
     busy: options.words?.busy ?? "Loading…",
     done: false,
+    width: "fixed",
     ...(signal === undefined ? {} : { signal }),
   });
   const roll = button.querySelector<HTMLElement>(":scope > .cp-roll");
