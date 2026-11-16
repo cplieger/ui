@@ -1231,7 +1231,10 @@ export function sharedRefs(panels: readonly (readonly FrameRef[])[]): {
   // How many times every panel holds each pair.
   const held = new Map<string, number>();
   for (const id of counts[0]?.keys() ?? []) {
-    held.set(id, Math.min(...counts.map((m) => m.get(id) ?? 0)));
+    held.set(
+      id,
+      counts.reduce((n, m) => Math.min(n, m.get(id) ?? 0), Infinity),
+    );
   }
   // A panel's first `held` refs of a pair are the chart's, the rest its own.
   const split = (refs: readonly FrameRef[], list: readonly string[]) => {
