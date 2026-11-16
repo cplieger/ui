@@ -94,17 +94,18 @@ afterEach(async () => {
 });
 
 /** Loads a template as it ships under `policy`, with a style and a script
- *  probe the policy must refuse, and returns the policy's later refusals. A
- *  served file: Firefox matches no 'self' source in an about:srcdoc document.
- *  No sandbox: WebKit fires no securitypolicyviolation in a frame without
- *  scripts, so the policy alone keeps them off. The body loads hidden and
- *  shows once the listener is on, so no glyph or face is fetched before it. */
+ *  probe the policy must refuse, and returns the policy's later refusals. Its
+ *  stylesheet, glyphs and faces are the shipped bytes under /shipped/
+ *  (vitest.config.ts). A served file: Firefox matches no 'self' source in an
+ *  about:srcdoc document. No sandbox: WebKit fires no securitypolicyviolation
+ *  in a frame without scripts, so the policy alone keeps them off. The body
+ *  loads hidden and shows once the listener is on, so it misses no fetch. */
 async function loadStrict(
   name: string,
   policy: string,
 ): Promise<{ doc: Document; refused: SecurityPolicyViolationEvent[] }> {
   const text = await server.commands.readFile(`templates/${name}`);
-  const base = new URL("../../templates/", import.meta.url).href;
+  const base = new URL("/shipped/templates/", location.origin).href;
   const head = `<meta http-equiv="Content-Security-Policy" content="${policy}"><base href="${base}">`;
   const path = `dist/strict/${crypto.randomUUID()}.html`;
   await server.commands.writeFile(
@@ -270,12 +271,15 @@ describe("the page templates", () => {
     }
   });
 
-  it.each(APP_PAGES)("%s lets its one h1 take the focus a route change moves", async (name) => {
-    const doc = await parse(name);
-    const h1s = doc.querySelectorAll(".cp-main h1");
-    expect(h1s).toHaveLength(1);
-    expect(h1s[0]?.getAttribute("tabindex")).toBe("-1");
-  });
+  it.each([...APP_PAGES, "gate-steps.html"])(
+    "%s lets its one h1 take the focus a route change moves",
+    async (name) => {
+      const doc = await parse(name);
+      const h1s = doc.querySelectorAll("main h1");
+      expect(h1s).toHaveLength(1);
+      expect(h1s[0]?.getAttribute("tabindex")).toBe("-1");
+    },
+  );
 
   it("list-detail.html holds the list, a hidden detail and its close", async () => {
     const doc = await parse("list-detail.html");
@@ -557,8 +561,8 @@ describe("the page templates", () => {
       expect(icons.length).toBeGreaterThan(1);
       for (const icon of icons) {
         const url = new URL(maskUrl(icon), doc.baseURI);
-        expect(url.protocol === "data:" || url.origin === location.origin).toBe(true);
         const name = icon.getAttribute("data-cp-icon") ?? "";
+        expect(url.href).toBe(new URL(`/shipped/icons/svg/${name}.svg`, location.origin).href);
         expect(await drawing(url)).toBe(await shipped(name));
       }
       const panel = doc.querySelector(".cp-panel");

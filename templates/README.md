@@ -79,7 +79,7 @@ A page outside the frame for one short task, `main.cp-gate`.
 | Region | Slots, in order |
 | --- | --- |
 | brand | |
-| panel | steps (`ol.cp-steps`, a done step a link back to its address, the current one `aria-current="step"`, each state in hidden words; `p.cp-steps-compact` replaces it at compact width), heading (the step's number and task in its `<h1>`), notices (a `.cp-notice` for the step as a whole), form (the step's fields), actions (`data-part="actions"`: Back, a link to the step before, first; the one primary last) |
+| panel | steps (`ol.cp-steps`, a done step a link back to its address, the current one `aria-current="step"`, each state in hidden words; `p.cp-steps-compact` replaces it at compact width), heading (the step's number and task in its `<h1 tabindex="-1">`, which takes focus when an app moves between steps by its own route), notices (a `.cp-notice` for the step as a whole), form (the step's fields), actions (`data-part="actions"`: Back, a link to the step before, first; the one primary last) |
 | foot | the about line |
 
 ## A message with no script: `gate-message.html`

@@ -116,6 +116,22 @@ describe.each(browsers)("the gallery in %s", (name) => {
     expect([...missing]).toEqual([]);
   });
 
+  it("shows a template's destination as a route change, focus on its h1", async () => {
+    const tab = await (browser as Browser).newPage({ viewport: { width: 1440, height: 900 } });
+    await tab.goto(`${origin}/templates/app.html`);
+    const item = tab.locator(".cp-header .cp-nav-item:not([aria-current])").first();
+    const label = await item.locator(".cp-nav-label").textContent();
+    await item.click();
+    const state = await tab.evaluate(() => ({
+      heading: document.querySelector("main h1")?.textContent,
+      current: document.querySelector(".cp-nav-item[aria-current='page'] .cp-nav-label")
+        ?.textContent,
+      focused: document.activeElement === document.querySelector("main h1"),
+    }));
+    await tab.close();
+    expect(state).toEqual({ heading: label, current: label, focused: true });
+  });
+
   it.each(pageNames)(
     "runs %s's script to its end inside a sandboxed frame, as a preview tab shows it",
     async (page) => {

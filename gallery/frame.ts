@@ -71,6 +71,7 @@ for (const item of document.querySelectorAll<HTMLAnchorElement>(".cp-nav-item"))
       }
     }
     heading.textContent = item.querySelector(".cp-nav-label")?.textContent ?? "";
+    heading.focus();
   });
 }
 
