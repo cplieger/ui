@@ -5380,6 +5380,49 @@ describe("css/system.css data tables", () => {
     );
   });
 
+  it("hugs a number column and a bar column to their widest cell, the text column taking the rest", () => {
+    theme("light");
+    const el = build(
+      '<table class="cp-table" style="inline-size: 800px"><thead><tr><th data-col="num">Slot</th><th>Name</th><th data-bar>Sent</th><th data-col="num">Size</th></tr></thead>' +
+        '<tbody><tr><td data-col="num">1</td><td>On the best</td><td data-bar><data value="9">9</data></td><td data-col="num">33.0 GB</td></tr>' +
+        '<tr><td data-col="num">12</td><td>Missing</td><td data-bar><data value="3">3</data></td><td data-col="num">1.4 GB</td></tr></tbody></table>',
+    );
+    const head = [...el.querySelectorAll("thead th")] as HTMLElement[];
+    for (const i of [0, 2, 3]) {
+      const th = head[i] as HTMLElement;
+      const cs = getComputedStyle(th);
+      const pad = parseFloat(cs.paddingInlineStart) + parseFloat(cs.paddingInlineEnd);
+      const widest = Math.max(
+        ...[...el.querySelectorAll(`tr > :nth-child(${String(i + 1)})`)].map((c) => {
+          const words = document.createRange();
+          words.selectNodeContents(c);
+          return words.getBoundingClientRect().width;
+        }),
+      );
+      expect(th.getBoundingClientRect().width).toBeLessThanOrEqual(widest + pad + 1);
+    }
+    expect((head[1] as HTMLElement).getBoundingClientRect().width).toBeGreaterThan(500);
+  });
+
+  it("centres a one-line cell in a two-line row, and never breaks a number or a date", () => {
+    theme("light");
+    const el = build(
+      '<table class="cp-table" style="inline-size: 200px"><tbody><tr><td><div class="cp-cell-stack">Frieren<span class="cp-meta">TV, 2023</span></div></td>' +
+        '<td data-col="num">1.4 GB</td><td><time datetime="2023-10-20">2023-10-20</time></td></tr></tbody></table>',
+    );
+    const [, size, added] = [...el.querySelectorAll("td")] as HTMLElement[];
+    const row = (el.querySelector("tr") as Element).getBoundingClientRect();
+    for (const cell of [size, added]) {
+      const words = document.createRange();
+      words.selectNodeContents(cell as HTMLElement);
+      expect(new Set([...words.getClientRects()].map((r) => Math.round(r.bottom))).size).toBe(1);
+      const box = words.getBoundingClientRect();
+      expect(Math.abs(box.top + box.height / 2 - (row.top + row.height / 2))).toBeLessThanOrEqual(
+        1,
+      );
+    }
+  });
+
   it("insets a title cell's 2:3 cover 6px from its row's edges, in a cell or a row's header", () => {
     theme("light");
     root.dataset["pointer"] = "fine";

@@ -174,10 +174,14 @@ function fitMarkers(ol: Element): void {
 const PROSE_CELL = 24;
 
 /** Marks a cell of running text `data-cp-wrap`, which `.cp-prose` keeps at
- *  a readable width once the table is wider than its box and scrolls. */
+ *  a readable width once the table is wider than its box and scrolls, and a
+ *  short one, such as a size or a date, `data-cp-line`, which it keeps on
+ *  one line. */
 function markProse(cell: Element): void {
   const text = cell.textContent.trim();
-  if (text.length >= PROSE_CELL && /\s/.test(text)) {
+  if (text.length < PROSE_CELL) {
+    cell.setAttribute("data-cp-line", "");
+  } else if (/\s/.test(text)) {
     cell.setAttribute("data-cp-wrap", "");
   }
 }

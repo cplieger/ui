@@ -5343,9 +5343,21 @@ th[aria-sort="descending"] > .cp-sort::after {
   background: var(--cp-surface-raised);
 }
 
+/* A number column, and a bar column (ranked-bars), hugs its widest cell, as
+ * the actions column does, so the text columns take the table's leftover
+ * width. A number or a date never breaks from its unit or at its hyphens. */
 .cp-table [data-col="num"] {
+  inline-size: 1%;
   text-align: end;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.cp-table [data-bar] {
+  inline-size: 1%;
+}
+
+.cp-table :is(td, th) time {
   white-space: nowrap;
 }
 
@@ -5726,7 +5738,7 @@ th[aria-sort="descending"] > .cp-sort::after {
   padding: var(--cp-space-2) var(--cp-space-3);
   border-block-end: var(--cp-line-w) solid var(--cp-line);
   text-align: start;
-  vertical-align: top;
+  vertical-align: middle;
 }
 
 .cp-prose :where(th) {
@@ -5743,6 +5755,12 @@ th[aria-sort="descending"] > .cp-sort::after {
  * wider than its box sits at its min-content, a word a line. */
 .cp-prose :where(td[data-cp-wrap]) {
   min-inline-size: 12em;
+}
+
+/* A short cell, such as a size or a date, never breaks from its unit or at
+ * its hyphens; the region scrolls instead. */
+.cp-prose :where(td[data-cp-line]) {
+  white-space: nowrap;
 }
 
 /* anywhere counts every character toward a cell's min-content, which would

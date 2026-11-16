@@ -50,6 +50,7 @@ The parts of a `.cp-table` that need a script. `enhanceSort` runs sortable heade
 ```
 
 - A sortable header is a `<th>` holding a `<button class="cp-sort">` with the column's name. The stylesheet draws its arrow, shown on the column whose `<th>` carries `aria-sort`.
+- Each cell sits in the middle of its row's height, so a one-line cell centres beside a title and its line. A `data-col="num"` column, and a [ranked-bars](ranked-bars.md) column, hugs its widest cell as the actions column does, ends its values and header together and never breaks a value from its unit, and the text columns take the table's leftover width. A `<time>` in a cell stays on one line.
 - `.cp-title-cell` puts a `.cp-cover` beside the title and its line, 2rem wide (`--cp-cover-row-w`) and 6px (`--cp-cover-inset`) from the row's top and bottom edges, its glyph at 16px. The two lengths are the shared cover tokens a list row's cover reads too. The cover's harmony colour, glyph and `<img>` are the cover's own, as [Components](../design-components.md) describes.
 - A row's actions sit in a `.cp-toolbar`. Its worded action confirms in place with [confirm](../buttons/confirm.md), and its ⋯ buttons all open one `.cp-menu` through [menu](../overlays/menu.md).
 - While the table loads, each cell holds a `.cp-skeleton`, timed by [skeleton](../feedback/skeleton.md).
