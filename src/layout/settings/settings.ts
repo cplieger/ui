@@ -109,18 +109,86 @@ function byFragment(root: Document | ShadowRoot, fragment: string): Element | nu
   return root.getElementById(fragment) ?? root.getElementById(percentDecode(fragment));
 }
 
-/** Whether `node` is `el` or holds it, across shadow roots. */
-function holds(node: Node, el: Node): boolean {
-  for (
-    let at: Node | null = el;
-    at !== null;
-    at = at instanceof ShadowRoot ? at.host : at.parentNode
-  ) {
-    if (at === node) {
-      return true;
+/** The element `el` lays out in: its slot when slotted, a shadow root's host. */
+function parentBox(el: Element): Element | null {
+  const up = el.assignedSlot ?? el.parentNode;
+  return up instanceof ShadowRoot ? up.host : up instanceof Element ? up : null;
+}
+
+/** `scroll-padding-top` at its used length. Engines return a percentage
+ *  unresolved, alone or inside calc(), min() or max(), so such a value is
+ *  measured as the height of a box in a block as tall as the scrollport,
+ *  its basis (https://drafts.csswg.org/css-scroll-snap-1/#scroll-padding). */
+function paddingTop(styled: Element, port: number): number {
+  const value = getComputedStyle(styled).scrollPaddingTop;
+  if (value === "auto") {
+    return 0;
+  }
+  if (/^[\d.]+px$/.test(value)) {
+    return parseFloat(value);
+  }
+  const block = document.createElement("div");
+  const probe = document.createElement("div");
+  // The page's own rules must not pad or bound either box.
+  block.style.all = "initial";
+  block.style.position = "fixed";
+  block.style.visibility = "hidden";
+  block.style.blockSize = `${String(port)}px`;
+  probe.style.all = "initial";
+  probe.style.display = "block";
+  probe.style.blockSize = value;
+  block.append(probe);
+  document.documentElement.append(block);
+  const used = probe.getBoundingClientRect().height;
+  block.remove();
+  return used;
+}
+
+/** A scroller a fragment jump moves: its offset at the press and the
+ *  offset the jump takes it to. */
+interface Leg {
+  readonly box: Element;
+  readonly from: number;
+  readonly to: number;
+}
+
+/** Where a fragment jump to `section` takes each scroller holding it, keyed
+ *  by its scroll events' target, as "scroll a target into view" does:
+ *  innermost first, each so the section's scroll-margin edge sits at its
+ *  port's top plus its scroll-padding-top, within its range
+ *  (https://drafts.csswg.org/cssom-view/#scroll-a-target-into-view). Past a
+ *  fixed box the viewport is left out, since its scroll does not move it. */
+function plan(section: Element): Map<EventTarget, Leg> {
+  const legs = new Map<EventTarget, Leg>();
+  let top =
+    section.getBoundingClientRect().top -
+    (parseFloat(getComputedStyle(section).scrollMarginTop) || 0);
+  const take = (key: EventTarget, box: Element, styled: Element, portTop: number): void => {
+    const from = box.scrollTop;
+    const want = from + top - portTop - paddingTop(styled, box.clientHeight);
+    const to = Math.max(0, Math.min(want, box.scrollHeight - box.clientHeight));
+    legs.set(key, { box, from, to });
+    top -= to - from;
+  };
+  const html = document.documentElement;
+  // The body's overflow is the viewport's while the root's is visible.
+  const bodyScrolls = getComputedStyle(html).overflowY !== "visible";
+  for (let at: Element | null = section; at !== null && at !== html; at = parentBox(at)) {
+    const { overflowY, position } = getComputedStyle(at);
+    if (
+      at !== section &&
+      overflowY !== "visible" &&
+      overflowY !== "clip" &&
+      (at !== document.body || bodyScrolls)
+    ) {
+      take(at, at, at, at.getBoundingClientRect().top + at.clientTop);
+    }
+    if (position === "fixed") {
+      return legs;
     }
   }
-  return false;
+  take(document, document.scrollingElement ?? html, html, 0);
+  return legs;
 }
 
 /** A pressed category's hold; see `step` in `enhanceSettings`. */
@@ -129,15 +197,18 @@ type Hold =
   | {
       readonly kind: "jumping";
       readonly link: HTMLAnchorElement;
-      readonly from: number;
-      readonly scroller: EventTarget | null;
+      readonly legs: ReadonlyMap<EventTarget, Leg>;
+      /** The scrollers seen moving since the press. */
+      readonly moved: ReadonlySet<EventTarget>;
+      /** The scrollers the jump moves that have not landed yet. */
+      readonly left: ReadonlySet<EventTarget>;
     }
   | { readonly kind: "held"; readonly link: HTMLAnchorElement; readonly at: string };
 
 type HoldEvent =
   | { readonly type: "press"; readonly link: HTMLAnchorElement }
   | { readonly type: "scroll" | "scrollend"; readonly target: EventTarget | null }
-  | { readonly type: "input" | "update" };
+  | { readonly type: "update" };
 
 const IDLE: Hold = { kind: "idle" };
 
@@ -322,11 +393,11 @@ export function enhanceSettings(form: HTMLFormElement, options: SettingsOptions 
   // A pressed link stays current until the page scrolls after the press's
   // own jump, so a last section too short to reach the band still reads as
   // current. Every event goes through `step`; `release` is the only way back
-  // to idle. A jump ends three ways: its scroller's `scrollend` settles where
-  // it landed and releases where the person cut it short (Firefox jumps a
-  // frame after the click, a smooth scroll glides); an input settles a jump
-  // nothing has moved; a scroll away from or past its place releases. Then
-  // `held` keeps the section's place on screen until a scroll moves it.
+  // to idle. The press plans the jump (`plan`); each scroller's `scrollend`
+  // at its planned offset lands it, and the last lands the jump in `held`
+  // (Firefox jumps a frame after the click, a smooth scroll glides). A
+  // scroller off its course, or stopped short, releases. A jump that moves
+  // nothing is held at once; `held` releases once the section moves.
   let hold: Hold = IDLE;
   const placeOf = (link: HTMLAnchorElement): string => {
     const box = targets.get(link)?.getBoundingClientRect();
@@ -339,99 +410,84 @@ export function enhanceSettings(form: HTMLFormElement, options: SettingsOptions 
   const settle = (link: HTMLAnchorElement): void => {
     hold = { kind: "held", link, at: placeOf(link) };
   };
-  // Where a jump in `scroller` brings the section's top: the box's top inside
-  // its border (the window's is 0), plus its scroll-padding-top and the
-  // section's scroll-margin-top.
-  const destination = (scroller: Node, section: Element): number => {
-    const box =
-      scroller instanceof Element && scroller !== document.scrollingElement ? scroller : null;
-    const port = box ?? document.documentElement;
-    const top = box === null ? 0 : box.getBoundingClientRect().top + box.clientTop;
-    // scroll-padding computes to "auto" when unset.
-    const padding = parseFloat(getComputedStyle(port).scrollPaddingTop) || 0;
-    return top + padding + (parseFloat(getComputedStyle(section).scrollMarginTop) || 0);
-  };
-  // `from` is the section's top at the press. A scroll that moves it away
-  // from its place or past it is the person's, as after a press at the
-  // page's end, which moves nothing.
-  const jumped = (jump: Extract<Hold, { kind: "jumping" }>, scroller: EventTarget | null): void => {
-    const section = targets.get(jump.link);
-    if (section === undefined || !(scroller instanceof Node) || !holds(scroller, section)) {
-      return;
+  const press = (link: HTMLAnchorElement, section: Element): void => {
+    const legs = plan(section);
+    const left = new Set<EventTarget>();
+    for (const [key, leg] of legs) {
+      if (Math.abs(leg.to - leg.from) > 1) {
+        left.add(key);
+      } else {
+        legs.set(key, { ...leg, to: leg.from });
+      }
     }
-    const top = section.getBoundingClientRect().top;
-    if (top === jump.from) {
-      return;
+    setCurrent(link);
+    if (left.size === 0) {
+      settle(link);
+    } else {
+      hold = { kind: "jumping", link, legs, moved: new Set(), left };
     }
-    const to = destination(scroller, section);
-    const away = Math.sign(top - jump.from) !== Math.sign(to - jump.from);
-    if (away || Math.abs(top - jump.from) > Math.abs(to - jump.from) + 1) {
-      release();
-    } else if (jump.scroller === null) {
-      hold = { ...jump, scroller };
-    }
-  };
-  // Short of its place, a jump landed only where its scroller stopped at the
-  // end it moved toward, as a last section too short to reach it does.
-  const landed = (jump: Extract<Hold, { kind: "jumping" }>, scroller: EventTarget): boolean => {
-    const section = targets.get(jump.link);
-    const port = scroller instanceof Element ? scroller : document.scrollingElement;
-    if (section === undefined || !(scroller instanceof Node) || port === null) {
-      return false;
-    }
-    const to = destination(scroller, section);
-    if (Math.abs(section.getBoundingClientRect().top - to) <= 1) {
-      return true;
-    }
-    return to < jump.from
-      ? port.scrollTop >= port.scrollHeight - port.clientHeight - 1
-      : port.scrollTop <= 1;
   };
   const step = (e: HoldEvent): void => {
     if (e.type === "press") {
-      const from = targets.get(e.link)?.getBoundingClientRect().top ?? 0;
-      hold = { kind: "jumping", link: e.link, from, scroller: null };
-      setCurrent(e.link);
+      const section = targets.get(e.link);
+      if (section !== undefined) {
+        press(e.link, section);
+      }
       return;
     }
     if (hold.kind === "idle") {
       return;
     }
     const { link } = hold;
-    switch (e.type) {
-      case "update": {
-        // The app may have rebuilt the links: the hold moves to the one with
-        // the same address, whose section is the same.
-        const same = links.find((l) => l.href === link.href && targets.has(l));
-        if (same === undefined) {
-          release();
-        } else {
-          hold = { ...hold, link: same };
-          setCurrent(same);
-        }
+    if (e.type === "update") {
+      // The app may have rebuilt the links: the hold moves to the one with
+      // the same address, whose section is the same.
+      const same = links.find((l) => l.href === link.href && targets.has(l));
+      if (same === undefined) {
+        release();
+      } else {
+        hold = { ...hold, link: same };
+        setCurrent(same);
+      }
+      return;
+    }
+    if (hold.kind === "held") {
+      if (e.type === "scroll" && placeOf(link) !== hold.at) {
+        release();
+      }
+      return;
+    }
+    const at = e.target;
+    const leg = at === null ? undefined : hold.legs.get(at);
+    // A scroller the jump does not move, a box inside the section, leaves it.
+    if (at === null || leg === undefined) {
+      return;
+    }
+    const y = leg.box.scrollTop;
+    // On its way a scroller stays between its two offsets, within the 1px a
+    // planned offset may differ from the browser's; once still, on its own.
+    const onCourse = hold.left.has(at)
+      ? y >= Math.min(leg.from, leg.to) - 1 && y <= Math.max(leg.from, leg.to) + 1
+      : y === leg.to;
+    if (!onCourse) {
+      release();
+    } else if (e.type === "scroll") {
+      if (y !== leg.from && !hold.moved.has(at)) {
+        hold = { ...hold, moved: new Set([...hold.moved, at]) };
+      }
+    } else if (hold.moved.has(at) && hold.left.has(at)) {
+      if (Math.abs(y - leg.to) > 1) {
+        release();
         return;
       }
-      case "input":
-        if (hold.kind === "jumping" && hold.scroller === null) {
-          settle(link);
-        }
-        return;
-      case "scrollend":
-        if (hold.kind === "jumping" && hold.scroller !== null && hold.scroller === e.target) {
-          if (landed(hold, hold.scroller)) {
-            settle(link);
-          } else {
-            release();
-          }
-        }
-        return;
-      case "scroll":
-        if (hold.kind === "jumping") {
-          jumped(hold, e.target);
-        } else if (placeOf(link) !== hold.at) {
-          release();
-        }
-        return;
+      const left = new Set(hold.left);
+      left.delete(at);
+      const legs = new Map(hold.legs).set(at, { ...leg, to: y });
+      if (left.size === 0) {
+        settle(link);
+      } else {
+        hold = { ...hold, legs, left };
+      }
     }
   };
   const spy = new IntersectionObserver(
@@ -461,15 +517,6 @@ export function enhanceSettings(form: HTMLFormElement, options: SettingsOptions 
         early,
       );
     }
-  }
-  for (const type of ["pointerdown", "wheel", "touchstart", "keydown"]) {
-    addEventListener(
-      type,
-      () => {
-        step({ type: "input" });
-      },
-      early,
-    );
   }
   nav.addEventListener(
     "click",

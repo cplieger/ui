@@ -12,6 +12,8 @@ afterEach(async () => {
   life.abort();
   life = new AbortController();
   document.body.replaceChildren();
+  document.documentElement.style.scrollBehavior = "";
+  document.documentElement.style.scrollPaddingTop = "";
   scrollTo(0, 0);
   // The next case's press must not meet this scroll's late events, and
   // Firefox may still be gliding from a case's smooth scroll.
@@ -24,12 +26,14 @@ afterEach(async () => {
 
 const task = (): Promise<void> => new Promise((r) => setTimeout(r));
 
-/** Waits until `el` has stopped scrolling for three frames. */
-async function still(el: Element = document.documentElement): Promise<void> {
-  for (let y = Number.NaN, quiet = 0; quiet < 3;) {
+/** Waits until every scroller in `els` has stopped for three frames. */
+async function still(...els: Element[]): Promise<void> {
+  const at = (): string =>
+    (els.length === 0 ? [document.documentElement] : els).map((el) => el.scrollTop).join(" ");
+  for (let y = "", quiet = 0; quiet < 3;) {
     await new Promise(requestAnimationFrame);
-    quiet = el.scrollTop === y ? quiet + 1 : 0;
-    y = el.scrollTop;
+    quiet = at() === y ? quiet + 1 : 0;
+    y = at();
   }
   await task();
 }
@@ -698,6 +702,109 @@ describe("enhanceSettings", () => {
     },
   );
 
+  /** Connections and Display, 120vh each, around a 40px Checks, the
+   *  section the cases press; `wrap` gives the box that holds them. */
+  const short = (wrap: string, after = ""): { box: HTMLElement; links: HTMLAnchorElement[] } => {
+    const host = document.createElement("div");
+    host.innerHTML =
+      wrap.replace(
+        "></div>",
+        '><nav class="cp-settings-nav"><ul class="cp-list">' +
+          row("Connections", "#b-con") +
+          row("Checks", "#b-chk") +
+          row("Display", "#b-dis") +
+          '</ul></nav><form><section id="b-con" style="block-size: 120vh"><input></section>' +
+          '<section id="b-chk" style="block-size: 40px"><input></section>' +
+          '<section id="b-dis" style="block-size: 120vh"><input></section></form></div>',
+      ) + after;
+    document.body.append(host);
+    const links = [...host.querySelectorAll<HTMLAnchorElement>("a.cp-list-row")];
+    enhanceSettings(host.querySelector("form") as HTMLFormElement, { signal: life.signal });
+    return { box: host.querySelector(".cp-settings") as HTMLElement, links };
+  };
+  /** Presses Checks and waits until its section rests `want` px below the
+   *  window's top; resolves to the current link's index. */
+  const pressChecks = async (
+    links: readonly HTMLAnchorElement[],
+    want: number,
+    ...scrollers: Element[]
+  ): Promise<number> => {
+    const checks = document.getElementById("b-chk") as HTMLElement;
+    links[1]?.click();
+    await vi.waitFor(() => {
+      expect(Math.abs(checks.getBoundingClientRect().top - want)).toBeLessThanOrEqual(1);
+    });
+    await still(document.documentElement, ...scrollers);
+    return links.findIndex((l) => l.hasAttribute("aria-current"));
+  };
+
+  it("keeps a pressed short category in a box whose border and scroll-padding sit under a header", async () => {
+    const { box, links } = short(
+      '<div style="position: fixed; inset: 0"><header style="block-size: 100px"></header>' +
+        '<div class="cp-settings" style="block-size: calc(100vh - 100px); overflow-y: auto; border-top: 10px solid; scroll-padding-top: 50px"></div></div>',
+    );
+    box.scrollTop = box.scrollHeight;
+    await still(box);
+    expect(await pressChecks(links, 160, box)).toBe(1);
+  });
+
+  it.each([
+    ["10%", "up"],
+    ["10%", "down"],
+    ["calc(10% + 8px)", "down"],
+  ])(
+    "keeps a pressed short category through a jump under the root's scroll-padding-top %s, %sward",
+    async (padding, dir) => {
+      document.documentElement.style.scrollPaddingTop = padding;
+      const { links } = short('<div class="cp-settings"></div>');
+      if (dir === "up") {
+        scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" });
+      }
+      await still();
+      const port = document.documentElement.clientHeight;
+      const want = padding === "10%" ? port * 0.1 : port * 0.1 + 8;
+      expect(await pressChecks(links, want)).toBe(1);
+    },
+  );
+
+  it("keeps a pressed short category through a jump in a box whose scroll-padding-top is 10%", async () => {
+    const { box, links } = short(
+      '<div style="position: fixed; inset: 0"><div class="cp-settings" style="block-size: 100vh; overflow-y: auto; scroll-padding-top: 10%"></div></div>',
+    );
+    box.scrollTop = box.scrollHeight;
+    await still(box);
+    expect(await pressChecks(links, box.clientHeight * 0.1, box)).toBe(1);
+  });
+
+  it.each([
+    ["no", "up"],
+    ["no", "down"],
+    ["the root's", "up"],
+    ["the root's", "down"],
+    ["the root's and the box's", "up"],
+    ["the root's and the box's", "down"],
+  ])(
+    "keeps a pressed short category through a jump that scrolls its box and the page, with %s smooth scrolling, %sward",
+    async (smooth, dir) => {
+      const { box, links } = short(
+        '<header style="block-size: 60vh"></header><div class="cp-settings" style="block-size: 80vh; overflow-y: auto"></div>',
+        '<footer style="block-size: 150vh"></footer>',
+      );
+      if (dir === "up") {
+        box.scrollTo({ top: box.scrollHeight, behavior: "instant" });
+      }
+      await still(box);
+      if (smooth !== "no") {
+        document.documentElement.style.scrollBehavior = "smooth";
+      }
+      if (smooth === "the root's and the box's") {
+        box.style.scrollBehavior = "smooth";
+      }
+      // Each scroller brings Checks to its own top: the box's, then the window's.
+      expect(await pressChecks(links, 0, box)).toBe(1);
+    },
+  );
+
   it("ends the hold when the person's scroll cuts the press's smooth jump short", async () => {
     const { form, links } = page(true);
     enhanceSettings(form, { signal: life.signal });
@@ -740,7 +847,7 @@ describe("enhanceSettings", () => {
     const { form, nav, links } = page(true);
     const s = enhanceSettings(form, { signal: life.signal });
     await holdLast(links);
-    // At the page's end this press scrolls nothing, so its jump waits for an input.
+    // At the page's end this press scrolls nothing, so it is held at once.
     links[2]?.click();
     await new Promise(requestAnimationFrame);
     await task();
