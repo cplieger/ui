@@ -114,18 +114,31 @@ if (root !== null && list instanceof HTMLUListElement && filters !== null) {
   const links = () => [...items.values()].flatMap((item) => linkOf(item) ?? []);
   const current = () => links().find((link) => link.hasAttribute("aria-current"));
 
+  interface View {
+    readonly title: string;
+    readonly kind: string;
+  }
+  /** A conversation the page knows: a loaded row, or one a later page holds, as grelot fetches it by id. */
+  const named = (id: string): View | undefined => {
+    const row = linkOf(items.get(id));
+    if (row !== null) {
+      const name = row.querySelector(".cp-cell-stack > .cp-truncate")?.textContent ?? "";
+      return { title: name, kind: row.dataset["kind"] ?? "" };
+    }
+    return OLDER.flat().find((c) => c.id === id);
+  };
+
   const title = document.getElementById("msg-title");
   const kind = document.getElementById("msg-kind");
   const compose = document.getElementById("msg-compose");
   const readOnly = document.getElementById("msg-read-only");
   // The person posts only as You, so a direct conversation between two
   // others takes no reply: the foot names who writes there instead.
-  function replyFor(row: HTMLAnchorElement): void {
+  function replyFor(view: View): void {
     if (compose === null || readOnly === null) {
       return;
     }
-    const names = row.querySelector(".cp-cell-stack > .cp-truncate")?.textContent ?? "";
-    const people = row.dataset["kind"] === "Direct" ? names.split(" and ") : [];
+    const people = view.kind === "Direct" ? view.title.split(" and ") : [];
     const closed = people.length === 2 && !people.includes("You");
     compose.hidden = closed;
     readOnly.hidden = !closed;
@@ -133,7 +146,7 @@ if (root !== null && list instanceof HTMLUListElement && filters !== null) {
     if (!closed || words === undefined || actions === undefined) {
       return;
     }
-    words.textContent = `Only ${names} write here.`;
+    words.textContent = `Only ${view.title} write here.`;
     actions.replaceChildren(
       ...people.map((name) => {
         const b = document.createElement("button");
@@ -144,108 +157,152 @@ if (root !== null && list instanceof HTMLUListElement && filters !== null) {
       }),
     );
   }
-  // A conversation a press opened has its own history entry, so Close walks
-  // back to the list's entry: the first that names no conversation, or the
-  // one a wide page loaded on, whose address Close rewrites to the list's.
-  const LANDED = "cp-gallery-landed";
-  const landed = () => {
-    const state: unknown = history.state;
-    return typeof state === "object" && state !== null && LANDED in state;
+  function render(view: View): void {
+    if (title !== null) {
+      const mono = view.title.startsWith("/");
+      title.replaceChildren(...(mono ? pathParts(view.title) : [view.title]));
+      title.classList.toggle("cp-mono", mono);
+    }
+    if (kind !== null) {
+      kind.textContent = view.kind;
+    }
+    replyFor(view);
+  }
+
+  // The address is the state: its fragment names the open conversation, and
+  // each entry's DEPTH counts the entries since the one the page loaded on.
+  // sync() renders the address; Close is one traversal back by DEPTH to the
+  // entry the page loaded on, rewritten to the list's address. CLOSING
+  // carries that rewrite across a traversal that loads the page again.
+  const DEPTH = "cp-gallery-depth";
+  const CLOSING = "cp-gallery-closing";
+  const depthOf = (state: unknown): number | undefined => {
+    const d: unknown =
+      typeof state === "object" && state !== null ? Reflect.get(state, DEPTH) : undefined;
+    return typeof d === "number" ? d : undefined;
+  };
+  // Storage throws in an opaque-origin frame, where a reload then opens what its address names.
+  const intend = (on: boolean): boolean => {
+    try {
+      const had = sessionStorage.getItem(CLOSING) !== null;
+      if (on) {
+        sessionStorage.setItem(CLOSING, "");
+      } else {
+        sessionStorage.removeItem(CLOSING);
+      }
+      return had;
+    } catch {
+      return false;
+    }
   };
   const toList = () => {
-    history.replaceState(null, "", location.pathname + location.search);
+    history.replaceState({ [DEPTH]: 0 }, "", location.pathname + location.search);
   };
+  let here = 0;
   let closing = false;
+  let showing: string | null = null;
+
   const detail = enhanceListDetail(root, {
     onDismiss: () => {
-      if (byHash() !== undefined && !landed()) {
+      if (closing) {
+        return;
+      }
+      const depth = depthOf(history.state) ?? 0;
+      if (depth > 0) {
         closing = true;
-        history.back();
+        intend(true);
+        history.go(-depth);
         return;
       }
       toList();
-      route(null, false);
+      sync();
     },
   });
-  function route(row: HTMLAnchorElement | null, still: boolean): void {
+  function sync(still = false): void {
+    const id = location.hash.slice(1);
+    const view = id === "" ? undefined : named(id);
     for (const link of links()) {
-      if (link === row) {
+      if (view !== undefined && link.hash === location.hash) {
         link.setAttribute("aria-current", "page");
+        link.removeAttribute("data-unread");
+        link.querySelector(".cp-badge")?.remove();
       } else {
         link.removeAttribute("aria-current");
       }
     }
-    if (row === null) {
+    if (view === undefined) {
+      showing = null;
       detail.close();
       return;
     }
-    row.removeAttribute("data-unread");
-    row.querySelector(".cp-badge")?.remove();
-    const name = row.querySelector(".cp-cell-stack > .cp-truncate");
-    if (title !== null && name !== null) {
-      const mono = name.classList.contains("cp-mono");
-      title.replaceChildren(...(mono ? pathParts(name.textContent) : [name.textContent]));
-      title.classList.toggle("cp-mono", mono);
+    if (id === showing) {
+      return;
     }
-    if (kind !== null) {
-      kind.textContent = row.dataset["kind"] ?? "";
-    }
-    replyFor(row);
+    showing = id;
+    render(view);
     detail.open({ still });
     messageFeed?.toNewest();
   }
-  const byHash = () => (location.hash === "" ? undefined : items.get(location.hash.slice(1)));
-  // The page loads with the open conversation docked beside the list, but
-  // with focus and scroll at the page's start; on a phone it would load
-  // into the dialog, so there it waits for a press.
-  const rem = Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
-  const first = linkOf(byHash()) ?? current() ?? null;
-  if (first !== null && root.getBoundingClientRect().width >= 52 * rem) {
-    if (byHash() !== undefined) {
-      history.replaceState({ [LANDED]: true }, "");
-    }
-    route(first, true);
-    title?.blur();
-  } else {
-    first?.removeAttribute("aria-current");
-    // On a phone the entry it loaded on becomes the list's, so the press
-    // that opens the dialog pushes an entry Close can walk back from.
-    if (byHash() !== undefined) {
+  /** Settles the entry the page arrived on: a Close's landing, or the new entry of a press. */
+  const arrive = (): void => {
+    const intent = intend(false);
+    const depth = depthOf(history.state);
+    if ((closing || intent) && depth === 0) {
       toList();
+    } else if (depth === undefined) {
+      history.replaceState({ [DEPTH]: here + 1 }, "");
     }
+    closing = false;
+    here = depthOf(history.state) ?? 0;
+    sync();
+  };
+
+  const rem = Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+  const wide = root.getBoundingClientRect().width >= 52 * rem;
+  if (intend(false) && depthOf(history.state) === 0) {
+    toList();
+  } else if (depthOf(history.state) === undefined) {
+    // A wide page docks the markup's open conversation, so the address names it.
+    const open = location.hash === "" && wide ? current()?.hash : undefined;
+    history.replaceState({ [DEPTH]: 0 }, "", open ?? location.href);
   }
-  // A press on a link to the address's own hash is a same-URL navigation:
-  // it fires no hashchange and replaces its entry, which in Firefox drops
-  // its state (https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate-fragid).
-  // So the page opens that conversation itself and the entry keeps LANDED.
+  here = depthOf(history.state) ?? 0;
+  // On a phone the addressed row takes focus first, so Close returns it there.
+  if (!wide) {
+    linkOf(items.get(location.hash.slice(1)))?.focus({ preventScroll: true });
+  }
+  sync(true);
+  if (wide) {
+    title?.blur();
+  }
+
+  addEventListener("popstate", arrive);
+  addEventListener("hashchange", arrive);
+  addEventListener("pageshow", (e) => {
+    if (e.persisted) {
+      arrive();
+    }
+  });
+  // A press on a link to the address itself would replace its entry, which
+  // in Firefox drops its state (https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate-fragid);
+  // the page keeps the entry and only moves focus.
   document.addEventListener("click", (e) => {
     const link = e.target instanceof Element ? e.target.closest("a[href]") : null;
     const plain = e.button === 0 && !(e.metaKey || e.ctrlKey || e.shiftKey || e.altKey);
-    const row = linkOf(byHash());
-    if (link instanceof HTMLAnchorElement && plain && row !== null && link.href === location.href) {
-      e.preventDefault();
-      route(row, false);
+    if (
+      !(link instanceof HTMLAnchorElement) ||
+      !plain ||
+      e.defaultPrevented ||
+      location.hash === "" ||
+      link.href !== location.href
+    ) {
+      return;
     }
-  });
-  // Any hash naming no conversation, reached by Back or by a link, closes
-  // the phone's dialog; wide, the docked conversation stays, so the layout
-  // never loses its detail. While Close walks back, an entry that still
-  // names a conversation is passed without showing it.
-  addEventListener("hashchange", () => {
-    if (closing && byHash() !== undefined) {
-      if (!landed()) {
-        history.back();
-        return;
-      }
-      toList();
-    }
-    const forced = closing;
-    closing = false;
-    const row = forced ? null : linkOf(byHash());
-    if (row !== null) {
-      route(row, false);
-    } else if (forced || root.getBoundingClientRect().width < 52 * rem) {
-      route(null, false);
+    e.preventDefault();
+    if (showing === null) {
+      document.getElementById(location.hash.slice(1))?.scrollIntoView();
+    } else {
+      detail.open();
     }
   });
 
@@ -326,6 +383,7 @@ if (root !== null && list instanceof HTMLUListElement && filters !== null) {
         }
         order = [...order, ...rows.map((c) => c.id)];
         keyed.update(shown());
+        sync();
         return {
           items: rows.flatMap((c) => keyed.rowOf(c.id) ?? []),
           more: page < OLDER.length,

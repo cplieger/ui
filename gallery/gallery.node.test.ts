@@ -148,30 +148,31 @@ describe.each(browsers)("the gallery in %s", (name) => {
     });
   }, 60_000);
 
-  it("keeps a docked conversation on Back and closes it on Close", async () => {
+  it("docks on Back the conversation the landed address names and closes it on Close", async () => {
     const tab = await (browser as Browser).newPage({ viewport: { width: 1280, height: 800 } });
     await tab.goto(`${origin}/index.html`);
     await tab.goto(`${origin}/messages.html`);
     await tab.waitForFunction(() => document.querySelector("[data-build]") !== null);
+    const landed = new URL(tab.url()).hash;
     const row = tab.locator("#msg-list a.cp-list-row").nth(1);
     await row.focus();
     await tab.keyboard.press("Enter");
-    await tab.waitForFunction(() => location.hash !== "");
+    await tab.waitForFunction((h) => location.hash !== h, landed);
     const state = () =>
       tab.evaluate(() => ({
         docked: document.getElementById("msg")?.hasAttribute("data-cp-docked") ?? false,
         shown: document.querySelector<HTMLElement>("#msg > .cp-detail")?.hidden === false,
-        current: document
-          .querySelectorAll("#msg-list a.cp-list-row")[1]
-          ?.getAttribute("aria-current"),
+        current: [...document.querySelectorAll("#msg-list a[aria-current]")].map((a) =>
+          a.getAttribute("href"),
+        ),
       }));
     await tab.goBack();
-    await tab.waitForFunction(() => location.hash === "");
+    await tab.waitForFunction((h) => location.hash === h, landed);
     const back = await state();
 
     await row.focus();
     await tab.keyboard.press("Enter");
-    await tab.waitForFunction(() => location.hash !== "");
+    await tab.waitForFunction((h) => location.hash !== h, landed);
     await tab.locator("#msg > .cp-detail [data-detail-close]").click();
     await tab.waitForFunction(
       () => document.querySelector<HTMLElement>("#msg > .cp-detail")?.hidden === true,
@@ -184,9 +185,10 @@ describe.each(browsers)("the gallery in %s", (name) => {
     await tab.goBack();
     const left = new URL(tab.url()).pathname;
     await tab.close();
-    expect({ back, closed, left }).toEqual({
-      back: { docked: true, shown: true, current: "page" },
-      closed: { docked: false, shown: false, current: null, path: "/messages.html", hash: "" },
+    expect({ landed, back, closed, left }).toEqual({
+      landed: "#c-internal",
+      back: { docked: true, shown: true, current: ["#c-internal"] },
+      closed: { docked: false, shown: false, current: [], path: "/messages.html", hash: "" },
       left: "/index.html",
     });
   }, 60_000);
