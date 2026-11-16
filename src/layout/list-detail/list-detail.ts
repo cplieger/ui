@@ -71,8 +71,8 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
   const dialog = document.createElement("dialog");
   dialog.className = "cp-dialog cp-detail-dialog";
   dialog.dataset["variant"] = "sheet";
-  // The route decides whether a close request closes the sheet, so
-  // installDialogs' cancel handler is to leave it to the listeners below.
+  // Asks ./dialog's installDialogs to leave close requests to the cancel
+  // listener below, since the route decides whether one closes the sheet.
   dialog.setAttribute("data-cp-own-close", "");
   const labelledBy = detail.getAttribute("aria-labelledby");
   if (labelledBy !== null) {

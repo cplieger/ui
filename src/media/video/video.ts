@@ -147,6 +147,13 @@ export function enhanceVideo(root: HTMLElement, options: VideoOptions = {}): Vid
     if (Number.isFinite(video.duration)) {
       return video.duration;
     }
+    // A source has no seekable range before its metadata, and WebKit's
+    // GStreamer backend (Linux) loses the duration of a source whose
+    // `seekable` is read then: it reports 0 and refuses seeks (measured; the
+    // test "keeps the duration and place of each source it loads" pins it).
+    if (video.readyState < HTMLMediaElement.HAVE_METADATA) {
+      return Number.NaN;
+    }
     const n = video.seekable.length;
     return n > 0 ? video.seekable.end(n - 1) : Number.NaN;
   };
@@ -206,8 +213,12 @@ export function enhanceVideo(root: HTMLElement, options: VideoOptions = {}): Vid
   };
 
   const clearError = (): void => {
+    if (!root.hasAttribute(ERROR)) {
+      return;
+    }
     root.removeAttribute(ERROR);
     play.disabled = false;
+    seek.disabled = false;
   };
 
   /** Failed `<source>` children fire `error` at each one, not at the video,
@@ -346,6 +357,12 @@ export function enhanceVideo(root: HTMLElement, options: VideoOptions = {}): Vid
     },
     listen,
   );
+  // `loadedmetadata` too: a <source> added after every one failed resumes the
+  // selection with no `loadstart`, which Firefox does without `video.load()`
+  // (https://html.spec.whatwg.org/multipage/media.html#concept-media-load-algorithm, "Waiting").
+  for (const type of ["loadstart", "loadedmetadata"]) {
+    video.addEventListener(type, clearError, listen);
+  }
   for (const type of ["play", "pause", "ended", "emptied"]) {
     video.addEventListener(type, drawButton, listen);
   }
@@ -357,11 +374,6 @@ export function enhanceVideo(root: HTMLElement, options: VideoOptions = {}): Vid
       },
       listen,
     );
-  }
-  // Before the listeners that draw, so the seek bar reads a cleared mark. A
-  // <source> added after every one failed loads with no `loadstart`.
-  for (const type of ["loadstart", "loadedmetadata"]) {
-    video.addEventListener(type, clearError, listen);
   }
   video.addEventListener(
     "loadstart",

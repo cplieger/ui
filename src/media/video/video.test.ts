@@ -236,6 +236,39 @@ describe("enhanceVideo", () => {
       .toBe("play");
   });
 
+  it("says Play once the video ends", async () => {
+    const { video, play } = await pane();
+    await seeked(video, video.duration - 0.3);
+    const ended = new Promise((resolve) => {
+      video.addEventListener("ended", resolve, { once: true });
+    });
+    await userEvent.click(play);
+    await ended;
+    expect(play.getAttribute("aria-label")).toBe("Play");
+    expect(play.querySelector(".cp-icon")?.getAttribute("data-cp-icon")).toBe("play");
+  });
+
+  it("is busy while a new source loads, and rests once its metadata loads", async () => {
+    const { root, video, play, handle } = await pane();
+    const glyph = (): string | null | undefined =>
+      play.querySelector(".cp-icon")?.getAttribute("data-cp-icon");
+    expect(root.hasAttribute("aria-busy")).toBe(false);
+    const started = new Promise((resolve) => {
+      video.addEventListener(
+        "loadstart",
+        () => {
+          resolve([root.getAttribute("aria-busy"), glyph()]);
+        },
+        { once: true },
+      );
+    });
+    handle.load(await sample());
+    expect(await started).toEqual(["true", "spinner-arc"]);
+    await metadata(video);
+    expect(root.hasAttribute("aria-busy")).toBe(false);
+    expect(glyph()).toBe("play");
+  });
+
   it("seeks on release, never while a pointer drags", async () => {
     const { video, seek, time } = await pane();
     seek.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
@@ -462,6 +495,24 @@ describe("enhanceVideo", () => {
     expect(video.paused, "a paused video stays paused").toBe(true);
   });
 
+  it("keeps the duration and place of each source it loads", async () => {
+    const { video, handle } = await pane();
+    for (const at of [3, 4, 5, 6, 7]) {
+      // The bar draws on the progress a source reports before its metadata.
+      video.addEventListener(
+        "loadstart",
+        () => {
+          video.dispatchEvent(new Event("progress"));
+        },
+        { once: true },
+      );
+      handle.load(await sample(), at);
+      await metadata(video);
+      expect(video.duration, "the clip lasts 12.008 s").toBeCloseTo(12, 0);
+      expect(handle.position).toBeCloseTo(at, 1);
+    }
+  });
+
   it("carries on playing a video that was playing when a new source loads", async () => {
     const { video, play, handle } = await pane();
     await userEvent.click(play);
@@ -606,16 +657,54 @@ describe("enhanceVideo", () => {
     expect([play.disabled, seek.disabled]).toEqual([true, true]);
   });
 
-  it("clears the mark once a <source> added after the failure loads", async () => {
-    const { root, video } = failingSources();
+  it("clears the mark once the app adds a <source> and calls load()", async () => {
+    const { root, video, source } = failingSources();
     enhanceVideo(root, { signal: life.signal });
-    await expect.poll(() => root.hasAttribute("data-cp-error")).toBe(true);
+    await new Promise((resolve) => {
+      source.addEventListener("error", resolve, { once: true });
+    });
+    await expect.poll(() => video.networkState).toBe(HTMLMediaElement.NETWORK_NO_SOURCE);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(video.networkState, "the failure has settled").toBe(HTMLMediaElement.NETWORK_NO_SOURCE);
+    expect(root.hasAttribute("data-cp-error")).toBe(true);
     const next = document.createElement("source");
     next.type = "video/webm";
     next.src = await sample();
-    const loaded = metadata(video);
     video.append(next);
+    const loaded = metadata(video);
+    video.load();
     await loaded;
+    const { play, seek } = controls(root);
+    expect(root.hasAttribute("data-cp-error")).toBe(false);
+    expect([play.disabled, seek.disabled]).toEqual([false, false]);
+  });
+
+  it("turns the controls back on as a new source starts loading", async () => {
+    const { root, video, source } = failingSources();
+    const handle = enhanceVideo(root, { signal: life.signal });
+    await new Promise((resolve) => {
+      source.addEventListener("error", resolve, { once: true });
+    });
+    await expect.poll(() => root.hasAttribute("data-cp-error")).toBe(true);
+    const { play, seek } = controls(root);
+    const started = new Promise((resolve) => {
+      video.addEventListener(
+        "loadstart",
+        () => {
+          resolve([root.hasAttribute("data-cp-error"), play.disabled, seek.disabled]);
+        },
+        { once: true },
+      );
+    });
+    handle.load(await sample());
+    expect(await started).toEqual([false, false, false]);
+  });
+
+  it("draws the seek bar from a mark that clears on loadedmetadata", async () => {
+    const { root, video } = failingSources();
+    enhanceVideo(root, { signal: life.signal });
+    await expect.poll(() => root.hasAttribute("data-cp-error")).toBe(true);
+    video.dispatchEvent(new Event("loadedmetadata"));
     const { play, seek } = controls(root);
     expect(root.hasAttribute("data-cp-error")).toBe(false);
     expect([play.disabled, seek.disabled]).toEqual([false, false]);
