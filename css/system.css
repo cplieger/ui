@@ -12105,6 +12105,10 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
   --cp-icon-image: url("../icons/svg/bell-ring.svg");
 }
 
+:where(.cp) .cp-icon:where([data-cp-icon="bell-ring-filled"]) {
+  --cp-icon-image: url("../icons/svg/bell-ring-filled.svg");
+}
+
 :where(.cp) .cp-icon:where([data-cp-icon="check"]) {
   --cp-icon-image: url("../icons/svg/check.svg");
 }

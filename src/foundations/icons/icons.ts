@@ -153,7 +153,12 @@ export type LucideIconName =
 
 /** A drawing of the package's own, on the same grid and stroke, for a concept Lucide lacks. */
 export type OwnIconName =
-  "funnel-filled" | "heart-filled" | "pin-filled" | "spinner-arc" | "tag-filled";
+  | "bell-ring-filled"
+  | "funnel-filled"
+  | "heart-filled"
+  | "pin-filled"
+  | "spinner-arc"
+  | "tag-filled";
 
 /** Every drawing the package ships under `icons/svg/`. */
 export type IconName = LucideIconName | OwnIconName;
@@ -307,6 +312,7 @@ export const iconNames: readonly LucideIconName[] = [
 
 /** The package's own drawings' names, sorted; no pinned Lucide release has them. */
 export const ownIconNames: readonly OwnIconName[] = [
+  "bell-ring-filled",
   "funnel-filled",
   "heart-filled",
   "pin-filled",
