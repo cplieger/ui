@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { userEvent } from "vitest/browser";
 
 import { enhanceCombobox, type ComboboxOptions } from "./combobox.js";
@@ -278,5 +278,59 @@ describe("enhanceCombobox", () => {
     for (const a of ["role", "aria-expanded", "aria-controls", "aria-activedescendant"]) {
       expect(input.hasAttribute(a), a).toBe(false);
     }
+  });
+});
+
+describe("options led by a cover", () => {
+  let sheet: HTMLLinkElement;
+
+  beforeAll(async () => {
+    document.documentElement.classList.add("cp");
+    sheet = document.createElement("link");
+    sheet.rel = "stylesheet";
+    sheet.href = new URL("../../../css/system.css", import.meta.url).href;
+    const loaded = new Promise((resolve, reject) => {
+      sheet.addEventListener("load", resolve, { once: true });
+      sheet.addEventListener("error", reject, { once: true });
+    });
+    document.head.append(sheet);
+    await loaded;
+  });
+
+  afterAll(() => {
+    sheet.remove();
+    document.documentElement.classList.remove("cp");
+  });
+
+  it("stack their covers into one square strip, rounded only by the list's own corners", () => {
+    const box = document.createElement("div");
+    box.className = "cp-popover cp-listbox";
+    const ul = document.createElement("ul");
+    ul.setAttribute("role", "listbox");
+    for (const title of ["Frieren", "Mushishi", "The Boy and the Heron"]) {
+      const li = document.createElement("li");
+      li.setAttribute("role", "option");
+      const cover = document.createElement("span");
+      cover.className = "cp-cover";
+      const strong = document.createElement("strong");
+      strong.textContent = title;
+      const small = document.createElement("small");
+      small.textContent = "2023 · TV";
+      li.append(cover, strong, small);
+      ul.append(li);
+    }
+    box.append(ul);
+    document.body.append(box);
+    const covers = [...box.querySelectorAll<HTMLElement>(".cp-cover")];
+    for (const c of covers) {
+      expect(getComputedStyle(c).borderTopLeftRadius).toBe("0px");
+      expect(getComputedStyle(c).borderBottomLeftRadius).toBe("0px");
+    }
+    for (let i = 1; i < covers.length; i++) {
+      const above = covers[i - 1]?.getBoundingClientRect().bottom ?? 0;
+      expect(covers[i]?.getBoundingClientRect().top).toBeCloseTo(above, 1);
+    }
+    expect(getComputedStyle(box).overflowY).toBe("auto");
+    expect(getComputedStyle(box).borderTopLeftRadius).not.toBe("0px");
   });
 });
