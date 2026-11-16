@@ -7,6 +7,7 @@
 
 import { until, whenAborted } from "../../core/lifetime/lifetime.js";
 import { localeOf } from "../../core/locale/locale.js";
+import { safely } from "../../core/safely/safely.js";
 import { focusOn, landing, rowOf } from "../../data/list-row/row.js";
 import { glyph } from "../../foundations/icons/glyph.js";
 import type { IconName } from "../../foundations/icons/icons.js";
@@ -181,11 +182,15 @@ export function enhanceJobs(list: HTMLElement, options: JobsOptions = {}): Jobs 
 
   const stopping = new WeakSet<Element>();
   const fail = (row: Element, reason: unknown): void => {
+    const fallback = "The job could not be stopped.";
     const sentence = words.stopFailed;
     const text =
       typeof sentence === "function"
-        ? sentence(reason)
-        : (sentence ?? "The job could not be stopped.");
+        ? safely(
+            () => sentence(reason),
+            () => fallback,
+          )
+        : (sentence ?? fallback);
     let line = row.querySelector(':scope > [data-part="stop-failed"]');
     if (line === null) {
       line = document.createElement("small");
@@ -228,13 +233,19 @@ export function enhanceJobs(list: HTMLElement, options: JobsOptions = {}): Jobs 
             if (life.signal.aborted || row.hasAttribute("data-ended")) {
               return;
             }
+            const cause = (): string =>
+              at === null ? "Stopped by you" : `Stopped by you at ${at[0]} of ${at[1]}`;
+            const said = (): string => `${kind} stopped`;
             end(row, {
               words: words.stopped ?? "Stopped",
               tone: "neutral",
-              cause:
-                (at === null ? words.stoppedCause?.() : words.stoppedCause?.(...at)) ??
-                (at === null ? "Stopped by you" : `Stopped by you at ${countWords(at)}`),
-              said: words.said?.(kind) ?? `${kind} stopped`,
+              cause: safely(
+                () =>
+                  (at === null ? words.stoppedCause?.() : words.stoppedCause?.(...at)) ??
+                  (at === null ? cause() : `Stopped by you at ${countWords(at)}`),
+                cause,
+              ),
+              said: safely(() => words.said?.(kind) ?? said(), said),
             });
           },
           (reason: unknown) => {

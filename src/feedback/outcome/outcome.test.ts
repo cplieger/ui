@@ -1,6 +1,7 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { installAnnouncer } from "../announce/announce.js";
+import { reported } from "../test-helpers/reported.js";
 import { enhanceOutcome, type OutcomeOptions, type OutcomeResult } from "./outcome.js";
 
 let life = new AbortController();
@@ -164,6 +165,40 @@ describe("enhanceOutcome", () => {
     expect(retry.getAttribute("aria-describedby")).toBe(state.id);
     expect(document.activeElement).toBe(retry);
     await until(() => said("assertive") === "Download failed: the provider timed out.");
+  });
+
+  it("settles in the default words when the app's words throw", async () => {
+    const errors = reported();
+    const { cell, button } = row();
+    const fails = (reason: unknown): string => (reason as { body: { detail: string } }).body.detail;
+    const calls = wire(button, {
+      words: { busy: "Downloading…", failed: fails, failedSaid: fails },
+    });
+    button.click();
+    calls[0]?.reject(new Error("The provider timed out."));
+    await until(() => cell.querySelector(".cp-state") !== null);
+    expect(cell.querySelector(".cp-state")?.textContent).toBe("The provider timed out.");
+    expect(cell.querySelector(".cp-outcome > button")).not.toBeNull();
+    await until(() => said("assertive") === "The provider timed out.");
+    expect(errors).toHaveLength(2);
+  });
+
+  it("says the result's words when the app's success words throw", async () => {
+    const errors = reported();
+    const { cell, button } = row();
+    const calls = wire(button, {
+      words: {
+        busy: "Downloading…",
+        said: () => {
+          throw new Error("no words");
+        },
+      },
+    });
+    button.click();
+    calls[0]?.resolve(PINNED);
+    await until(() => cell.querySelector(".cp-outcome > a") !== null);
+    await until(() => said("polite") === "Downloaded · Pinned");
+    expect(errors).toHaveLength(1);
   });
 
   it("falls back to its own sentence for a rejection with no message", async () => {

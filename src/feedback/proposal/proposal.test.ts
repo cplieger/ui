@@ -2,6 +2,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import { userEvent } from "vitest/browser";
 
 import { installAnnouncer } from "../announce/announce.js";
+import { reported } from "../test-helpers/reported.js";
 import { enhanceProposal, type ProposalOptions } from "./proposal.js";
 
 let life = new AbortController();
@@ -178,6 +179,41 @@ describe("enhanceProposal: Apply", () => {
     await until(() => card.dataset["cpState"] === "applied");
   });
 
+  it("hides an emptied cluster that still holds the markup's whitespace", async () => {
+    const card = proposal();
+    const cluster = card.querySelector(".cp-cluster") as HTMLElement;
+    cluster.prepend("\n    ");
+    part(card, "apply").after("\n    ");
+    cluster.append("\n  ");
+    const calls = wire(card);
+    part(card, "apply").click();
+    calls[0]?.resolve();
+    await until(() => card.dataset["cpState"] === "applied");
+    expect(cluster.childElementCount).toBe(0);
+    expect(cluster.textContent.trim()).toBe("");
+    expect(cluster.childNodes.length).toBeGreaterThan(0);
+    expect(getComputedStyle(cluster).display).toBe("none");
+  });
+
+  it("shows the default failure when the app's failure words throw", async () => {
+    const errors = reported();
+    const card = proposal();
+    const calls = wire(card, {
+      words: {
+        applied: "Applied.",
+        applyFailed: (reason) => (reason as { body: { detail: string } }).body.detail,
+      },
+    });
+    const apply = part(card, "apply");
+    apply.focus();
+    apply.click();
+    calls[0]?.reject(new TypeError("Failed to fetch"));
+    await until(() => failedLine(card) !== null);
+    expect(failedLine(card)?.textContent).toBe("The change could not be applied.");
+    expect(document.activeElement).toBe(apply);
+    expect(errors).toHaveLength(1);
+  });
+
   it("runs one action at a time", async () => {
     const card = proposal();
     let drops = 0;
@@ -226,6 +262,24 @@ describe("enhanceProposal: Undo and Discard", () => {
     expect(apply.nextElementSibling).toBe(part(card, "discard"));
     expect(document.activeElement).toBe(apply);
     await until(() => said("polite") === "Change undone");
+  });
+
+  it("puts back on Undo the words that showed when Apply ran", async () => {
+    const card = proposal();
+    const undone = deferred();
+    const calls = wire(card, { undo: () => undone.promise });
+    const words = card.querySelector("p") as HTMLParagraphElement;
+    const head = document.createElement("strong");
+    head.textContent = "Proposed:";
+    words.replaceChildren(head, " +1.300 s with drift corrected.");
+    part(card, "apply").click();
+    calls[0]?.resolve();
+    await until(() => card.dataset["cpState"] === "applied");
+    (document.activeElement as HTMLButtonElement).click();
+    undone.resolve();
+    await until(() => card.dataset["cpState"] === undefined);
+    expect(words.textContent).toBe("Proposed: +1.300 s with drift corrected.");
+    expect(words.firstChild).toBe(head);
   });
 
   it("keeps the applied card when Undo fails", async () => {

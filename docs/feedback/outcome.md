@@ -50,7 +50,7 @@ Settled, the cell reads:
 - `enhanceOutcome(button, opts)` wires `button`, which holds a `.cp-roll` with its words and its `spinner-arc` busy span. It throws a `TypeError` without the `.cp-roll`.
 - `OutcomeOptions` = `{ run, words, signal? }`.
   - `run(signal)` runs the action and resolves with `{ href, words }`, the link to the result and its words. A rejection is the failure.
-  - `words` = `{ busy, said?, failed?, failedSaid?, retry? }`.
+  - `words` = `{ busy, said?, failed?, failedSaid?, retry? }`. A word function that throws is reported to the page as an uncaught error, and its default takes its place, so the cell still settles.
     - `busy` is the button's words while the action runs, such as "Downloading…", and is required.
     - `said(result)` is said politely once the action succeeded, by default the result's words.
     - `failed(reason)` is the failure's sentence, by default the message of the `Error` `run` rejected with, else "The action failed.".

@@ -1,6 +1,7 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { installAnnouncer } from "../announce/announce.js";
+import { reported } from "../test-helpers/reported.js";
 import { enhanceLoadingRegion, type LoadingRegionOptions } from "./loading-region.js";
 
 let life = new AbortController();
@@ -364,6 +365,55 @@ describe("enhanceLoadingRegion: a refresh", () => {
     await done;
   });
 
+  /** A region that scrolls, `height` tall, starting with a long table. */
+  function scrollingTable(height: string): { region: HTMLDivElement; table: HTMLTableElement } {
+    const region = document.createElement("div");
+    region.className = "cp-panel";
+    region.dataset["flush"] = "";
+    region.style.blockSize = height;
+    region.style.overflowY = "auto";
+    const table = document.createElement("table");
+    table.className = "cp-table";
+    table.createTHead().insertRow().insertCell().textContent = "Name";
+    const body = table.createTBody();
+    for (let i = 0; i < 30; i += 1) {
+      body.insertRow().insertCell().textContent = `Series ${String(i)}`;
+    }
+    region.append(table);
+    document.body.append(region);
+    return { region, table };
+  }
+
+  const lineAt = (region: Element): number =>
+    Number.parseFloat(getComputedStyle(region, "::before").insetBlockStart);
+
+  it("runs the line along the visible top once the table's head has scrolled away", async () => {
+    const { region, table } = scrollingTable("120px");
+    region.scrollTop = 200;
+    const top = region.getBoundingClientRect().top + region.clientTop;
+    expect(table.tHead?.getBoundingClientRect().bottom ?? 0).toBeLessThan(top);
+    const { handle, loads } = wired(region);
+    const done = handle.load();
+    expect(lineAt(region)).toBe(region.scrollTop);
+    loads[0]?.resolve("x");
+    await done;
+  });
+
+  it("keeps the line inside a region shorter than the table's head", async () => {
+    const { region, table } = scrollingTable("16px");
+    region.scrollTop = 4;
+    const top = region.getBoundingClientRect().top + region.clientTop;
+    expect(table.tHead?.getBoundingClientRect().bottom ?? 0).toBeGreaterThan(
+      top + region.clientHeight,
+    );
+    const { handle, loads } = wired(region);
+    const done = handle.load();
+    expect(lineAt(region)).toBeGreaterThanOrEqual(region.scrollTop);
+    expect(lineAt(region)).toBeLessThanOrEqual(region.scrollTop + region.clientHeight - 3);
+    loads[0]?.resolve("x");
+    await done;
+  });
+
   it("stops a load under way when its signal aborts, and is no longer busy", async () => {
     const region = panel("Old");
     const own = new AbortController();
@@ -443,6 +493,60 @@ describe("enhanceLoadingRegion: a host callback that throws", () => {
     expect(region.getAttribute("aria-busy")).toBe("false");
     expect(region.children).toHaveLength(1);
     expect(notice(region)?.getAttribute("data-tone")).toBe("danger");
+  });
+
+  it("settles a refresh whose failure words throw, with the default sentence and Retry", async () => {
+    const errors = reported();
+    const region = panel("Old");
+    const { handle, loads } = wired(region, {
+      words: {
+        refreshFailed: (reason) => (reason as { body: { detail: string } }).body.detail,
+      },
+    });
+    const done = handle.load();
+    loads[0]?.reject(new TypeError("Failed to fetch"));
+    expect(await done).toBe(false);
+    expect(handle.state).toBe("stale");
+    expect(region.getAttribute("aria-busy")).toBe("false");
+    expect(notice(region)?.textContent).toContain("The refresh failed. What you see is from");
+    expect(retryIn(region)).not.toBeNull();
+    expect(region.querySelector("p")?.textContent).toBe("Old");
+    expect(errors).toHaveLength(1);
+  });
+
+  it("settles a first load whose remedy throws after its placeholder showed", async () => {
+    const errors = reported();
+    const region = panel();
+    const { handle, loads } = wired(region, {
+      words: { remedy: (reason) => (reason as { body: { fix: string } }).body.fix },
+    });
+    const done = handle.load();
+    await sleep(260);
+    expect(region.querySelector(".cp-inline-load")).not.toBeNull();
+    loads[0]?.reject(new TypeError("Failed to fetch"));
+    expect(await done).toBe(false);
+    expect(handle.state).toBe("failed");
+    expect(region.getAttribute("aria-busy")).toBe("false");
+    expect(notice(region)?.textContent).toContain("The content did not load.");
+    expect(notice(region)?.querySelector("small")).toBeNull();
+    expect(retryIn(region)).not.toBeNull();
+    expect(errors).toHaveLength(1);
+  });
+
+  it("settles a fast first load whose failed words throw, with the default sentence", async () => {
+    const errors = reported();
+    const region = panel();
+    const { handle, loads } = wired(region, {
+      words: { failed: (reason) => (reason as { body: { title: string } }).body.title },
+    });
+    const done = handle.load();
+    loads[0]?.reject(new TypeError("Failed to fetch"));
+    expect(await done).toBe(false);
+    expect(handle.state).toBe("failed");
+    expect(region.getAttribute("aria-busy")).toBe("false");
+    expect(notice(region)?.textContent).toContain("The content did not load.");
+    expect(retryIn(region)).not.toBeNull();
+    expect(errors).toHaveLength(1);
   });
 });
 

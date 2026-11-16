@@ -9,6 +9,7 @@
 import { enhanceConfirm } from "../../buttons/confirm/confirm.js";
 import { until, whenAborted } from "../../core/lifetime/lifetime.js";
 import { localeOf } from "../../core/locale/locale.js";
+import { safely } from "../../core/safely/safely.js";
 import { focusOn } from "../../data/list-row/row.js";
 import { announce } from "../announce/announce.js";
 
@@ -137,21 +138,27 @@ export function enhanceBatchedAction(
   const missed: BatchMiss[] = [];
   let failedLine: HTMLElement | null = null;
 
+  // The words below run after a batch's counts moved, so a throwing word
+  // function falls back to the default: the press still reads as started.
   const nextWords = (left: number): string => {
     const last = left <= size;
     const count = format(Math.min(size, left));
-    if (words.next !== undefined) {
-      return words.next(count, format(left), last);
-    }
-    return last ? `Start the remaining ${format(left)}` : `Start the next ${count}`;
+    const fallback = (): string =>
+      last ? `Start the remaining ${format(left)}` : `Start the next ${count}`;
+    const { next } = words;
+    return next === undefined
+      ? fallback()
+      : safely(() => next(count, format(left), last), fallback);
   };
 
   const doneWords = (): string => {
     const all = started === total;
-    if (words.done !== undefined) {
-      return words.done(format(started), format(total), all);
-    }
-    return all ? `All ${format(total)} started` : `${format(started)} of ${format(total)} started`;
+    const fallback = (): string =>
+      all ? `All ${format(total)} started` : `${format(started)} of ${format(total)} started`;
+    const { done } = words;
+    return done === undefined
+      ? fallback()
+      : safely(() => done(format(started), format(total), all), fallback);
   };
 
   const misses = (): HTMLDListElement => {
@@ -180,17 +187,28 @@ export function enhanceBatchedAction(
   const write = (left: number): void => {
     const counts = { started, total, left: left - pending, pending, missed: missed.length, format };
     const sum = document.createElement("p");
-    sum.textContent = (words.report ?? defaultReport)(counts);
+    const { report: reportWords } = words;
+    sum.textContent =
+      reportWords === undefined
+        ? defaultReport(counts)
+        : safely(
+            () => reportWords(counts),
+            () => defaultReport(counts),
+          );
     report.replaceChildren(sum, ...(missed.length === 0 ? [] : [misses()]));
     announce(sum.textContent);
   };
 
   const fail = (reason: unknown): void => {
+    const fallback = "The batch could not start.";
     const sentence = words.failed;
     const text =
       typeof sentence === "function"
-        ? sentence(reason)
-        : (sentence ?? "The batch could not start.");
+        ? safely(
+            () => sentence(reason),
+            () => fallback,
+          )
+        : (sentence ?? fallback);
     failedLine ??= document.createElement("p");
     failedLine.className = "cp-state";
     failedLine.dataset["cpState"] = "failed";

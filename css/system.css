@@ -8339,7 +8339,8 @@ div.cp-list-foot {
   line-height: var(--cp-leading-body);
 }
 
-.cp-proposal > .cp-cluster:empty {
+/* An indented cluster keeps its whitespace once Apply and Discard went. */
+.cp-proposal > .cp-cluster:not(:has(> *)) {
   display: none;
 }
 

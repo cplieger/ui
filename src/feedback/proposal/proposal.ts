@@ -7,6 +7,7 @@
 
 import { enhanceConfirm } from "../../buttons/confirm/confirm.js";
 import { until, whenAborted } from "../../core/lifetime/lifetime.js";
+import { safely } from "../../core/safely/safely.js";
 import { focusOn } from "../../data/list-row/row.js";
 import { glyph } from "../../foundations/icons/glyph.js";
 import { ask } from "../../overlays/ask/ask.js";
@@ -93,7 +94,8 @@ export function enhanceProposal(card: HTMLElement, options: ProposalOptions): vo
       'enhanceProposal: a data-variant="unverified" card takes confirm, and only it does',
     );
   }
-  const proposed = [...lines.childNodes];
+  /** The proposal's words as Apply found them, which Undo puts back. */
+  let proposed: Node[] = [];
   const life = new AbortController();
   whenAborted(signal, () => {
     life.abort();
@@ -121,7 +123,12 @@ export function enhanceProposal(card: HTMLElement, options: ProposalOptions): vo
       undo: words.undoFailed,
     }[action];
     const text =
-      typeof sentence === "function" ? sentence(reason) : (sentence ?? DEFAULT_FAILED[action]);
+      typeof sentence === "function"
+        ? safely(
+            () => sentence(reason),
+            () => DEFAULT_FAILED[action],
+          )
+        : (sentence ?? DEFAULT_FAILED[action]);
     failedLine ??= document.createElement("p");
     failedLine.className = "cp-state";
     failedLine.dataset["cpState"] = "failed";
@@ -194,6 +201,7 @@ export function enhanceProposal(card: HTMLElement, options: ProposalOptions): vo
   const toApplied = (): void => {
     const follow = following();
     card.dataset["cpState"] = "applied";
+    proposed = [...lines.childNodes];
     lines.textContent = words.applied;
     if (discard?.parentNode != null) {
       discardAt = { parent: discard.parentNode, next: discard.nextSibling };

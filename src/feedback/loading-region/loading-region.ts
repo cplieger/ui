@@ -10,6 +10,7 @@
 import { enhanceConfirm, type Confirm } from "../../buttons/confirm/confirm.js";
 import { turnWhile } from "../../buttons/turn/turn.js";
 import { until, whenAborted } from "../../core/lifetime/lifetime.js";
+import { safely } from "../../core/safely/safely.js";
 import { focusOn } from "../../data/list-row/row.js";
 import { glyph } from "../../foundations/icons/glyph.js";
 import { announce } from "../announce/announce.js";
@@ -179,14 +180,17 @@ export function enhanceLoadingRegion<T>(
   });
 
   const failedSentence = (reason: unknown): string => {
-    const failed = words.failed ?? "The content did not load.";
-    return typeof failed === "function" ? failed(reason) : failed;
+    const fallback = "The content did not load.";
+    const failed = words.failed ?? fallback;
+    return typeof failed === "function"
+      ? safely(
+          () => failed(reason),
+          () => fallback,
+        )
+      : failed;
   };
 
-  const refreshSentence = (reason: unknown): string => {
-    if (words.refreshFailed !== undefined) {
-      return words.refreshFailed(reason, loadedAt);
-    }
+  const sinceSentence = (): string => {
     const format = new Intl.DateTimeFormat(
       locale,
       sameDay(loadedAt, new Date())
@@ -194,6 +198,13 @@ export function enhanceLoadingRegion<T>(
         : { dateStyle: "medium", timeStyle: "short" },
     );
     return `The refresh failed. What you see is from ${format.format(loadedAt)}.`;
+  };
+
+  const refreshSentence = (reason: unknown): string => {
+    const { refreshFailed } = words;
+    return refreshFailed === undefined
+      ? sinceSentence()
+      : safely(() => refreshFailed(reason, loadedAt), sinceSentence);
   };
 
   /** The one notice the region's failures write, made on the first. A
@@ -232,9 +243,16 @@ export function enhanceLoadingRegion<T>(
       );
     }
     notice.dataset["tone"] = over ? "warning" : "danger";
-    notice.firstElementChild?.setAttribute("data-cp-icon", over ? "triangle-alert" : "circle-x");
+    notice.firstElementChild?.replaceWith(glyph(over ? "triangle-alert" : "circle-x"));
     sentence.textContent = text;
-    const remedy = words.remedy?.(reason);
+    const { remedy: remedyOf } = words;
+    const remedy =
+      remedyOf === undefined
+        ? undefined
+        : safely(
+            () => remedyOf(reason),
+            () => undefined,
+          );
     if (remedy === undefined) {
       remedyLine?.remove();
     } else {
@@ -267,16 +285,19 @@ export function enhanceLoadingRegion<T>(
     );
   };
 
-  /** Puts the refresh line under a leading table's head, else on the
-   *  region's top edge, in the region's content coordinates, so it stays in
+  /** Puts the refresh line, in the region's content coordinates, under a
+   *  leading table's head while the head shows, else on the region's
+   *  visible top edge, and never below its visible bottom, so it stays in
    *  view while a region that scrolls is scrolled. */
   const placeLine = (): void => {
     const head = leadTable(region)?.tHead ?? null;
-    let at = region.scrollTop;
+    const visible = region.scrollTop;
+    let at = visible;
     if (head !== null) {
       const top = region.getBoundingClientRect().top + region.clientTop;
-      at += head.getBoundingClientRect().bottom - top - LINE_PX;
+      at += Math.max(0, head.getBoundingClientRect().bottom - top - LINE_PX);
     }
+    at = Math.min(at, visible + Math.max(0, region.clientHeight - LINE_PX));
     if (at === 0) {
       region.style.removeProperty("--cp-load-line-at");
     } else {
@@ -320,6 +341,7 @@ export function enhanceLoadingRegion<T>(
 
     const failed = (reason: unknown, regain: boolean): false => {
       timing?.cancel();
+      mark(stale ? "stale" : "failed");
       const text = stale ? refreshSentence(reason) : failedSentence(reason);
       const box = noticeWith(text, stale, reason);
       if (stale) {
@@ -329,7 +351,6 @@ export function enhanceLoadingRegion<T>(
       } else {
         region.replaceChildren(box);
       }
-      mark(stale ? "stale" : "failed");
       announce(text);
       if (regain && retry !== null) {
         retry.focus();

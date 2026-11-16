@@ -2,6 +2,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 
 import { rollText } from "../../core/roll/roll.js";
 import { installAnnouncer } from "../announce/announce.js";
+import { reported } from "../test-helpers/reported.js";
 import { type BatchAnswer, type BatchOptions, enhanceBatchedAction } from "./batch-report.js";
 
 let life = new AbortController();
@@ -266,6 +267,27 @@ describe("enhanceBatchedAction", () => {
     expect(label(button)).toBe("Start the first 100");
     button.click();
     expect(sends).toEqual([100, 100]);
+  });
+
+  it("reports a started batch as started when the app's words throw, in the default words", async () => {
+    const errors = reported();
+    const { button, report } = card();
+    const { calls, sends } = wire(button, report, {
+      words: {
+        report: (counts) => (counts as unknown as { reasons: string[] }).reasons.join(", "),
+        next: () => {
+          throw new Error("no words");
+        },
+      },
+    });
+    await press(button, calls, { started: 100 }, () => label(button) === "Start the next 100");
+    expect(report.querySelector("p")?.textContent).toBe("Started 100 of 248. 148 remain.");
+    expect(report.querySelector('.cp-state[data-cp-state="failed"]')).toBeNull();
+    expect(errors).toHaveLength(2);
+    button.click();
+    expect(sends).toEqual([100, 100]);
+    calls[1]?.resolve({ started: 100 });
+    await until(() => label(button) === "Start the remaining 48");
   });
 
   it("sends one batch at a time, staying focusable and busy while it goes", async () => {

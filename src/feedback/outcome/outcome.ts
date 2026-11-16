@@ -7,6 +7,7 @@
 
 import { enhanceConfirm } from "../../buttons/confirm/confirm.js";
 import { until, whenAborted } from "../../core/lifetime/lifetime.js";
+import { safely } from "../../core/safely/safely.js";
 import { glyph } from "../../foundations/icons/glyph.js";
 import { announce } from "../announce/announce.js";
 
@@ -80,11 +81,19 @@ export function enhanceOutcome(button: HTMLButtonElement, options: OutcomeOption
     outcome.className = "cp-outcome";
     outcome.append(link);
     settle(from, outcome, link);
-    announce(words.said?.(result) ?? result.words);
+    announce(
+      safely(
+        () => words.said?.(result) ?? result.words,
+        () => result.words,
+      ),
+    );
   };
 
   const fail = (from: Element, reason: unknown): void => {
-    const sentence = words.failed?.(reason) ?? sentenceOf(reason);
+    const sentence = safely(
+      () => words.failed?.(reason) ?? sentenceOf(reason),
+      () => sentenceOf(reason),
+    );
     const state = document.createElement("span");
     state.className = "cp-state";
     state.dataset["cpState"] = "failed";
@@ -104,7 +113,13 @@ export function enhanceOutcome(button: HTMLButtonElement, options: OutcomeOption
     outcome.append(state, retry);
     settle(from, outcome, retry);
     wire(retry, outcome);
-    announce(words.failedSaid?.(reason) ?? sentence, "assertive");
+    announce(
+      safely(
+        () => words.failedSaid?.(reason) ?? sentence,
+        () => sentence,
+      ),
+      "assertive",
+    );
   };
 
   // `swap` is what the result replaces: the button itself, or the failed

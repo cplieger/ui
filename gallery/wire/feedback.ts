@@ -22,7 +22,11 @@ import { enhanceRelativeTime } from "@cplieger/ui/relative-time";
 for (const region of document.querySelectorAll<HTMLElement>("#stale-region")) {
   let fail = false;
   const checked = region.querySelector<HTMLTimeElement>("time");
+  // From data-ago: feed.ts, which imports this module, writes the time's
+  // dateTime only after this runs.
+  const ago = Number(checked?.dataset["ago"] ?? Number.NaN);
   const sonarr = enhanceLoadingRegion(region, {
+    ...(Number.isFinite(ago) ? { loadedAt: new Date(Date.now() - ago * 1000) } : {}),
     load: (signal) =>
       new Promise<void>((done, refuse) => {
         const timer = setTimeout(() => {

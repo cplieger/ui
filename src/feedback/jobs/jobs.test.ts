@@ -2,6 +2,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 
 import { enhanceLoadMore } from "../../data/load-more/load-more.js";
 import { installAnnouncer } from "../announce/announce.js";
+import { reported } from "../test-helpers/reported.js";
 import { enhanceJobs, type JobsOptions } from "./jobs.js";
 
 let life = new AbortController();
@@ -216,6 +217,45 @@ describe("enhanceJobs", () => {
       "Cancelled by you at 12 of 40",
     );
     await until(() => said("polite") === "Finding subtitles cancelled");
+  });
+
+  it("ends a stopped job in the default words when the app's words throw", async () => {
+    const errors = reported();
+    const ul = list();
+    const { calls } = wire(ul, {
+      words: {
+        stoppedCause: () => {
+          throw new Error("no words");
+        },
+        said: () => {
+          throw new Error("no words");
+        },
+      },
+    });
+    const row = first(ul);
+    stopOf(row).click();
+    calls[0]?.resolve();
+    await until(() => row.hasAttribute("data-ended"));
+    expect(row.querySelector(".cp-cell-stack > small")?.textContent).toBe(
+      "Stopped by you at 12 of 40",
+    );
+    await until(() => said("polite") === "Finding subtitles stopped");
+    expect(errors).toHaveLength(2);
+  });
+
+  it("says the default failure when the app's stop-failed words throw", async () => {
+    const errors = reported();
+    const ul = list();
+    const { calls } = wire(ul, {
+      words: { stopFailed: (reason) => (reason as { body: { detail: string } }).body.detail },
+    });
+    const row = first(ul);
+    stopOf(row).click();
+    calls[0]?.reject(new TypeError("Failed to fetch"));
+    const failed = () => row.querySelector(':scope > .cp-state[data-cp-state="failed"]');
+    await until(() => failed() !== null);
+    expect(failed()?.textContent).toBe("The job could not be stopped.");
+    expect(errors).toHaveLength(1);
   });
 
   it("keeps a job whose stop failed, says why and keeps focus on Stop to try again", async () => {
