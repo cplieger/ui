@@ -1178,6 +1178,10 @@ function ownShared(frame: Frame): [string, unknown][] {
     case "categories":
     case "boxes":
       return [["names", (frame as CategoriesFrame).names]];
+    case "bins":
+      return [["axis", (frame as BinsFrame).axis]];
+    case "points":
+      return [["units", (frame as PointsFrame).units]];
     case "grid":
       return [
         ["x", (frame as GridFrame).x],
@@ -1297,7 +1301,9 @@ function readFacets(facets: unknown, c: MarkCopy, words: Words, d: Door, spec: R
         ? "calendar"
         : head.read.frame.type === "grid"
           ? "grid"
-          : "band of rows";
+          : head.read.frame.type === "points"
+            ? "set of scales"
+            : "band of rows";
   for (const { read: r } of read.slice(1)) {
     if (r.frame.type !== head.read.frame.type) {
       fail(

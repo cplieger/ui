@@ -409,6 +409,44 @@ describe("facets", () => {
       }),
     ).toThrow(/facets\.panels\[1\]\.data\.unit must be facets\.panels\[0\]'s/);
   });
+
+  it("refuses bins panels on a time axis and a value axis, in either order", () => {
+    const time = { key: "t", name: "T", data: binsFrame([0, HOUR], [HOUR, 2 * HOUR], [[1, 2]]) };
+    const value = { key: "v", name: "V", data: unitBins([[1, 2]]) };
+    for (const panels of [
+      [time, value],
+      [value, time],
+    ]) {
+      expect(() => check({ mark: { mark: "rect" }, facets: { panels } })).toThrow(
+        /facets\.panels\[1\]\.data\.axis must be facets\.panels\[0\]'s/,
+      );
+    }
+  });
+
+  it("refuses points panels whose units differ, in either order", () => {
+    const group = (key: string, r?: number[]) => ({
+      key: "g",
+      names: [key],
+      x: [1],
+      y: [2],
+      ...(r === undefined ? {} : { r }),
+    });
+    const at = (key: string, data: object) => ({ key, name: key.toUpperCase(), data });
+    const plain = at("p", points([group("p")]));
+    const seconds = at("s", points([group("s")], { units: { x: "seconds", y: "none" } }));
+    const sized = at("r", points([group("r", [3])]));
+    for (const panels of [
+      [plain, seconds],
+      [seconds, plain],
+      [plain, sized],
+      [sized, plain],
+    ]) {
+      const labels = { x: { label: "X" }, y: { label: "Y" }, r: { label: "R" } };
+      expect(() => check({ mark: { mark: "scatter" }, ...labels, facets: { panels } })).toThrow(
+        /facets\.panels\[1\]\.data\.units must be facets\.panels\[0\]'s/,
+      );
+    }
+  });
 });
 
 describe("chartdata's frame fixtures", () => {
