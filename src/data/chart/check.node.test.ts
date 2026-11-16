@@ -207,6 +207,55 @@ describe("refs and notes", () => {
     );
   });
 
+  const refs = [
+    { key: "budget", value: 0.5 },
+    { key: "cap", value: 100 },
+  ];
+  const two = [
+    [1, 2],
+    [3, 4],
+  ];
+  it.each([
+    ["an area", seriesFrame([0, 1], two, { refs }), "area"],
+    ["a rect over time", binsFrame([0, 1], [1, 2], two, { refs }), "rect"],
+    ["a bar", categories(["a", "b"], two, { refs }), "bar"],
+  ])("gives a ref beside %s share in the frame's number, off the share axis", (_, data, mark) => {
+    const model = build({ data, mark: { mark, arrange: "share" } });
+    expect(model.marks.map((m) => m.kind)).not.toContain("rule");
+    expect(model.unplaced.rules).toEqual([
+      { label: "budget", value: 0.5 },
+      { label: "cap", value: 100 },
+    ]);
+    expect(ruleSentences(model, en)).toEqual(["budget 0.5.", "cap 100."]);
+  });
+
+  it("draws a ref on a histogram share's x, which carries the frame's unit", () => {
+    const waits = unitBins(two, { refs });
+    expect(check({ data: waits, mark: { mark: "rect", arrange: "share" } }).marks[1]).toEqual({
+      mark: "rule",
+      x: 0.5,
+      label: "budget",
+    });
+  });
+
+  it("refuses a ref on a share axis, which holds shares", () => {
+    const data = seriesFrame(
+      [0, 1],
+      [
+        [1, 2],
+        [3, 4],
+      ],
+      { refs: [{ key: "m", value: 1 }] },
+    );
+    expect(() =>
+      check({ data, mark: { mark: "area", arrange: "share" }, refs: [{ key: "m", axis: "y" }] }),
+    ).toThrow(
+      new TypeError(
+        'renderChart: refs[0].axis "y" has no place under arrange "share", whose y holds shares, not the frame\'s values',
+      ),
+    );
+  });
+
   it("gives the refs and notes a chart cannot place in the summary instead", () => {
     const data = categories(["a", "b"], [[1, 2]], {
       refs: [{ key: "target", value: 2 }],

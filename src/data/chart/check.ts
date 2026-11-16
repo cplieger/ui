@@ -538,9 +538,22 @@ function scalesOf(spec: Rec, frame: Frame, c: MarkCopy): Scales {
   return Object.fromEntries(Object.entries(out).filter(([, v]) => v !== undefined));
 }
 
-// The axis a ref sits on by default, the one carrying the frame's unit, and
-// the axes the mark has a continuous scale on.
-function refAxes(kind: Kind, frame: Frame): readonly [("x" | "y") | undefined, readonly string[]] {
+// The axis a ref sits on by default, the one carrying the frame's unit, the
+// axes the mark has a continuous scale on, and the axis a share runs along,
+// which holds shares rather than the frame's values and so takes no ref.
+function refAxes(
+  c: MarkCopy,
+  frame: Frame,
+): readonly [("x" | "y") | undefined, readonly string[], ("x" | "y") | undefined] {
+  const [axis, axes] = unitAxes(c.kind, frame);
+  if (c.m["arrange"] !== "share") {
+    return [axis, axes, undefined];
+  }
+  const share = c.kind === "bar" ? "x" : "y";
+  return [axis === share ? undefined : axis, axes.filter((a) => a !== share), share];
+}
+
+function unitAxes(kind: Kind, frame: Frame): readonly [("x" | "y") | undefined, readonly string[]] {
   switch (kind) {
     case "rect":
       return [(frame as BinsFrame).axis === "time" ? "y" : "x", ["x", "y"]];
@@ -610,7 +623,7 @@ function marksOf(
   words: Words,
   scales: Scales,
 ): { marks: Input[]; unplaced: Unplaced } {
-  const [axis, axes] = refAxes(c.kind, frame);
+  const [axis, axes, share] = refAxes(c, frame);
   const marks: Input[] = [];
   const rules: Unplaced["rules"][number][] = [];
   for (const ref of refs) {
@@ -650,7 +663,9 @@ function marksOf(
     const given = w["axis"];
     if (typeof given === "string" && !axes.includes(given)) {
       fail(
-        `${String(w["at"])}.axis "${given}" has no place beside a ${c.kind} mark, which has no continuous ${given} scale for a rule`,
+        given === share
+          ? `${String(w["at"])}.axis "${given}" has no place under arrange "share", whose ${given} holds shares, not the frame's values`
+          : `${String(w["at"])}.axis "${given}" has no place beside a ${c.kind} mark, which has no continuous ${given} scale for a rule`,
       );
     }
   }
@@ -1150,7 +1165,7 @@ function readPanel(
   const scales = scalesOf(spec, frame, c);
   const input = dataInput(frame, f, c, most);
   checkPlot(spec, scales, c, input, f, most);
-  const [axis] = refAxes(c.kind, frame);
+  const [axis] = refAxes(c, frame);
   const refsOnX = (frame.refs ?? []).some(
     (ref) => (words.refs.get(ref.key)?.["axis"] ?? axis) === "x",
   );

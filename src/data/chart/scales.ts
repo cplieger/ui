@@ -526,8 +526,7 @@ export function xScale(spec: Plot, timeZone?: string): Continuous {
     }
   }
   if (share) {
-    // Every row drawn reaches 1, so the axis is fixed as a passed domain is:
-    // a rule outside it is off the axis.
+    // Every row drawn reaches 1, so the axis is fixed as a passed domain is.
     return {
       type,
       lo: 0,
@@ -785,8 +784,7 @@ export function yScale(spec: Plot): Continuous | Band {
   }
   const extent = yExtent(spec, log);
   if (share) {
-    // Every stack drawn reaches 1, so the axis is fixed as a passed domain
-    // is: a rule outside it is off the axis.
+    // Every stack drawn reaches 1, so the axis is fixed as a passed domain is.
     return {
       type,
       lo: 0,

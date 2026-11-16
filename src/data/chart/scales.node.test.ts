@@ -252,12 +252,6 @@ describe("yScale", () => {
       expect(continuous(yScale({ ...share, y: { format: "number" } })).format).toBe("number");
     });
 
-    it("leaves a rule above 1 off the axis, where a stack would stretch to hold it", () => {
-      const y = continuous(yScale(ruled(share, "y", 2)));
-      expect(ruleAt(y, 2)).toEqual({ off: "high" });
-      expect(ruleAt(y, 0.5)).toEqual({ at: 0.5 });
-    });
-
     it("refuses a domain and still refuses a negative value", () => {
       expect(() => yScale({ ...share, y: { domain: [0, 1] } })).toThrow(
         "renderChart: a 100% stack's y runs 0 to 1, so it takes no domain",
@@ -411,12 +405,6 @@ describe("a bar chart's scales", () => {
       });
       const own = { ...bars(share, [3], [1]), x: { format: "number" as const, reverse: true } };
       expect(xScale(own)).toMatchObject({ format: "number", reverse: true });
-    });
-
-    it("leaves a rule above 1 off the axis, where a stack would stretch to hold it", () => {
-      const x = xScale(ruled(bars(share, [3], [1]), undefined, 2));
-      expect([x.lo, x.hi]).toEqual([0, 1]);
-      expect(ruleAt(x, 2)).toEqual({ off: "high" });
     });
 
     it("refuses a domain and a negative value", () => {
