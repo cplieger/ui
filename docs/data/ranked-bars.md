@@ -22,7 +22,7 @@ enhanceRankedBars(posters);
 ```
 
 - Each body cell marked `data-bar` holds its count as a `<data value>`, so nothing parses the shown text. Its bar is sized against the largest value in its column. Cells that share a `data-bar` name, such as sent and read posts, share one largest value, so their bars compare across the columns. In a table with spanning cells, name each column's cells with `data-bar`, since an unnamed cell is grouped by its place in its row.
-- The bar sits after the number, 6rem wide, and every bar in the column starts at one line, so their lengths compare. The number ends against its bar, in tabular figures.
+- The bar sits after the number, 6rem wide, and every bar in the column starts at one line, so their lengths compare. The number ends against its bar, in tabular figures. The column's header, a `thead` `th` with the same `data-bar` name, ends where the numbers end, past the bar and its gap, as a number column's header ends over its numbers.
 - A bar fills in the first [series colour](../design-colour.md#series-colours). A `data-series` or `data-tone` on the table, the row or the cell gives it that colour, such as a second slot for read posts.
 - A value of 0 or less, or one that is not a finite number, such as `Infinity`, draws no fill and does not count as the largest. The smallest value above 0 still shows a 2px fill.
 - The bars are not read. A reader hears the numbers, which are the table's. The bars follow every later change to the table's values and rows.

@@ -1040,6 +1040,22 @@ describe("css/system.css ranked bars", () => {
       fill: r.querySelector('[data-part="bar"] > span'),
     }));
 
+  it("ends a bar column's header where its numbers end, in either direction", () => {
+    for (const dir of ["ltr", "rtl"]) {
+      const table = ranked(row(1000) + row(25), "", dir);
+      const words = document.createRange();
+      words.selectNodeContents(table.querySelector("thead th[data-bar]") as Element);
+      const head = words.getBoundingClientRect();
+      for (const p of parts(table)) {
+        if (dir === "ltr") {
+          expect(Math.abs(head.right - p.number.right)).toBeLessThanOrEqual(1);
+        } else {
+          expect(Math.abs(head.left - p.number.left)).toBeLessThanOrEqual(1);
+        }
+      }
+    }
+  });
+
   it("draws a 6rem bar after each number, the bars on one start, each filled to its share", () => {
     const table = ranked(row(1000) + row(250) + row(1));
     const [top, mid, low] = parts(table) as [Part, Part, Part];

@@ -9942,6 +9942,12 @@ button.cp-figure[aria-expanded="true"]::after {
   white-space: nowrap;
 }
 
+/* A bar column's header ends where its numbers end, past the bar and its
+ * gap, as every number column's header ends over its numbers. */
+.cp-table thead th[data-bar] {
+  padding-inline-end: calc(var(--cp-space-3) + var(--cp-bar-w) + var(--cp-space-2));
+}
+
 .cp-table [data-bar] > [data-part="bar"] {
   display: inline-flex;
   inline-size: var(--cp-bar-w);
