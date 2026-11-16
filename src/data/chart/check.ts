@@ -1191,7 +1191,7 @@ function ownShared(frame: Frame): [string, unknown][] {
         ["zone", k.zone],
         ["start", k.start],
         ["values.length", k.values.length],
-        ["open", k.open],
+        ["open", k.open === true],
       ];
     }
     default:

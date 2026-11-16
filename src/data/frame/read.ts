@@ -679,8 +679,9 @@ function flowFrame(c: Checks, o: Record<string, unknown>, f: string) {
     listed(c, f, nodes, links);
   }
   const joined = new Set<string>();
+  const order = new Map<string, number>(stages?.map((s, k) => [s, k]));
   links.forEach((link, i) => {
-    const stage = linkStage(c, f, place(field, i), link, stages);
+    const stage = linkStage(c, f, place(field, i), link, stages, order);
     const join = JSON.stringify([link.from, link.to, stage]);
     if (joined.has(join)) {
       c.fail(
@@ -737,6 +738,7 @@ function linkStage(
   at: () => string,
   link: FrameFlowLink,
   stages: readonly string[] | undefined,
+  order: ReadonlyMap<string, number>,
 ): string {
   const { stage } = link;
   if (stages === undefined) {
@@ -760,7 +762,7 @@ function linkStage(
       RangeError,
     );
   }
-  const k = stages.indexOf(stage);
+  const k = order.get(stage) ?? -1;
   if (k < 0) {
     c.fail(
       `${at()}.stage must name a stage ${f}.stages lists, not ${JSON.stringify(stage)}`,

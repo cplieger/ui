@@ -1,3 +1,6 @@
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import { MAX_CALENDAR_DAYS, MAX_ROWS } from "../frame/limits.js";
@@ -321,6 +324,20 @@ describe("facets", () => {
     ).toThrow(/facets\.panels\[1\]\.data\.type must be "grid"/);
   });
 
+  it("takes calendar panels whose open is false and absent as one calendar", () => {
+    const panels = [
+      { key: "p", name: "P", data: calendar(0, [1], { open: false }) },
+      { key: "q", name: "Q", data: calendar(0, [2]) },
+    ];
+    expect(() => check({ mark: { mark: "cell" }, facets: { panels } })).not.toThrow();
+    expect(() =>
+      check({
+        mark: { mark: "cell" },
+        facets: { panels: [panels[1], { ...panels[0], data: calendar(0, [1], { open: true }) }] },
+      }),
+    ).toThrow(/facets\.panels\[1\]\.data\.open must be facets\.panels\[0\]'s/);
+  });
+
   it("draws a ref every panel holds at one value once, as the chart's", () => {
     const plot = check({
       mark: { mark: "line" },
@@ -342,5 +359,62 @@ describe("facets", () => {
         },
       }),
     ).toThrow(/facets\.panels\[1\]\.data\.unit must be facets\.panels\[0\]'s/);
+  });
+});
+
+describe("chartdata's frame fixtures", () => {
+  const dir = join(import.meta.dirname, "..", "frame", "contract", "fixtures");
+  const fixture = (name: string): Record<string, unknown> =>
+    JSON.parse(readFileSync(join(dir, `frame-${name}.json`), "utf8")) as Record<string, unknown>;
+  // The frame types no chart mark takes: the elements and the flow marks read them.
+  const ELSEWHERE = new Set(["flow", "flow-stages", "states", "value"]);
+  const labels = { x: { label: "X" }, y: { label: "Y" }, r: { label: "R" } };
+  const cases: readonly (readonly [string, string, object])[] = [
+    ["bins", "rect", {}],
+    ["series", "line", {}],
+    ["series", "area", {}],
+    ["categories", "bar", {}],
+    ["categories", "point", {}],
+    ["boxes", "box", {}],
+    ["points", "scatter", labels],
+    ["grid", "cell", {}],
+    ["calendar", "cell", {}],
+    ["tree", "tree", {}],
+    ["tree-groups", "tree", {}],
+    ["events", "dot", {}],
+  ];
+
+  it("names a mark for every fixture of a frame type the chart draws", () => {
+    const names = readdirSync(dir)
+      .filter((f) => f.startsWith("frame-"))
+      .map((f) => f.slice("frame-".length, -".json".length))
+      .filter((n) => !ELSEWHERE.has(n));
+    expect(new Set(cases.map(([name]) => name))).toEqual(new Set(names));
+  });
+
+  it.each(cases)("draws frame-%s.json under a %s mark", (name, mark, more) => {
+    expect(() => build({ data: fixture(name), mark: { mark }, ...more })).not.toThrow();
+  });
+
+  // A pie divides one series and a slope joins two columns, so each takes
+  // the part of frame-categories.json it can draw.
+  it("draws frame-categories.json's first series under a pie mark", () => {
+    const data = fixture("categories");
+    const [first] = data["series"] as unknown[];
+    expect(() =>
+      build({ data: { ...data, series: [first] }, mark: { mark: "pie" } }),
+    ).not.toThrow();
+  });
+
+  it("draws frame-categories.json's first two names under a slope mark", () => {
+    const data = fixture("categories");
+    const series = (data["series"] as { key: string; values: unknown[] }[]).map((s) => ({
+      ...s,
+      values: s.values.slice(0, 2),
+    }));
+    const names = (data["names"] as string[]).slice(0, 2);
+    expect(() =>
+      build({ data: { ...data, names, series }, mark: { mark: "slope" } }),
+    ).not.toThrow();
   });
 });
