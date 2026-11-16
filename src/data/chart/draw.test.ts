@@ -773,6 +773,70 @@ describe("notes", () => {
   });
 });
 
+describe("small multiples' context", () => {
+  const panels = (mark: "line" | "scatter"): ChartSpec => ({
+    x: { label: "Month", domain: [0, 11] },
+    y: { label: "Rate", domain: [0, 10] },
+    marks: [],
+    facets: {
+      context: true,
+      panels: ["North", "South", "East"].map((name, k) => ({
+        marks: [
+          mark === "line"
+            ? { mark, x: per(12, (i) => i), series: [{ name, y: per(12, (i) => (i + k) % 10) }] }
+            : {
+                mark,
+                series: [{ name, names: ["A", "B"], x: [2, 8], y: [k + 1, 9 - k] }],
+              },
+        ],
+      })),
+    },
+  });
+  // The first panel drawn with the others behind it, as the grid draws it.
+  const behind = (mark: "line" | "scatter") => {
+    const d = draw(panels(mark));
+    const others = (d.model.facets?.panels ?? [])
+      .slice(1)
+      .flatMap((p) =>
+        p.model.primary?.kind === "line" || p.model.primary?.kind === "scatter"
+          ? [p.model.primary]
+          : [],
+      );
+    drawPlot(d.svg, d.model, d.lay, others);
+    return d.svg.querySelector<SVGPathElement>('[data-part="area"] > [data-part="context"]');
+  };
+
+  it("draws the other panels' lines in 1 px of the border colour, over the gridlines and under the data", () => {
+    const context = behind("line");
+    expect(context).not.toBeNull();
+    const cs = getComputedStyle(context as SVGPathElement);
+    expect(cs.stroke).toBe(token(context as Element, "var(--cp-border)"));
+    expect(cs.strokeWidth).toBe("1px");
+    expect(cs.fill).toBe("none");
+    const parts = [...(context?.parentElement?.children ?? [])].map((c) =>
+      c.getAttribute("data-part"),
+    );
+    expect(parts.indexOf("grid")).toBeLessThan(parts.indexOf("context"));
+    expect(parts.indexOf("context")).toBeLessThan(parts.indexOf("line"));
+    expect(context?.getAttribute("d")?.match(/M/gu)).toHaveLength(2);
+  });
+
+  it("draws the other panels' dots filled in the border colour, with no outline", () => {
+    const context = behind("scatter");
+    const cs = getComputedStyle(context as SVGPathElement);
+    expect(cs.fill).toBe(token(context as Element, "var(--cp-border)"));
+    expect(cs.stroke).toBe("none");
+    // Two dots in each of the two other panels, each two 2 px arcs.
+    expect(context?.getAttribute("d")?.match(/a2 2 /gu)).toHaveLength(8);
+    expect(context?.hasAttribute("data-dots")).toBe(true);
+  });
+
+  it("draws no context with none to draw", () => {
+    const d = draw(panels("line"));
+    expect(d.svg.querySelector('[data-part="context"]')).toBeNull();
+  });
+});
+
 describe("the legend row", () => {
   it("names each series in a chip with its slot's swatch, and the total", () => {
     const d = draw(stacked);
@@ -1071,6 +1135,35 @@ describe("surfaces", () => {
       );
       const chosen = bars.svg.querySelector('[data-part="y"] > text[data-selected]') as Element;
       expect(getComputedStyle(chosen).fill).toBe(token(chosen, "var(--cp-ink)", "color", palette));
+      drawSelection(
+        bars.svg,
+        bars.model,
+        bars.lay,
+        { kind: "bar", row: 1, part: 0 },
+        navigator(bars.model, bars.lay),
+        true,
+      );
+      const synced = bars.svg.querySelector('[data-part="ring"]') as Element;
+      expect(getComputedStyle(synced).stroke).toBe(
+        token(synced, "var(--cp-ink-muted)", "color", palette),
+      );
+      const faceted = draw({
+        x: { label: "Month", domain: [0, 2] },
+        y: { label: "Rate", domain: [0, 4] },
+        marks: [],
+        facets: {
+          context: true,
+          panels: ["North", "South"].map((name, k) => ({
+            marks: [{ mark: "line" as const, x: [0, 1, 2], series: [{ name, y: [k, 2, 3 - k] }] }],
+          })),
+        },
+      });
+      const other = faceted.model.facets?.panels[1]?.model.primary;
+      drawPlot(faceted.svg, faceted.model, faceted.lay, other?.kind === "line" ? [other] : []);
+      const context = faceted.svg.querySelector('[data-part="context"]') as Element;
+      expect(getComputedStyle(context).stroke).toBe(
+        token(context, "var(--cp-border)", "color", palette),
+      );
       const split = draw({
         x: {},
         marks: [

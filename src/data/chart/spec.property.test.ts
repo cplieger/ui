@@ -326,6 +326,28 @@ const SPECS: readonly Record<string, unknown>[] = [
       },
     ],
   },
+  {
+    y: { format: "percent" },
+    marks: [{ mark: "rule", y: 0.05, label: "Target" }],
+    facets: {
+      unit: UNIT,
+      context: true,
+      panels: [
+        {
+          marks: [
+            { mark: "line", x: [0, 1, 2], series: [{ name: "North", y: [0.02, 0.06, 0.04] }] },
+            { mark: "text", x: 1, y: 0.06, text: "Strike" },
+          ],
+        },
+        {
+          name: "Southern",
+          marks: [
+            { mark: "line", x: [0, 1, 2], series: [{ name: "South", y: [0.03, 0.01, null] }] },
+          ],
+        },
+      ],
+    },
+  },
 ];
 
 type Path = readonly (string | number)[];
@@ -335,13 +357,16 @@ const PLURALS = ["few", "many", "one", "other", "two", "zero"];
 
 // Every field name the spec documents, for a field a spec leaves out.
 const NAMES = [
-  ..."arrange below centre children colour curve days domain edges empty format height high".split(
+  ..."arrange below centre children colour context curve days domain edges empty facets format".split(
     " ",
   ),
-  ..."hole label labels left link low mark marks median mono name names nodes open outliers".split(
+  ..."height high hole label labels left link low mark marks median mono name names nodes".split(
     " ",
   ),
-  ..."pivot q1 q3 r reverse rows series shape side slices slot start steps summary text".split(" "),
+  ..."open outliers panels pivot q1 q3 r reverse rows series shape side slices slot start".split(
+    " ",
+  ),
+  ..."steps summary text".split(" "),
   ..."thresholds type unit value values weekStart whiskers x x1 x2 y zero".split(" "),
 ];
 const FIELDS = [...new Set([...NAMES, ...PLURALS])];
@@ -759,6 +784,45 @@ describe("a chart spec", () => {
     ]) {
       expect(exercise(spec, "UTC"), JSON.stringify(spec)).toBeLessThanOrEqual(MOST_DRAWN);
     }
+  });
+
+  // The panels share the tallest plot out among them, so a grid of them at
+  // any height the check takes draws what one tallest plot does beside its
+  // values. Context draws each panel's values again behind every other panel,
+  // and the check counts each of those as a value too.
+  it("draws a grid of the most panels at their tallest within the bound, context included", () => {
+    const panels = 100;
+    const samples = 2;
+    const grid = (height: number, context: boolean) => ({
+      height,
+      y: { domain: [0, 1] },
+      marks: [{ mark: "rule", y: 0.5, label: "Half" }],
+      facets: {
+        context,
+        panels: Array.from({ length: panels }, (_, k) => ({
+          marks: [{ mark: "line", x: [0, 1], series: [{ name: `P${String(k)}`, y: [0.1, 0.9] }] }],
+        })),
+      },
+    });
+    const behind = (panels - 1) * panels * samples;
+    let drawn = 0;
+    for (const height of [400, 40_000]) {
+      for (const context of [false, true]) {
+        const spec = grid(height, context);
+        try {
+          const n = exercise(spec, "UTC", false);
+          expect(n, `${String(height)} ${String(context)}`).toBeLessThanOrEqual(
+            mostDrawn(spec) + (context ? PER_VALUE * behind : 0),
+          );
+          drawn++;
+        } catch (e) {
+          if (!refusedByName(e)) {
+            throw e;
+          }
+        }
+      }
+    }
+    expect(drawn).toBeGreaterThan(0);
   });
 
   // The data marks at their most values for a test's time, one way each

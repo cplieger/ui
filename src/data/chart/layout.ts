@@ -187,6 +187,11 @@ export interface Layout {
   /** Every note is drawn as its numbered marker, its words listed below
    *  the plot: under 30rem, or when two notes overlap or one cannot fit. */
   readonly numbered: boolean;
+  /** A panel beside the grid's y gutter: the SVG starts at the plot's
+   *  edge, and holds no y labels. */
+  readonly clip?: boolean;
+  /** A panel with a panel below it draws no x ticks. Default true. */
+  readonly ticks?: boolean;
 }
 
 /** A text mark's note laid out beside its point, in plot px. */
@@ -208,7 +213,7 @@ const PAD = 8;
 const TICK = 4;
 /** Under this many rem a chart draws no end labels, its notes as numbered
  *  markers, and a bar row's or a point row's name on its own line above it. */
-const NARROW_REM = 30;
+export const NARROW_REM = 30;
 /** A row's bars take its height less this, half above them and half below. */
 const BAR_SPACE = 8;
 /** A mirrored row's bars take its height less this, so neighbouring rows
@@ -220,8 +225,8 @@ const NAME_GAP = 2;
 const VALUE_GAP = 4;
 /** The room between a row's last bar, or its label, and a note's point there. */
 const END_GAP = 4;
-/** The room between a split bar chart's panels. */
-const PANEL_GAP = 16;
+/** The room between panels: a split bar chart's, and small multiples' rows and columns. */
+export const PANEL_GAP = 16;
 /** The spine between a mirrored bar chart's two sides. */
 const SPINE = 8;
 /** A point chart's x runs this far inside each end of the plot: the
@@ -780,6 +785,8 @@ function calendarLayout(
  *  PIE_COLUMN of the chart's width. */
 const PIE_COLUMN_REM = 12;
 const PIE_COLUMN = 0.25;
+/** The widest pie a panel of small multiples draws, in px. */
+const PANEL_PIE = 240;
 /** The room a donut's total keeps from its hole's edge, in px, all told. */
 const HOLE_ROOM = 16;
 
@@ -789,7 +796,8 @@ const HOLE_ROOM = 16;
  * and share sit in a column on the side its middle angle falls on, dodged
  * a name line each apart, joined to the rim at that angle; when a side's
  * labels cannot fit the plot's height none is drawn and the legend row
- * names the slices, as it does under 30rem.
+ * names the slices, as it does under 30rem. A `panel`'s pie is as wide as
+ * its plot, at most PANEL_PIE px, and draws no outside labels.
  */
 function pieLayout(
   model: Model,
@@ -799,15 +807,18 @@ function pieLayout(
   width: number,
   floors: Floors,
   chart: number,
+  panel: boolean,
 ): Layout {
   const { measure, lineHeight, dpr, nameLine } = metrics;
-  const height = model.spec.height ?? metrics.height;
+  const height = model.spec.height ?? (panel ? Math.min(width, PANEL_PIE) : metrics.height);
   const slices = sliceAngles(m);
   const step = 2 * nameLine;
   const mids = slices.map((s) => (s.from + s.to) / 2);
   const right = mids.filter((a) => a < Math.PI).length;
   const labelled =
-    chart >= NARROW_REM * metrics.rem && Math.max(right, slices.length - right) * step <= height;
+    !panel &&
+    chart >= NARROW_REM * metrics.rem &&
+    Math.max(right, slices.length - right) * step <= height;
   const column = labelled ? Math.min(PIE_COLUMN_REM * metrics.rem, PIE_COLUMN * chart) : 0;
   const r = Math.max(0, Math.min(height, width - 2 * column)) / 2;
   const p: PieFrame = { cx: width / 2, cy: height / 2, r, inner: m.hole ? r / 2 : 0 };
@@ -1077,7 +1088,8 @@ function ruleText(model: Model, words: Words, label: string, value: number, off:
  * `gutters` as the next update's floors so the plot never moves sideways.
  * `chart` is the chart's own width, which the 30rem rule and the band
  * names' cut read, `width` by default. `kept` is the last layout's
- * `tree.kept`, which a treemap of the same names and size keeps.
+ * `tree.kept`, which a treemap of the same names and size keeps. A
+ * `panel` of small multiples draws no end labels, which the heads replace.
  */
 export function layout(
   model: Model,
@@ -1087,6 +1099,7 @@ export function layout(
   floors: Floors,
   chart = width,
   kept?: TreeKept,
+  panel = false,
 ): Layout {
   const slope = model.marks.find((m) => m.kind === "slope");
   if (slope !== undefined) {
@@ -1098,7 +1111,7 @@ export function layout(
   }
   const pie = model.marks.find((m) => m.kind === "pie");
   if (pie !== undefined) {
-    return pieLayout(model, pie, words, metrics, width, floors, chart);
+    return pieLayout(model, pie, words, metrics, width, floors, chart, panel);
   }
   const tree = model.marks.find((m) => m.kind === "tree");
   if (tree !== undefined) {
@@ -1188,7 +1201,7 @@ export function layout(
   // A group's label gutter holds every end label, as its axis gutter holds
   // band names, so a long series name never moves one plot off the shared edge.
   const endLimit = metrics.labelGroup > 0 ? metrics.labelGroup - PAD : Number.POSITIVE_INFINITY;
-  const ends = narrow ? [] : endTexts(model, words, measure, endLimit);
+  const ends = narrow || panel ? [] : endTexts(model, words, measure, endLimit);
   const widestEnd = widestOf(ends, (e) => measure.number(e.text));
   const labelW = Math.max(
     ends.length > 0 ? ceil(widestEnd + PAD) : 0,

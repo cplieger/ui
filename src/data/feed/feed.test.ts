@@ -235,10 +235,15 @@ describe("enhanceFeed", () => {
     await scrollTo(c.box, 600);
     const target = c.feed.children[1] as HTMLLIElement;
     target.tabIndex = -1;
+    // WebKit scrolls a focused element into view after a later layout, not
+    // at focus(), so the test waits for that scroll, not for frames.
+    const revealed = new Promise((resolve) => {
+      c.box.addEventListener("scroll", resolve, { once: true });
+    });
     target.focus();
-    expect(target.getBoundingClientRect().top).toBeLessThan(c.box.getBoundingClientRect().bottom);
     const p = c.feed.children[20]?.querySelector("p") as HTMLParagraphElement;
     p.style.blockSize = "10rem";
+    await revealed;
     for (let i = 0; i < 3; i += 1) {
       await settle();
       const seen = c.box.getBoundingClientRect();

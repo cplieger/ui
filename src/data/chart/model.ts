@@ -10,12 +10,13 @@ import {
   widthKey,
   writer,
   type Reach,
+  type Span,
   type Unit,
   type WidthKey,
 } from "../scale/format.js";
 import { position } from "../scale/position.js";
 import { lowerBound, upperBound } from "../scale/reduce.js";
-import { localDay, localYear, spansDay } from "../scale/time.js";
+import { localDay, localYear, spansDay, type Grain } from "../scale/time.js";
 
 import { dayFormat, weekCount, weekRow, weekStartOf } from "./calendar.js";
 import { classes, type Classes } from "./classes.js";
@@ -25,6 +26,7 @@ import {
   rScale,
   ruleAt,
   isCalendar,
+  timeGrain,
   withinDate,
   xScale,
   yScale,
@@ -494,11 +496,11 @@ const DAY = 86_400_000;
 // A calendar writes every day of its weeks, its weekday names and its
 // table's empty places included, from the first week's start to the last
 // week's end; each is a UTC date written through Intl.
-function withinWeeks(day: number, weekStart: number, days: number): void {
+function withinWeeks(day: number, weekStart: number, days: number, most: Room): void {
   const first = day - weekRow(day, weekStart);
   const weeks = Math.max(1, weekCount(day - first, days));
-  if (weeks > MOST_ROWS) {
-    fail(`the days of a calendar must fit in ${String(MOST_ROWS)} weeks`, RangeError);
+  if (weeks > most.rows) {
+    fail(`the days of a calendar must fit in ${String(most.rows)} weeks${most.each}`, RangeError);
   }
   const last = first + 7 * weeks - 1;
   withinDate(first * DAY, "the days of a calendar's first week");
@@ -555,6 +557,13 @@ type MarkModel =
 /** A mark drawing the chart's data, every mark but a rule or a note. */
 type DataModel = Exclude<MarkModel, RuleModel | TextModel>;
 
+/** Small multiples: a model per panel, on the chart's scales. */
+export interface FacetsModel {
+  readonly unit: Unit | undefined;
+  readonly context: boolean;
+  readonly panels: readonly { readonly name: string; readonly model: Model }[];
+}
+
 export interface Model {
   readonly spec: ChartSpec;
   readonly x: Continuous;
@@ -572,8 +581,10 @@ export interface Model {
   /** An x value as the readings and the table write it; on a slope or a
    *  cell chart of categories a column's index as its name. */
   readonly xText: (v: number) => string;
-  /** Both ends of a span of x, the end without a date the start already says. */
-  readonly xSpan: (from: number, to: number) => readonly [string, string];
+  /** A span of x as `spanFormat` writes it; `open` for a bucket's. */
+  readonly xSpan: (from: number, to: number, open?: boolean) => Span;
+  /** The calendar unit a time x's instants are written at (`timeGrain`). */
+  readonly grain: Grain;
   /** A y value, as the axis and the readings write it. */
   readonly yText: (v: number) => string;
   /** A bubble's size, in the r scale's format. */
@@ -600,12 +611,19 @@ export interface Model {
   };
   readonly locale: string | undefined;
   readonly timeZone: string | undefined;
+  /** Under `facets`, the panels; the rest of the model is the first panel's,
+   *  `spec` and `empty` aside, which are the chart's. */
+  readonly facets?: FacetsModel;
 }
 
 // No reader scans a plot past a thousand rows: the most rows a plot holds, a
 // binned y's included, the most weeks a calendar holds and the most series a
 // slope names at each end, a line each.
 const MOST_ROWS = 1_000;
+
+// Datawrapper's advice is to show fewer panels than first planned; past this
+// many no reader compares them, and the grid would scroll for screens.
+const MOST_PANELS = 100;
 
 // A thousand of the y axis's 40px tick spaces, so a plot draws at most
 // about a thousand y ticks.
@@ -616,10 +634,31 @@ const MOST_HEIGHT = 40_000;
 // rows' own spacing aside.
 const MOST_SUB_ROWS = MOST_HEIGHT / 16;
 
-function checkSubRows(rows: number, across: number, what: string): void {
-  if (rows * across > MOST_SUB_ROWS) {
+/** A plot's ceilings: the figure's, shared out evenly among its panels,
+ *  since each panel draws a plot of its own. */
+interface Room {
+  readonly rows: number;
+  readonly subRows: number;
+  readonly height: number;
+  /** What an error adds after a ceiling: "" for a lone plot. */
+  readonly each: string;
+}
+
+function room(panels: number): Room {
+  return {
+    rows: Math.floor(MOST_ROWS / panels),
+    subRows: Math.floor(MOST_SUB_ROWS / panels),
+    height: Math.floor(MOST_HEIGHT / panels),
+    each: panels > 1 ? ` in each of ${String(panels)} panels` : "",
+  };
+}
+
+const ALONE = room(1);
+
+function checkSubRows(rows: number, across: number, what: string, most: Room): void {
+  if (rows * across > most.subRows) {
     fail(
-      `${what}.series must take at most ${String(MOST_SUB_ROWS)} sub-rows, a sub-row per series in each row, since the plot is as tall as its rows`,
+      `${what}.series must take at most ${String(most.subRows)} sub-rows${most.each}, a sub-row per series in each row, since the plot is as tall as its rows`,
       RangeError,
     );
   }
@@ -966,12 +1005,12 @@ function checkDiverge(
 }
 
 // The readings and the table name a row, or a cell's column, by its name alone.
-function checkNames(names: unknown, what: string, axis = "y"): readonly string[] {
+function checkNames(names: unknown, what: string, axis: "x" | "y", most: Room): readonly string[] {
   if (!isArray(names) || anyBut(names, (n) => typeof n === "string")) {
     fail(`${what}.${axis} must be an array of the categories' names`);
   }
-  if (axis === "y" && names.length > MOST_ROWS) {
-    fail(`${what}.y must name at most ${String(MOST_ROWS)} rows`, RangeError);
+  if (axis === "y" && names.length > most.rows) {
+    fail(`${what}.y must name at most ${String(most.rows)} rows${most.each}`, RangeError);
   }
   const seen = new Set<unknown>();
   for (const name of names) {
@@ -985,12 +1024,12 @@ function checkNames(names: unknown, what: string, axis = "y"): readonly string[]
 
 // A cell axis names its categories or gives its bins' edges; returns its
 // column or row count.
-function checkCellAxis(axis: unknown, what: string, name: "x" | "y"): number {
+function checkCellAxis(axis: unknown, what: string, name: "x" | "y", most: Room): number {
   if (!isObject(axis)) {
     fail(`${what}.${name} must name its categories or give its bins' edges`);
   }
   if (isArray(axis)) {
-    return checkNames(axis, what, name).length;
+    return checkNames(axis, what, name, most).length;
   }
   const edges = axis["edges"];
   if (!isArray(edges) || anyBut(edges, (e) => typeof e === "number")) {
@@ -1048,7 +1087,7 @@ function checkDays(mark: Record<string, unknown>, what: string): void {
   }
 }
 
-function checkCells(mark: Record<string, unknown>, what: string): void {
+function checkCells(mark: Record<string, unknown>, what: string, most: Room): void {
   if (mark["days"] !== undefined) {
     checkDays(mark, what);
     return;
@@ -1056,8 +1095,8 @@ function checkCells(mark: Record<string, unknown>, what: string): void {
   if (mark["weekStart"] !== undefined) {
     fail(`${what}.weekStart has no place without days, which it lays out in weeks`);
   }
-  const columns = checkCellAxis(mark["x"], what, "x");
-  const rows = checkCellAxis(mark["y"], what, "y");
+  const columns = checkCellAxis(mark["x"], what, "x", most);
+  const rows = checkCellAxis(mark["y"], what, "y", most);
   const values = mark["values"];
   if (!isArray(values) || values.length !== rows) {
     fail(`${what}.values must hold one row per y entry`);
@@ -1080,8 +1119,8 @@ const FIVE = ["low", "q1", "median", "q3", "high"] as const;
 
 // The chart computes no quartile, so it takes each category's five numbers
 // as sent, all or none, in order, with its outliers beyond them.
-function checkBox(mark: Record<string, unknown>, what: string): void {
-  const names = checkNames(mark["y"], what);
+function checkBox(mark: Record<string, unknown>, what: string, most: Room): void {
+  const names = checkNames(mark["y"], what, "y", most);
   const whiskers = mark["whiskers"];
   if (whiskers !== undefined && !(typeof whiskers === "string" && whiskers.trim() !== "")) {
     fail(`${what}.whiskers must be a non-empty string naming the whiskers' convention`);
@@ -1090,7 +1129,7 @@ function checkBox(mark: Record<string, unknown>, what: string): void {
   if (!isArray(list)) {
     fail(`${what}.series must be an array`);
   }
-  checkSubRows(names.length, subRows({ kind: "box", series: list }), what);
+  checkSubRows(names.length, subRows({ kind: "box", series: list }), what, most);
   for (let s = 0; s < list.length; s++) {
     const one = list[s];
     const at = `${what}.series[${String(s)}]`;
@@ -1255,7 +1294,7 @@ function checkCurve(curve: unknown, what: string): void {
   }
 }
 
-function checkMark(mark: unknown, what: string): void {
+function checkMark(mark: unknown, what: string, most: Room): void {
   if (!isObject(mark)) {
     fail(`${what} must be an object`);
   }
@@ -1338,7 +1377,7 @@ function checkMark(mark: unknown, what: string): void {
       return;
     }
     case "bar": {
-      const names = checkNames(mark["y"], what);
+      const names = checkNames(mark["y"], what, "y", most);
       const arrange = mark["arrange"];
       if (
         arrange !== undefined &&
@@ -1369,7 +1408,7 @@ function checkMark(mark: unknown, what: string): void {
         fail(`${what}.arrange "mirror" needs exactly two series, one each side of its spine`);
       }
       checkDiverge(mark, arrange === "diverge", list.length, what);
-      checkSubRows(names.length, subRows({ kind: "bar", arrange, series: list }), what);
+      checkSubRows(names.length, subRows({ kind: "bar", arrange, series: list }), what, most);
       list.forEach((one, s) => {
         const at = `${what}.series[${String(s)}]`;
         checkSlot(one["below"], at, "below");
@@ -1381,7 +1420,7 @@ function checkMark(mark: unknown, what: string): void {
     }
     case "point": {
       const list = mark["series"];
-      checkSeries(list, checkNames(mark["y"], what).length, what, "x");
+      checkSeries(list, checkNames(mark["y"], what, "y", most).length, what, "x");
       const link = mark["link"];
       if (link !== undefined && link !== "range" && link !== "arrow") {
         fail(`${what}.link must be "range" or "arrow"`);
@@ -1423,10 +1462,10 @@ function checkMark(mark: unknown, what: string): void {
       checkScatter(mark, what);
       return;
     case "cell":
-      checkCells(mark, what);
+      checkCells(mark, what, most);
       return;
     case "box":
-      checkBox(mark, what);
+      checkBox(mark, what, most);
       return;
     case "pie":
       checkPie(mark, what);
@@ -1478,7 +1517,11 @@ function checkMark(mark: unknown, what: string): void {
 
 // Every instant a time x places is written through Intl, so each is held to
 // what Date holds by its own field, whatever the domain.
-function checkInstants(spec: Record<string, unknown>, marks: readonly unknown[]): void {
+function checkInstants(
+  spec: Record<string, unknown>,
+  marks: readonly unknown[],
+  names: readonly string[],
+): void {
   const x = spec["x"];
   if (!isObject(x) || x["type"] !== "time") {
     return;
@@ -1496,7 +1539,7 @@ function checkInstants(spec: Record<string, unknown>, marks: readonly unknown[])
   each(x["domain"], "x.domain");
   for (let m = 0; m < marks.length; m++) {
     const mark = marks[m] as Record<string, unknown>;
-    const what = `marks[${String(m)}]`;
+    const what = names[m] ?? "";
     switch (mark["mark"]) {
       case "rect":
         each(mark["x1"], `${what}.x1`);
@@ -1772,39 +1815,48 @@ function copyMark(
     }
   };
   // Each series is n values, one at least, charged before its channels, which
-  // charge what they hold past n; a mark with no series is its x.
-  const across = (n: number, keys: string[], empty: string): void => {
+  // charge what they hold past n; a mark with no series is its x. The mark's
+  // own list is charged before it is read, as `paid` of the first series' n,
+  // since panels may share it by reference.
+  const across = (n: number, keys: string[], empty: string, paid: number): void => {
+    let owed = paid;
     const count = eachSeries((one, at) => {
-      add(Math.max(1, n), `${at}.${keys[0] ?? ""}`);
+      add(Math.max(1, n) - owed, `${at}.${keys[0] ?? ""}`);
+      owed = 0;
       channels(one, at, keys, n);
     });
     if (count === 0) {
-      add(n, empty);
+      add(n - paid, empty);
     }
   };
   switch (kind) {
     case "rect": {
-      const n = own("x1");
+      const n = own("x1", ALL);
       own("x2", past(n));
-      across(n, ["y"], `${what}.x1`);
+      across(n, ["y"], `${what}.x1`, n);
       return m;
     }
     case "line":
-    case "area":
-      across(own("x"), ["y"], `${what}.x`);
+    case "area": {
+      const n = own("x", ALL);
+      across(n, ["y"], `${what}.x`, n);
       return m;
+    }
     case "bar":
-    case "point":
-      across(own("y"), ["x"], `${what}.y`);
+    case "point": {
+      const n = own("y", ALL);
+      across(n, ["x"], `${what}.y`, n);
       return m;
+    }
     case "slope":
-      own("x", past(2));
-      across(2, ["y"], `${what}.x`);
+      across(2, ["y"], `${what}.x`, Math.min(2, own("x", ALL)));
       return m;
     case "box": {
-      const n = own("y");
-      const count = eachSeries((one, at) => {
-        add(Math.max(1, n), `${at}.median`);
+      const n = own("y", ALL);
+      let owed = n;
+      eachSeries((one, at) => {
+        add(Math.max(1, n) - owed, `${at}.median`);
+        owed = 0;
         channels(one, at, ["median", "low", "q1", "q3", "high"], n);
         // Its rows are read only when one per category, as the box check takes them.
         put(one ?? {}, "outliers", (v) =>
@@ -1815,9 +1867,6 @@ function copyMark(
           }),
         );
       });
-      if (count === 0) {
-        add(n, `${what}.y`);
-      }
       return m;
     }
     case "dot":
@@ -1890,17 +1939,21 @@ function copyMark(
 // the fields spec.ts documents, each read once, every list through Door.list,
 // so no check or model reads the app's objects again. It counts a sample per
 // series, a bucket, bar, dot, box, outlier, cell, day, slice, part, rule or
-// note, and a mark with no series its x. Every list a series, row, node or
-// part holds is charged before its first entry is read, so a list they share
+// note, and a mark with no series its x. Every list a mark, series, row, node
+// or part holds is charged before its first entry is read, so a list they share
 // by reference is copied only for those the ceiling admits, once per field
 // that holds it: a fixed multiple of the ceiling in all.
 function copySpec(spec: Record<string, unknown>): Record<string, unknown> {
   let count = 0;
-  const add = (n: number, field: string): void => {
+  const add = (
+    n: number,
+    field: string,
+    what = "its samples, bars, dots, cells, parts, rules and notes together",
+  ): void => {
     count += n;
     if (count > MOST_VALUES) {
       fail(
-        `${field} must not take the spec past ${String(MOST_VALUES)} values, its samples, bars, dots, cells, parts, rules and notes together`,
+        `${field} must not take the spec past ${String(MOST_VALUES)} values, ${what}`,
         RangeError,
       );
     }
@@ -1937,7 +1990,17 @@ function copySpec(spec: Record<string, unknown>): Record<string, unknown> {
     },
     add,
   };
-  const copy = fields(spec, ["x", "y", "r", "colour", "marks", "height", "summary", "empty"]);
+  const copy = fields(spec, [
+    "x",
+    "y",
+    "r",
+    "colour",
+    "marks",
+    "facets",
+    "height",
+    "summary",
+    "empty",
+  ]);
   for (const name of ["x", "y", "r", "colour"]) {
     put(copy, name, (scale) => {
       if (!isObject(scale)) {
@@ -1951,11 +2014,12 @@ function copySpec(spec: Record<string, unknown>): Record<string, unknown> {
       return own;
     });
   }
-  let data: number | undefined;
-  put(copy, "marks", (v) =>
-    door.list(v, "marks", {
+  // A list of marks, at `field`: one data mark at most.
+  const copyMarks = (v: unknown, field: string): unknown => {
+    let data: number | undefined;
+    return door.list(v, field, {
       each: (mark, m) => {
-        const what = `marks[${String(m)}]`;
+        const what = `${field}[${String(m)}]`;
         if (!isObject(mark)) {
           add(1, what);
           return mark;
@@ -1967,15 +2031,51 @@ function copySpec(spec: Record<string, unknown>): Record<string, unknown> {
         if (typeof kind === "string" && kind !== "rule" && kind !== "text" && MARKS.has(kind)) {
           if (data !== undefined) {
             fail(
-              `${what} is a second data mark beside marks[${String(data)}]; a chart holds one rect, line, area, dot, bar, point, slope, scatter, cell, box, pie or tree mark and any rules and text marks`,
+              `${what} is a second data mark beside ${field}[${String(data)}]; a chart holds one rect, line, area, dot, bar, point, slope, scatter, cell, box, pie or tree mark and any rules and text marks`,
             );
           }
           data = m;
         }
         return copyMark(mark, kind, what, door);
       },
-    }),
-  );
+    });
+  };
+  put(copy, "marks", (v) => copyMarks(v, "marks"));
+  // Every panel draws the chart's rules, so each is charged them again.
+  const rules = size(copy["marks"]);
+  put(copy, "facets", (v) => {
+    if (!isObject(v)) {
+      return v;
+    }
+    const own = fields(v, ["unit", "context", "panels"]);
+    put(own, "unit", entries);
+    let values = 0;
+    put(own, "panels", (list) =>
+      door.list(list, "facets.panels", {
+        most: MOST_PANELS,
+        why: "past which no reader compares them",
+        charge: (length) => length * Math.max(1, rules),
+        each: (panel, p) => {
+          if (!isObject(panel)) {
+            return panel;
+          }
+          const one = fields(panel, ["name", "marks"]);
+          const before = count;
+          put(one, "marks", (marks) => copyMarks(marks, `facets.panels[${String(p)}].marks`));
+          values += count - before;
+          return one;
+        },
+      }),
+    );
+    if (own["context"] === true) {
+      add(
+        Math.max(0, size(own["panels"]) - 1) * values,
+        "facets.context",
+        "each panel's values counted again for every other panel, behind which they are drawn",
+      );
+    }
+    return own;
+  });
   return copy;
 }
 
@@ -2010,17 +2110,55 @@ function check(given: unknown): ChartSpec {
   if (!isArray(marks)) {
     fail("marks must be an array");
   }
+  const facets = spec["facets"];
+  const panels = isObject(facets) ? size(facets["panels"]) : 0;
+  const most = room(Math.max(1, panels));
+  if (facets === undefined) {
+    checkMarks(
+      spec,
+      marks,
+      marks.map((_, m) => `marks[${String(m)}]`),
+      most,
+    );
+  } else {
+    checkFacets(spec, facets, marks, most);
+  }
+  const height = spec["height"];
+  optional(height, "number", "height");
+  if (typeof height === "number" && !(height > 0 && height <= most.height)) {
+    fail(
+      `height must be a number of px above 0 and at most ${String(most.height)}${most.each}`,
+      RangeError,
+    );
+  }
+  const summary = spec["summary"];
+  if (summary !== undefined && typeof summary !== "string" && typeof summary !== "function") {
+    fail("summary must be a string or a function");
+  }
+  optional(spec["empty"], "string", "empty");
+  return spec as unknown as ChartSpec;
+}
+
+/** Checks one plot's `marks`, each named by `names`, against `spec`'s
+ *  scales and height and the plot's ceilings; returns the data mark's
+ *  index, or -1. */
+function checkMarks(
+  spec: Record<string, unknown>,
+  marks: readonly unknown[],
+  names: readonly string[],
+  most: Room,
+): number {
   let data = -1;
   for (let m = 0; m < marks.length; m++) {
     const mark = marks[m];
-    checkMark(mark, `marks[${String(m)}]`);
+    checkMark(mark, names[m] ?? "", most);
     if (isObject(mark) && (mark["mark"] === "rule" || mark["mark"] === "text")) {
       continue;
     }
     // copySpec refuses a second data mark.
     data = m;
   }
-  checkInstants(spec, marks);
+  checkInstants(spec, marks, names);
   const height = spec["height"];
   const primary = marks[data];
   const whole = isObject(primary) ? primary["mark"] : undefined;
@@ -2029,7 +2167,7 @@ function check(given: unknown): ChartSpec {
       const mark = marks[m];
       if (isObject(mark) && (mark["mark"] === "rule" || mark["mark"] === "text")) {
         fail(
-          `marks[${String(m)}] is a ${mark["mark"]} mark beside a ${whole}, which has no scale to place it on`,
+          `${names[m] ?? ""} is a ${mark["mark"]} mark beside a ${whole}, which has no scale to place it on`,
         );
       }
     }
@@ -2074,10 +2212,10 @@ function check(given: unknown): ChartSpec {
     // float share of exactly a thousandth (1 / 1000) through.
     if (
       !(log && (edges[0] ?? 0) <= 0) &&
-      thinnestBin(log ? "log" : "linear", edges) * MOST_ROWS < 1 - 1e-9
+      thinnestBin(log ? "log" : "linear", edges) * most.rows < 1 - 1e-9
     ) {
       fail(
-        `marks[${String(data)}].y.edges' thinnest bin must be at least 1/${String(MOST_ROWS)} of the axis, since the plot grows until it is a row tall`,
+        `${names[data] ?? ""}.y.edges' thinnest bin must be at least 1/${String(most.rows)} of the axis${most.each}, since the plot grows until it is a row tall`,
         RangeError,
       );
     }
@@ -2088,16 +2226,207 @@ function check(given: unknown): ChartSpec {
     }
     checkColour(spec["colour"]);
   }
-  optional(height, "number", "height");
-  if (typeof height === "number" && !(height > 0 && height <= MOST_HEIGHT)) {
-    fail(`height must be a number of px above 0 and at most ${String(MOST_HEIGHT)}`, RangeError);
+  return data;
+}
+
+// The marks that draw in panels: a timeline is already a row per name on one
+// scale, a slope holds few lines, and a treemap's equal areas in two panels
+// would be unequal values.
+const FACETED = new Set(["rect", "line", "area", "bar", "point", "scatter", "box", "cell", "pie"]);
+
+// Every option a faceted data mark takes beside its data.
+const OPTIONS = [
+  "shape",
+  "arrange",
+  "curve",
+  "open",
+  "left",
+  "centre",
+  "labels",
+  "link",
+  "whiskers",
+  "weekStart",
+  "hole",
+  "unit",
+  "format",
+];
+
+const same = (a: unknown, b: unknown): boolean =>
+  a === b || (isObject(a) && isObject(b) && JSON.stringify(a) === JSON.stringify(b));
+
+/** A faceted data mark's series' names, or a pie's slices', in order; none
+ *  for a cell grid. Read after checkMark. */
+function seriesNames(mark: Record<string, unknown>): string[] {
+  const list = mark["mark"] === "pie" ? mark["slices"] : mark["series"];
+  return isArray(list) ? list.map((s) => (isObject(s) ? String(s["name"]) : "")) : [];
+}
+
+/** A checked panel's name: its own, or its data mark's one series'. */
+function panelName(panel: NonNullable<ChartSpec["facets"]>["panels"][number]): string {
+  const mark = panel.marks.find((m) => m.mark !== "rule" && m.mark !== "text");
+  const names = mark === undefined ? [] : seriesNames(mark as unknown as Record<string, unknown>);
+  return panel.name ?? names[0] ?? "";
+}
+
+/** What every panel's checked data mark must hold as the first's, with
+ *  the field naming it: a band's rows, a heatmap's axes, a calendar's days. */
+function sharedFields(mark: Record<string, unknown>): [string, unknown][] {
+  switch (mark["mark"]) {
+    case "bar":
+    case "point":
+    case "box":
+      return [["y", mark["y"]]];
+    case "cell": {
+      const days = mark["days"];
+      if (!isObject(days)) {
+        return [
+          ["x", mark["x"]],
+          ["y", mark["y"]],
+        ];
+      }
+      const values = days["values"];
+      return [
+        ["days.start", days["start"]],
+        ["days.values.length", isArray(values) ? values.length : undefined],
+        ["days.open", days["open"]],
+      ];
+    }
+    default:
+      return [];
   }
-  const summary = spec["summary"];
-  if (summary !== undefined && typeof summary !== "string" && typeof summary !== "function") {
-    fail("summary must be a string or a function");
+}
+
+// A checked series' or slice's slot, as the model gives it.
+const slotOf = (part: unknown, i: number): number =>
+  isObject(part) && typeof part["slot"] === "number" ? part["slot"] : i + 1;
+
+const sameList = (a: readonly string[], b: readonly string[]): boolean =>
+  a.length === b.length && a.every((n, i) => n === b[i]);
+
+function checkFacets(
+  spec: Record<string, unknown>,
+  facets: unknown,
+  rules: readonly unknown[],
+  most: Room,
+) {
+  if (!isObject(facets)) {
+    fail("facets must be an object");
   }
-  optional(spec["empty"], "string", "empty");
-  return spec as unknown as ChartSpec;
+  const panels = facets["panels"];
+  if (!isArray(panels) || panels.length === 0) {
+    fail("facets.panels must be a non-empty array, a panel each");
+  }
+  if (facets["unit"] !== undefined) {
+    checkUnit(facets["unit"], "facets.unit");
+  }
+  optional(facets["context"], "boolean", "facets.context");
+  rules.forEach((mark, m) => {
+    if (!(isObject(mark) && mark["mark"] === "rule")) {
+      fail(
+        `marks[${String(m)}] must be a rule beside facets, which draws in every panel; a panel's own marks hold its data and notes`,
+      );
+    }
+  });
+  const ruleNames = rules.map((_, m) => `marks[${String(m)}]`);
+  let first: Record<string, unknown> | undefined;
+  const lists: string[][] = [];
+  const slots: { at: string; of: number[] }[] = [];
+  const seen = new Set<string>();
+  panels.forEach((panel, p) => {
+    const at = `facets.panels[${String(p)}]`;
+    if (!isObject(panel)) {
+      fail(`${at} must be an object`);
+    }
+    optional(panel["name"], "string", `${at}.name`);
+    const own = panel["marks"];
+    if (!isArray(own)) {
+      fail(`${at}.marks must be an array`);
+    }
+    const names = [...own.map((_, m) => `${at}.marks[${String(m)}]`), ...ruleNames];
+    const data = checkMarks(spec, [...own, ...rules], names, most);
+    const mark = own[data];
+    if (!isObject(mark)) {
+      fail(`${at}.marks must hold one data mark`);
+    }
+    const kind = String(mark["mark"]);
+    const what = names[data] ?? at;
+    if (!FACETED.has(kind)) {
+      fail(
+        `${what} is a ${kind} mark, which draws no panels; facet a rect, line, area, bar, point, scatter, box, cell or pie mark`,
+      );
+    }
+    if (first === undefined) {
+      first = mark;
+    } else if (kind !== first["mark"]) {
+      fail(
+        `${what} is a ${kind} mark beside ${String(first["mark"])} panels; every panel draws one kind`,
+      );
+    } else {
+      for (const option of OPTIONS) {
+        if (!same(mark[option], first[option])) {
+          fail(`${what}.${option} must be facets.panels[0]'s; the panels share one set of options`);
+        }
+      }
+      const theirs = sharedFields(first);
+      sharedFields(mark).forEach(([field, value], j) => {
+        if (!same(value, theirs[j]?.[1])) {
+          fail(
+            `${what}.${field} must be facets.panels[0]'s; the panels share one ${kind === "cell" ? (field.startsWith("days") ? "calendar" : "grid") : "band of rows"}`,
+          );
+        }
+      });
+    }
+    const list = seriesNames(mark);
+    lists.push(list);
+    const field = kind === "pie" ? "slices" : "series";
+    const parts = mark[field];
+    slots.push({ at: `${what}.${field}`, of: isArray(parts) ? parts.map(slotOf) : [] });
+    const given = panel["name"];
+    const name = typeof given === "string" ? given : list.length === 1 ? list[0] : undefined;
+    if (name === undefined) {
+      fail(
+        list.length === 0
+          ? `${at}.name is required; a ${kind} panel has no series to name it`
+          : `${at}.name is required on a panel of ${String(list.length)} series`,
+      );
+    }
+    if (name === "" || seen.has(name)) {
+      fail(`${at}'s name "${name}" must be unique and not empty`, RangeError);
+    }
+    seen.add(name);
+  });
+  const [head = []] = lists;
+  const alike = lists.every((l) => sameList(l, head));
+  // A pie's slices are its whole's parts, so every pie holds the same ones.
+  if (first?.["mark"] === "pie" && !alike) {
+    fail("facets.panels must each hold the same slices in the same order");
+  }
+  const perSeries = lists.every((l) => l.length === 1);
+  if (!perSeries && !alike) {
+    fail("facets.panels must each hold one series, or all the same series in the same order");
+  }
+  // The legend row's chips are framed once from the first panel, so their
+  // swatches hold for every panel only while each series keeps its slot.
+  if (!perSeries) {
+    const theirs = slots[0]?.of ?? [];
+    for (const { at, of } of slots) {
+      const s = of.findIndex((slot, i) => slot !== theirs[i]);
+      if (s !== -1) {
+        fail(
+          `${at}[${String(s)}].slot must be facets.panels[0]'s; a series keeps one colour in every panel`,
+        );
+      }
+    }
+  }
+  if (facets["context"] === true) {
+    const kind = first?.["mark"];
+    if (kind !== "line" && kind !== "scatter") {
+      fail("facets.context draws behind line or scatter panels only");
+    }
+    if (!perSeries) {
+      fail("facets.context needs one series a panel, each drawn behind the others");
+    }
+  }
 }
 
 // A log axis has no place for 0 or below, so a line reads such a value as a
@@ -2489,6 +2818,33 @@ function timeReach(lo: number, hi: number, timeZone: string | undefined): Reach 
   return first < 1 ? "era" : "year";
 }
 
+interface Scales {
+  readonly x: Continuous;
+  readonly y: Continuous | Band;
+  readonly size: Size | undefined;
+  readonly classes: Classes;
+  readonly grain: Grain;
+}
+
+/** `spec`'s colour classes, inferred over every cell grid's or calendar's
+ *  values when the spec passes no thresholds or domain. */
+function colourClasses(spec: ChartSpec): Classes {
+  const values: number[] = [];
+  for (const m of spec.marks) {
+    if (m.mark !== "cell") {
+      continue;
+    }
+    for (const row of isCalendar(m) ? [m.days.values] : m.values) {
+      for (const v of row) {
+        if (v !== null && !Number.isNaN(v)) {
+          values.push(v);
+        }
+      }
+    }
+  }
+  return classes(spec.colour ?? {}, values);
+}
+
 /**
  * Checks `spec` and builds its model in `locale` and `timeZone`. Throws a
  * `RangeError` or `TypeError` naming the first rule the spec breaks.
@@ -2499,9 +2855,64 @@ export function chartModel(
   timeZone: string | undefined,
 ): Model {
   const spec = check(given);
-  const x = xScale(spec, timeZone);
-  const y = yScale(spec);
-  const size = rScale(spec);
+  const { facets, ...rest } = spec;
+  if (facets === undefined) {
+    const x = xScale(spec, timeZone);
+    const scales = {
+      x,
+      y: yScale(spec),
+      size: rScale(spec),
+      classes: colourClasses(spec),
+      grain: timeGrain(spec, x, timeZone),
+    };
+    return build(spec, scales, "marks", ALONE, locale, timeZone);
+  }
+  // The scales are the chart's: their domains are taken over every panel.
+  const each = facets.panels.map((p) => ({ ...rest, marks: [...p.marks, ...spec.marks] }));
+  const all = { ...rest, marks: [...facets.panels.flatMap((p) => p.marks), ...spec.marks] };
+  const y = yScale(all);
+  const x = xScale(all, timeZone);
+  const scales: Scales = {
+    x,
+    grain: timeGrain(all, x, timeZone),
+    // Every panel holds the same band, so the first names its rows once.
+    y: y.type === "band" ? yScale(each[0] ?? all) : y,
+    size: rScale(all),
+    classes: colourClasses(all),
+  };
+  const panels = facets.panels.map((p, k) => ({
+    name: panelName(p),
+    model: build(
+      each[k] ?? all,
+      scales,
+      `facets.panels[${String(k)}].marks`,
+      room(facets.panels.length),
+      locale,
+      timeZone,
+    ),
+  }));
+  const [first] = panels;
+  if (first === undefined) {
+    throw new TypeError("renderChart: facets.panels must be a non-empty array, a panel each");
+  }
+  return {
+    ...first.model,
+    spec,
+    empty: panels.every((p) => p.model.empty),
+    facets: { unit: facets.unit, context: facets.context === true, panels },
+  };
+}
+
+/** The model of a checked `spec` on `scales`, its marks named under `field`,
+ *  within the plot's ceilings `most`. */
+function build(
+  spec: ChartSpec,
+  { x, y, size, classes: colour, grain }: Scales,
+  field: string,
+  most: Room,
+  locale: string | undefined,
+  timeZone: string | undefined,
+): Model {
   const ends = spec.marks
     .map((m) => (m.mark === "bar" ? m.arrange : undefined))
     .find((a) => a === "split" || a === "diverge" || a === "mirror");
@@ -2509,9 +2920,6 @@ export function chartModel(
   const cellMark = spec.marks.find((m): m is CellMark => m.mark === "cell" && !isCalendar(m));
   const calendar = spec.marks.some(isCalendar);
   const cellNames = cellMark === undefined || "edges" in cellMark.x ? undefined : cellMark.x;
-  // The values a cell chart's inferred classes span.
-  const filled = (m: CellMark): number[] =>
-    m.values.flatMap((row) => row.flatMap((v) => (v === null || Number.isNaN(v) ? [] : [v])));
   const marks = spec.marks.map((m, index): MarkModel => {
     switch (m.mark) {
       case "rect":
@@ -2592,17 +3000,14 @@ export function chartModel(
           const values = gaps(m.days.values, false);
           const day = localDay(m.days.start, timeZone);
           const weekStart = m.weekStart ?? weekStartOf(locale);
-          withinWeeks(day, weekStart, values.length);
+          withinWeeks(day, weekStart, values.length, most);
           return {
             kind: "calendar",
             day,
             values,
             open: m.days.open === true,
             weekStart,
-            classes: classes(
-              spec.colour ?? {},
-              values.filter((v) => v !== null),
-            ),
+            classes: colour,
           };
         }
         return {
@@ -2610,7 +3015,7 @@ export function chartModel(
           x: "edges" in m.x ? { edges: m.x.edges } : { names: m.x },
           y: "edges" in m.y ? { edges: m.y.edges } : { names: m.y },
           values: m.values.map((row) => gaps(row, false)),
-          classes: classes(spec.colour ?? {}, filled(m)),
+          classes: colour,
         };
       case "rule": {
         const axis = m.x === undefined ? "y" : "x";
@@ -2626,7 +3031,7 @@ export function chartModel(
       case "text":
         return textModel(
           m,
-          `marks[${String(index)}]`,
+          `${field}[${String(index)}]`,
           x,
           y,
           ends,
@@ -2654,12 +3059,15 @@ export function chartModel(
       : calendar
         ? (v: number) => dateText(localDay(v, timeZone))
         : x.type === "time"
-          ? instantFormat(locale, timeZone, reach)
+          ? instantFormat(locale, timeZone, reach, grain)
           : writer(x.format, locale, { signed });
   const xSpan =
     x.type === "time" && !calendar
-      ? spanFormat(locale, timeZone, reach)
-      : (from: number, to: number) => [xText(from), xText(to)] as const;
+      ? spanFormat(locale, timeZone, reach, grain)
+      : (from: number, to: number): Span => [
+          { at: from, text: xText(from) },
+          { at: to, text: xText(to) },
+        ];
   const yText = writer(y.type === "band" ? undefined : y.format, locale);
   const rText = writer(size?.format, locale);
   const colourText = writer(spec.colour?.format, locale);
@@ -2684,6 +3092,7 @@ export function chartModel(
     empty: !marks.some((m) => hasData(m, x)),
     xText,
     xSpan,
+    grain,
     yText,
     rText,
     colourText,
