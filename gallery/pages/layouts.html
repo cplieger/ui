@@ -46,7 +46,7 @@
         <div class="g-shell">
           <div class="g-shell-view" data-template-frame="The gate page template, in its steps form"><iframe data-frame src="templates/gate-steps.html" title="The gate page template, in its steps form"></iframe></div>
         </div>
-        <footer><code>.cp-gate</code>: a page outside the app frame for one short task, its mark and name over one panel and at most one line under it. <code>templates/gate.html</code> leaves the panel empty for the account screen that mounts there (the Sign-in screen shows it); <code>templates/gate-steps.html</code>, shown here, is its steps form for a first-run setup: the step track, or "Step 2 of 3" on a phone, each done step a link back, the step's heading, its form and Back before the one primary. Each step is its own address, so the page needs no script. <a href="templates/gate.html">Open the gate</a>, <a href="templates/gate-steps.html">open the steps form</a>.</footer>
+        <footer><code>.cp-gate</code>: a page outside the app frame for one short task, its mark and name over one panel and at most one line under it. <code>templates/gate.html</code> leaves the panel empty for the app's own screen to fill: its <code>&lt;h1&gt;</code>, a notice slot and its form; <code>templates/gate-steps.html</code>, shown here, is its steps form for a first-run setup: the step track, or "Step 2 of 3" on a phone, each done step a link back, the step's heading, its form and Back before the one primary. Each step is its own address, so the page needs no script. <a href="templates/gate.html">Open the gate</a>, <a href="templates/gate-steps.html">open the steps form</a>.</footer>
       </div>
       <div class="card g-wide" data-new>
         <h2>A gate page with no script</h2>
@@ -67,7 +67,7 @@
         <div class="g-shell">
           <div class="g-shell-view" data-template-frame="The not-found template"><iframe data-frame src="templates/not-found.html" title="The not-found template"></iframe></div>
         </div>
-        <footer><code>templates/not-found.html</code>: the app page for an address that matches no screen, its main holding <code>.cp-empty[data-variant="page"]</code>: the glyph, the heading, one sentence and the one link home. It keeps the app's header, with no destination current, since the person is still inside the app; a server that cannot serve the app at all sends the gate page with no script instead. <a href="templates/not-found.html">Open the template</a>.</footer>
+        <footer><code>templates/not-found.html</code>: the app page for an address that matches no screen, its content slot holding <code>.cp-empty[data-variant="page"]</code>: the glyph, the heading, one sentence and the one link home. It keeps the header status and main's urgent part, with no destination current, since the person is still inside the app; a server that cannot serve the app at all sends the gate page with no script instead. <a href="templates/not-found.html">Open the template</a>.</footer>
       </div>
       <div class="card g-wide" data-new>
         <h2>A logo in the mark</h2>

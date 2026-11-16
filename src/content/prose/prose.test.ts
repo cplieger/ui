@@ -289,6 +289,14 @@ describe(".cp-code[data-variant=block]", () => {
     expect(getSelection()?.toString()).toBe(command);
   });
 
+  it("selects the whole command at a click in the pre's padding", async () => {
+    const command = "docker exec release-tracker release-tracker accounts reset";
+    const pre = q(bare(command), "pre");
+    getSelection()?.removeAllRanges();
+    await userEvent.click(pre, { position: { x: 4, y: 4 } });
+    expect(getSelection()?.toString()).toBe(command);
+  });
+
   it("leaves a click on a block with its bar and Copy selecting nothing", async () => {
     const el = prose("```sh\ndocker exec release-tracker release-tracker accounts reset\n```\n");
     getSelection()?.removeAllRanges();

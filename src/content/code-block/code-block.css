@@ -80,9 +80,6 @@
  * click selects the whole command, so the platform's copy takes all of it. */
 .cp-code[data-variant="block"] > pre:first-child {
   border-radius: calc(var(--cp-radius-surface) - var(--cp-line-w));
-}
-
-.cp-code[data-variant="block"] > pre:first-child > code {
   -webkit-user-select: all;
   user-select: all;
 }
