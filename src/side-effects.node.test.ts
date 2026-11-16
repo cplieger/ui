@@ -131,9 +131,17 @@ it("lists every exported module", async () => {
   expect(exported.toSorted()).toEqual(PURE.toSorted());
 });
 
+// Nothing here is timed: a bundle is CPU work, which a loaded host stretches
+// past node's 5 s default (6 s measured at a load of 60), so only a hang fails.
+const BUNDLE_MS = 30_000;
+
 describe.each(Object.entries(bundlers))("sideEffects under %s", (_name, bundle) => {
-  it.each(PURE)("an effect-only import of @cplieger/ui%s bundles to no code", async (subpath) => {
-    const code = await bundleEffectOnly(bundle, subpath);
-    expect(code.replaceAll(/\/\/.*$/gm, "").trim()).toBe("");
-  });
+  it.each(PURE)(
+    "an effect-only import of @cplieger/ui%s bundles to no code",
+    async (subpath) => {
+      const code = await bundleEffectOnly(bundle, subpath);
+      expect(code.replaceAll(/\/\/.*$/gm, "").trim()).toBe("");
+    },
+    BUNDLE_MS,
+  );
 });

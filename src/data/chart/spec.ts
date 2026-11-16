@@ -397,6 +397,28 @@ export type Mark =
   | RuleMark
   | TextMark;
 
+/** A panel of small multiples: one data mark and its own notes and rules. */
+interface FacetPanel {
+  /** Default its data mark's one series' name; required with more series. */
+  readonly name?: string;
+  readonly marks: readonly Mark[];
+}
+
+/** One panel per series or per category, in a grid that follows the
+ *  figure's width, every panel on the chart's scales. Every panel's data
+ *  mark is one rect, line, area, bar, point, scatter, box, cell or pie mark
+ *  of the same kind and options, holding one series each or the same
+ *  series in the same order. */
+interface Facets {
+  /** The panels' noun ("regions"); default "panels". */
+  readonly unit?: Unit;
+  /** Each one-series line or scatter panel draws every other panel's
+   *  series faintly behind its own. */
+  readonly context?: boolean;
+  /** One to 100 panels, left to right and then down. */
+  readonly panels: readonly FacetPanel[];
+}
+
 export interface ChartSpec {
   /** Default `{}`. A slope names its columns itself, so there it is a
    *  `TypeError`; a scatter's is linear or log; a cell mark's categories
@@ -417,9 +439,12 @@ export interface ChartSpec {
   /** One rect, line, area, dot, bar, point, slope, scatter, cell, box, pie
    *  or tree mark and any rules and text marks, drawn in order: a rule after a
    *  rect draws over it. A second data mark, or a rule or text mark beside a
-   *  pie or a tree, is a `TypeError`. */
+   *  pie or a tree, is a `TypeError`. Beside `facets` it holds rule marks
+   *  only, drawn in every panel. */
   readonly marks: readonly Mark[];
-  /** The plot's height in px. A band chart (dot, bar, point or box, or a
+  readonly facets?: Facets;
+  /** The plot's height in px, each panel's under `facets` (default 120).
+   *  A band chart (dot, bar, point or box, or a
    *  cell mark with categories on y) is as tall as its rows, and a calendar as
    *  its weeks, so there it is a `TypeError`; a slope grows past it to give
    *  each end label a line, and a cell mark's binned y to give its thinnest
