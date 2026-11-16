@@ -1,12 +1,23 @@
 import { describe, expect, it } from "vitest";
 
+import type { FrameNote, FrameSeries, FrameTreePart } from "../frame/frame.js";
 import { writer } from "../scale/format.js";
 import { measurer } from "../scale/measure.js";
 
 import { layout, type Layout, type Metrics } from "./layout.js";
 import { chartModel, type Model } from "./model.js";
 import { navigator, rekey, spoken, initial, type Key, type Selection } from "./select.js";
-import type { ChartSpec, Mark } from "./spec.js";
+import type { ChartFrame, ChartSpec } from "./spec.js";
+import {
+  binsFrame,
+  boxes,
+  calendar as calendarFrame,
+  categories,
+  grid as gridFrame,
+  points,
+  seriesFrame,
+  tree,
+} from "./test-helpers/frames.js";
 import { chartWords } from "./words.js";
 
 const face = measurer((t) => 7.5 * Array.from(t).length, 7.5, "en");
@@ -58,43 +69,54 @@ function press(b: Built, sel: Selection, ...keys: Key[]): (Selection | undefined
 
 const minutes = (n: number) => Array.from({ length: n }, (_, i) => START + i * MIN);
 
-const stacked = (reverse = false): ChartSpec => ({
-  x: { type: "time", domain: [START, START + 60 * MIN], reverse },
-  y: { unit: { one: "post", other: "posts" } },
-  marks: [
-    {
-      mark: "rect",
-      x1: [0, 1, 2, 3].map((i) => START + i * 15 * MIN),
-      x2: [1, 2, 3, 4].map((i) => START + i * 15 * MIN),
-      series: [
-        { name: "Announce", y: [3, 5, 2, 4] },
-        { name: "Path", y: [1, 9, null, 1] },
-      ],
+type Values = readonly (number | null)[];
+// Series keyed by their names, in order.
+const named = (...series: (readonly [string, Values])[]): FrameSeries[] =>
+  series.map(([key, values]) => ({ key, values: [...values] }));
+// `spec` with frame notes keyed by their text.
+const noted = (spec: ChartSpec, ...notes: (readonly [number, string])[]): ChartSpec =>
+  ({
+    ...spec,
+    data: {
+      ...(spec.data as ChartFrame),
+      notes: notes.map(([at, key]): FrameNote => ({ key, at })),
     },
-  ],
+  }) as ChartSpec;
+
+const stacked = (
+  reverse = false,
+  arrange?: "group" | "share",
+  data = binsFrame(
+    [0, 1, 2, 3].map((i) => START + i * 15 * MIN),
+    [1, 2, 3, 4].map((i) => START + i * 15 * MIN),
+    [],
+    { series: named(["Announce", [3, 5, 2, 4]], ["Path", [1, 9, null, 1]]) },
+  ),
+): ChartSpec => ({
+  data,
+  mark: { mark: "rect", ...(arrange === undefined ? {} : { arrange }) },
+  x: { domain: [START, START + 60 * MIN], reverse },
+  y: { unit: { one: "post", other: "posts" } },
 });
 
 // Live and Active sampled each minute from 8:00, null until a restart at 8:02.
 const step: ChartSpec = {
+  data: seriesFrame(minutes(8), [], {
+    series: named(
+      ["Live", [null, null, 4, 4, 4, 10, 10, 10]],
+      ["Active", [null, null, 1, 1, 2, 2, 2, 2]],
+    ),
+  }),
+  mark: { mark: "line", curve: "step" },
   x: { type: "time", domain: [START, START + 7 * MIN] },
   y: { label: "Agents" },
-  marks: [
-    {
-      mark: "line",
-      curve: "step",
-      x: minutes(8),
-      series: [
-        { name: "Live", y: [null, null, 4, 4, 4, 10, 10, 10] },
-        { name: "Active", y: [null, null, 1, 1, 2, 2, 2, 2] },
-      ],
-    },
-  ],
 };
 
-const timeline = (rows: { name: string; x: number[] }[], reverse = false): ChartSpec => ({
-  x: { type: "time", domain: [START, START + 60 * MIN], reverse },
+const timeline = (rows: { key: string; at: number[] }[], reverse = false): ChartSpec => ({
+  data: { type: "events", name: "e", rows },
+  mark: { mark: "dot", unit: { one: "post", other: "posts" } },
+  x: { domain: [START, START + 60 * MIN], reverse },
   y: { type: "band", unit: { one: "agent", other: "agents" } },
-  marks: [{ mark: "dot", unit: { one: "post", other: "posts" }, rows }],
 });
 
 describe("rect keys", () => {
@@ -128,12 +150,7 @@ describe("rect keys", () => {
   });
 
   it("Up and Down move through a group's sub-columns left to right, in series order", () => {
-    const spec = stacked();
-    const [mark] = spec.marks;
-    const g = built({
-      ...spec,
-      marks: [{ ...(mark as Extract<Mark, { mark: "rect" }>), arrange: "group" }],
-    });
+    const g = built(stacked(false, "group"));
     const whole: Selection = { kind: "rect", i: 2, part: undefined };
     expect(press(g, whole, "ArrowUp", "ArrowUp", "ArrowUp")).toEqual([
       { kind: "rect", i: 2, part: 0 },
@@ -148,12 +165,7 @@ describe("rect keys", () => {
   });
 
   it("moves through a 100% stack's segments in series order and says shares and the total", () => {
-    const spec = stacked();
-    const [mark] = spec.marks;
-    const s = built({
-      ...spec,
-      marks: [{ ...(mark as Extract<Mark, { mark: "rect" }>), arrange: "share" }],
-    });
+    const s = built(stacked(false, "share"));
     const whole: Selection = { kind: "rect", i: 0, part: undefined };
     expect(press(s, whole, "ArrowUp", "ArrowUp", "ArrowUp")).toEqual([
       { kind: "rect", i: 0, part: 0 },
@@ -178,17 +190,7 @@ describe("rect keys", () => {
       `Germany, ${span(0, 15)}: Announce 3, Path 1. Total 4.`,
     );
     const pie = chartModel(
-      {
-        marks: [
-          {
-            mark: "pie",
-            slices: [
-              { name: "Coal", value: 1 },
-              { name: "Wind", value: 3 },
-            ],
-          },
-        ],
-      },
+      { data: categories(["Coal", "Wind"], [[1, 3]]), mark: { mark: "pie" } },
       "en",
       "UTC",
     );
@@ -226,16 +228,13 @@ describe("rect keys", () => {
 describe("histogram keys", () => {
   it("step through the bins and say each with its unit", () => {
     const b = built({
-      x: { type: "log", format: "duration", domain: [1_000, 600_000] },
+      data: binsFrame([0, 1_000, 60_000], [1_000, 60_000, 600_000], [[4, 86, 1]], {
+        axis: "value",
+        unit: "seconds",
+      }),
+      mark: { mark: "rect" },
+      x: { type: "log", domain: [1_000, 600_000] },
       y: { unit: { one: "read", other: "reads" } },
-      marks: [
-        {
-          mark: "rect",
-          x1: [0, 1_000, 60_000],
-          x2: [1_000, 60_000, 600_000],
-          series: [{ name: "Reads", y: [4, 86, 1] }],
-        },
-      ],
     });
     const first = b.nav.move({ kind: "rect", i: 2, part: undefined }, "Home", undefined);
     expect(spoken(b.model, first as Selection, words, false)).toBe(
@@ -288,19 +287,16 @@ describe("step line keys", () => {
 describe("area keys", () => {
   // Gas, Wind and Solar sampled each minute from 8:00, Wind missing at 8:02.
   const b = built({
+    data: seriesFrame(minutes(5), [], {
+      series: named(
+        ["Gas", [12, 11, 10, 9, 8]],
+        ["Wind", [3, 4, null, 6, 7]],
+        ["Solar", [1, 2, 3, 4, 5]],
+      ),
+    }),
+    mark: { mark: "area" },
     x: { type: "time", domain: [START, START + 4 * MIN] },
     y: { unit: { one: "megawatt", other: "megawatts" } },
-    marks: [
-      {
-        mark: "area",
-        x: minutes(5),
-        series: [
-          { name: "Gas", y: [12, 11, 10, 9, 8] },
-          { name: "Wind", y: [3, 4, null, 6, 7] },
-          { name: "Solar", y: [1, 2, 3, 4, 5] },
-        ],
-      },
-    ],
   });
   const at = (s: Selection | undefined) => (s?.kind === "area" ? s.i : undefined);
 
@@ -341,10 +337,9 @@ describe("area keys", () => {
 
 describe("Page keys", () => {
   const spec: ChartSpec = {
+    data: seriesFrame(minutes(121), [minutes(121).map(() => 1)]),
+    mark: { mark: "line" },
     x: { type: "time", domain: [START, START + 120 * MIN] },
-    marks: [
-      { mark: "line", x: minutes(121), series: [{ name: "Live", y: minutes(121).map(() => 1) }] },
-    ],
   };
   const b = built(spec);
   const ticks = b.lay.xAxis.ticks.map((t) => t.at);
@@ -380,11 +375,11 @@ describe("timeline keys", () => {
   const b = built(
     timeline([
       {
-        name: "lead-ui",
-        x: [START + 10 * MIN, START + 20 * MIN, START + 20 * MIN, START + 40 * MIN],
+        key: "lead-ui",
+        at: [START + 10 * MIN, START + 20 * MIN, START + 20 * MIN, START + 40 * MIN],
       },
-      { name: "docs-bot", x: [] },
-      { name: "ha-agent", x: [START + 5 * MIN, START + 38 * MIN] },
+      { key: "docs-bot", at: [] },
+      { key: "ha-agent", at: [START + 5 * MIN, START + 38 * MIN] },
     ]),
   );
 
@@ -392,8 +387,8 @@ describe("timeline keys", () => {
     expect(initial(b.model)).toEqual({ kind: "dot", row: 0, from: 3, to: 4 });
     const silent = built(
       timeline([
-        { name: "docs-bot", x: [] },
-        { name: "a", x: [START] },
+        { key: "docs-bot", at: [] },
+        { key: "a", at: [START] },
       ]),
     );
     expect(initial(silent.model)).toEqual({ kind: "row", row: 0 });
@@ -490,8 +485,8 @@ describe("the pointer", () => {
   it("picks the row under it, then the nearest dot within 40 px, else the row itself", () => {
     const b = built(
       timeline([
-        { name: "lead-ui", x: [START + 10 * MIN] },
-        { name: "docs-bot", x: [] },
+        { key: "lead-ui", at: [START + 10 * MIN] },
+        { key: "docs-bot", at: [] },
       ]),
     );
     const f = b.lay.projection;
@@ -504,7 +499,7 @@ describe("the pointer", () => {
 
   it("picks the dot under it on a reversed x, and the row more than 40 px from every dot", () => {
     const b = built(
-      timeline([{ name: "lead-ui", x: [10, 30, 50].map((m) => START + m * MIN) }], true),
+      timeline([{ key: "lead-ui", at: [10, 30, 50].map((m) => START + m * MIN) }], true),
     );
     const f = b.lay.projection;
     const at = (m: number) => f.xAt(START + m * MIN);
@@ -519,8 +514,8 @@ describe("the pointer", () => {
     const b = built(
       timeline([
         {
-          name: "lead-ui",
-          x: [START + 40 * MIN, START + 40 * MIN + 10_000, START + 40 * MIN + 20_000],
+          key: "lead-ui",
+          at: [START + 40 * MIN, START + 40 * MIN + 10_000, START + 40 * MIN + 20_000],
         },
       ]),
       140,
@@ -538,20 +533,16 @@ describe("the pointer", () => {
 describe("the selection across an update", () => {
   it("stays on its bucket while its x is in the data, and leaves with it", () => {
     const a = built(stacked()).model;
-    const moved: ChartSpec = {
-      ...stacked(),
-      marks: [
-        {
-          mark: "rect",
-          x1: [1, 2, 3].map((i) => START + i * 15 * MIN),
-          x2: [2, 3, 4].map((i) => START + i * 15 * MIN),
-          series: [
-            { name: "Announce", y: [1, 1, 1] },
-            { name: "Path", y: [1, 1, 1] },
-          ],
-        },
-      ],
-    };
+    const moved = stacked(
+      false,
+      undefined,
+      binsFrame(
+        [1, 2, 3].map((i) => START + i * 15 * MIN),
+        [2, 3, 4].map((i) => START + i * 15 * MIN),
+        [],
+        { series: named(["Announce", [1, 1, 1]], ["Path", [1, 1, 1]]) },
+      ),
+    );
     const b = built(moved).model;
     expect(rekey(a, { kind: "rect", i: 2, part: 1 }, b)).toEqual({ kind: "rect", i: 1, part: 1 });
     expect(rekey(a, { kind: "rect", i: 0, part: undefined }, b)).toBe(undefined);
@@ -559,7 +550,8 @@ describe("the selection across an update", () => {
 
   it("finds a bucket by both its edges, never another bucket with the same start", () => {
     const rect = (x2: number[]): ChartSpec => ({
-      marks: [{ mark: "rect", x1: [0, 10], x2, series: [{ name: "Reads", y: [1, 2] }] }],
+      data: binsFrame([0, 10], x2, [[1, 2]], { axis: "value" }),
+      mark: { mark: "rect" },
     });
     const a = built(rect([10, 20])).model;
     expect(rekey(a, { kind: "rect", i: 0, part: 0 }, built(rect([5, 20])).model)).toBe(undefined);
@@ -572,8 +564,8 @@ describe("the selection across an update", () => {
 
   it("follows a dot row by its name when the rows come in a new order", () => {
     const rows = [
-      { name: "lead-ui", x: [START + 10 * MIN] },
-      { name: "docs-bot", x: [] },
+      { key: "lead-ui", at: [START + 10 * MIN] },
+      { key: "docs-bot", at: [] },
     ];
     const a = built(timeline(rows)).model;
     const b = built(timeline([...rows].reverse())).model;
@@ -584,28 +576,21 @@ describe("the selection across an update", () => {
       to: 1,
     });
     expect(rekey(a, { kind: "row", row: 1 }, b)).toEqual({ kind: "row", row: 0 });
-    const gone = built(timeline([{ name: "lead-ui", x: [START + 11 * MIN] }])).model;
+    const gone = built(timeline([{ key: "lead-ui", at: [START + 11 * MIN] }])).model;
     expect(rekey(a, { kind: "dot", row: 0, from: 0, to: 1 }, gone)).toBe(undefined);
   });
 });
 
 describe("a note in a reading", () => {
   it("ends a note written as a sentence once", () => {
-    const spec = stacked();
-    const b = built({
-      ...spec,
-      marks: [...spec.marks, { mark: "text", x: START + 20 * MIN, y: 4, text: "Deploy done!" }],
-    });
+    const b = built(noted(stacked(), [START + 20 * MIN, "Deploy done!"]));
     expect(spoken(b.model, { kind: "rect", i: 1, part: undefined }, words, false)).toBe(
       `${span(15, 30)}: Announce 5, Path 9. Total 14. Note: Deploy done!`,
     );
   });
 
   it("on a step line reads a note at a held sample at the stop holding it, wherever the pointer is in its run", () => {
-    const b = built({
-      ...step,
-      marks: [...step.marks, { mark: "text", x: START + 3 * MIN, y: 4, text: "Restart" }],
-    });
+    const b = built(noted(step, [START + 3 * MIN, "Restart"]));
     const at = (i: number) => spoken(b.model, { kind: "line", i, part: undefined }, words, false);
     expect(at(2)).toBe(`${time(2)}: Live 4, Active 1. Note: Restart.`);
     expect(at(3)).toBe(`${time(3)}: Live 4, Active 1. Note: Restart.`);
@@ -615,34 +600,34 @@ describe("a note in a reading", () => {
 
 const names = (n: number) => Array.from({ length: n }, (_, i) => `Row ${String(i + 1)}`);
 const ages: ChartSpec = {
+  data: categories(["Holy See", "Monaco", "Japan"], [], {
+    series: named(["Median age", [57.4, 54.5, 49.8]]),
+  }),
+  mark: { mark: "bar" },
   x: { unit: { one: "year", other: "years" } },
-  marks: [
-    {
-      mark: "bar",
-      y: ["Holy See", "Monaco", "Japan"],
-      series: [{ name: "Median age", x: [57.4, 54.5, 49.8] }],
-    },
-  ],
 };
-const reach = (reverse = false, rows = 3): ChartSpec => ({
+type Arranged =
+  | { readonly arrange?: "group" | "split" | "share" | "mirror" }
+  | {
+      readonly arrange: "diverge";
+      readonly left: number;
+    };
+const reach = (reverse = false, rows = 3, arranged: Arranged = {}): ChartSpec => ({
+  data: categories(names(rows), [], {
+    series: named(
+      ["Domestic", Array.from({ length: rows }, (_, i) => i + 1)],
+      ["International", Array.from({ length: rows }, (_, i) => (i === 1 ? null : 2))],
+    ),
+  }),
+  mark: { mark: "bar", ...arranged },
   x: { reverse },
-  marks: [
-    {
-      mark: "bar",
-      y: names(rows),
-      series: [
-        { name: "Domestic", x: Array.from({ length: rows }, (_, i) => i + 1) },
-        { name: "International", x: Array.from({ length: rows }, (_, i) => (i === 1 ? null : 2)) },
-      ],
-    },
-  ],
 });
 const bar = (row: number, part?: number): Selection => ({ kind: "bar", row, part });
 
 describe("bar keys", () => {
   it("focus starts on the first row, whole, and on no rows selects nothing", () => {
     expect(initial(built(ages).model)).toEqual(bar(0));
-    const none = built({ x: {}, marks: [{ mark: "bar", y: [], series: [{ name: "a", x: [] }] }] });
+    const none = built({ data: categories([], [[]]), mark: { mark: "bar" } });
     expect(initial(none.model)).toBe(undefined);
   });
 
@@ -691,9 +676,7 @@ describe("bar keys", () => {
 
   it("moves Right to the next grouped bar in series order on either x direction", () => {
     for (const reverse of [false, true]) {
-      const spec = reach(reverse);
-      const mark = spec.marks[0] as Extract<Mark, { mark: "bar" }>;
-      const b = built({ ...spec, marks: [{ ...mark, arrange: "group" }] });
+      const b = built(reach(reverse, 3, { arrange: "group" }));
       expect(b.nav.move(bar(0), "ArrowRight", undefined)).toEqual(bar(0, 0));
       expect(b.nav.move(bar(0, 0), "ArrowRight", undefined)).toEqual(bar(0, 1));
       expect(b.nav.move(bar(0), "ArrowLeft", undefined)).toEqual(bar(0, 1));
@@ -703,9 +686,7 @@ describe("bar keys", () => {
 
   it("moves Right through a split's panels as drawn, and once folded in series order", () => {
     for (const reverse of [false, true]) {
-      const spec = reach(reverse);
-      const mark = spec.marks[0] as Extract<Mark, { mark: "bar" }>;
-      const split: ChartSpec = { ...spec, marks: [{ ...mark, arrange: "split" }] };
+      const split = reach(reverse, 3, { arrange: "split" });
       // A reversed x lays the panels right to left, the first series' at the right.
       const wide = built(split);
       expect(wide.nav.move(bar(0), "ArrowRight", undefined)).toEqual(bar(0, reverse ? 1 : 0));
@@ -719,9 +700,7 @@ describe("bar keys", () => {
 
   it("says a 100% row's shares and absolute total, and runs with the drawing on a reversed x", () => {
     for (const reverse of [false, true]) {
-      const spec = reach(reverse);
-      const mark = spec.marks[0] as Extract<Mark, { mark: "bar" }>;
-      const b = built({ ...spec, marks: [{ ...mark, arrange: "share" }] });
+      const b = built(reach(reverse, 3, { arrange: "share" }));
       expect(spoken(b.model, bar(0), words, false)).toBe(
         "Row 1: Domestic 33%, International 67%. Total 3.",
       );
@@ -732,10 +711,8 @@ describe("bar keys", () => {
 
   it("moves Right through a diverging row left to right as drawn and says its total", () => {
     for (const reverse of [false, true]) {
-      const spec = reach(reverse);
-      const mark = spec.marks[0] as Extract<Mark, { mark: "bar" }>;
       // Domestic lies left of 0, so it is drawn first from the left, last on a reversed x.
-      const b = built({ ...spec, marks: [{ ...mark, arrange: "diverge", left: 1 }] });
+      const b = built(reach(reverse, 3, { arrange: "diverge", left: 1 }));
       expect(b.nav.move(bar(0), "ArrowRight", undefined)).toEqual(bar(0, reverse ? 1 : 0));
       expect(spoken(b.model, bar(0), words, false)).toBe(
         "Row 1: Domestic 1, International 2. Total 3.",
@@ -745,17 +722,16 @@ describe("bar keys", () => {
 
   it("moves Right from a mirror's left side to its right one and says its total", () => {
     for (const reverse of [false, true]) {
-      const spec = reach(reverse);
-      const mark = spec.marks[0] as Extract<Mark, { mark: "bar" }>;
+      const mirror = reach(reverse, 3, { arrange: "mirror" });
       // A reversed x sets the first series on the right side.
-      const b = built({ ...spec, marks: [{ ...mark, arrange: "mirror" }] });
+      const b = built(mirror);
       expect(b.nav.move(bar(0), "ArrowRight", undefined)).toEqual(bar(0, reverse ? 1 : 0));
       expect(b.nav.move(bar(0), "ArrowLeft", undefined)).toEqual(bar(0, reverse ? 0 : 1));
       expect(spoken(b.model, bar(0), words, false)).toBe(
         "Row 1: Domestic 1, International 2. Total 3.",
       );
       // On a phone the sides stay apart.
-      const phone = built({ ...spec, marks: [{ ...mark, arrange: "mirror" }] }, 320);
+      const phone = built(mirror, 320);
       expect(phone.nav.move(bar(0), "ArrowRight", undefined)).toEqual(bar(0, reverse ? 1 : 0));
     }
   });
@@ -809,17 +785,10 @@ describe("a bar row across an update", () => {
   it("follows its row by name in a new order, keeps its part, and leaves with the row", () => {
     const a = built(reach()).model;
     const turned: ChartSpec = {
-      x: {},
-      marks: [
-        {
-          mark: "bar",
-          y: ["Row 3", "Row 1"],
-          series: [
-            { name: "Domestic", x: [3, 1] },
-            { name: "International", x: [2, 2] },
-          ],
-        },
-      ],
+      data: categories(["Row 3", "Row 1"], [], {
+        series: named(["Domestic", [3, 1]], ["International", [2, 2]]),
+      }),
+      mark: { mark: "bar" },
     };
     const b = built(turned).model;
     expect(rekey(a, bar(0, 1), b)).toEqual(bar(1, 1));
@@ -831,24 +800,25 @@ describe("a bar row across an update", () => {
 
 describe("point keys, pointer and words", () => {
   const point = (row: number, part?: number): Selection => ({ kind: "point", row, part });
-  const degrees = (reverse = false, rows = 3): ChartSpec => ({
+  const degrees = (reverse = false, rows = 3, link?: "range" | "arrow"): ChartSpec => ({
+    data: categories(
+      Array.from({ length: rows }, (_, i) => `Degree ${String(i + 1)}`),
+      [],
+      {
+        series: named(
+          ["Women", Array.from({ length: rows }, (_, i) => (i === 1 ? null : 50 + i))],
+          ["Men", Array.from({ length: rows }, (_, i) => 40 + i)],
+        ),
+      },
+    ),
+    mark: { mark: "point", ...(link === undefined ? {} : { link }) },
     x: { reverse },
     y: { unit: { one: "degree", other: "degrees" } },
-    marks: [
-      {
-        mark: "point",
-        y: Array.from({ length: rows }, (_, i) => `Degree ${String(i + 1)}`),
-        series: [
-          { name: "Women", x: Array.from({ length: rows }, (_, i) => (i === 1 ? null : 50 + i)) },
-          { name: "Men", x: Array.from({ length: rows }, (_, i) => 40 + i) },
-        ],
-      },
-    ],
   });
 
   it("focus starts on the first row, whole, and on no rows selects nothing", () => {
     expect(initial(built(degrees()).model)).toEqual(point(0));
-    const none = built({ x: {}, marks: [{ mark: "point", y: [], series: [] }] });
+    const none = built({ data: categories([], []), mark: { mark: "point" } });
     expect(initial(none.model)).toBe(undefined);
   });
 
@@ -876,10 +846,7 @@ describe("point keys, pointer and words", () => {
       ]);
       expect(b.nav.move(point(0), "ArrowLeft", undefined)).toEqual(point(0, 1));
     }
-    const one = built({
-      x: {},
-      marks: [{ mark: "point", y: ["a"], series: [{ name: "a", x: [1] }] }],
-    });
+    const one = built({ data: categories(["a"], [[1]]), mark: { mark: "point" } });
     expect(one.nav.move(point(0), "ArrowRight", undefined)).toBe(undefined);
   });
 
@@ -890,17 +857,15 @@ describe("point keys, pointer and words", () => {
     expect(spoken(b.model, point(2, 1), words, true)).toBe("Degree 3: Men 42.");
     expect(spoken(b.model, point(2, 1), words, false)).toBe("Degree 3: Women 52, Men 42.");
     const one = built({
+      data: categories(["Japan"], [[49.8]]),
+      mark: { mark: "point" },
       x: { unit: { one: "year", other: "years" } },
-      marks: [{ mark: "point", y: ["Japan"], series: [{ name: "Median", x: [49.8] }] }],
     });
     expect(spoken(one.model, point(0), words, false)).toBe("Japan: 49.8\u00A0years.");
   });
 
   it("says a range's gap and an arrow's change after the row, and leaves either out at a gap", () => {
-    const linked = (link: "range" | "arrow"): ChartSpec => ({
-      ...degrees(),
-      marks: [{ ...(degrees().marks[0] as Extract<Mark, { mark: "point" }>), link }],
-    });
+    const linked = (link: "range" | "arrow"): ChartSpec => degrees(false, 3, link);
     const range = built(linked("range")).model;
     expect(spoken(range, point(0), words, false)).toBe("Degree 1: Women 50, Men 40. Gap 10.");
     expect(spoken(range, point(1), words, false)).toBe("Degree 2: Women No data, Men 41.");
@@ -924,17 +889,10 @@ describe("point keys, pointer and words", () => {
   it("follows its row by name across an update, keeps its part, and leaves with the row", () => {
     const a = built(degrees()).model;
     const turned: ChartSpec = {
-      x: {},
-      marks: [
-        {
-          mark: "point",
-          y: ["Degree 3", "Degree 1"],
-          series: [
-            { name: "Women", x: [1, 2] },
-            { name: "Men", x: [3, 4] },
-          ],
-        },
-      ],
+      data: categories(["Degree 3", "Degree 1"], [], {
+        series: named(["Women", [1, 2]], ["Men", [3, 4]]),
+      }),
+      mark: { mark: "point" },
     };
     const b = built(turned).model;
     expect(rekey(a, point(0, 1), b)).toEqual(point(1, 1));
@@ -945,20 +903,16 @@ describe("point keys, pointer and words", () => {
 
 describe("slope keys, pointer and words", () => {
   const column = (i: number, part?: number): Selection => ({ kind: "slope", i, part });
-  const pets = (more: readonly Mark[] = []): ChartSpec => ({
-    marks: [
-      {
-        mark: "slope",
-        x: ["2005", "2015"],
-        series: [
-          { name: "Cats", y: [50, 34] },
-          { name: "Dogs", y: [40, 31] },
-          { name: "Horses", y: [30, 39] },
-          { name: "Mice", y: [null, 31] },
-        ],
-      },
-      ...more,
-    ],
+  const pets = (): ChartSpec => ({
+    data: categories(["2005", "2015"], [], {
+      series: named(
+        ["Cats", [50, 34]],
+        ["Dogs", [40, 31]],
+        ["Horses", [30, 39]],
+        ["Mice", [null, 31]],
+      ),
+    }),
+    mark: { mark: "slope" },
   });
 
   it("focus starts on the right column, whole", () => {
@@ -1036,17 +990,11 @@ describe("slope keys, pointer and words", () => {
 
   it("says a change of 0 with no sign and in the y format", () => {
     const b = built({
-      y: { format: "percent" },
-      marks: [
-        {
-          mark: "slope",
-          x: ["Before", "After"],
-          series: [
-            { name: "a", y: [0.5, 0.5] },
-            { name: "b", y: [0.25, 0.5] },
-          ],
-        },
-      ],
+      data: categories(["Before", "After"], [], {
+        unit: "ratio",
+        series: named(["a", [0.5, 0.5]], ["b", [0.25, 0.5]]),
+      }),
+      mark: { mark: "slope" },
     });
     expect(spoken(b.model, column(0, 0), words, true)).toBe("a: Before 50%, After 50%. Change 0%.");
     expect(spoken(b.model, column(0, 1), words, true)).toBe(
@@ -1054,25 +1002,20 @@ describe("slope keys, pointer and words", () => {
     );
   });
 
-  it("adds a note to its column's reading, whole or a chosen series", () => {
-    const note: Mark = { mark: "text", x: "2005", y: 50, text: "Peak" };
-    const b = built(pets([note]));
+  it("joins its notes to no column's reading, since a slope has no x place for one", () => {
+    const b = built(noted(pets(), [0, "Peak"]));
     expect(spoken(b.model, column(0), words, false)).toBe(
-      "2005: Cats 50, Dogs 40, Horses 30, Mice No data. Note: Peak.",
+      "2005: Cats 50, Dogs 40, Horses 30, Mice No data.",
     );
-    expect(spoken(b.model, column(0, 1), words, true)).toBe(
-      "Dogs: 2005 40, 2015 31. Change -9. Note: Peak.",
-    );
-    expect(spoken(b.model, column(1), words, false)).toBe(
-      "2015: Cats 34, Dogs 31, Horses 39, Mice 31.",
-    );
+    expect(spoken(b.model, column(0, 1), words, true)).toBe("Dogs: 2005 40, 2015 31. Change -9.");
   });
 
   it("keeps its column by name across an update, its series by place, and leaves with the name", () => {
     const a = built(pets()).model;
     const turned = (x: readonly [string, string]): Model =>
       built({
-        marks: [{ mark: "slope", x, series: [{ name: "Cats", y: [1, 2] }] }],
+        data: categories(x, [], { series: named(["Cats", [1, 2]]) }),
+        mark: { mark: "slope" },
       }).model;
     expect(rekey(a, column(1, 0), turned(["2015", "2025"]))).toEqual(column(0, 0));
     expect(rekey(a, column(1, 3), turned(["2005", "2015"]))).toEqual(column(1));
@@ -1084,29 +1027,19 @@ describe("slope keys, pointer and words", () => {
 describe("scatter keys, pointer and words", () => {
   const dot = (series: number, i: number): Selection => ({ kind: "scatter", series, i });
   // GDP per capita in thousands of dollars against life expectancy in years.
-  const world = (more: readonly Mark[] = [], reverse = false): ChartSpec => ({
+  const world = (reverse = false): ChartSpec => ({
+    data: points([
+      {
+        key: "Europe",
+        names: ["Albania", "Monaco", "Norway", "Kosovo"],
+        x: [19, 140, 82, null],
+        y: [79.8, 85.9, 83.2, 79],
+      },
+      { key: "Africa", names: ["Chad", "Ghana", "Kenya"], x: [1.6, 6.3, 5.2], y: [53, 64.1, 62.7] },
+    ]),
+    mark: { mark: "scatter" },
     x: { label: "GDP per capita", reverse },
     y: { label: "Life expectancy" },
-    marks: [
-      {
-        mark: "scatter",
-        series: [
-          {
-            name: "Europe",
-            names: ["Albania", "Monaco", "Norway", "Kosovo"],
-            x: [19, 140, 82, null],
-            y: [79.8, 85.9, 83.2, 79],
-          },
-          {
-            name: "Africa",
-            names: ["Chad", "Ghana", "Kenya"],
-            x: [1.6, 6.3, 5.2],
-            y: [53, 64.1, 62.7],
-          },
-        ],
-      },
-      ...more,
-    ],
   });
   const chad = dot(1, 0);
   const kenya = dot(1, 2);
@@ -1117,7 +1050,7 @@ describe("scatter keys, pointer and words", () => {
 
   it("focus starts on the first dot in x order", () => {
     expect(initial(built(world()).model)).toEqual(chad);
-    expect(initial(built(world([], true)).model)).toEqual(chad);
+    expect(initial(built(world(true)).model)).toEqual(chad);
   });
 
   it("walks every drawn dot in x order with Left and Right, Home and End at its ends", () => {
@@ -1140,7 +1073,7 @@ describe("scatter keys, pointer and words", () => {
   });
 
   it("runs Left and Right as the drawing does on a reversed x", () => {
-    const b = built(world([], true));
+    const b = built(world(true));
     expect(b.nav.move(ghana, "ArrowRight", undefined)).toEqual(kenya);
     expect(b.nav.move(ghana, "ArrowLeft", undefined)).toEqual(albania);
     expect(b.nav.move(ghana, "Home", undefined)).toEqual(monaco);
@@ -1148,17 +1081,13 @@ describe("scatter keys, pointer and words", () => {
 
   it("breaks a tie in x by y, and coincident dots by series, then the app's order", () => {
     const b = built({
+      data: points([
+        { key: "a", names: ["a1", "a2", "a3"], x: [1, 1, 2], y: [5, 3, 5] },
+        { key: "b", names: ["b1"], x: [1], y: [3] },
+      ]),
+      mark: { mark: "scatter" },
       x: { label: "x" },
       y: { label: "y" },
-      marks: [
-        {
-          mark: "scatter",
-          series: [
-            { name: "a", names: ["a1", "a2", "a3"], x: [1, 1, 2], y: [5, 3, 5] },
-            { name: "b", names: ["b1"], x: [1], y: [3] },
-          ],
-        },
-      ],
     });
     expect(press(b, dot(0, 1), "ArrowRight", "ArrowRight", "ArrowRight", "ArrowRight")).toEqual([
       dot(1, 0),
@@ -1178,9 +1107,10 @@ describe("scatter keys, pointer and words", () => {
   it("pages to the nearest dot at least one x tick away", () => {
     const xs = Array.from({ length: 21 }, (_, i) => i * 5);
     const b = built({
+      data: points([{ key: "a", names: xs.map(String), x: xs, y: xs }]),
+      mark: { mark: "scatter" },
       x: { label: "x", domain: [0, 100] },
       y: { label: "y" },
-      marks: [{ mark: "scatter", series: [{ name: "a", names: xs.map(String), x: xs, y: xs }] }],
     });
     const [first, second] = b.lay.xAxis.ticks.map((t) => t.value);
     const step = (second ?? 0) - (first ?? 0);
@@ -1205,26 +1135,21 @@ describe("scatter keys, pointer and words", () => {
 
   it("points at the dot drawn on top among coincident dots: the later series, then the later dot", () => {
     const b = built({
+      data: points([
+        { key: "a", names: ["a1", "a2"], x: [1, 1], y: [1, 1] },
+        { key: "b", names: ["b1", "b2", "b3"], x: [1, 1, 2], y: [1, 1, 2] },
+      ]),
+      mark: { mark: "scatter" },
       x: { label: "x" },
       y: { label: "y" },
-      marks: [
-        {
-          mark: "scatter",
-          series: [
-            { name: "a", names: ["a1", "a2"], x: [1, 1], y: [1, 1] },
-            { name: "b", names: ["b1", "b2", "b3"], x: [1, 1, 2], y: [1, 1, 2] },
-          ],
-        },
-      ],
     });
     const f = b.lay.projection;
     expect(b.nav.pick(f.xAt(1), f.yAt(1))).toEqual(dot(1, 1));
     const solo = built({
+      data: points([{ key: "a", names: ["a1", "a2"], x: [1, 1], y: [1, 1] }]),
+      mark: { mark: "scatter" },
       x: { label: "x" },
       y: { label: "y" },
-      marks: [
-        { mark: "scatter", series: [{ name: "a", names: ["a1", "a2"], x: [1, 1], y: [1, 1] }] },
-      ],
     });
     expect(solo.nav.pick(solo.lay.projection.xAt(1), solo.lay.projection.yAt(1))).toEqual(
       dot(0, 1),
@@ -1240,56 +1165,33 @@ describe("scatter keys, pointer and words", () => {
       "Chad: Africa, GDP per capita 1.6, Life expectancy 53.",
     );
     const one = built({
+      data: points([{ key: "All", names: ["Chad"], x: [1.6], y: [53] }]),
+      mark: { mark: "scatter" },
       x: { label: "GDP per capita" },
       y: { label: "Life expectancy" },
-      marks: [{ mark: "scatter", series: [{ name: "All", names: ["Chad"], x: [1.6], y: [53] }] }],
     });
     expect(spoken(one.model, dot(0, 0), words, false)).toBe(
       "Chad: GDP per capita 1.6, Life expectancy 53.",
     );
   });
 
-  it("adds a note to the dot at its values, on top among coincident dots, and to no other", () => {
-    const note: Mark = { mark: "text", x: 140, y: 85.9, text: "Richest" };
-    const b = built(world([note, { mark: "text", x: 50, y: 70, text: "Nowhere" }]));
+  it("joins its notes to no dot's reading, since an x alone names no dot", () => {
+    const b = built(noted(world(), [140, "Richest"]));
     expect(spoken(b.model, monaco, words, false)).toBe(
-      "Monaco: Europe, GDP per capita 140, Life expectancy 85.9. Note: Richest.",
+      "Monaco: Europe, GDP per capita 140, Life expectancy 85.9.",
     );
-    expect(spoken(b.model, norway, words, false)).toBe(
-      "Norway: Europe, GDP per capita 82, Life expectancy 83.2.",
-    );
-    const twins = built({
-      x: { label: "x" },
-      y: { label: "y" },
-      marks: [
-        {
-          mark: "scatter",
-          series: [
-            { name: "a", names: ["a1"], x: [1], y: [1] },
-            { name: "b", names: ["b1"], x: [1], y: [1] },
-          ],
-        },
-        { mark: "text", x: 1, y: 1, text: "Here" },
-      ],
-    });
-    expect(spoken(twins.model, dot(1, 0), words, false)).toBe("b1: b, x 1, y 1. Note: Here.");
-    expect(spoken(twins.model, dot(0, 0), words, false)).toBe("a1: a, x 1, y 1.");
   });
 
   it("keeps a dot by its name across an update, in any series, and leaves with the name", () => {
     const a = built(world()).model;
     const moved = built({
+      data: points([
+        { key: "Rich", names: ["Monaco", "Norway"], x: [150, 90], y: [86, 83] },
+        { key: "Poor", names: ["Kosovo", "Chad"], x: [5, 1.7], y: [79, 53] },
+      ]),
+      mark: { mark: "scatter" },
       x: { label: "GDP per capita" },
       y: { label: "Life expectancy" },
-      marks: [
-        {
-          mark: "scatter",
-          series: [
-            { name: "Rich", names: ["Monaco", "Norway"], x: [150, 90], y: [86, 83] },
-            { name: "Poor", names: ["Kosovo", "Chad"], x: [5, 1.7], y: [79, 53] },
-          ],
-        },
-      ],
     }).model;
     expect(rekey(a, monaco, moved)).toEqual(dot(0, 0));
     expect(rekey(a, chad, moved)).toEqual(dot(1, 1));
@@ -1301,20 +1203,14 @@ describe("scatter keys, pointer and words", () => {
 describe("a cell chart's selection", () => {
   const days = ["Mon", "Tue", "Wed"];
   const hours = ["0", "1", "2", "3"];
-  const grid = (over: Partial<ChartSpec> = {}): ChartSpec => ({
+  const grid = (over: Omit<ChartSpec, "data" | "mark" | "facets"> = {}): ChartSpec => ({
+    data: gridFrame({ names: hours }, { names: days }, [
+      [3, 0, 1, 2],
+      [4, null, 6, 7],
+      [8, 9, 10, 11],
+    ]),
+    mark: { mark: "cell" },
     colour: { unit: { one: "post", other: "posts" } },
-    marks: [
-      {
-        mark: "cell",
-        x: hours,
-        y: days,
-        values: [
-          [3, 0, 1, 2],
-          [4, null, 6, 7],
-          [8, 9, 10, 11],
-        ],
-      },
-    ],
     ...over,
   });
   const cell = (row: number, column: number): Selection => ({ kind: "cell", row, column });
@@ -1356,7 +1252,8 @@ describe("a cell chart's selection", () => {
   it("pages ten columns on a band x, held at the row's ends", () => {
     const names = Array.from({ length: 24 }, (_, i) => String(i));
     const b = built({
-      marks: [{ mark: "cell", x: names, y: ["a"], values: [names.map((_, i) => i)] }],
+      data: gridFrame({ names }, { names: ["a"] }, [names.map((_, i) => i)]),
+      mark: { mark: "cell" },
     });
     expect(press(b, cell(0, 0), "PageDown", "PageDown", "PageDown", "PageUp")).toEqual([
       cell(0, 10),
@@ -1368,17 +1265,11 @@ describe("a cell chart's selection", () => {
 
   it("moves Up to the higher bin on a binned y, whose rows run up from the bottom", () => {
     const b = built({
-      marks: [
-        {
-          mark: "cell",
-          x: { edges: [0, 10, 20] },
-          y: { edges: [0, 5, 10] },
-          values: [
-            [1, 2],
-            [3, 4],
-          ],
-        },
-      ],
+      data: gridFrame({ edges: [0, 10, 20] }, { edges: [0, 5, 10] }, [
+        [1, 2],
+        [3, 4],
+      ]),
+      mark: { mark: "cell" },
     });
     expect(press(b, cell(0, 0), "ArrowUp", "ArrowUp")).toEqual([cell(1, 0), undefined]);
     expect(initial(b.model)).toEqual(cell(1, 0));
@@ -1387,7 +1278,8 @@ describe("a cell chart's selection", () => {
   it("pages one x tick on a binned x", () => {
     const edges = Array.from({ length: 101 }, (_, i) => i);
     const b = built({
-      marks: [{ mark: "cell", x: { edges }, y: ["a"], values: [edges.slice(1)] }],
+      data: gridFrame({ edges }, { names: ["a"] }, [edges.slice(1)]),
+      mark: { mark: "cell" },
     });
     const next = b.nav.move(cell(0, 0), "PageDown", undefined);
     const ticks = b.lay.xAxis.ticks.map((t) => t.value).sort((p, q) => p - q);
@@ -1417,17 +1309,11 @@ describe("a cell chart's selection", () => {
   it("keeps a cell across an update by its column's and row's names", () => {
     const before = built(grid()).model;
     const after = built({
-      marks: [
-        {
-          mark: "cell",
-          x: ["3", "2"],
-          y: ["Wed", "Tue"],
-          values: [
-            [1, 2],
-            [3, 4],
-          ],
-        },
-      ],
+      data: gridFrame({ names: ["3", "2"] }, { names: ["Wed", "Tue"] }, [
+        [1, 2],
+        [3, 4],
+      ]),
+      mark: { mark: "cell" },
     }).model;
     expect(rekey(before, cell(1, 2), after)).toEqual(cell(1, 1));
     expect(rekey(before, cell(0, 0), after)).toBeUndefined();
@@ -1445,9 +1331,10 @@ describe("a calendar's selection", () => {
   const DAY = 86_400_000;
   // From Thursday 1 January 2026, 66 days, weeks from Monday.
   const JAN1 = Date.UTC(2026, 0, 1);
-  const calendar = (values: (number | null)[], open = false): ChartSpec => ({
+  const calendar = (values: Values, open = false): ChartSpec => ({
+    data: calendarFrame(JAN1, values, { open }),
+    mark: { mark: "cell", weekStart: 1 },
     colour: { unit: { one: "post", other: "posts" } },
-    marks: [{ mark: "cell", days: { start: JAN1, values, open }, weekStart: 1 }],
   });
   const days = (n: number) => Array.from({ length: n }, (_, i) => i % 7);
   const day = (i: number): Selection => ({ kind: "day", i });
@@ -1485,7 +1372,8 @@ describe("a calendar's selection", () => {
     // Day 1e8 is Saturday 13 September 275760, the last Date holds; day -1e8
     // is Tuesday 20 April -271821, the first, so -1e8 + 5 is a Sunday.
     const sundays = (start: number, n: number): ChartSpec => ({
-      marks: [{ mark: "cell", days: { start: start * DAY, values: days(n) }, weekStart: 7 }],
+      data: calendarFrame(start * DAY, days(n)),
+      mark: { mark: "cell", weekStart: 7 },
     });
     expect(press(built(sundays(1e8 - 1, 2)), day(0), "PageDown")).toEqual([day(1)]);
     expect(press(built(sundays(-1e8 + 5, 3)), day(2), "PageUp")).toEqual([day(0)]);
@@ -1505,7 +1393,8 @@ describe("a calendar's selection", () => {
 
   it("keeps a day across an update by its date", () => {
     const later: ChartSpec = {
-      marks: [{ mark: "cell", days: { start: JAN1 + 7 * DAY, values: days(66) } }],
+      data: calendarFrame(JAN1 + 7 * DAY, days(66)),
+      mark: { mark: "cell" },
     };
     expect(rekey(b.model, day(10), chartModel(later, "en", "UTC"))).toEqual(day(3));
     expect(rekey(b.model, day(3), chartModel(later, "en", "UTC"))).toBeUndefined();
@@ -1522,38 +1411,33 @@ describe("a calendar's selection", () => {
 });
 
 describe("box keys", () => {
-  const latency = (two = false): ChartSpec => ({
+  const latency = (two = false, rows = ["search", "export", "health"]): ChartSpec => ({
     y: { unit: { one: "endpoint", other: "endpoints" } },
-    marks: [
+    mark: { mark: "box" },
+    data: boxes(rows, [
       {
-        mark: "box",
-        y: ["search", "export", "health"],
-        series: [
-          {
-            name: "Before",
-            low: [120, 300, null],
-            q1: [180, 900, null],
-            median: [240, 1400, null],
-            q3: [410, 2100, null],
-            high: [760, 4000, null],
-            outliers: [[1100, 2600], [], []],
-          },
-          ...(two
-            ? [
-                {
-                  name: "After",
-                  low: [100, 200, 1],
-                  q1: [150, 700, 2],
-                  median: [190, 1000, 2],
-                  q3: [300, 1500, 3],
-                  high: [600, 3000, 4],
-                  outliers: [[], [5000], []],
-                },
-              ]
-            : []),
-        ],
+        key: "Before",
+        low: [120, 300, null],
+        q1: [180, 900, null],
+        median: [240, 1400, null],
+        q3: [410, 2100, null],
+        high: [760, 4000, null],
+        outliers: [[1100, 2600], [], []],
       },
-    ],
+      ...(two
+        ? [
+            {
+              key: "After",
+              low: [100, 200, 1],
+              q1: [150, 700, 2],
+              median: [190, 1000, 2],
+              q3: [300, 1500, 3],
+              high: [600, 3000, 4],
+              outliers: [[], [5000], []],
+            },
+          ]
+        : []),
+    ]),
   });
   const box = (row: number, part?: number): Selection => ({ kind: "box", row, part });
 
@@ -1594,13 +1478,7 @@ describe("box keys", () => {
 
   it("keeps its row across an update by its name", () => {
     const before = built(latency()).model;
-    const spec = latency();
-    const mark = spec.marks[0] as Extract<Mark, { mark: "box" }>;
-    const after = chartModel(
-      { ...spec, marks: [{ ...mark, y: ["export", "search", "health"] }] },
-      "en",
-      "UTC",
-    );
+    const after = chartModel(latency(false, ["export", "search", "health"]), "en", "UTC");
     expect(rekey(before, box(0), after)).toEqual(box(1));
   });
 
@@ -1640,7 +1518,13 @@ describe("a pie's keys, pointer and readings", () => {
   const land = (
     slices: readonly { name: string; value: number | null }[] = LAND,
     hole = false,
-  ): ChartSpec => ({ marks: [{ mark: "pie", hole, unit: { other: "km²" }, slices }] });
+  ): ChartSpec => ({
+    data: categories(
+      slices.map((p) => p.name),
+      [slices.map((p) => p.value)],
+    ),
+    mark: { mark: "pie", hole, unit: { other: "km²" } },
+  });
   const slice = (i: number): Selection => ({ kind: "slice", i });
   // Plot px at angle `a` clockwise from 12 o'clock, `d` from the pie's centre.
   const at = (b: Built, a: number, d: number): [number, number] => {
@@ -1736,24 +1620,23 @@ describe("a tree's keys, pointer and readings", () => {
     { name: "Germany", value: 4456 },
     { name: "France", value: 3031 },
   ];
+  // A part of the tree frame, no data for null.
+  const piece = (n: Node): FrameTreePart =>
+    n.value === null ? { key: n.name } : { key: n.name, value: n.value };
   const gdp = (asia = ASIA, order: readonly number[] = [0, 1, 2]): ChartSpec => {
     const groups = [
-      { name: "Asia", children: asia },
-      { name: "Americas", children: AMERICAS },
-      { name: "Europe", children: EUROPE },
+      { key: "Asia", children: asia.map(piece) },
+      { key: "Americas", children: AMERICAS.map(piece) },
+      { key: "Europe", children: EUROPE.map(piece) },
     ];
     return {
-      marks: [
-        {
-          mark: "tree",
-          unit: { other: "bn USD" },
-          nodes: order.flatMap((g) => groups[g] ?? []),
-        },
-      ],
+      data: tree({ groups: order.flatMap((g) => groups[g] ?? []) }),
+      mark: { mark: "tree", unit: { other: "bn USD" } },
     };
   };
   const flat = (parts: readonly Node[] = [...ASIA, ...AMERICAS]): ChartSpec => ({
-    marks: [{ mark: "tree", unit: { other: "bn USD" }, nodes: parts }],
+    data: tree({ parts: parts.map(piece) }),
+    mark: { mark: "tree", unit: { other: "bn USD" } },
   });
   const part = (i: number): Selection => ({ kind: "part", i });
   const group = (i: number): Selection => ({ kind: "group", i });
