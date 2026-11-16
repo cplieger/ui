@@ -60,6 +60,7 @@ const PURE = [
   "/search",
   "/secret",
   "/select-panel",
+  "/settings",
   "/share-bar",
   "/skeleton",
   "/sparkline",

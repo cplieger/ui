@@ -34,7 +34,7 @@ enhanceReveal(showButton, keyField, { signal: page.signal });
 - `enhanceSecret` shows Saved or the field by `data-cp-state`, `"saved"` or `"edit"`. While saved, the field is disabled, so a form sends nothing for it, which the server reads as "keep".
 - Replace opens the field empty with focus in it. Keep saved value empties the field, firing `input` if it held text, goes back to Saved and gives focus to Replace.
 - `enhanceReveal` switches the field between `password` and `text`. The button keeps its name, such as "Show password", and `aria-pressed` says whether the text shows, while the drawing marked `data-part="on"` stands in for the other.
-- A secret that comes from the environment shows only where it comes from and its state, never its value, in a `.cp-secret-source` line: `<strong>` with its name, then its source, then a `.cp-state` word.
+- A secret that comes from the environment is a value set elsewhere, a `.cp-set-elsewhere` line: `<strong>` with its name, its `.cp-state` word in place of its value, which it never shows, then a neutral `.cp-chip` naming where it is set, such as "from `SONARR_API_KEY`".
 - `signal` removes the listeners.
 
 ## Shown once
