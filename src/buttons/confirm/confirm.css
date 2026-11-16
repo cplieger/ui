@@ -12,6 +12,12 @@
     margin-inline 300ms var(--cp-ease-out);
 }
 
+/* A held width shows each state's content centred in it at once, so the
+ * words never slide sideways as they roll. */
+.cp-button[data-cp-confirm="fixed"] > .cp-roll {
+  transition: none;
+}
+
 /* (0,4,1) lifts this over the primary and quiet hover fills, (0,4,0) rules
  * that win a tie by scope proximity. Inside a split button the split paints
  * the fill, so it sets --cp-done-paint to transparent for its parts. */

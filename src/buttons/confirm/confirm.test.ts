@@ -242,8 +242,7 @@ describe("enhanceConfirm", () => {
     const b = button("Grab the best", split);
     confirm(b, { busy: "Grabbing…", done: "Grabbed" });
     expect(b.dataset["cpConfirm"]).toBe("fixed");
-    const roll = b.querySelector(".cp-roll") as HTMLElement;
-    expect(Number.parseFloat(roll.style.minInlineSize)).toBeGreaterThan(0);
+    expect(Number.parseFloat(b.style.minInlineSize)).toBeGreaterThan(0);
   });
 
   it("measures its held width again once a web font loads", () => {
@@ -253,8 +252,7 @@ describe("enhanceConfirm", () => {
     const b = button("Grab the best", split);
     const stop = new AbortController();
     confirm(b, { busy: "Grabbing…", done: "Grabbed", signal: stop.signal });
-    const roll = b.querySelector(".cp-roll") as HTMLElement;
-    const held = () => Number.parseFloat(roll.style.minInlineSize);
+    const held = () => Number.parseFloat(b.style.minInlineSize);
     const before = held();
     b.style.fontSize = "32px";
     document.fonts.dispatchEvent(new Event("loadingdone"));

@@ -23,8 +23,9 @@ export interface ConfirmOptions {
   /**
    * `"glide"`: the button glides to each word's width. `"footprint"`: it
    * keeps the widest word's footprint, so the buttons after it never move.
-   * `"fixed"`: it holds the widest word's width, as a split button's main
-   * action does so its caret never moves. Default: `"fixed"` inside
+   * `"fixed"`: it holds its widest state's width, icon and words, each
+   * state's content centred in it and nothing gliding, as a split button's
+   * main action does so its caret never moves, and a list's Show more. Default: `"fixed"` inside
    * `.cp-split`, `"footprint"` inside a table's actions cell, else `"glide"`.
    */
   readonly width?: ConfirmWidth;
@@ -109,16 +110,39 @@ export function enhanceConfirm(button: HTMLButtonElement, options: ConfirmOption
       ...[rest, busy, ...(done === false ? [] : [done])].map((text) => measureRoll(words, text)),
     );
 
+  /** The widest state's content, its icon and the gap after it included,
+   *  read from the computed size an icon keeps while it is not shown. */
+  const widestState = (): number => {
+    const gap = Number.parseFloat(getComputedStyle(button).columnGap) || 0;
+    const lead = (selector: string): number => {
+      const icon = button.querySelector(`:scope > .cp-icon${selector}`);
+      return icon === null ? 0 : (Number.parseFloat(getComputedStyle(icon).inlineSize) || 0) + gap;
+    };
+    const states: [string, string][] = [
+      [rest, ":not([data-part])"],
+      [busy, '[data-part="busy"]'],
+      ...(done === false ? [] : ([[done, '[data-part="done"]']] as [string, string][])),
+    ];
+    return Math.max(...states.map(([text, icon]) => measureRoll(words, text) + lead(icon)));
+  };
+
   /** Holds the footprint or the width the mode asks for, around `text`. */
   const fit = (text: string): void => {
     if (width === "glide") {
       return;
     }
-    const most = widest();
     if (width === "fixed") {
-      words.style.minInlineSize = `${String(most)}px`;
+      const cs = getComputedStyle(button);
+      const frame = [
+        cs.paddingInlineStart,
+        cs.paddingInlineEnd,
+        cs.borderInlineStartWidth,
+        cs.borderInlineEndWidth,
+      ].reduce((sum, v) => sum + (Number.parseFloat(v) || 0), 0);
+      button.style.minInlineSize = `${String(Math.ceil(widestState() + frame))}px`;
       return;
     }
+    const most = widest();
     const slack = `${String(most - measureRoll(words, text))}px`;
     // The slack sits away from the edge its container aligns to, so an
     // end-aligned button, as in a table's actions cell, stays flush there.
