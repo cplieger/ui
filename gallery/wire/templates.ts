@@ -52,17 +52,15 @@ for (const [n, view] of [
 
 const results = document.getElementById("results");
 const terms = document.getElementById("search-terms");
-const input = terms?.querySelector("input");
-const glass = terms?.querySelector(".cp-icon");
+const input = document.querySelector<HTMLInputElement>("#search-terms input");
+const glass = document.querySelector("#search-terms .cp-icon");
 const count = document.getElementById("result-count");
 const none = document.getElementById("no-results");
 if (
   results !== null &&
   terms !== null &&
   input !== null &&
-  input !== undefined &&
   glass !== null &&
-  glass !== undefined &&
   count !== null &&
   none !== null
 ) {
