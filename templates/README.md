@@ -15,10 +15,10 @@ The frame every screen inside the app shares, `.cp-app`.
 | skip | `a.cp-skip`, first in `<body>` | |
 | header | `header.cp-header` | brand (`a.cp-wordmark`), destinations (`nav.cp-nav`, the current one `aria-current="page"`), toolbar (the header status's button and its empty panel `#status`, the theme toggle, the global actions, the account button last) |
 | rail | `aside.cp-rail` | filters: a `.cp-list-heading` over a plain compact `.cp-list` per group. Under 60rem the rail leaves and the heading's Filters button, `.cp-rail-toggle`, opens the same filters in a sheet |
-| main | `main.cp-main#main`, `tabindex="-1"` | banner (the header status's urgent part `#urgent`, hidden while no urgent condition holds, then a `.cp-notice[data-variant="banner"]` per condition of the app's own that stops work on every screen), heading (`.cp-heading-row`: the `<h1>` and its facts line, then the page's actions), notices (a `.cp-notice` per condition of the whole screen), content |
+| main | `main.cp-main#main`, `tabindex="-1"` | banner (the header status's urgent part `#urgent`, hidden while no urgent condition holds, then a `.cp-notice[data-variant="banner"]` per condition of the app's own that stops work on every screen), heading (`.cp-heading-row`: the `<h1 tabindex="-1">` and its facts line, then the page's actions), notices (a `.cp-notice` per condition of the whole screen), content |
 | status | `footer.cp-status` | the facts about the whole screen, freshness first, a part `data-state="late"` for work that has not run when it should have; about, last |
 
-Main is at most 90rem wide and centred; `data-width="full"` gives it the window, for a screen such as a wide table. A fact or a notice about one region goes in that region, under its heading.
+A route change moves focus to the screen's `<h1>`, which `tabindex="-1"` lets take it, as [Design patterns](../docs/design-patterns.md#navigation-and-the-url) describes. Main is at most 90rem wide and centred; `data-width="full"` gives it the window, for a screen such as a wide table. A fact or a notice about one region goes in that region, under its heading.
 
 The about slot is `.cp-meta[data-part="about"]`: the product's version, then its source, licence or docs links, as [Design patterns](../docs/design-patterns.md#navigation-and-the-url) describes.
 
@@ -35,7 +35,7 @@ The app page with no rail, whose main's content slot holds `.cp-list-detail`.
 | detail header | the detail's `<h2 tabindex="-1">`, which takes focus, and its close button |
 | detail body | `.cp-detail-body` |
 
-The detail docks beside the list once the box is 52rem wide and opens as a modal dialog below that. `data-variant="wide"` on `.cp-list-detail` gives a detail that is the work, such as a conversation, all but the list's column.
+The detail docks beside the list once the box is 52rem wide and opens as a full-height sheet at the inline end below that. `data-variant="wide"` on `.cp-list-detail` gives a detail that is the work, such as a conversation, all but the list's column.
 
 Scripts: the app page's, and [list-detail](../docs/layout/list-detail.md), which your route opens and closes.
 

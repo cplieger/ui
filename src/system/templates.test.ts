@@ -93,10 +93,16 @@ afterEach(async () => {
   }
 });
 
-/** Loads a template as it ships, scripts off, under `policy`, with a probe
- *  whose style attribute the policy must refuse. The copy is a served file:
- *  Firefox matches no source of 'self' in an about:srcdoc document. */
-async function loadStrict(name: string, policy: string): Promise<Document> {
+/** Loads a template as it ships under `policy`, with a style and a script
+ *  probe the policy must refuse, and returns the policy's later refusals. A
+ *  served file: Firefox matches no 'self' source in an about:srcdoc document.
+ *  No sandbox: WebKit fires no securitypolicyviolation in a frame without
+ *  scripts, so the policy alone keeps them off. The body loads hidden and
+ *  shows once the listener is on, so no glyph or face is fetched before it. */
+async function loadStrict(
+  name: string,
+  policy: string,
+): Promise<{ doc: Document; refused: SecurityPolicyViolationEvent[] }> {
   const text = await server.commands.readFile(`templates/${name}`);
   const base = new URL("../../templates/", import.meta.url).href;
   const head = `<meta http-equiv="Content-Security-Policy" content="${policy}"><base href="${base}">`;
@@ -105,14 +111,17 @@ async function loadStrict(name: string, policy: string): Promise<Document> {
     path,
     text
       .replace("<head>", `<head>${head}`)
-      .replace("<body>", '<body><p id="probe" style="display: none">probe</p>'),
+      .replace(
+        "<body>",
+        '<body hidden><p id="probe" style="display: none">probe</p>' +
+          "<script>document.documentElement.dataset.ran = '';</script>",
+      ),
   );
   written.push(path);
   const frame = document.createElement("iframe");
   frame.title = name;
   frame.width = "390";
   frame.height = "800";
-  frame.sandbox.add("allow-same-origin");
   const loaded = new Promise((resolve) => {
     frame.addEventListener("load", resolve, { once: true });
   });
@@ -124,7 +133,11 @@ async function loadStrict(name: string, policy: string): Promise<Document> {
   if (!doc) {
     throw new Error(`${name} did not load`);
   }
-  return doc;
+  const refused: SecurityPolicyViolationEvent[] = [];
+  doc.addEventListener("securitypolicyviolation", (e) => refused.push(e));
+  doc.body.hidden = false;
+  doc.body.getBoundingClientRect();
+  return { doc, refused };
 }
 
 describe("the page templates", () => {
@@ -132,7 +145,7 @@ describe("the page templates", () => {
     "%s holds no inline style, script or handler",
     async (name) => {
       const doc = await parse(name);
-      expect(doc.querySelectorAll("style, script, [style]")).toHaveLength(0);
+      expect(doc.querySelectorAll("style, script, noscript, [style]")).toHaveLength(0);
       const handlers = [...doc.querySelectorAll("*")].flatMap((el) =>
         el.getAttributeNames().filter((a) => a.startsWith("on")),
       );
@@ -255,6 +268,13 @@ describe("the page templates", () => {
       status.destroy();
       host.remove();
     }
+  });
+
+  it.each(APP_PAGES)("%s lets its one h1 take the focus a route change moves", async (name) => {
+    const doc = await parse(name);
+    const h1s = doc.querySelectorAll(".cp-main h1");
+    expect(h1s).toHaveLength(1);
+    expect(h1s[0]?.getAttribute("tabindex")).toBe("-1");
   });
 
   it("list-detail.html holds the list, a hidden detail and its close", async () => {
@@ -515,7 +535,7 @@ describe("the page templates", () => {
   it.each(SCRIPTLESS_PAGES)(
     "%s paints its look and glyphs with no script under a strict policy",
     async (name) => {
-      const doc = await loadStrict(name, STRICT);
+      const { doc, refused } = await loadStrict(name, STRICT);
       const view = doc.defaultView;
       if (!view) {
         throw new Error("no window");
@@ -525,6 +545,7 @@ describe("the page templates", () => {
         throw new Error("no probe");
       }
       expect(view.getComputedStyle(probe).display).not.toBe("none");
+      expect(doc.documentElement.hasAttribute("data-ran")).toBe(false);
       for (const family of ["Atkinson Hyperlegible Next", "Atkinson Hyperlegible Mono"]) {
         expect(await doc.fonts.load(`16px "${family}"`)).not.toHaveLength(0);
       }
@@ -551,6 +572,11 @@ describe("the page templates", () => {
         );
       }
       expect(pres.some((pre) => pre.scrollWidth > pre.clientWidth)).toBe(true);
+      expect(
+        refused
+          .filter((e) => /^(img|font)-src/.test(e.effectiveDirective))
+          .map((e) => `${e.effectiveDirective} ${e.blockedURI}`),
+      ).toEqual([]);
     },
   );
 });

@@ -32,7 +32,7 @@
             <span class="cp-nav-label">Releases</span>
           </a>
         </nav>
-        <!-- slot: toolbar: the header status and its panel, the theme toggle, the global actions, the account button last -->
+        <!-- slot: toolbar: the header status and its panel, the theme toggle, the account button last -->
         <div class="cp-toolbar">
           <!-- slot: header status: the button and its empty panel, which createHeaderStatus fills -->
           <button class="cp-header-status" type="button" data-state="ok" popovertarget="status">
@@ -56,8 +56,8 @@
           <!-- slot: content: the not-found page: the glyph, the h1, one sentence and the one link home -->
           <section class="cp-empty" data-variant="page" aria-labelledby="not-found-title">
             <span class="cp-icon" data-cp-icon="telescope" aria-hidden="true"></span>
-            <h1 id="not-found-title">This page does not exist</h1>
-            <p>The address may be old, or it was mistyped.</p>
+            <h1 id="not-found-title" tabindex="-1">This page does not exist</h1>
+            <p>The address may be old, or the item was removed.</p>
             <a class="cp-button" data-variant="primary" href="#">Go to the library</a>
           </section>
         </div>
