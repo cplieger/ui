@@ -26,9 +26,10 @@
   inline-size: 7rem;
 }
 
-/* Beside the poster the block keeps 18rem of words: a toolbar that does
- * not fit beside them wraps to its own line, and the container query below,
- * not the flex wrap, puts the block under the poster. */
+/* Beside the poster the block keeps 18rem of words, so the flex wrap puts
+ * it under the poster once the row is narrower than the poster, its gap
+ * and 18rem, and a toolbar that does not fit beside the words takes its
+ * own line. */
 .cp-heading-row > .cp-cover:first-child + * {
   flex: 1 1 0;
   min-inline-size: min(18rem, 100%);
@@ -70,12 +71,5 @@
   .cp-heading-row > .cp-toolbar > .cp-input {
     flex: 1 1 8rem;
     min-inline-size: 0;
-  }
-}
-
-/* The poster, its gap and 18rem of words. */
-@container cp-heading (width < 26.5rem) {
-  .cp-heading-row > .cp-cover:first-child + * {
-    flex-basis: 100%;
   }
 }
