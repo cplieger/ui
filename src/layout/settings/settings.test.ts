@@ -13,9 +13,13 @@ afterEach(async () => {
   life = new AbortController();
   document.body.replaceChildren();
   scrollTo(0, 0);
-  // The next case's press must not meet this scroll's late events.
-  await new Promise(requestAnimationFrame);
-  await new Promise(requestAnimationFrame);
+  // The next case's press must not meet this scroll's late events, and
+  // Firefox may still be gliding from a case's smooth scroll.
+  for (let y = Number.NaN, quiet = 0; quiet < 2;) {
+    await new Promise(requestAnimationFrame);
+    quiet = scrollY === y ? quiet + 1 : 0;
+    y = scrollY;
+  }
 });
 
 const task = (): Promise<void> => new Promise((r) => setTimeout(r));
@@ -568,6 +572,153 @@ describe("enhanceSettings", () => {
     }
     await shiftFirstIntoBand();
     expect(current()).toBe(2);
+  });
+
+  it("keeps a pressed category through an input during its own gliding jump", async () => {
+    const { form, links } = page(true);
+    enhanceSettings(form, { signal: life.signal });
+    const current = (): number => links.findIndex((l) => l.hasAttribute("aria-current"));
+    document.documentElement.style.scrollBehavior = "smooth";
+    try {
+      const landed = new Promise((r) => {
+        addEventListener("scrollend", r, { once: true });
+      });
+      const moving = new Promise((r) => {
+        addEventListener("scroll", r, { once: true });
+      });
+      links[2]?.click();
+      await moving;
+      await new Promise(requestAnimationFrame);
+      dispatchEvent(new KeyboardEvent("keydown", { key: "Tab" }));
+      dispatchEvent(new PointerEvent("pointerdown"));
+      await landed;
+      await new Promise(requestAnimationFrame);
+      await task();
+      expect([current(), scrollY > 0]).toEqual([2, true]);
+    } finally {
+      document.documentElement.style.scrollBehavior = "";
+    }
+    scrollTo(0, 0);
+    await vi.waitFor(() => {
+      expect(current()).toBe(0);
+    });
+  });
+
+  it("keeps a pressed category through a box's scrollend during its own gliding jump", async () => {
+    const { form, links } = page(true);
+    const box = document.createElement("textarea");
+    box.rows = 2;
+    box.value = "1\n2\n3\n4\n5\n6\n7\n8";
+    document.getElementById("s-dis")?.append(box);
+    enhanceSettings(form, { signal: life.signal });
+    const current = (): number => links.findIndex((l) => l.hasAttribute("aria-current"));
+    document.documentElement.style.scrollBehavior = "smooth";
+    try {
+      const landed = new Promise((r) => {
+        document.addEventListener("scrollend", r, { once: true });
+      });
+      const boxDone = new Promise((r) => {
+        box.addEventListener("scrollend", r, { once: true });
+      });
+      const moving = new Promise((r) => {
+        addEventListener("scroll", r, { once: true });
+      });
+      links[2]?.click();
+      await moving;
+      box.scrollTop = 40;
+      await boxDone;
+      await landed;
+      await new Promise(requestAnimationFrame);
+      await task();
+      expect([current(), scrollY > 0, box.scrollTop > 0]).toEqual([2, true, true]);
+    } finally {
+      document.documentElement.style.scrollBehavior = "";
+    }
+    scrollTo(0, 0);
+    await vi.waitFor(() => {
+      expect(current()).toBe(0);
+    });
+  });
+
+  it("carries a pressed category's hold to its new link when update replaces the links", async () => {
+    const { form, nav, links } = page(true);
+    const s = enhanceSettings(form, { signal: life.signal });
+    await holdLast(links);
+    // At the page's end this press scrolls nothing, so its jump waits for an input.
+    links[2]?.click();
+    await new Promise(requestAnimationFrame);
+    await task();
+    const ul = nav.querySelector("ul") as HTMLElement;
+    ul.innerHTML =
+      row("Connections", "#s-con") + row("Checks", "#s-chk") + row("Display", "#s-dis");
+    s.update();
+    const fresh = [...nav.querySelectorAll<HTMLAnchorElement>("a.cp-list-row")];
+    const current = (): number => fresh.findIndex((l) => l.hasAttribute("aria-current"));
+    expect(current()).toBe(2);
+    dispatchEvent(new KeyboardEvent("keydown", { key: "Tab" }));
+    scrollTo(0, 0);
+    await vi.waitFor(() => {
+      expect(current()).toBe(0);
+    });
+  });
+
+  it("carries the hold through an app that renders its categories again on hashchange", async () => {
+    const { form, nav } = page(true);
+    const s = enhanceSettings(form, { signal: life.signal });
+    const ul = nav.querySelector("ul") as HTMLElement;
+    addEventListener(
+      "hashchange",
+      () => {
+        ul.innerHTML =
+          row("Connections", "#s-con") + row("Checks", "#s-chk") + row("Display", "#s-dis");
+        s.update();
+      },
+      { signal: life.signal },
+    );
+    history.replaceState(null, "", location.pathname + location.search);
+    const seen = entered(document.getElementById("s-chk") as HTMLElement);
+    nav.querySelectorAll<HTMLAnchorElement>("a.cp-list-row")[2]?.click();
+    await seen;
+    await new Promise(requestAnimationFrame);
+    await task();
+    const fresh = [...nav.querySelectorAll<HTMLAnchorElement>("a.cp-list-row")];
+    const current = (): number => fresh.findIndex((l) => l.hasAttribute("aria-current"));
+    expect(current()).toBe(2);
+    dispatchEvent(new PointerEvent("pointerdown"));
+    scrollTo(0, 0);
+    await vi.waitFor(() => {
+      expect(current()).toBe(0);
+    });
+  });
+
+  it("ends the hold when update removes the pressed category, and marks the section in view", async () => {
+    const { form, nav, links } = page(true);
+    const s = enhanceSettings(form, { signal: life.signal });
+    await holdLast(links);
+    const ul = nav.querySelector("ul") as HTMLElement;
+    ul.innerHTML = row("Connections", "#s-con") + row("Checks", "#s-chk");
+    s.update();
+    const fresh = [...nav.querySelectorAll<HTMLAnchorElement>("a.cp-list-row")];
+    await vi.waitFor(() => {
+      expect(fresh.map((l) => l.getAttribute("aria-current"))).toEqual([null, "location"]);
+    });
+  });
+
+  it("marks the section in view as soon as a small scroll ends the hold", async () => {
+    const { form, links } = page(true);
+    enhanceSettings(form, { signal: life.signal });
+    const current = (): number => links.findIndex((l) => l.hasAttribute("aria-current"));
+    await holdLast(links);
+    expect(current()).toBe(2);
+    const moved = new Promise((r) => {
+      addEventListener("scroll", r, { once: true });
+    });
+    dispatchEvent(new WheelEvent("wheel", { deltaY: -30 }));
+    scrollBy(0, -30);
+    await moved;
+    await task();
+    // Checks still fills the band, so no section crosses its edge.
+    expect(current()).toBe(1);
   });
 
   it("leaves the current category to a router that marks it page, one section shown at a time", async () => {

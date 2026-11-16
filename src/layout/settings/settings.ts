@@ -109,6 +109,39 @@ function byFragment(root: Document | ShadowRoot, fragment: string): Element | nu
   return root.getElementById(fragment) ?? root.getElementById(percentDecode(fragment));
 }
 
+/** Whether `node` is `el` or holds it, across shadow roots. */
+function holds(node: Node, el: Node): boolean {
+  for (
+    let at: Node | null = el;
+    at !== null;
+    at = at instanceof ShadowRoot ? at.host : at.parentNode
+  ) {
+    if (at === node) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/** A pressed category's hold; see `step` in `enhanceSettings`. */
+type Hold =
+  | { readonly kind: "idle" }
+  | {
+      readonly kind: "jumping";
+      readonly link: HTMLAnchorElement;
+      readonly from: number;
+      readonly to: number;
+      readonly scroller: EventTarget | null;
+    }
+  | { readonly kind: "held"; readonly link: HTMLAnchorElement; readonly at: string };
+
+type HoldEvent =
+  | { readonly type: "press"; readonly link: HTMLAnchorElement }
+  | { readonly type: "scroll" | "scrollend"; readonly target: EventTarget | null }
+  | { readonly type: "input" | "update" };
+
+const IDLE: Hold = { kind: "idle" };
+
 /** The link's words without its end part or the words read after them. */
 function nameOf(link: HTMLAnchorElement): string {
   let text = "";
@@ -264,25 +297,6 @@ export function enhanceSettings(form: HTMLFormElement, options: SettingsOptions 
     paintBar();
   };
 
-  // A pressed link stays current until the page scrolls after the press's
-  // own jump, so a last section too short to reach the band still reads as
-  // current. The jump may come tasks after the click (Firefox) or glide
-  // (`scroll-behavior: smooth`), so it ends at the `scrollend` after its
-  // scroll, or at the person's next input when it scrolled nothing. The
-  // section's place on screen is read then; a later scroll that leaves it
-  // there, such as a box's own, keeps the hold.
-  let held: HTMLAnchorElement | null = null;
-  let heldAt: string | null = null;
-  let jumping = false;
-  // The section's top at the press and where the jump brings it: a scroll
-  // before the jump ends that moves it away or past is the person's, as
-  // after a press at the page's end, which moves nothing.
-  let from = 0;
-  let to = 0;
-  const placeOf = (link: HTMLAnchorElement): string => {
-    const box = targets.get(link)?.getBoundingClientRect();
-    return box === undefined ? "" : `${String(box.left)} ${String(box.top)}`;
-  };
   // A link the app marks "page" means its router shows one section at a
   // time and owns which is current.
   const routed = (): boolean => links.some((l) => l.getAttribute("aria-current") === "page");
@@ -299,6 +313,102 @@ export function enhanceSettings(form: HTMLFormElement, options: SettingsOptions 
     }
   };
   const seen = new Set<Element>();
+  const markInView = (): void => {
+    const first = [...targets].find(([, t]) => seen.has(t));
+    if (first !== undefined) {
+      setCurrent(first[0]);
+    }
+  };
+
+  // A pressed link stays current until the page scrolls after the press's
+  // own jump, so a last section too short to reach the band still reads as
+  // current. Every event goes through `step`; `release` is the only way back
+  // to idle. While `jumping`, the first scroller seen moving the section
+  // toward its place is the jump's, and only its `scrollend` ends the jump
+  // (Firefox jumps a frame after the click, a smooth scroll glides); a jump
+  // nothing has moved yet ends at the next input. Then `held` keeps the
+  // section's place on screen until a scroll moves it.
+  let hold: Hold = IDLE;
+  const placeOf = (link: HTMLAnchorElement): string => {
+    const box = targets.get(link)?.getBoundingClientRect();
+    return box === undefined ? "" : `${String(box.left)} ${String(box.top)}`;
+  };
+  const release = (): void => {
+    hold = IDLE;
+    markInView();
+  };
+  const settle = (link: HTMLAnchorElement): void => {
+    hold = { kind: "held", link, at: placeOf(link) };
+  };
+  // `from` is the section's top at the press and `to` where the jump brings
+  // it. A scroll that moves the section away from `to` or past it is the
+  // person's, as after a press at the page's end, which moves nothing.
+  const jumped = (jump: Extract<Hold, { kind: "jumping" }>, scroller: EventTarget | null): void => {
+    const section = targets.get(jump.link);
+    if (section === undefined || !(scroller instanceof Node) || !holds(scroller, section)) {
+      return;
+    }
+    const top = section.getBoundingClientRect().top;
+    if (top === jump.from) {
+      return;
+    }
+    const away = Math.sign(top - jump.from) !== Math.sign(jump.to - jump.from);
+    if (away || Math.abs(top - jump.from) > Math.abs(jump.to - jump.from) + 1) {
+      release();
+    } else if (jump.scroller === null) {
+      hold = { ...jump, scroller };
+    }
+  };
+  const step = (e: HoldEvent): void => {
+    if (e.type === "press") {
+      const target = targets.get(e.link);
+      const from = target?.getBoundingClientRect().top ?? 0;
+      // scroll-padding computes to "auto" when unset.
+      const to =
+        target === undefined
+          ? from
+          : (parseFloat(getComputedStyle(target).scrollMarginTop) || 0) +
+            (parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop) || 0);
+      hold = { kind: "jumping", link: e.link, from, to, scroller: null };
+      setCurrent(e.link);
+      return;
+    }
+    if (hold.kind === "idle") {
+      return;
+    }
+    const { link } = hold;
+    switch (e.type) {
+      case "update": {
+        // The app may have rebuilt the links: the hold moves to the one with
+        // the same address, whose section is the same.
+        const same = links.find((l) => l.href === link.href && targets.has(l));
+        if (same === undefined) {
+          release();
+        } else {
+          hold = { ...hold, link: same };
+          setCurrent(same);
+        }
+        return;
+      }
+      case "input":
+        if (hold.kind === "jumping" && hold.scroller === null) {
+          settle(link);
+        }
+        return;
+      case "scrollend":
+        if (hold.kind === "jumping" && hold.scroller === e.target) {
+          settle(link);
+        }
+        return;
+      case "scroll":
+        if (hold.kind === "jumping") {
+          jumped(hold, e.target);
+        } else if (placeOf(link) !== hold.at) {
+          release();
+        }
+        return;
+    }
+  };
   const spy = new IntersectionObserver(
     (entries) => {
       for (const e of entries) {
@@ -308,58 +418,33 @@ export function enhanceSettings(form: HTMLFormElement, options: SettingsOptions 
           seen.delete(e.target);
         }
       }
-      if (held !== null) {
-        return;
-      }
-      const first = [...targets].find(([, t]) => seen.has(t));
-      if (first !== undefined) {
-        setCurrent(first[0]);
+      if (hold.kind === "idle") {
+        markInView();
       }
     },
     { rootMargin: "-20% 0px -60% 0px" },
   );
-  const settled = (): void => {
-    if (held !== null && heldAt === null) {
-      heldAt = placeOf(held);
-    }
-  };
-  const scrolled = (): void => {
-    if (held === null) {
-      return;
-    }
-    if (heldAt !== null) {
-      if (placeOf(held) !== heldAt) {
-        held = null;
-      }
-      return;
-    }
-    const top = targets.get(held)?.getBoundingClientRect().top ?? from;
-    if (Math.abs(top - from) < 1) {
-      return;
-    }
-    const away = Math.sign(top - from) !== Math.sign(to - from);
-    if (away || Math.abs(top - from) > Math.abs(to - from) + 1) {
-      held = null;
-    } else {
-      jumping = true;
-    }
-  };
   const early = { ...until(signal, true), passive: true };
   // A box's scroll does not bubble, and one inside a shadow root stops there.
   for (const at of root instanceof ShadowRoot ? [window, root] : [window]) {
-    at.addEventListener("scroll", scrolled, early);
-    at.addEventListener(
-      "scrollend",
+    for (const type of ["scroll", "scrollend"] as const) {
+      at.addEventListener(
+        type,
+        (e) => {
+          step({ type, target: e.target });
+        },
+        early,
+      );
+    }
+  }
+  for (const type of ["pointerdown", "wheel", "touchstart", "keydown"]) {
+    addEventListener(
+      type,
       () => {
-        if (jumping) {
-          settled();
-        }
+        step({ type: "input" });
       },
       early,
     );
-  }
-  for (const type of ["pointerdown", "wheel", "touchstart", "keydown"]) {
-    addEventListener(type, settled, early);
   }
   nav.addEventListener(
     "click",
@@ -371,18 +456,7 @@ export function enhanceSettings(form: HTMLFormElement, options: SettingsOptions 
       }
       const link = e.target instanceof Element ? e.target.closest("a") : null;
       if (link !== null && targets.has(link)) {
-        held = link;
-        heldAt = null;
-        jumping = false;
-        const target = targets.get(link);
-        from = target?.getBoundingClientRect().top ?? 0;
-        // scroll-padding computes to "auto" when unset.
-        to =
-          target === undefined
-            ? from
-            : (parseFloat(getComputedStyle(target).scrollMarginTop) || 0) +
-              (parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop) || 0);
-        setCurrent(link);
+        step({ type: "press", link });
       }
     },
     listen,
@@ -410,6 +484,7 @@ export function enhanceSettings(form: HTMLFormElement, options: SettingsOptions 
       // Moving the select again would blur it under the person's keys.
       nav.append(field);
     }
+    step({ type: "update" });
     paint(last);
   };
 
