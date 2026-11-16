@@ -151,6 +151,7 @@ describe("enhanceListDetail", () => {
     api.open({ still: true });
     expect(dialog.matches(":modal")).toBe(true);
     expect(dialog.getAttribute("aria-labelledby")).toBe("detail-title");
+    expect(dialog.hasAttribute("data-cp-own-close"), "its close requests are its own").toBe(true);
     expect(detail.parentElement).toBe(dialog);
     expect(root.hasAttribute("data-cp-docked")).toBe(false);
     expect(document.activeElement).toBe(heading);

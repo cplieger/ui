@@ -4,7 +4,7 @@
  * @module
  */
 
-import { dateAt, type TimeUnit } from "./time.js";
+import { dateAt, grainBefore, type Grain, type TimeUnit } from "./time.js";
 
 /** How a scale writes its values; see `docs/data/chart.md` "Formats". */
 export type Format =
@@ -168,17 +168,18 @@ const NEAR = 1e-14;
 /**
  * The width key of `writer(format, locale)`'s texts, signed or not: for a
  * number its sign, zero, integer digits and fraction digits shown, which fix
- * the text's separators and affixes; for a duration the record it writes
- * and whether its count is above, below or at 0. Undefined for a function,
- * a notation other than standard, significant-digit or uneven rounding, and
- * a style whose words follow the count, none of which a key can read.
+ * the text's separators and affixes; for a duration its units, each count's
+ * digits and plural form, and whether it is above, below or at 0. Undefined
+ * for a function, a notation other than standard, significant-digit or
+ * uneven rounding, and a style whose words follow the count, none of which a
+ * key can read.
  */
 export function widthKey(
   format: Format | undefined,
   locale: string | undefined,
 ): WidthKey | undefined {
   if (format === "duration") {
-    return durationKey;
+    return durationKey(locale);
   }
   const options = typeof format === "object" ? format : preset(format);
   if (options === undefined) {
@@ -209,10 +210,7 @@ export function widthKey(
     }
     const n = Math.round(scaled);
     const whole = Math.floor(n / unit);
-    let digits = 1;
-    for (let w = whole; w >= 10; w = Math.floor(w / 10)) {
-      digits++;
-    }
+    const digits = digitCount(whole);
     let rest = n - whole * unit;
     let shown = rest === 0 ? (strip ? 0 : least) : most;
     while (rest !== 0 && rest % 10 === 0 && shown > least) {
@@ -268,44 +266,87 @@ export function durationRecord(ms: number): Partial<Record<DurationUnit | "milli
 }
 
 const FIELDS = ["days", "hours", "minutes", "seconds", "milliseconds"] as const;
+const FORMS = ["zero", "one", "two", "few", "many", "other"] as const;
 
-// The text is the record's alone but for a signed writer's "+" on a record
-// above 0; a record of zero is written unsigned, so 0.3 writes "0 ms".
-function durationKey(v: number): number {
-  const record = durationRecord(v);
-  const at = FIELDS.findIndex((unit) => record[unit] !== undefined);
-  const next = FIELDS[at + 1];
-  const big = record[FIELDS[at] ?? "milliseconds"] ?? 0;
-  // `* 60` holds the smaller count, which `durationRecord` keeps under 60.
-  const small = next === undefined ? 0 : (record[next] ?? 0);
-  const k = ((Math.abs(big) * 60 + Math.abs(small)) * FIELDS.length + at) * 3;
-  const key = k + (big > 0 ? 1 : big < 0 ? 2 : 0);
-  return key < 2 ** 50 ? key : Number.NaN;
+const pluralRules = (locale: string | undefined) =>
+  cached(`p|${locale ?? ""}`, () => new Intl.PluralRules(locale));
+
+// The digits of whole number `n`, which with the locale fix its separators.
+function digitCount(n: number): number {
+  let digits = 1;
+  for (let w = n; w >= 10; w = Math.floor(w / 10)) {
+    digits++;
+  }
+  return digits;
+}
+
+// A count's text is its digits and its unit's plural form, so a record's
+// width is fixed by its units and those, but for a signed writer's "+" on a
+// record above 0; a record of zero is written unsigned, so 0.3 writes "0 ms".
+function durationKey(locale: string | undefined): WidthKey {
+  const rules = pluralRules(locale);
+  const forms = new Map<number, number>();
+  const count = (n: number) => {
+    let form = forms.get(n);
+    if (form === undefined) {
+      form = FORMS.indexOf(rules.select(n));
+      forms.set(n, form);
+    }
+    return digitCount(n) * FORMS.length + form;
+  };
+  return (v) => {
+    const record = durationRecord(v);
+    const at = FIELDS.findIndex((unit) => record[unit] !== undefined);
+    const next = FIELDS[at + 1];
+    const big = record[FIELDS[at] ?? "milliseconds"] ?? 0;
+    if (!Number.isFinite(big)) {
+      return Number.NaN;
+    }
+    const small = next === undefined ? undefined : record[next];
+    // `durationRecord` keeps the smaller count under 60, so `rest` is at most 18.
+    const rest = small === undefined ? 0 : count(Math.abs(small)) + 1;
+    const k = ((count(Math.abs(big)) * 19 + rest) * FIELDS.length + at) * 3;
+    return k + (big > 0 ? 1 : big < 0 ? 2 : 0);
+  };
 }
 
 /** A plain space between a number and the word after it, made non-breaking. */
 export const keepUnit = (text: string): string => text.replace(/(\p{Nd}) (?=\p{L})/gu, `$1${NBSP}`);
 
-// `ms` by the duration rule, in Intl.DurationFormat's short style.
-function formatDuration(ms: number, locale: string | undefined): string {
-  const record = durationRecord(ms);
+// `record` in Intl.DurationFormat's `style`.
+function durationWords(
+  record: Partial<Record<Intl.DurationFormatUnit, number>>,
+  style: "short" | "long",
+  locale: string | undefined,
+): string {
   // The style's "auto" display writes nothing for a lone zero.
   const zero = record.milliseconds === 0;
   const df = cached(
-    `d|${locale ?? ""}|${String(zero)}`,
+    `d|${locale ?? ""}|${style}|${String(zero)}`,
     () =>
       new Intl.DurationFormat(locale, {
-        style: "short",
+        style,
         ...(zero ? { millisecondsDisplay: "always" as const } : {}),
       }),
   );
   return keepUnit(df.format(record));
 }
 
+// `ms` by the duration rule, in the short style.
+const formatDuration = (ms: number, locale: string | undefined): string =>
+  durationWords(durationRecord(ms), "short", locale);
+
+/** `count` whole grains as a step, "1 month" or "7 days", in the long style,
+ *  since the short one's "mth" and French "m." read as minutes. */
+export const grainStep = (
+  count: number,
+  grain: Exclude<Grain, "minute">,
+  locale: string | undefined,
+): string => durationWords({ [`${grain}s`]: count }, "long", locale);
+
 /** `unit`'s noun for `count` in `locale`. */
 export function noun(unit: Unit, count: number, locale: string | undefined): string {
-  const rules = cached(`p|${locale ?? ""}`, () => new Intl.PluralRules(locale));
-  return unit[rules.select(count)] ?? unit.other;
+  return unit[pluralRules(locale).select(count)] ?? unit.other;
 }
 
 /** A written number and its noun, joined by a non-breaking space. */
@@ -342,31 +383,68 @@ const DATE_PARTS: Readonly<Record<Reach, Intl.DateTimeFormatOptions>> = {
   era: { ...DAY, year: "numeric", era: "short" },
 };
 
-/** An instant in the summary, the readings and the table: its hour and
- *  minute, with as much of its date as `reach` asks. */
+function grainParts(reach: Reach, grain: Grain): Intl.DateTimeFormatOptions {
+  if (grain === "minute") {
+    return { ...DATE_PARTS[reach], ...MINUTE };
+  }
+  if (grain === "day") {
+    return DATE_PARTS[reach === "time" ? "day" : reach];
+  }
+  // A month without its year reads as every March.
+  return {
+    ...(grain === "month" ? { month: "short" } : {}),
+    year: "numeric",
+    ...(reach === "era" ? { era: "short" } : {}),
+  };
+}
+
+/** An instant in the summary, the readings and the table: at a "minute"
+ *  grain its hour and minute with as much of its date as `reach` asks; else
+ *  the date ("Mar 4", its year as `reach` asks), the month ("Mar 2023") or
+ *  the year it starts. */
 export function instantFormat(
   locale: string | undefined,
   timeZone: string | undefined,
   reach: Reach,
+  grain: Grain = "minute",
 ): (ms: number) => string {
-  return writes(dates(locale, timeZone, { ...DATE_PARTS[reach], ...MINUTE }));
+  return writes(dates(locale, timeZone, grainParts(reach, grain)));
 }
 
-/** Both ends of a span of instants as `instantFormat` writes them, the end
- *  without its date when it falls on the start's day ("Nov 10, 12:00 PM" and
- *  "1:00 PM"). */
+/** A written instant and the instant it names. */
+interface Written {
+  readonly at: number;
+  readonly text: string;
+}
+
+/** A span as one or two written instants. */
+export type Span = readonly [Written] | readonly [Written, Written];
+
+/** A span of instants as `instantFormat` writes them. At a "minute" grain
+ *  both ends, the end without its date when it falls on the start's day
+ *  ("Nov 10, 12:00 PM" and "1:00 PM"). At a coarser grain an `open` span,
+ *  a bucket from `from` up to `to`, ends at the last grain it covers and is
+ *  that grain alone when it covers one ("Mar 2023"). */
 export function spanFormat(
   locale: string | undefined,
   timeZone: string | undefined,
   reach: Reach,
-): (from: number, to: number) => readonly [string, string] {
-  const at = instantFormat(locale, timeZone, reach);
+  grain: Grain = "minute",
+): (from: number, to: number, open?: boolean) => Span {
+  const at = instantFormat(locale, timeZone, reach, grain);
+  const written = (t: number, text = at(t)): Written => ({ at: t, text });
+  if (grain !== "minute") {
+    return (from, to, open = false) => {
+      const end = open ? grainBefore(to, grain, timeZone) : to;
+      return end <= from ? [written(from)] : [written(from), written(end)];
+    };
+  }
   if (reach === "time") {
-    return (from, to) => [at(from), at(to)];
+    return (from, to) => [written(from), written(to)];
   }
   const day = writes(dates(locale, timeZone, DATE_PARTS[reach]));
   const time = writes(dates(locale, timeZone, MINUTE));
-  return (from, to) => [at(from), day(from) === day(to) ? time(to) : at(to)];
+  return (from, to) => [written(from), written(to, day(from) === day(to) ? time(to) : at(to))];
 }
 
 const TICK_PARTS: Readonly<

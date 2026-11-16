@@ -19,6 +19,7 @@ import {
   calendarPaths,
   cellBox,
   cellPaths,
+  contextPath,
   dayBox,
   dotGroups,
   dotPath,
@@ -49,7 +50,14 @@ import {
 } from "./geometry.js";
 import { dayPlace } from "./calendar.js";
 import type { Layout, Leader, Metrics, Note, Text } from "./layout.js";
-import { drawnTotal, drawnValue, sampleValue, type Model } from "./model.js";
+import {
+  drawnTotal,
+  drawnValue,
+  sampleValue,
+  type LineModel,
+  type Model,
+  type ScatterModel,
+} from "./model.js";
 import { MARKER_RADIUS } from "./notes.js";
 import { sliceAngles } from "./pie.js";
 import type { Reading, Widths } from "./readout.js";
@@ -147,7 +155,11 @@ export const AREA_ROOM = 5;
 
 // The plot's marks, in spec order, inside a nested SVG that clips them to
 // the plot outset by AREA_ROOM; its user space keeps 0 0 at the plot's corner.
-function plotArea(model: Model, lay: Layout): SVGElement {
+function plotArea(
+  model: Model,
+  lay: Layout,
+  others: readonly (LineModel | ScatterModel)[],
+): SVGElement {
   const f = lay.frame;
   const w = num(f.width + 2 * AREA_ROOM);
   const h = num(f.height + 2 * AREA_ROOM);
@@ -213,6 +225,13 @@ function plotArea(model: Model, lay: Layout): SVGElement {
   }
   if (zero !== "") {
     area.append(svgEl("path", { "data-part": "zero", d: zero }));
+  }
+  if (others.length > 0) {
+    const context = svgEl("path", { "data-part": "context", d: contextPath(others, f) });
+    if (primary?.kind === "scatter") {
+      context.setAttribute("data-dots", "");
+    }
+    area.append(context);
   }
   const notes = new Map(lay.notes.map((n) => [n.mark, n]));
   model.marks.forEach((m, index) => {
@@ -421,25 +440,34 @@ function plotArea(model: Model, lay: Layout): SVGElement {
 const leaderPath = (list: readonly Leader[]): string =>
   list.map((l) => `M${num(l.from.x)} ${num(l.from.y)}L${num(l.to.x)} ${num(l.to.y)}`).join("");
 
-/** Draws `model` laid out as `lay` into `svg`, replacing what it held. */
-export function drawPlot(svg: SVGSVGElement, model: Model, lay: Layout): void {
-  svg.setAttribute("width", num(lay.width));
+/** Draws `model` laid out as `lay` into `svg`, replacing what it held,
+ *  with `others`, small multiples' other panels' marks, faintly behind it. */
+export function drawPlot(
+  svg: SVGSVGElement,
+  model: Model,
+  lay: Layout,
+  others: readonly (LineModel | ScatterModel)[] = [],
+): void {
+  const from = lay.clip === true ? lay.left : 0;
+  const width = lay.clip === true ? lay.frame.width : lay.width;
+  svg.setAttribute("width", num(width));
   svg.setAttribute("height", num(lay.height));
-  svg.setAttribute("viewBox", `0 0 ${num(lay.width)} ${num(lay.height)}`);
+  svg.setAttribute("viewBox", `${num(from)} 0 ${num(width)} ${num(lay.height)}`);
   // A band x labels its columns, as a band y its rows, with no tick.
   const primary = model.primary;
   const band = primary?.kind === "cell" && "names" in primary.x;
   const ticks = svgEl("path", {
     "data-part": "ticks",
     transform: `translate(${num(lay.left)} ${num(lay.top + lay.frame.height)})`,
-    d: band
-      ? ""
-      : tickPath(
-          lay.xAxis.ticks.map((t) => t.at),
-          lay.frame.dpr,
-        ),
+    d:
+      band || lay.ticks === false
+        ? ""
+        : tickPath(
+            lay.xAxis.ticks.map((t) => t.at),
+            lay.frame.dpr,
+          ),
   });
-  const plot = plotArea(model, lay);
+  const plot = plotArea(model, lay, others);
   svg.replaceChildren(
     texts("y", lay.yLabels, lay.mono),
     ticks,
@@ -635,7 +663,8 @@ function scatterHair(model: Model, lay: Layout, sel: Selection): string {
 
 /**
  * Draws `sel`'s crosshair and ring over the plot `drawPlot` drew in `svg`,
- * replacing the last; none with no selection.
+ * replacing the last; none with no selection. A `synced` selection is
+ * another panel's, which the stylesheet draws fainter.
  */
 export function drawSelection(
   svg: SVGSVGElement,
@@ -643,7 +672,9 @@ export function drawSelection(
   lay: Layout,
   sel: Selection | undefined,
   nav: Navigator,
+  synced = false,
 ): void {
+  svg.toggleAttribute("data-synced", synced && sel !== undefined);
   const area = svg.querySelector('[data-part="area"]');
   area?.querySelector('[data-part="selection"]')?.remove();
   // A bar, point or box row's selection, and a cell's row and column, show
@@ -733,8 +764,9 @@ const rowHeld = (px: number): string => `min(${num(px)}px, 100%)`;
 
 /**
  * Builds the legend row's entries for readings shaped like `reading`: the
- * x slot, a chip per named series with its swatch, a bare value for a lone
- * series, and a stack's total, each slot kept at its width in `widths`.
+ * panel slot under `facets`, the x slot, a chip per named series with its
+ * swatch, a bare value for a lone series, and a stack's total, each slot
+ * kept at its width in `widths`.
  * With `chooses`, each chip name keeps the width its chosen weight needs.
  */
 export function frameLegend(
@@ -747,6 +779,11 @@ export function frameLegend(
   const at = span("at");
   at.style.minInlineSize = rowHeld(widths.at);
   const parts = document.createDocumentFragment();
+  if (reading.panel !== undefined) {
+    const panel = span("panel");
+    panel.style.minInlineSize = rowHeld(widths.panel ?? 0);
+    parts.append(panel);
+  }
   parts.append(at);
   reading.entries.forEach((e, k) => {
     const value = span("value");
@@ -968,6 +1005,9 @@ export function colourKey(model: Model, words: Words, measure: Measure): HTMLEle
 
 /** Writes `reading` into a legend row `frameLegend` built for its shape. */
 export function writeLegend(legend: HTMLElement, reading: Reading): void {
+  if (reading.panel !== undefined) {
+    legend.querySelector(':scope > [data-part="panel"]')?.replaceChildren(bdi(reading.panel));
+  }
   const at = legend.querySelector('[data-part="at"]');
   at?.replaceChildren(bdi(reading.at));
   const values = legend.querySelectorAll('[data-part="value"]');
