@@ -18,14 +18,12 @@ import { localDay, midnight } from "../scale/time.js";
 
 import { check } from "./check.js";
 import {
-  binOf,
   cellOrder,
   chartModel,
   drawnTotal,
   drawnValue,
   pointLink,
   sampleValue,
-  scatterDotAt,
   type BoxModel,
   type CellModel,
   type PointModel,
@@ -1689,7 +1687,6 @@ describe("the scatter mark", () => {
       shown: [[0], []],
       size: undefined,
       drawn: [{ series: 0, i: 0 }],
-      at: new Map([[2, new Map([[8, { series: 0, i: 0 }]])]]),
     });
     expect(m.kind).toBe("scatter");
     expect(m.empty).toBe(false);
@@ -1835,19 +1832,6 @@ describe("the scatter mark's sizes", () => {
       { series: 0, i: 0 },
       { series: 0, i: 2 },
     ]);
-  });
-
-  it("finds the bubble drawn on top among coincident ones: the smallest", () => {
-    const m = build(
-      scatter(
-        [
-          { names: ["small"], x: [1], y: [2], r: [1] },
-          { names: ["large"], x: [1], y: [2], r: [9] },
-        ],
-        sized,
-      ),
-    );
-    expect(scatterDotAt(m.marks[0] as ScatterModel, 1, 2)).toEqual({ series: 0, i: 0 });
   });
 });
 
@@ -2103,18 +2087,6 @@ describe("a cell mark's binned axes", () => {
     });
     expect(m.xText(60).replaceAll(/\s/gu, " ")).toBe("1 min");
     expect(m.colourText(90).replaceAll(/\s/gu, " ")).toBe("1 min, 30 sec");
-  });
-});
-
-describe("binOf", () => {
-  const edges = [0, 10, 20, 50];
-
-  it("puts a value in the bin from its low edge, the last bin to its high edge too", () => {
-    expect([0, 9.99, 10, 49, 50].map((v) => binOf(edges, v))).toEqual([0, 0, 1, 2, 2]);
-  });
-
-  it("puts a value past either edge, or NaN, in no bin", () => {
-    expect([-0.1, 50.1, Number.NaN].map((v) => binOf(edges, v))).toEqual([-1, -1, -1]);
   });
 });
 

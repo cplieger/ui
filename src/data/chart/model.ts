@@ -357,14 +357,6 @@ export interface ScatterModel {
    *  then the app's order; bubbles largest first across every series, ties
    *  in that order, so a small bubble is never hidden under a large one. */
   readonly drawn: readonly DotRef[];
-  /** The drawn dot at each x, then y: the last drawn among coincident dots. */
-  readonly at: ReadonlyMap<number, ReadonlyMap<number, DotRef>>;
-}
-
-/** The shown dot of `m` whose values are `x` and `y`, the one drawn on top
- *  among coincident dots. Undefined when no shown dot has both. */
-export function scatterDotAt(m: ScatterModel, x: number, y: number): DotRef | undefined {
-  return m.at.get(x)?.get(y);
 }
 
 /** A category's five numbers, each at most the next. */
@@ -401,16 +393,6 @@ export type CellAxis =
 /** The columns or rows along `axis`. */
 export const cellCount = (axis: CellAxis): number =>
   "names" in axis ? axis.names.length : axis.edges.length - 1;
-
-/** The bin of ascending `edges` holding `v`, each from its low edge, the
- *  last to its high edge too; -1 outside them. */
-export function binOf(edges: readonly number[], v: number): number {
-  const last = edges.length - 1;
-  if (last < 1 || !(v >= (edges[0] ?? 0) && v <= (edges[last] ?? 0))) {
-    return -1;
-  }
-  return v === edges[last] ? last - 1 : upperBound(edges, v) - 1;
-}
 
 /** A cell chart's cells in reading order, as `[row, column]`: rows from the
  *  top (a binned y's highest bin first), columns from the left. */
@@ -734,17 +716,7 @@ function scatterModel(
     const r = (d: DotRef) => series[d.series]?.r?.[d.i] ?? 0;
     drawn.sort((a, b) => r(b) - r(a));
   }
-  const at = new Map<number, Map<number, DotRef>>();
-  for (const ref of drawn) {
-    const s = series[ref.series];
-    const dx = s?.x[ref.i];
-    const dy = s?.y[ref.i];
-    if (dx !== null && dx !== undefined && dy !== null && dy !== undefined) {
-      const column = at.get(dx) ?? new Map<number, DotRef>();
-      at.set(dx, column.set(dy, ref));
-    }
-  }
-  return { kind: "scatter", unit: mark.unit, series, shown, size, drawn, at };
+  return { kind: "scatter", unit: mark.unit, series, shown, size, drawn };
 }
 
 function pieModel(mark: PieInput): PieModel {

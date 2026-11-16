@@ -139,7 +139,6 @@ function bucketSpan(m: RectModel, i: number, f: Projection): readonly [number, n
 interface Orders {
   readonly dots: readonly DotRef[];
   readonly x: readonly number[];
-  readonly y: readonly number[];
   readonly byX: readonly number[];
   readonly byY: readonly number[];
   /** Each dot's place in `byX` and in `byY`. */
@@ -183,7 +182,7 @@ function orders(m: ScatterModel): Orders {
   byY.forEach((d, p) => {
     rankY[d] = p;
   });
-  o = { dots, x, y, byX, byY, rankX, rankY, base };
+  o = { dots, x, byX, byY, rankX, rankY, base };
   ordersOf.set(m, o);
   return o;
 }

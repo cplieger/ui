@@ -877,7 +877,7 @@ const circle = (c: Point, r: number, tail = arcs(r)): string =>
   `M${num(c.x - r)} ${num(c.y)}${tail}`;
 
 /** A path of bubbles in one slot. */
-export interface BubblePath {
+interface BubblePath {
   readonly slot: number;
   readonly d: string;
 }
@@ -1125,7 +1125,7 @@ export function boxSegment(
 
 /** Series `k`'s paths: its boxes, cut round each median; its whiskers; its
  *  outliers, those in one device px drawn once. */
-export interface BoxPaths {
+interface BoxPaths {
   readonly slot: number;
   readonly boxes: string;
   readonly whiskers: string;
