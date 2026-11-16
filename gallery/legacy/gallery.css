@@ -1132,16 +1132,6 @@ input.cp-input::-webkit-calendar-picker-indicator {
   gap: var(--cp-space-2) var(--cp-space-3);
 }
 
-.g-toast-load {
-  inline-size: 1.25rem;
-  block-size: 1.25rem;
-}
-
-.g-toast-load > span {
-  inline-size: 0.875rem;
-  block-size: 0.875rem;
-}
-
 .g-list .g-row {
   cursor: default;
 }
@@ -1375,7 +1365,7 @@ html:has(.g-header) {
 }
 
 @media (width < 48rem) {
-  .cp-settings-nav {
+  .cp-settings-nav:has(+ .g-cat-select) {
     display: none;
   }
 

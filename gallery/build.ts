@@ -51,6 +51,7 @@ export const pageNames: readonly string[] = PAGES.map(([page]) => page);
 const FRAMES: readonly (readonly [frame: string, title: string, script: boolean])[] = [
   ["bottom-nav", "Bottom navigation", true],
   ["icons", "Icons with no script", false],
+  ["settings", "Settings at a phone's width", true],
 ];
 
 export const frameNames: readonly string[] = FRAMES.map(([frame]) => `frame-${frame}`);
