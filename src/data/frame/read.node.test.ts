@@ -151,6 +151,18 @@ describe("readFrame", () => {
     expect(read(tree)).toStrictEqual(tree);
   });
 
+  // chartdata's encoding of a sized points group with no points: its empty
+  // r is dropped by omitempty while x and y stay.
+  it("reads a sized points group with no names and no r as no sizes", () => {
+    const empty = { key: "asia", names: [], x: [], y: [] };
+    const frame = fixture("points");
+    const series = frame["series"] as unknown[];
+    expect(read({ ...frame, series: [...series, empty] })).toStrictEqual({
+      ...frame,
+      series: [...series, { ...empty, r: [] }],
+    });
+  });
+
   it("refuses a frame of a type the caller does not draw, by its type", () => {
     const e = refusal(() => read(fixture("flow"), ["series", "bins"]));
     expect(e).toBeInstanceOf(TypeError);

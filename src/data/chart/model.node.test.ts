@@ -1787,6 +1787,20 @@ describe("the scatter mark's sizes", () => {
     expect(build(bubble([null])).empty).toBe(true);
   });
 
+  it("draws bubbles beside a group with no points and no r, as chartdata sends it", () => {
+    const m = build(
+      scatter(
+        [
+          { names: ["a"], x: [1], y: [2], r: [3] },
+          { names: [], x: [], y: [] },
+        ],
+        sized,
+      ),
+    );
+    expect(m.kind).toBe("bubble");
+    expect((m.marks[0] as ScatterModel).shown).toEqual([[0], []]);
+  });
+
   it("draws bubbles largest first across every group, ties in group then the frame's order", () => {
     const m = build(
       scatter(

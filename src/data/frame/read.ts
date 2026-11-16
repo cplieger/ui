@@ -490,7 +490,8 @@ function pointsFrame(c: Checks, o: Record<string, unknown>, f: string) {
         }
         return points;
       }
-      const sizes = channel("r");
+      // chartdata's omitempty drops a group's r when it has no points.
+      const sizes = names.length === 0 && one["r"] === undefined ? [] : channel("r");
       sizes.forEach((v, i) => {
         if (v !== null && v < 0) {
           c.fail(`${at}.r[${String(i)}] must be 0 or more, an area`, RangeError);
