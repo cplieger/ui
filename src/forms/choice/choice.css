@@ -35,7 +35,10 @@
   margin-inline-start: var(--cp-space-2);
 }
 
-.cp-choices:has(> legend + .cp-button) > :not(legend, legend + .cp-button) {
+/* The rows after the button, the legend being a fieldset's first child: a
+ * `:has()` here would make Chromium restyle the whole document on every
+ * node inserted anywhere. */
+.cp-choices > legend + .cp-button ~ :not(legend, legend + .cp-button) {
   clear: both;
   margin-block-start: var(--cp-space-2);
 }

@@ -8,7 +8,7 @@
 import { whenAborted } from "../../core/lifetime/lifetime.js";
 import { localeOf } from "../../core/locale/locale.js";
 import { skeletonTiming, type SkeletonTimingController } from "../../feedback/skeleton/skeleton.js";
-import { forgetMeasures } from "../scale/measure.js";
+import { afterFontsSettle } from "../scale/measure.js";
 
 import { colourKey, drawPlot, frameLegend, readMetrics, sizeKey } from "./draw.js";
 import { explore } from "./explore.js";
@@ -570,10 +570,9 @@ export function renderChart(
       return;
     }
     settling = true;
-    void document.fonts.ready.then(() => {
+    afterFontsSettle(() => {
       settling = false;
       if (!life.signal.aborted) {
-        forgetMeasures();
         measureAfresh();
       }
     });

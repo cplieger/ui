@@ -112,6 +112,72 @@ describe.each(browsers)("the gallery in %s", (name) => {
     60_000,
   );
 
+  it("clears every row of a choices set whose legend has a button under the floats, and no other set's", async () => {
+    const wrong: string[] = [];
+    let floated = 0;
+    for (const page of ["forms", "settings", "overlays"]) {
+      const tab = await (browser as Browser).newPage();
+      await tab.goto(`${origin}/${page}.html`);
+      const seen = await tab.evaluate(() => {
+        const out = { floated: 0, wrong: [] as string[] };
+        for (const set of document.querySelectorAll(".cp-choices")) {
+          const legend = set.firstElementChild;
+          const button = legend?.nextElementSibling;
+          const has = legend?.localName === "legend" && button?.matches(".cp-button") === true;
+          out.floated += has ? 1 : 0;
+          for (const row of set.children) {
+            const want = has && row !== legend && row !== button ? "both" : "none";
+            if (getComputedStyle(row).clear !== want) {
+              out.wrong.push(`${row.outerHTML.slice(0, 80)}: not ${want}`);
+            }
+          }
+        }
+        return out;
+      });
+      floated += seen.floated;
+      wrong.push(...seen.wrong.map((w) => `${page}: ${w}`));
+      await tab.close();
+    }
+    expect(floated).toBeGreaterThan(0);
+    expect(wrong).toEqual([]);
+  }, 60_000);
+
+  // Chromium's trace counts the elements each restyle visits. A `:has()` left
+  // of a combinator whose last compound names no class, type or attribute
+  // made every insertion restyle the whole page, about 9,800 elements here.
+  it.runIf(name === "chromium")(
+    "restyles about one chart's elements, not the page's, once a node is added to a chart",
+    async () => {
+      const tab = await (browser as Browser).newPage({ viewport: { width: 1440, height: 900 } });
+      await tab.goto(`${origin}/charts.html`);
+      const cdp = await tab.context().newCDPSession(tab);
+      const counts: number[] = [];
+      cdp.on("Tracing.dataCollected", (e) => {
+        for (const event of e.value) {
+          const count = (event["args"] as { elementCount?: unknown } | undefined)?.elementCount;
+          if (event["name"] === "UpdateLayoutTree" && typeof count === "number") {
+            counts.push(count);
+          }
+        }
+      });
+      const done = new Promise((ok) => cdp.once("Tracing.tracingComplete", ok));
+      await cdp.send("Tracing.start", { categories: "devtools.timeline" });
+      const page = await tab.evaluate(() => {
+        const plot = document.querySelector('.cp-chart > [data-part="plot"]') as Element;
+        void getComputedStyle(plot).color;
+        plot.append(document.createElement("span"));
+        void getComputedStyle(plot).color;
+        return document.getElementsByTagName("*").length;
+      });
+      await cdp.send("Tracing.end");
+      await done;
+      await tab.close();
+      expect(counts.length).toBeGreaterThan(0);
+      expect(Math.max(...counts)).toBeLessThan(page / 10);
+    },
+    60_000,
+  );
+
   it("finds every file the pages ask for", () => {
     expect([...missing]).toEqual([]);
   });
