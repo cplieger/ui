@@ -4247,7 +4247,9 @@ describe("css/system.css lists, feeds and counts", () => {
     expect(bar.top).toBeGreaterThanOrEqual(Math.max(text.bottom, stop.bottom));
     expect(far.top).toBeGreaterThanOrEqual(bar.bottom);
     expect(stop.right).toBeCloseTo(bar.right, 1);
-    expect([stop.top, stop.height]).toEqual([text.top, text.height]);
+    // 26px is --cp-control-h-sm under a mouse.
+    expect(stop.height).toBeCloseTo(26, 1);
+    expect((stop.top + stop.bottom) / 2).toBeCloseTo((text.top + text.bottom) / 2, 1);
     const link = getComputedStyle(r.querySelector("a") as Element);
     expect([link.color, link.fontWeight]).toEqual([resolved("var(--cp-ink)"), "500"]);
     const small = getComputedStyle(r.querySelector("small") as Element);

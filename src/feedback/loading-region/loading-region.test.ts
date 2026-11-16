@@ -181,6 +181,26 @@ describe("enhanceLoadingRegion: a first load", () => {
     // Retry held focus and is gone, so focus lands on the content's heading.
     expect(document.activeElement).toBe(region.querySelector("h3"));
   });
+  it("keeps Retry busy when a second press replaces the load the first started", async () => {
+    const region = panel();
+    const { handle, loads } = wired(region);
+    const first = handle.load();
+    loads[0]?.reject(new Error("timeout"));
+    await first;
+    const retry = retryIn(region) as HTMLButtonElement;
+    retry.click();
+    await sleep(0);
+    retry.click();
+    await sleep(250);
+    expect(loads).toHaveLength(3);
+    expect(retry.getAttribute("data-cp-state")).toBe("busy");
+    expect(retry.getAttribute("aria-busy")).toBe("true");
+    expect(region.getAttribute("aria-busy")).toBe("true");
+    loads[2]?.resolve("Read");
+    await sleep(0);
+    expect(region.querySelector("h3")?.textContent).toBe("Read");
+    expect(handle.state).toBe("ready");
+  });
 });
 
 describe("enhanceLoadingRegion: a refresh", () => {
@@ -233,6 +253,20 @@ describe("enhanceLoadingRegion: a refresh", () => {
     expect(await second).toBe(true);
     expect(region.textContent).toBe("Newer");
     expect(handle.state).toBe("ready");
+  });
+
+  it("keeps the pressed button busy when a second press replaces its load", async () => {
+    const region = panel("Old");
+    const button = refreshButton();
+    const { handle, loads } = wired(region, { render: (text) => region.replaceChildren(text) });
+    const first = handle.load(button);
+    const second = handle.load(button);
+    expect(await first).toBe(false);
+    await sleep(0);
+    expect(button.getAttribute("aria-busy")).toBe("true");
+    loads[1]?.resolve("New");
+    expect(await second).toBe(true);
+    expect(button.hasAttribute("aria-busy")).toBe(false);
   });
 
   it("starts a superseded first load over, behind its placeholder", async () => {
@@ -474,6 +508,18 @@ describe("enhanceLoadingRegion: the refresh failure's time", () => {
     loads[0]?.reject(new Error("no"));
     await done;
     expect(notice(region)?.textContent).toContain("What you see is from 14:02.");
+  });
+
+  it("dates content from another day in the refresh failure", async () => {
+    const region = panel("Old");
+    const at = new Date(2025, 10, 14, 14, 2);
+    const { handle, loads } = wired(region, { loadedAt: at, locale: "en-GB" });
+    const done = handle.load();
+    loads[0]?.reject(new Error("no"));
+    await done;
+    expect(notice(region)?.querySelector('[data-part="text"]')?.textContent).toBe(
+      "The refresh failed. What you see is from 14 Nov 2025, 14:02.",
+    );
   });
 
   it("leaves the time out when the content's time is not a date", async () => {

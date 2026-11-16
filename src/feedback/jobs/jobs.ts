@@ -60,7 +60,8 @@ export interface JobsOptions {
 /** What the host moves; each takes a job's `.cp-list-row` or its `li`. */
 export interface Jobs {
   /** Sets the bar to `done` of `total` (default its `max`) and writes the
-   *  count from the bar's own value, so the words match the bar. */
+   *  count from the bar's own value, so the words match the bar. Throws a
+   *  `RangeError`, writing nothing, when a number given is not finite. */
   progress(row: Element, done: number, total?: number): void;
   /** Writes the job's phase, such as "Searching providers". */
   phase(row: Element, words: string): void;
@@ -112,6 +113,10 @@ export function enhanceJobs(list: HTMLElement, options: JobsOptions = {}): Jobs 
   };
 
   const progress = (item: Element, done: number, total?: number): void => {
+    // A non-finite write throws in <progress> after the bar moved.
+    if (!Number.isFinite(done) || (total !== undefined && !Number.isFinite(total))) {
+      throw new RangeError("enhanceJobs: done and total must be finite numbers");
+    }
     const row = rowOf(item);
     const bar = row.querySelector(":scope > progress");
     if (!(bar instanceof HTMLProgressElement)) {

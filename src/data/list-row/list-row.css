@@ -275,11 +275,10 @@
 
 /* A part under the row's text, such as a running job's bar or a status
  * row's remedies, takes a line of its own across the row, and what follows
- * it lines up under it. The action stretches to the text it sits beside. */
+ * it lines up under it. The action keeps its own height beside the text. */
 .cp-list-row:has(> :is(progress, .cp-track, details, [data-part="actions"])) {
   flex-wrap: wrap;
   align-content: start;
-  align-items: stretch;
   gap: var(--cp-space-1) var(--cp-space-4);
   padding-block: var(--cp-space-3);
 }

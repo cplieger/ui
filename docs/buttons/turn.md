@@ -13,4 +13,4 @@ button.addEventListener("click", () => {
 ```
 
 - `turn(button)` plays one turn of the button's `.cp-icon`. A turn already playing keeps going.
-- `turnWhile(button, work)` turns the icon and marks the button `aria-busy="true"` until `work` settles, then resolves or rejects as `work` does.
+- `turnWhile(button, work)` turns the icon and marks the button `aria-busy="true"` until `work` settles, then resolves or rejects as `work` does. A later call on the same button takes over its busy mark and its turn: an earlier call's settling leaves both to the latest.

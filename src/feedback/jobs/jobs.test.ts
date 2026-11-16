@@ -1,4 +1,13 @@
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  onTestFinished,
+} from "vitest";
 
 import { enhanceLoadMore } from "../../data/load-more/load-more.js";
 import { installAnnouncer } from "../announce/announce.js";
@@ -406,6 +415,57 @@ describe("enhanceJobs", () => {
     expect(first(other).hasAttribute("data-ended")).toBe(false);
     stopOf(first(other)).click();
     expect(calls).toHaveLength(1);
+  });
+
+  it("refuses a count that is not a finite number before it moves the bar", () => {
+    const ul = list();
+    const { jobs } = wire(ul);
+    const row = first(ul);
+    const bar = row.querySelector("progress") as HTMLProgressElement;
+    expect(() => {
+      jobs.progress(row, Number.NaN, 10);
+    }).toThrow(RangeError);
+    expect(() => {
+      jobs.progress(row, 3, Number.NaN);
+    }).toThrow(RangeError);
+    expect([bar.value, bar.max]).toEqual([12, 40]);
+    expect(row.querySelector('[data-part="count"]')?.textContent).toBe("12 of 40");
+  });
+
+  it("writes the default count when the app's count words throw", () => {
+    const errors = reported();
+    const ul = list();
+    const { jobs } = wire(ul, {
+      words: {
+        count: () => {
+          throw new Error("no words");
+        },
+      },
+    });
+    expect(() => {
+      jobs.progress(first(ul), 13);
+    }).not.toThrow();
+    expect(first(ul).querySelector('[data-part="count"]')?.textContent).toBe("13 of 40");
+    expect(errors).toHaveLength(1);
+  });
+
+  it("keeps a small Stop at the small control height under a mouse, a finger's under touch", () => {
+    const root = document.documentElement;
+    onTestFinished(() => {
+      root.removeAttribute("data-pointer");
+    });
+    const ul = list();
+    wire(ul);
+    const stop = stopOf(first(ul));
+    const probe = document.createElement("div");
+    probe.style.blockSize = "var(--cp-control-h-sm)";
+    document.body.append(probe);
+    root.setAttribute("data-pointer", "fine");
+    const small = probe.getBoundingClientRect().height;
+    expect(small).toBeLessThan(first(ul).querySelector(".cp-cell-stack")?.clientHeight ?? 0);
+    expect(stop.getBoundingClientRect().height).toBeCloseTo(small, 1);
+    root.setAttribute("data-pointer", "coarse");
+    expect(stop.getBoundingClientRect().height).toBeCloseTo(44, 1);
   });
 
   it("draws every outcome's glyph and keeps an ended row's words muted", () => {

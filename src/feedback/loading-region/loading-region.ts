@@ -364,9 +364,22 @@ export function enhanceLoadingRegion<T>(
     let data: T;
     try {
       if (from !== undefined && from === retry && retryCycle !== null) {
+        const cycle = retryCycle;
+        const button = retry;
         // The cycle holds its busy state for its minimum after work ends;
         // the content goes in as soon as it comes.
-        retryCycle.run(() => work).catch(() => undefined);
+        void (async () => {
+          // A replaced cycle refuses this run until its own settling puts
+          // the button at rest; a task tick, not a microtask loop, so a
+          // cycle holding busy on a timer can reach its end.
+          while (button.hasAttribute("data-cp-state")) {
+            await new Promise((resolve) => setTimeout(resolve, 0));
+            if (life.signal.aborted) {
+              return;
+            }
+          }
+          await cycle.run(() => work);
+        })().catch(() => undefined);
         data = await work;
       } else {
         data = from === undefined ? await work : await turnWhile(from, work);
