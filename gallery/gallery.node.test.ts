@@ -291,7 +291,7 @@ describe.each(browsers)("the gallery in %s", (name) => {
             const selector =
               verb === "press"
                 ? `#msg-list a.cp-list-row[href="${arg}"]`
-                : `#agent-history a.cp-chip[href="${arg}"]`;
+                : `#agent-history a.cp-filter-chip[href="${arg}"]`;
             if (before?.hidden === false && new URL(before.href).hash === arg) {
               // Invariant 4: a press on what is shown keeps history and scroll, and focuses its heading.
               await tab.evaluate(() => {

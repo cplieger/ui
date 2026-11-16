@@ -157,6 +157,32 @@ describe("filter chip", () => {
     await userEvent.unhover(a);
   });
 
+  it("paints a toned link in its tone's wash and ink, with no edge, a deeper wash under a mouse", async () => {
+    root.setAttribute("data-pointer", "fine");
+    const host = build(STILL + link(' data-tone="success"') + '<span data-tone="success"></span>');
+    const a = q(host, "a");
+    const tone = q(host, "span[data-tone]");
+    tone.style.backgroundColor = "var(--cp-tone-3)";
+    tone.style.color = "var(--cp-tone-11)";
+    tone.style.borderColor = "var(--cp-tone-4)";
+    const cs = getComputedStyle(a);
+    const want = getComputedStyle(tone);
+    expect([cs.backgroundColor, cs.color, cs.borderTopColor, mark(a).backgroundColor]).toEqual([
+      want.backgroundColor,
+      want.color,
+      "rgba(0, 0, 0, 0)",
+      want.color,
+    ]);
+    expect(await glyph(a)).toBe(await shipped("chevron-right"));
+    await userEvent.hover(a);
+    expect([cs.backgroundColor, cs.borderTopColor, mark(a).backgroundColor]).toEqual([
+      want.borderTopColor,
+      "rgba(0, 0, 0, 0)",
+      want.color,
+    ]);
+    await userEvent.unhover(a);
+  });
+
   it("presses a link as it presses the button", () => {
     const a = q(build(link()), "a");
     a.setAttribute("data-cp-pressed", "");

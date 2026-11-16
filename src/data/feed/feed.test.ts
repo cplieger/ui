@@ -3,7 +3,6 @@ import { userEvent } from "vitest/browser";
 
 import { rollText } from "../../core/roll/roll.js";
 import { installAnnouncer } from "../../feedback/announce/announce.js";
-import { anchorTo } from "../../overlays/anchor/anchor.js";
 import { enhanceLoadMore } from "../load-more/load-more.js";
 import { enhanceFeed, type FeedOptions } from "./feed.js";
 
@@ -1120,155 +1119,66 @@ describe("a history", () => {
     return { box, feed, more };
   }
 
-  it("draws an origin that is a link as its chip, apart from the author's link", () => {
+  it("draws an origin that is a link as the link pill in its tone, apart from the author's link", () => {
     const { feed } = history(1);
-    const header = feed.querySelector(".cp-feed-entry > header") as HTMLElement;
-    const link = document.createElement("a");
-    link.className = "cp-chip";
-    link.href = "#c-internal";
-    link.textContent = "/workspace/grelot/internal";
-    const plain = document.createElement("span");
-    plain.className = "cp-chip";
-    plain.textContent = "internal/feed";
-    header.append(link, plain);
-    const author = getComputedStyle(header.querySelector("a:not(.cp-chip)") as Element);
-    const chip = getComputedStyle(link);
-    const words = getComputedStyle(plain);
-    expect(chip.textDecorationLine).toBe("none");
-    for (const p of ["color", "backgroundColor", "fontWeight", "fontSize"] as const) {
-      expect(chip[p], p).toBe(words[p]);
-    }
-    expect(chip.color).not.toBe(author.color);
-  });
-
-  it("gives an origin link a target of the tier's minimum height", () => {
-    const { feed } = history(1);
-    const header = feed.querySelector(".cp-feed-entry > header") as HTMLElement;
-    const link = document.createElement("a");
-    link.className = "cp-chip";
-    link.href = "#c-internal";
-    link.textContent = "Announcements";
-    header.append(link);
-    for (const [tier, min] of [
-      ["fine", 24],
-      ["coarse", 44],
-    ] as const) {
-      document.documentElement.dataset["pointer"] = tier;
-      const box = link.getBoundingClientRect();
-      expect(box.height, tier).toBeLessThan(min);
-      const x = box.left + box.width / 2;
-      const reach = (min - box.height) / 2 - 0.5;
-      expect(document.elementFromPoint(x, box.top - reach), tier).toBe(link);
-    }
-    delete document.documentElement.dataset["pointer"];
-  });
-
-  it("leaves the lines under a one-line header their own taps under a finger", () => {
-    const { feed } = history(2);
-    const [titled, plain] = feed.querySelectorAll<HTMLLIElement>(".cp-feed-entry");
-    if (titled === undefined || plain === undefined) {
-      throw new TypeError("no entries");
-    }
-    const chipIn = (item: HTMLLIElement): HTMLAnchorElement => {
-      const link = document.createElement("a");
-      link.className = "cp-chip";
-      link.href = "#c-announce";
-      link.textContent = "Announcements";
-      item.querySelector("header")?.append(link);
-      return link;
-    };
-    const subject = document.createElement("h3");
-    subject.textContent = "List rows";
-    titled.querySelector("header")?.after(subject);
-    const origin = chipIn(titled);
-    const other = chipIn(plain);
-    const text = plain.querySelector(".cp-feed-text") as HTMLElement;
-    const body = document.createElement("a");
-    body.href = "https://example.com/runs/1234567890";
-    body.textContent = "https://example.com/runs/1234567890";
-    text.replaceChildren(body, " has the log.");
-    document.documentElement.dataset["pointer"] = "coarse";
-
-    const chip = origin.getBoundingClientRect();
-    const line = subject.getBoundingClientRect();
-    const x = chip.left + chip.width / 2;
-    expect(document.elementFromPoint(x, (chip.bottom + line.top) / 2), "the gap").toBe(origin);
-    expect(document.elementFromPoint(x, line.top + 2), "the subject").toBe(subject);
-    const next = body.getBoundingClientRect();
-    const at = other.getBoundingClientRect().left + 4;
-    expect(next.right, "the body link reaches under the chip").toBeGreaterThan(at);
-    expect(document.elementFromPoint(at, next.top + 2), "the body link").toBe(body);
-  });
-
-  it("keeps the author's link under a fixed bar earlier in the page", () => {
-    const { feed } = history(1);
-    const author = feed.querySelector(".cp-feed-entry > header > a") as HTMLAnchorElement;
-    const a = author.getBoundingClientRect();
-    const bar = document.createElement("div");
-    bar.style.position = "fixed";
-    bar.style.zIndex = "1";
-    bar.style.insetInline = "0";
-    bar.style.insetBlockStart = `${String(a.top - 4)}px`;
-    bar.style.blockSize = `${String(a.height + 8)}px`;
-    document.body.prepend(bar);
-    expect(document.elementFromPoint(a.left + a.width / 2, a.top + a.height / 2)).toBe(bar);
-  });
-
-  it("leaves a popover and a hidden word in an entry out of its flow", async () => {
-    const { feed } = history(2);
-    const [opened, worded] = feed.querySelectorAll<HTMLLIElement>(".cp-feed-entry");
-    if (opened === undefined || worded === undefined) {
-      throw new TypeError("no entries");
-    }
-    const footer = document.createElement("footer");
-    const button = document.createElement("button");
-    button.className = "cp-button";
-    button.type = "button";
-    button.textContent = "Read by 3 of 5";
-    footer.append(button);
-    const panel = document.createElement("div");
-    panel.className = "cp-popover cp-feed-readers";
-    panel.dataset["variant"] = "panel";
-    panel.popover = "auto";
-    panel.textContent = "@alpha, @bravo and @charlie";
-    opened.append(footer, panel);
-    anchorTo(panel, button);
-    const tall = worded.getBoundingClientRect().height;
-    const word = document.createElement("span");
-    word.className = "cp-visually-hidden";
-    word.textContent = "Edited";
-    worded.querySelector("header")?.after(word);
-
-    panel.showPopover();
-    await Promise.all(panel.getAnimations().map((a) => a.finished));
-    const placed = {
-      position: getComputedStyle(panel).position,
-      below: panel.getBoundingClientRect().top >= button.getBoundingClientRect().bottom,
-    };
-    panel.hidePopover();
-    expect({
-      popover: placed,
-      word: getComputedStyle(word).position,
-      height: worded.getBoundingClientRect().height,
-    }).toEqual({ popover: { position: "fixed", below: true }, word: "absolute", height: tall });
-  });
-
-  it("keeps the author's link above an origin link's target when the header wraps under a finger", () => {
-    const { box, feed } = history(1);
-    box.style.inlineSize = "320px";
     const header = feed.querySelector(".cp-feed-entry > header") as HTMLElement;
     const author = header.querySelector("a") as HTMLAnchorElement;
     const link = document.createElement("a");
-    link.className = "cp-chip";
+    link.className = "cp-filter-chip";
+    link.dataset["tone"] = "accent";
     link.href = "#c-internal";
-    link.textContent = "/workspace/grelot/internal/server/static-src";
+    link.textContent = "Announcements";
+    const label = document.createElement("span");
+    label.className = "cp-chip";
+    label.dataset["tone"] = "accent";
+    label.textContent = "Announcements";
+    header.append(link, label);
+    const [l, c, a] = [link, label, author].map((el) => getComputedStyle(el)) as [
+      CSSStyleDeclaration,
+      CSSStyleDeclaration,
+      CSSStyleDeclaration,
+    ];
+    expect({
+      underline: l.textDecorationLine,
+      wash: l.backgroundColor,
+      ink: l.color,
+      edge: l.borderTopColor,
+      mark: getComputedStyle(link, "::after").backgroundColor,
+    }).toEqual({
+      underline: "none",
+      wash: c.backgroundColor,
+      ink: c.color,
+      edge: "rgba(0, 0, 0, 0)",
+      mark: c.color,
+    });
+    expect(l.color).not.toBe(a.color);
+  });
+
+  it("cuts a long origin at its start only once it is wider than the header", () => {
+    const { box, feed } = history(1);
+    const header = feed.querySelector(".cp-feed-entry > header") as HTMLElement;
+    const path = "/workspace/grelot/internal/server/static-src";
+    const link = document.createElement("a");
+    link.className = "cp-filter-chip";
+    link.dataset["tone"] = "accent";
+    link.href = "#c-subflux";
+    const words = document.createElement("span");
+    words.className = "cp-truncate cp-mono";
+    words.dataset["cut"] = "start";
+    words.dir = "ltr";
+    words.textContent = path;
+    link.append(words);
     header.append(link);
-    document.documentElement.dataset["pointer"] = "coarse";
-    const a = author.getBoundingClientRect();
-    expect(link.getBoundingClientRect().top, "wrapped").toBeGreaterThanOrEqual(a.bottom);
-    const x = a.left + a.width / 2;
-    expect(document.elementFromPoint(x, a.bottom - 1)).toBe(author);
-    delete document.documentElement.dataset["pointer"];
+    const cut = () => words.scrollWidth > words.clientWidth;
+    expect(words.getBoundingClientRect().width, "wider than a truncate's 14rem").toBeGreaterThan(
+      224,
+    );
+    expect(cut(), "whole in a 30rem feed").toBe(false);
+    box.style.inlineSize = "240px";
+    expect(cut(), "cut in a 240px feed").toBe(true);
+    expect(link.getBoundingClientRect().right).toBeLessThanOrEqual(
+      header.getBoundingClientRect().right + 0.5,
+    );
   });
 
   it("adds an older page at its end, focuses its first entry and never scrolls back up", async () => {

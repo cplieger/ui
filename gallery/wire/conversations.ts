@@ -500,7 +500,10 @@ if (agentOlder !== null && postTemplate instanceof HTMLLIElement) {
       origin.href = p.origin.href;
       if (p.origin.title.startsWith("/")) {
         const mono = document.createElement("span");
-        mono.className = "cp-mono";
+        mono.className = "cp-truncate cp-mono";
+        mono.dataset["cut"] = "start";
+        mono.dataset["cpTip"] = p.origin.title;
+        mono.dir = "ltr";
         mono.textContent = p.origin.title;
         origin.replaceChildren(mono);
       } else {

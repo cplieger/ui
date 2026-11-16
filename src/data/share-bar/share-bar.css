@@ -43,6 +43,26 @@
   min-block-size: var(--cp-hit-min);
 }
 
+.cp-share-legend a.cp-chip {
+  text-decoration: none;
+  transition:
+    background-color var(--cp-dur-micro) var(--cp-ease-out),
+    transform var(--cp-dur-press) var(--cp-ease-out);
+}
+
+.cp-share-legend a.cp-chip:active,
+.cp-share-legend a.cp-chip[data-cp-pressed] {
+  transform: scale(var(--cp-press-scale));
+}
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    .cp-share-legend a.cp-chip:hover {
+      background: var(--cp-tone-4);
+    }
+  }
+}
+
 @media (forced-colors: active) {
   .cp-share-bar > span {
     forced-color-adjust: none;

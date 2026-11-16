@@ -232,7 +232,7 @@ A conversation is a [feed](data/feed.md): its messages oldest first, with the co
 6. "Read by 3 of 5" opens who has read the message and who has not yet, with its own loading and error states.
 7. What surrounds the conversation, such as its reservations and followers, is a [context-panel](layout/context-panel.md): a column beside the feed in a wide box, and a disclosure above it in a narrow one.
 8. A conversation the person can read but not write in, such as one between two others, a locked thread or one they have no right to post in, keeps its foot. In the composer's place it says who writes there, "Only @alpha and @bravo write here.", over one button per way to write, such as "Message @alpha".
-9. Everything one person or agent has said or been told is a feed read newest first and never written in: each entry's origin is a chip that links to its conversation, and Show older is its last item.
+9. Everything one person or agent has said or been told is a feed read newest first and never written in: each entry's origin is a link pill in its tone, to its conversation, and Show older is its last item.
 
 ## First run
 
@@ -255,6 +255,7 @@ First sync running is a `.cp-empty` whose heading starts with a `.cp-loader`, th
 - The URL is the state. Filters, sort, search, the open tab, the page of a list and an open sheet each live in the path or the query, so a link, a refresh and Back reopen the same view.
 - A navigation pushes a history entry, and a change while typing replaces the current one, so Back does not walk through every keystroke.
 - Back and Forward restore the view, its scroll position and the focus they left.
+- A [list-detail](layout/list-detail.md)'s open entry is the address's fragment, such as `#c-internal`, at every width. A load on it opens that entry, docked or in its sheet, and its row is current once the list has it. Each entry pressed or linked to adds a history entry. Close, Escape and a press outside go back in one step to the entry the page loaded on, which now shows the list, so one more Back leaves the page. A press on the entry already open only moves focus to its heading.
 - A route change moves focus to the new screen's `<h1>` and sets `<title>` to the screen's name.
 - A link to something that is gone, or a query value the app does not know, opens the nearest valid view with a notice that says what was dropped.
 - A destination is a link (`<a href>`), so a middle click, a new tab and a copied address all work. A button is for an action on this screen.

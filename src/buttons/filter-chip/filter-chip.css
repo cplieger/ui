@@ -90,6 +90,18 @@
   mask-image: url("../icons/svg/external-link.svg");
 }
 
+/* A link with a data-tone, such as a feed entry's origin, takes the tone's
+ * wash and ink in place of the outline, and keeps its mark. */
+:where(a).cp-filter-chip[data-tone] {
+  border-color: transparent;
+  background: var(--cp-tone-3);
+  color: var(--cp-tone-11);
+}
+
+:where(a).cp-filter-chip[data-tone]::after {
+  background: currentcolor;
+}
+
 @media (any-hover: hover) {
   @scope (:root:not([data-pointer="coarse"])) {
     :where(a).cp-filter-chip:hover {
@@ -97,11 +109,20 @@
       background: var(--cp-fill);
     }
 
+    :where(a).cp-filter-chip[data-tone]:hover {
+      border-color: transparent;
+      background: var(--cp-tone-4);
+    }
+
     /* Forced colours would paint this ink as Canvas, so the mark keeps
      * its system colour there. */
     @media (forced-colors: none) {
       :where(a).cp-filter-chip:hover::after {
         background: var(--cp-ink);
+      }
+
+      :where(a).cp-filter-chip[data-tone]:hover::after {
+        background: currentcolor;
       }
     }
   }
@@ -118,7 +139,8 @@
     color: HighlightText;
   }
 
-  :where(a).cp-filter-chip {
+  :where(a).cp-filter-chip,
+  :where(a).cp-filter-chip[data-tone] {
     border-color: LinkText;
   }
 
