@@ -34,6 +34,11 @@
         </nav>
         <!-- slot: toolbar: the header status and its panel, the theme toggle, the global actions, the account button last -->
         <div class="cp-toolbar">
+          <!-- slot: header status: the button and its empty panel, which createHeaderStatus fills -->
+          <button class="cp-header-status" type="button" data-state="ok" popovertarget="status">
+            <span>All good</span>
+          </button>
+          <div class="cp-popover cp-status-panel" data-variant="panel" popover id="status"></div>
           <button class="cp-button cp-toggle" data-variant="quiet" data-kind="theme" type="button" aria-label="Dark theme" aria-pressed="false">
             <span class="cp-icon" data-cp-icon="sun" aria-hidden="true"></span>
             <span class="cp-icon" data-cp-icon="moon" data-part="on" aria-hidden="true"></span>
@@ -43,15 +48,19 @@
           </button>
         </div>
       </header>
-      <!-- region: main: the not-found page, the only thing on the screen -->
+      <!-- region: main -->
       <main class="cp-main" id="main" tabindex="-1">
-        <!-- slot: content: the glyph, the h1, one sentence and the one link home -->
-        <section class="cp-empty" data-variant="page" aria-labelledby="not-found-title">
-          <span class="cp-icon" data-cp-icon="telescope" aria-hidden="true"></span>
-          <h1 id="not-found-title">This page does not exist</h1>
-          <p>The address may be old, or it was mistyped.</p>
-          <a class="cp-button" data-variant="primary" href="#">Go to the library</a>
-        </section>
+        <div class="cp-stack">
+          <!-- slot: banner: the header status's urgent part, as on every screen -->
+          <div class="cp-stack" data-gap="tight" id="urgent" hidden></div>
+          <!-- slot: content: the not-found page: the glyph, the h1, one sentence and the one link home -->
+          <section class="cp-empty" data-variant="page" aria-labelledby="not-found-title">
+            <span class="cp-icon" data-cp-icon="telescope" aria-hidden="true"></span>
+            <h1 id="not-found-title">This page does not exist</h1>
+            <p>The address may be old, or it was mistyped.</p>
+            <a class="cp-button" data-variant="primary" href="#">Go to the library</a>
+          </section>
+        </div>
       </main>
       <!-- region: status: facts about the whole screen -->
       <footer class="cp-status">

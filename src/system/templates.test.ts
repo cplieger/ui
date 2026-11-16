@@ -5,7 +5,6 @@ import { createHeaderStatus } from "../navigation/header-status/header-status.js
 import { drawing, maskUrl, shipped } from "./test-helpers/css.js";
 
 const APP_PAGES = ["app.html", "list-detail.html", "settings.html", "not-found.html"] as const;
-const STATUS_PAGES = ["app.html", "list-detail.html", "settings.html"] as const;
 const GATE_PAGES = [
   "gate.html",
   "gate-steps.html",
@@ -14,7 +13,7 @@ const GATE_PAGES = [
 ] as const;
 const SCRIPTLESS_PAGES = ["gate-message.html", "accounts-unavailable.html"] as const;
 const isGate = (name: string): boolean => (GATE_PAGES as readonly string[]).includes(name);
-const STRICT = "default-src 'none'; style-src 'self'; img-src 'self' data:";
+const STRICT = "default-src 'none'; style-src 'self'; img-src 'self' data:; font-src 'self'";
 
 async function parse(name: string): Promise<Document> {
   // As the file ships: the dev server's copy carries its client script.
@@ -201,7 +200,7 @@ describe("the page templates", () => {
     },
   );
 
-  it.each(STATUS_PAGES)(
+  it.each(APP_PAGES)(
     "%s holds the header status's pill, its empty panel and the urgent part first in main",
     async (name) => {
       const doc = await parse(name);
@@ -276,7 +275,7 @@ describe("the page templates", () => {
 
   it("not-found.html holds the page's empty state and the one way home", async () => {
     const doc = await parse("not-found.html");
-    const page = doc.querySelector('.cp-main > .cp-empty[data-variant="page"]');
+    const page = doc.querySelector('.cp-main > .cp-stack > .cp-empty[data-variant="page"]');
     expect(page?.getAttribute("aria-labelledby")).toBe(page?.querySelector("h1")?.id);
     expect(
       [...(page?.children ?? [])].map(
@@ -526,6 +525,11 @@ describe("the page templates", () => {
         throw new Error("no probe");
       }
       expect(view.getComputedStyle(probe).display).not.toBe("none");
+      for (const family of ["Atkinson Hyperlegible Next", "Atkinson Hyperlegible Mono"]) {
+        expect(await doc.fonts.load(`16px "${family}"`)).not.toHaveLength(0);
+      }
+      await doc.fonts.ready;
+      expect([...doc.fonts].filter((f) => f.status === "error")).toEqual([]);
       const gate = doc.querySelector(".cp-gate");
       expect(gate && view.getComputedStyle(gate).display).toBe("grid");
       const icons = [...doc.querySelectorAll(".cp-icon")];

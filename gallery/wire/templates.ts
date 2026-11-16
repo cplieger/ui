@@ -1,12 +1,3 @@
-/**
- * templates.ts — the gallery's wiring for the page templates' cards: each
- * template in an `<iframe>` drawn at a phone's, a tablet's or a desktop's
- * width and scaled to its card, so the template's own media queries answer
- * to the width chosen. The search screen's demo, which narrows its results
- * as an app's server would. And the setup screen's steps, which an app
- * serves each at its own address and this page holds on one.
- */
-
 import { announce } from "@cplieger/ui/announce";
 import { enhanceConfirm } from "@cplieger/ui/confirm";
 import { enhanceConnectionTest } from "@cplieger/ui/connection-test";
@@ -227,7 +218,6 @@ function wireSetup(panel: HTMLElement): void {
     url instanceof HTMLInputElement &&
     mark !== null
   ) {
-    // The test passes for an address with a port, after a second.
     enhanceConnectionTest(test, verdict, {
       run: (signal) =>
         new Promise((done, fail) => {
@@ -269,7 +259,12 @@ function mark(node: HTMLElement, words: readonly string[]): void {
   while (walker.nextNode() !== null) {
     texts.push(walker.currentNode as Text);
   }
-  const re = new RegExp(words.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|"), "gi");
+  // Alternation takes the first word that matches, so a longer word goes first.
+  const longest = [...words].sort((a, b) => b.length - a.length);
+  const re = new RegExp(
+    longest.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|"),
+    "gi",
+  );
   for (const t of texts) {
     const found = [...t.data.matchAll(re)];
     if (found.length === 0) {

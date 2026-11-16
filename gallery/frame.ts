@@ -52,10 +52,17 @@ if (parent !== window) {
 }
 
 // A press on a destination shows its screen here, where an app would load it.
+// Only a screen titled by its current destination is retitled: the not-found
+// page has none, and its heading and nav stay as they are.
 const heading = document.querySelector("h1");
+const current = document.querySelector(".cp-nav-item[aria-current='page'] .cp-nav-label");
+const retitle = heading !== null && current !== null && current.textContent === heading.textContent;
 for (const item of document.querySelectorAll<HTMLAnchorElement>(".cp-nav-item")) {
   item.addEventListener("click", (e) => {
     e.preventDefault();
+    if (!retitle) {
+      return;
+    }
     for (const other of document.querySelectorAll(".cp-nav-item")) {
       if (other === item) {
         other.setAttribute("aria-current", "page");
@@ -63,9 +70,7 @@ for (const item of document.querySelectorAll<HTMLAnchorElement>(".cp-nav-item"))
         other.removeAttribute("aria-current");
       }
     }
-    if (heading !== null) {
-      heading.textContent = item.querySelector(".cp-nav-label")?.textContent ?? "";
-    }
+    heading.textContent = item.querySelector(".cp-nav-label")?.textContent ?? "";
   });
 }
 

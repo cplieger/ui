@@ -58,7 +58,7 @@ Scripts: the app page's, [form](../docs/forms/form.md) (`guardChanges` for the c
 
 ## Not found: `not-found.html`
 
-The app page with no rail and no current destination, whose main holds only `.cp-empty[data-variant="page"]`: the glyph, the `<h1>`, one sentence and the one link home. It is the screen for an address that matches no route; an item the app does not hold keeps its own screen.
+The app page with no rail and no current destination. It keeps the header status, its panel and the urgent part, and its content slot holds only `.cp-empty[data-variant="page"]`: the glyph, the `<h1>`, one sentence and the one link home. It is the screen for an address that matches no route; an item the app does not hold keeps its own screen.
 
 Scripts: the app page's.
 
@@ -69,7 +69,7 @@ A page outside the frame for one short task, `main.cp-gate`.
 | Region | Element | What it holds |
 | --- | --- | --- |
 | brand | `.cp-wordmark` | the app's mark and name |
-| panel | `section.cp-panel#gate-panel`, empty | the task's screen, which `mountSignIn`, `mountSetup` or `mountInvite` from `@cplieger/ui/account` fills with its `<h1>`, notice slot and form |
+| panel | `section.cp-panel#gate-panel`, empty | the task's screen: its `<h1>`, a notice slot and its form |
 | foot | `p.cp-meta[data-part="about"]` | the about line, the one line under the panel |
 
 ## The gate page's steps form: `gate-steps.html`
@@ -82,11 +82,9 @@ A page outside the frame for one short task, `main.cp-gate`.
 | panel | steps (`ol.cp-steps`, a done step a link back to its address, the current one `aria-current="step"`, each state in hidden words; `p.cp-steps-compact` replaces it at compact width), heading (the step's number and task in its `<h1>`), notices (a `.cp-notice` for the step as a whole), form (the step's fields), actions (`data-part="actions"`: Back, a link to the step before, first; the one primary last) |
 | foot | the about line |
 
-An account step is `mountSetup(region, { heading: false })` in the form slot.
-
 ## A message with no script: `gate-message.html`
 
-The gate page for a recovery or error message, for a store or server that cannot serve the app. It runs no script, holds no control and passes `default-src 'none'; style-src 'self'; img-src 'self' data:`.
+The gate page for a recovery or error message, for a store or server that cannot serve the app. It runs no script, holds no control and passes `default-src 'none'; style-src 'self'; img-src 'self' data:; font-src 'self'`, which needs `font-src` for the stylesheet's fonts.
 
 | Region | Slots, in order |
 | --- | --- |
