@@ -7,10 +7,10 @@
   <nav class="g-index" aria-label="On this page"><a href="#covered">Covered</a><a href="#left">Left out</a></nav>
 
   <section class="g-section" id="covered">
-    <h2>Covered</h2>
-    <div class="cp-panel" data-flush>
-      <table class="cp-table">
-        <caption>Elements most libraries ship, and where each one is in this gallery</caption>
+    <h2 id="covered-h">Covered</h2>
+    <p id="covered-d">Elements most libraries ship, and where each one is in this gallery.</p>
+    <div class="cp-panel" data-flush role="region" tabindex="0" aria-labelledby="covered-h">
+      <table class="cp-table" aria-labelledby="covered-h" aria-describedby="covered-d">
         <thead><tr><th>Element, and its other names</th><th>Where</th></tr></thead>
         <tbody>
           <tr><td>Accordion, disclosure, collapsible</td><td><a href="navigation.html#sections">Navigation, sections</a></td></tr>
@@ -60,10 +60,10 @@
   </section>
 
   <section class="g-section" id="left">
-    <h2>Left out, and why</h2>
-    <div class="cp-panel" data-flush>
-      <table class="cp-table">
-        <caption>Elements other libraries ship that no cplieger app needs yet</caption>
+    <h2 id="left-h">Left out, and why</h2>
+    <p id="left-d">Elements other libraries ship that no cplieger app needs yet.</p>
+    <div class="cp-panel" data-flush role="region" tabindex="0" aria-labelledby="left-h">
+      <table class="cp-table" aria-labelledby="left-h" aria-describedby="left-d">
         <thead><tr><th>Element</th><th>Why it is not here</th></tr></thead>
         <tbody>
           <tr><td>Calendar grid, date picker</td><td>The native date input brings each platform's calendar and keyboard; the date range uses it.</td></tr>

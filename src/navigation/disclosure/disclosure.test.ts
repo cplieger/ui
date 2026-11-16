@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { userEvent } from "vitest/browser";
 
 import { enhanceDisclosure, glideShow, groupDisclosures } from "./disclosure.js";
@@ -185,5 +185,39 @@ describe("glideShow", () => {
     expect(bar.hidden).toBe(false);
     await settle();
     expect(bar.hidden).toBe(true);
+  });
+});
+
+describe("the inline look", () => {
+  let sheet: HTMLLinkElement;
+
+  beforeAll(async () => {
+    document.documentElement.classList.add("cp");
+    sheet = document.createElement("link");
+    sheet.rel = "stylesheet";
+    sheet.href = new URL("../../../css/system.css", import.meta.url).href;
+    const loaded = new Promise((resolve, reject) => {
+      sheet.addEventListener("load", resolve, { once: true });
+      sheet.addEventListener("error", reject, { once: true });
+    });
+    document.head.append(sheet);
+    await loaded;
+  });
+
+  afterAll(() => {
+    sheet.remove();
+    document.documentElement.classList.remove("cp");
+  });
+
+  it("starts what it opens where the summary's words start, past the chevron", () => {
+    const d = section("What changed");
+    d.open = true;
+    const summary = d.querySelector("summary") as HTMLElement;
+    const words = document.createRange();
+    words.selectNodeContents(summary);
+    const body = summary.nextElementSibling as HTMLElement;
+    const wordsStart = [...words.getClientRects()].at(-1)?.left ?? 0;
+    expect(body.getBoundingClientRect().left).toBeCloseTo(wordsStart, 0);
+    expect(body.getBoundingClientRect().left).toBeGreaterThan(summary.getBoundingClientRect().left);
   });
 });

@@ -36,7 +36,7 @@ Two attributes make any kind of toggle:
 ```html
 <button class="cp-button cp-toggle" data-variant="quiet" data-tone="accent" data-motion="beat" aria-pressed="false" type="button">
   <span class="cp-icon" data-cp-icon="bell" aria-hidden="true"></span>
-  <span class="cp-icon" data-cp-icon="bell-ring" data-part="on" aria-hidden="true"></span>
+  <span class="cp-icon" data-cp-icon="bell-ring-filled" data-part="on" aria-hidden="true"></span>
   Notify me
 </button>
 ```

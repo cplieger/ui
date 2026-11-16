@@ -23,8 +23,9 @@ export interface ConfirmOptions {
   /**
    * `"glide"`: the button glides to each word's width. `"footprint"`: it
    * keeps the widest word's footprint, so the buttons after it never move.
-   * `"fixed"`: it holds the widest word's width, as a split button's main
-   * action does so its caret never moves. Default: `"fixed"` inside
+   * `"fixed"`: it holds its widest state's width, icon and words, each
+   * state's content centred in it and nothing gliding, as a split button's
+   * main action does so its caret never moves, and a list's Show more. Default: `"fixed"` inside
    * `.cp-split`, `"footprint"` inside a table's actions cell, else `"glide"`.
    */
   readonly width?: ConfirmWidth;
@@ -45,11 +46,10 @@ export interface ConfirmOptions {
 export interface Confirm {
   /**
    * Runs `work` through the cycle. Resolves true once the button shows its
-   * done state, or is back at rest when `done` is false. Resolves false
-   * without calling `work` while work is running or after `signal` aborts,
-   * and false when `signal` aborts before `work` ends. A run during the done
-   * state ends it and starts at once. When `work` rejects, the button
-   * returns to rest and the rejection passes through.
+   * done state, or is back at rest when `done` is false. Resolves false,
+   * without calling `work`, while busy (work running or busyMin holding) or
+   * after `signal` aborts, and when `signal` aborts before `work` ends. A run
+   * in the done state ends it and starts at once; a rejection passes through.
    */
   run(work: () => Promise<unknown>): Promise<boolean>;
   /** Sets the words the button rests on, such as "Retry" after work that
@@ -60,6 +60,22 @@ export interface Confirm {
 const STATE = "data-cp-state";
 
 const wait = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** Whether the box holding `button` lines its content up at the end. */
+function endAligned(button: HTMLElement): boolean {
+  const box = button.parentElement;
+  if (box === null) {
+    return false;
+  }
+  const cs = getComputedStyle(box);
+  const rtl = cs.direction === "rtl";
+  if (cs.display.includes("flex")) {
+    const j = cs.justifyContent;
+    return j === "end" || j === "flex-end" || j === (rtl ? "left" : "right");
+  }
+  const t = cs.textAlign;
+  return t === "end" || t === (rtl ? "left" : "right");
+}
 
 /**
  * `button` holds a `.cp-roll` with its words at rest and, beside its icon at
@@ -94,17 +110,47 @@ export function enhanceConfirm(button: HTMLButtonElement, options: ConfirmOption
       ...[rest, busy, ...(done === false ? [] : [done])].map((text) => measureRoll(words, text)),
     );
 
+  /** The widest state's content, its icon and the gap after it included,
+   *  read from the computed size an icon keeps while it is not shown. */
+  const widestState = (): number => {
+    const gap = Number.parseFloat(getComputedStyle(button).columnGap) || 0;
+    const lead = (selector: string): number => {
+      const icon = button.querySelector(`:scope > .cp-icon${selector}`);
+      return icon === null ? 0 : (Number.parseFloat(getComputedStyle(icon).inlineSize) || 0) + gap;
+    };
+    const states: [string, string][] = [
+      [rest, ":not([data-part])"],
+      [busy, '[data-part="busy"]'],
+      ...(done === false ? [] : ([[done, '[data-part="done"]']] as [string, string][])),
+    ];
+    return Math.max(...states.map(([text, icon]) => measureRoll(words, text) + lead(icon)));
+  };
+
   /** Holds the footprint or the width the mode asks for, around `text`. */
   const fit = (text: string): void => {
     if (width === "glide") {
       return;
     }
-    const most = widest();
     if (width === "fixed") {
-      words.style.minInlineSize = `${String(most)}px`;
+      const cs = getComputedStyle(button);
+      const frame = [
+        cs.paddingInlineStart,
+        cs.paddingInlineEnd,
+        cs.borderInlineStartWidth,
+        cs.borderInlineEndWidth,
+      ].reduce((sum, v) => sum + (Number.parseFloat(v) || 0), 0);
+      button.style.minInlineSize = `${String(Math.ceil(widestState() + frame))}px`;
       return;
     }
-    button.style.marginInlineEnd = `${String(most - measureRoll(words, text))}px`;
+    const most = widest();
+    const slack = `${String(most - measureRoll(words, text))}px`;
+    // The slack sits away from the edge its container aligns to, so an
+    // end-aligned button, as in a table's actions cell, stays flush there.
+    if (endAligned(button)) {
+      button.style.marginInlineStart = slack;
+    } else {
+      button.style.marginInlineEnd = slack;
+    }
   };
 
   const toRest = (): void => {

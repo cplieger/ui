@@ -2,7 +2,7 @@
 
 `@cplieger/ui/relative-time`
 
-A `<time>` that says how long ago its moment was, or how far ahead it is, in the locale's words, and keeps itself current. The exact time stays beside the words: a screen reader hears it, and a mouse sees it on hover through the [tooltip](../overlays/tooltip.md).
+A `<time>` that says how long ago its moment was, or how far ahead it is, in the locale's fewest words, such as "3m ago", and keeps itself current. The exact time stays beside the words: a screen reader hears it, and a mouse sees it on hover through the [tooltip](../overlays/tooltip.md).
 
 ```html
 <time datetime="2026-11-11T14:02:00Z">14:02</time>
@@ -11,11 +11,11 @@ A `<time>` that says how long ago its moment was, or how far ahead it is, in the
 ```ts
 import { enhanceRelativeTime, formatRelative } from "@cplieger/ui/relative-time";
 
-enhanceRelativeTime(time, { signal: page.signal }); // "4 minutes ago"
-enhanceRelativeTime(compact, { style: "narrow", signal: page.signal }); // "4m ago"
+enhanceRelativeTime(time, { signal: page.signal }); // "4m ago"
+enhanceRelativeTime(inSentence, { style: "long", signal: page.signal }); // "4 minutes ago"
 
-formatRelative(Date.parse(entry.at)); // "yesterday"
-formatRelative(at, { now: start, locale: "fr" }); // "dans 25 minutes"
+formatRelative(Date.parse(entry.at)); // "1d ago"
+formatRelative(at, { now: start, locale: "fr", style: "long" }); // "dans 25 minutes"
 ```
 
 ## API
@@ -23,7 +23,7 @@ formatRelative(at, { now: start, locale: "fr" }); // "dans 25 minutes"
 - `enhanceRelativeTime(time, opts?)` reads the time's `datetime` and replaces its content with the words, then a visually hidden span holding the exact time, and sets `data-cp-tip` to the same exact time. It throws a `TypeError` when `datetime` does not parse.
 - `RelativeTimeOptions` = `{ style?, locale?, signal? }`. `signal` stops keeping the time current, and its words stay as they last read. A second call on the same time replaces the first.
 - `formatRelative(date, opts?)` returns the words for a `Date` or a number of ms since the epoch, without a page. `FormatRelativeOptions` = `{ now?, style?, locale? }`, where `now` is the moment to count from, by default the present. It throws a `TypeError` for an invalid date.
-- `style` is `"long"` by default, or `"short"` or `"narrow"`, as `Intl.RelativeTimeFormat` names them. `locale` is a BCP 47 language tag, by default the browser's.
+- `style` is `"narrow"` by default, "3m ago", "5h ago", "2d ago", so a time in a row, a list's end or a feed's head takes little width. A time read inside a sentence, such as "Last full check at 14:02, 6 minutes ago.", passes `"long"`. `"short"` sits between them. The names are `Intl.RelativeTimeFormat`'s. `locale` is a BCP 47 language tag, by default the browser's.
 
 ## The words
 

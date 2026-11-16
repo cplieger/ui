@@ -32,7 +32,8 @@ function shown(t: HTMLTimeElement): string {
 
 describe("formatRelative", () => {
   it("picks the largest unit that fits and rounds to it", () => {
-    const at = (ago: number): string => formatRelative(NOW - ago, { now: NOW, locale: "en" });
+    const at = (ago: number): string =>
+      formatRelative(NOW - ago, { now: NOW, locale: "en", style: "long" });
     expect([
       at(4 * MIN + 29_000),
       at(100 * MIN),
@@ -53,8 +54,10 @@ describe("formatRelative", () => {
   });
 
   it("moves to the larger unit before the smaller one's count would reach it", () => {
-    const at = (s: number): string => formatRelative(NOW - s * 1000, { now: NOW, locale: "en" });
-    const ahead = (s: number): string => formatRelative(NOW + s * 1000, { now: NOW, locale: "en" });
+    const at = (s: number): string =>
+      formatRelative(NOW - s * 1000, { now: NOW, locale: "en", style: "long" });
+    const ahead = (s: number): string =>
+      formatRelative(NOW + s * 1000, { now: NOW, locale: "en", style: "long" });
     expect([at(3569), at(3571), at(84_599), at(86_399), at(561_599), at(561_600)]).toEqual([
       "59 minutes ago",
       "1 hour ago",
@@ -73,7 +76,8 @@ describe("formatRelative", () => {
   });
 
   it("speaks the locale's words", () => {
-    const fr = (ms: number): string => formatRelative(NOW + ms, { now: NOW, locale: "fr" });
+    const fr = (ms: number): string =>
+      formatRelative(NOW + ms, { now: NOW, locale: "fr", style: "long" });
     expect([fr(-4 * MIN), fr(25 * MIN), fr(-DAY), fr(-10_000)]).toEqual([
       "il y a 4 minutes",
       "dans 25 minutes",
@@ -83,7 +87,8 @@ describe("formatRelative", () => {
   });
 
   it("says a time ahead and one under a minute either way", () => {
-    const en = (ms: number): string => formatRelative(NOW + ms, { now: NOW, locale: "en" });
+    const en = (ms: number): string =>
+      formatRelative(NOW + ms, { now: NOW, locale: "en", style: "long" });
     expect([en(25 * MIN), en(DAY), en(-59_000), en(59_000)]).toEqual([
       "in 25 minutes",
       "tomorrow",
@@ -105,8 +110,26 @@ describe("formatRelative", () => {
     expect(always("narrow")).toMatch(/1/);
   });
 
+  it("writes the narrow form by default, as Intl gives it", () => {
+    const narrow = (n: number, unit: Intl.RelativeTimeFormatUnit): string =>
+      new Intl.RelativeTimeFormat("en", { style: "narrow", numeric: "always" }).format(n, unit);
+    const at = (ago: number): string => formatRelative(NOW - ago, { now: NOW, locale: "en" });
+    expect([at(15 * MIN), at(3 * HOUR), at(DAY), at(10_000)]).toEqual([
+      narrow(-15, "minute"),
+      narrow(-3, "hour"),
+      narrow(-1, "day"),
+      new Intl.RelativeTimeFormat("en", { style: "narrow", numeric: "auto" }).format(0, "second"),
+    ]);
+    expect(at(15 * MIN)).toBe("15m ago");
+    const t = time(Date.now() - 3 * HOUR);
+    enhanceRelativeTime(t, { locale: "en", signal: life.signal });
+    expect(shown(t)).toBe(narrow(-3, "hour"));
+  });
+
   it("counts from the present by default, and refuses an invalid date", () => {
-    expect(formatRelative(new Date(Date.now() - 3 * HOUR), { locale: "en" })).toBe("3 hours ago");
+    expect(formatRelative(new Date(Date.now() - 3 * HOUR), { locale: "en", style: "long" })).toBe(
+      "3 hours ago",
+    );
     expect(() => formatRelative(new Date("soon"))).toThrow(TypeError);
     expect(() => formatRelative(Number.NaN)).toThrow(TypeError);
   });
@@ -116,7 +139,7 @@ describe("enhanceRelativeTime", () => {
   it("writes the words, the exact time for a screen reader and the tip for the hover", () => {
     const at = Date.now() - 4 * MIN;
     const t = time(at);
-    enhanceRelativeTime(t, { locale: "en", signal: life.signal });
+    enhanceRelativeTime(t, { locale: "en", style: "long", signal: life.signal });
     const exact = new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" }).format(
       at,
     );
@@ -133,7 +156,7 @@ describe("enhanceRelativeTime", () => {
     vi.useFakeTimers();
     vi.setSystemTime(NOW);
     const t = time(NOW - 4 * MIN - 29_000);
-    enhanceRelativeTime(t, { locale: "en", signal: life.signal });
+    enhanceRelativeTime(t, { locale: "en", style: "long", signal: life.signal });
     expect(shown(t)).toBe("4 minutes ago");
     // 4.5 minutes rounds to 4 until the clock is past it.
     vi.advanceTimersByTime(1_500);
@@ -149,7 +172,7 @@ describe("enhanceRelativeTime", () => {
     vi.setSystemTime(NOW);
     const t = time(NOW - 3 * HOUR);
     const set = vi.spyOn(globalThis, "setTimeout");
-    enhanceRelativeTime(t, { locale: "en", signal: life.signal });
+    enhanceRelativeTime(t, { locale: "en", style: "long", signal: life.signal });
     expect(set).toHaveBeenCalledTimes(1);
     expect(set.mock.calls[0]?.[1]).toBeGreaterThanOrEqual(30 * MIN);
     vi.advanceTimersByTime(30 * MIN + 500);
@@ -162,14 +185,14 @@ describe("enhanceRelativeTime", () => {
     vi.useFakeTimers();
     vi.setSystemTime(NOW);
     const t = time(NOW - 58 * MIN);
-    enhanceRelativeTime(t, { locale: "en", signal: life.signal });
+    enhanceRelativeTime(t, { locale: "en", style: "long", signal: life.signal });
     expect(shown(t)).toBe("58 minutes ago");
     vi.advanceTimersByTime(MIN);
     expect(shown(t)).toBe("59 minutes ago");
     vi.advanceTimersByTime(30_000);
     expect(shown(t)).toBe("1 hour ago");
     const ahead = time(Date.now() + 61 * MIN);
-    enhanceRelativeTime(ahead, { locale: "en", signal: life.signal });
+    enhanceRelativeTime(ahead, { locale: "en", style: "long", signal: life.signal });
     expect(shown(ahead)).toBe("in 1 hour");
     vi.advanceTimersByTime(90_000);
     expect(shown(ahead)).toBe("in 1 hour");
@@ -181,7 +204,7 @@ describe("enhanceRelativeTime", () => {
     vi.useFakeTimers();
     vi.setSystemTime(NOW);
     const t = time(NOW + 25 * MIN);
-    enhanceRelativeTime(t, { locale: "en", signal: life.signal });
+    enhanceRelativeTime(t, { locale: "en", style: "long", signal: life.signal });
     expect(shown(t)).toBe("in 25 minutes");
     vi.advanceTimersByTime(24 * MIN + 30_000);
     expect(shown(t)).toBe("now");
@@ -194,7 +217,7 @@ describe("enhanceRelativeTime", () => {
     vi.setSystemTime(NOW);
     const t = time(NOW - 4 * MIN);
     const stop = new AbortController();
-    enhanceRelativeTime(t, { locale: "en", signal: stop.signal });
+    enhanceRelativeTime(t, { locale: "en", style: "long", signal: stop.signal });
     expect(vi.getTimerCount()).toBe(1);
     stop.abort();
     expect(vi.getTimerCount()).toBe(0);
@@ -208,7 +231,7 @@ describe("enhanceRelativeTime", () => {
     const t = time(NOW - 4 * MIN);
     const first = new AbortController();
     const second = new AbortController();
-    enhanceRelativeTime(t, { locale: "en", signal: first.signal });
+    enhanceRelativeTime(t, { locale: "en", style: "long", signal: first.signal });
     enhanceRelativeTime(t, { locale: "en", style: "narrow", signal: second.signal });
     expect(t.childNodes).toHaveLength(2);
     expect(vi.getTimerCount()).toBe(1);
@@ -229,8 +252,8 @@ describe("enhanceRelativeTime", () => {
     vi.setSystemTime(NOW);
     const old = time(NOW - 3 * HOUR);
     const fresh = time(NOW - 10_000);
-    enhanceRelativeTime(old, { locale: "en", signal: life.signal });
-    enhanceRelativeTime(fresh, { locale: "en", signal: life.signal });
+    enhanceRelativeTime(old, { locale: "en", style: "long", signal: life.signal });
+    enhanceRelativeTime(fresh, { locale: "en", style: "long", signal: life.signal });
     expect(vi.getTimerCount()).toBe(1);
     expect(shown(fresh)).toBe("now");
     vi.advanceTimersByTime(50_501);
@@ -241,7 +264,7 @@ describe("enhanceRelativeTime", () => {
     vi.useFakeTimers();
     vi.setSystemTime(NOW);
     const t = time(NOW - 4 * MIN);
-    enhanceRelativeTime(t, { locale: "en", signal: life.signal });
+    enhanceRelativeTime(t, { locale: "en", style: "long", signal: life.signal });
     t.remove();
     vi.advanceTimersByTime(3 * MIN);
     document.body.append(t);
@@ -252,7 +275,7 @@ describe("enhanceRelativeTime", () => {
     vi.useFakeTimers();
     vi.setSystemTime(NOW);
     const t = time(NOW - 4 * MIN);
-    enhanceRelativeTime(t, { locale: "en", signal: life.signal });
+    enhanceRelativeTime(t, { locale: "en", style: "long", signal: life.signal });
     // A hidden page's timers run late: the clock moves with none firing.
     vi.setSystemTime(NOW + 20 * MIN);
     Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" });

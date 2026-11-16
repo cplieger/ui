@@ -20,7 +20,7 @@ it("builds a table of 129,600 rows, a 90-day line sampled each minute", () => {
     after: "",
   };
   const panel = document.createElement("div");
-  syncTable(panel, t, "Agents", false);
+  syncTable(panel, t, "chart-title", false);
   expect(panel.querySelectorAll("tbody tr")).toHaveLength(129_600);
 });
 
@@ -45,7 +45,7 @@ it("writes a datetime HTML reads for years past 9999, and none before year 1", (
     ],
   };
   const panel = document.createElement("div");
-  syncTable(panel, t, "Days", false);
+  syncTable(panel, t, "chart-title", false);
   const heads = [...panel.querySelectorAll("tbody th")];
   expect(heads.map((th) => th.querySelector("time")?.dateTime)).toEqual([
     "275760-09-07",
@@ -84,7 +84,7 @@ it("heads small multiples' column groups in a row above their columns, each over
     chartWords(),
   );
   const el = document.createElement("div");
-  syncTable(el, t, "Power", false);
+  syncTable(el, t, "chart-title", false);
   const table = el.querySelector("table");
   expect([...(table?.querySelectorAll("colgroup") ?? [])].map((g) => g.span)).toEqual([1, 3, 3]);
   const [top, below] = [...(table?.tHead?.rows ?? [])];
@@ -138,7 +138,7 @@ it("heads each scatter panel's <tbody> with its name across every column", () =>
     chartWords(),
   );
   const el = document.createElement("div");
-  syncTable(el, t, "People", true);
+  syncTable(el, t, "chart-title", true);
   const bodies = [...(el.querySelector("table")?.tBodies ?? [])];
   expect(
     bodies.map((b) => {
