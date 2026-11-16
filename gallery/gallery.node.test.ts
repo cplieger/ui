@@ -116,199 +116,489 @@ describe.each(browsers)("the gallery in %s", (name) => {
     expect([...missing]).toEqual([]);
   });
 
-  it("closes an open conversation on Back at a phone's width and focuses its row", async () => {
-    const tab = await (browser as Browser).newPage({ viewport: { width: 390, height: 800 } });
-    await tab.goto(`${origin}/index.html`);
-    await tab.goto(`${origin}/messages.html`);
-    await tab.waitForFunction(() => document.querySelector("[data-build]") !== null);
-    const row = tab.locator("#msg-list a.cp-list-row").nth(1);
-    const id = await row.getAttribute("href");
-    const shown = () => document.querySelector<HTMLDialogElement>("#msg + dialog")?.open;
-    const hidden = () => !document.querySelector<HTMLDialogElement>("#msg + dialog")?.open;
-    await row.focus();
-    await tab.keyboard.press("Enter");
-    await tab.waitForFunction(shown);
-    await tab.goBack();
-    await tab.waitForFunction(hidden);
-    const focused = await tab.evaluate(() => document.activeElement?.getAttribute("href"));
-
-    await row.focus();
-    await tab.keyboard.press("Enter");
-    await tab.waitForFunction(shown);
-    await tab.keyboard.press("Escape");
-    await tab.waitForFunction(hidden);
-    const closed = new URL(tab.url());
-    await tab.goBack();
-    const left = new URL(tab.url()).pathname;
-    await tab.close();
-    expect({ focused, closed: closed.pathname + closed.hash, left }).toEqual({
-      focused: id,
-      closed: "/messages.html",
-      left: "/index.html",
-    });
-  }, 60_000);
-
-  it("docks on Back the conversation the landed address names and closes it on Close", async () => {
-    const tab = await (browser as Browser).newPage({ viewport: { width: 1280, height: 800 } });
-    await tab.goto(`${origin}/index.html`);
-    await tab.goto(`${origin}/messages.html`);
-    await tab.waitForFunction(() => document.querySelector("[data-build]") !== null);
-    const landed = new URL(tab.url()).hash;
-    const row = tab.locator("#msg-list a.cp-list-row").nth(1);
-    await row.focus();
-    await tab.keyboard.press("Enter");
-    await tab.waitForFunction((h) => location.hash !== h, landed);
-    const state = () =>
-      tab.evaluate(() => ({
-        docked: document.getElementById("msg")?.hasAttribute("data-cp-docked") ?? false,
-        shown: document.querySelector<HTMLElement>("#msg > .cp-detail")?.hidden === false,
-        current: [...document.querySelectorAll("#msg-list a[aria-current]")].map((a) =>
-          a.getAttribute("href"),
-        ),
-      }));
-    await tab.goBack();
-    await tab.waitForFunction((h) => location.hash === h, landed);
-    const back = await state();
-
-    await row.focus();
-    await tab.keyboard.press("Enter");
-    await tab.waitForFunction((h) => location.hash !== h, landed);
-    await tab.locator("#msg > .cp-detail [data-detail-close]").click();
-    await tab.waitForFunction(
-      () => document.querySelector<HTMLElement>("#msg > .cp-detail")?.hidden === true,
-    );
-    const closed = {
-      ...(await state()),
-      path: new URL(tab.url()).pathname,
-      hash: new URL(tab.url()).hash,
+  describe("the conversation's address", () => {
+    const M = "/messages.html";
+    /** The conversations the page knows by address, with their titles: the
+     *  list's rows, then the first page Show older brings in. */
+    const KNOWN: Record<string, string> = {
+      "c-internal": "/workspace/grelot/internal",
+      "c-announce": "Announcements",
+      "c-kiro-codex": "@kiro and @codex",
+      "c-ui-data": "/workspace/ui/src/data",
+      "c-marotte": "/workspace/marotte/static-src",
+      "c-claude-gpt": "@claude and @gpt",
+      "c-kiro-gpt": "@kiro and @gpt",
+      "c-leads": "@library-reorg-lead and @ui-design-research",
+      "c-ci": "/workspace/ci/.github/workflows",
+      "c-codex-claude": "@codex and @claude",
+      "c-monitoring": "/workspace/monitoring/alerts/rules",
     };
-    await tab.goBack();
-    const left = new URL(tab.url()).pathname;
-    await tab.close();
-    expect({ landed, back, closed, left }).toEqual({
-      landed: "#c-internal",
-      back: { docked: true, shown: true, current: ["#c-internal"] },
-      closed: { docked: false, shown: false, current: [], path: "/messages.html", hash: "" },
-      left: "/index.html",
-    });
-  }, 60_000);
+    type Action =
+      | `load ${string}`
+      | `press #${string}`
+      | `chip #${string}`
+      | "author"
+      | "older"
+      | "close"
+      | "escape"
+      | "back"
+      | "forward"
+      | "reload";
+    /** An action, the address it ends on, and where focus ends when that is the point. */
+    type Step = readonly [Action, string, string?];
+    interface Want {
+      readonly address: string;
+      readonly length?: number;
+      readonly focus?: string;
+      readonly top?: number;
+    }
 
-  /** A wide tab on `page` after index.html, Close pressed once `presses` opened their rows. */
-  const closedAfter = async (page: string, presses: readonly string[], fresh = false) => {
-    const tab = await (browser as Browser).newPage({ viewport: { width: 1280, height: 800 } });
-    if (!fresh) {
-      await tab.goto(`${origin}/index.html`);
+    // In every document of the tab: the feed's scroller, and a record of
+    // the rows made current from the moment `cpWatch()` is called.
+    const helpers = () => {
+      Object.assign(window, {
+        cpScroller: (): Element => {
+          for (let at = document.getElementById("msg-feed")?.parentElement; at;) {
+            const y = getComputedStyle(at).overflowY;
+            if ((y === "auto" || y === "scroll") && at.scrollHeight > at.clientHeight) {
+              return at;
+            }
+            at = at.parentElement;
+          }
+          return document.documentElement;
+        },
+        cpWatch: (): void => {
+          const made: string[] = [];
+          Object.assign(window, { cpMade: made });
+          new MutationObserver((records) => {
+            for (const r of records) {
+              if (r.target instanceof Element && r.target.hasAttribute("aria-current")) {
+                made.push(r.target.getAttribute("href") ?? "");
+              }
+            }
+          }).observe(document.getElementById("msg-list") ?? document, {
+            subtree: true,
+            attributeFilter: ["aria-current"],
+          });
+        },
+      });
+    };
+    interface Helpers {
+      cpScroller: () => Element;
+      cpWatch: () => void;
+      cpMade?: string[];
     }
-    await tab.goto(`${origin}/${page}`);
-    await tab.waitForFunction(() => document.querySelector("[data-build]") !== null);
-    const row = (href: string) => tab.locator(`#msg-list a.cp-list-row[href="${href}"]`);
-    // A wait that runs out reports through the expectation that follows it.
-    const detail = (hidden: boolean) =>
-      tab
-        .waitForFunction(
-          (h) => document.querySelector<HTMLElement>("#msg > .cp-detail")?.hidden === h,
-          hidden,
-          { timeout: 5000 },
-        )
-        .catch(() => undefined);
-    for (const href of presses) {
-      await row(href).click();
-      await tab.waitForFunction((h) => location.hash === h, href);
-    }
-    await tab.evaluate(() => {
-      const shown: string[] = [];
-      Object.assign(window, { shownWhileClosing: shown });
-      new MutationObserver((records) => {
-        for (const r of records) {
-          if (r.target instanceof Element && r.target.hasAttribute("aria-current")) {
-            shown.push(r.target.getAttribute("href") ?? "");
+
+    /** Invariant 1 on the page now, and `want`'s address, history length,
+     *  focus and feed scroll: each one that does not hold. */
+    const broken = (tab: Page, want: Want) =>
+      tab.evaluate(
+        ({ w, known }) => {
+          const out: string[] = [];
+          const at = location.pathname + location.hash;
+          if (at !== w.address) {
+            out.push(`address ${at}`);
+          }
+          if (w.length !== undefined && history.length !== w.length) {
+            out.push(`history.length ${String(history.length)}, was ${String(w.length)}`);
+          }
+          if (location.pathname !== "/messages.html") {
+            return out;
+          }
+          if (document.querySelector("[data-build]") === null) {
+            return [...out, "not wired yet"];
+          }
+          const title = document.getElementById("msg-title");
+          const detail = title?.closest<HTMLElement>(".cp-detail");
+          const dialog = document.querySelector<HTMLDialogElement>("#msg + dialog");
+          const docked = document.getElementById("msg")?.hasAttribute("data-cp-docked") === true;
+          const shown = detail?.hidden === false && (docked || dialog?.open === true);
+          const name = known[location.hash.slice(1)];
+          if (name === undefined ? shown : !shown || title?.textContent !== name) {
+            out.push(`shows ${shown ? (title?.textContent ?? "") : "nothing"}`);
+          }
+          const rows = [...document.querySelectorAll("#msg-list a.cp-list-row")];
+          const current = rows
+            .filter((a) => a.hasAttribute("aria-current"))
+            .map((a) => a.getAttribute("href"))
+            .join(" ");
+          const loaded = rows.some((a) => a.getAttribute("href") === location.hash);
+          if (current !== (name !== undefined && loaded ? location.hash : "")) {
+            out.push(`current "${current}"`);
+          }
+          const focused = document.activeElement;
+          if (w.focus !== undefined && focused?.matches(w.focus) !== true) {
+            out.push(`focus on ${focused?.outerHTML.slice(0, 50) ?? "nothing"}`);
+          }
+          if (w.top !== undefined) {
+            const top = (window as unknown as Helpers).cpScroller().scrollTop;
+            if (Math.abs(top - w.top) > 1) {
+              out.push(`feed scrolled to ${String(top)}`);
+            }
+          }
+          return out;
+        },
+        { w: want, known: KNOWN },
+      );
+    /** What still breaks once the page settles: polled up to 5 s, then read again. */
+    const settle = async (tab: Page, want: Want): Promise<string[]> => {
+      const read = () =>
+        broken(tab, want).catch((e: unknown) => [`unreadable: ${String(e).slice(0, 60)}`]);
+      let last = await read();
+      for (const end = Date.now() + 5000; last.length > 0 && Date.now() < end;) {
+        await tab.waitForTimeout(100);
+        last = await read();
+      }
+      await tab.waitForTimeout(300);
+      return read();
+    };
+    const enter = async (tab: Page, selector: string) => {
+      await tab.locator(selector).first().focus();
+      await tab.keyboard.press("Enter");
+    };
+
+    /** Runs `steps` on a tab `width` wide and reports each step that broke an invariant. */
+    const run = async (width: number, fresh: boolean, steps: readonly Step[]) => {
+      const tab = await (browser as Browser).newPage({ viewport: { width, height: 800 } });
+      await tab.addInitScript(helpers);
+      if (!fresh) {
+        await tab.goto(`${origin}/index.html`);
+      }
+      const wide = width >= 52 * 16;
+      const report: string[] = [];
+      for (const [i, [action, address, focus]] of steps.entries()) {
+        const [verb = "", arg = ""] = action.split(" ");
+        let want: Want = focus === undefined ? { address } : { address, focus };
+        const before = await tab
+          .evaluate(() => ({
+            length: history.length,
+            href: location.href,
+            hidden: document.querySelector("#msg-title")?.closest<HTMLElement>(".cp-detail")
+              ?.hidden,
+          }))
+          .catch(() => undefined);
+        switch (verb) {
+          case "load":
+          case "reload": {
+            await (verb === "load" ? tab.goto(`${origin}/${arg}`) : tab.reload());
+            const named = KNOWN[new URL(tab.url()).hash.slice(1)] !== undefined;
+            // Invariant 3: docked with focus at the page's start, or in the phone's dialog.
+            want = { ...want, focus: focus ?? (wide || !named ? "body" : "#msg-title") };
+            break;
+          }
+          case "press":
+          case "chip": {
+            const selector =
+              verb === "press"
+                ? `#msg-list a.cp-list-row[href="${arg}"]`
+                : `#agent-history a.cp-chip[href="${arg}"]`;
+            if (before?.hidden === false && new URL(before.href).hash === arg) {
+              // Invariant 4: a press on what is shown keeps history and scroll, and focuses its heading.
+              await tab.evaluate(() => {
+                (window as unknown as Helpers).cpScroller().scrollTop = 0;
+              });
+              want = { ...want, length: before.length, focus: "#msg-title", top: 0 };
+            }
+            await enter(tab, selector);
+            break;
+          }
+          case "author":
+            await enter(tab, '#msg-feed header > a[href="#agent-kiro"]');
+            break;
+          case "older": {
+            const rows = () => document.querySelectorAll("#msg-list a.cp-list-row").length;
+            const had = await tab.evaluate(rows);
+            await tab.locator("[data-msg-older-rows]").click();
+            await tab
+              .waitForFunction(
+                (n) => document.querySelectorAll("#msg-list a.cp-list-row").length > n,
+                had,
+                {
+                  timeout: 5000,
+                },
+              )
+              .catch(() => undefined);
+            want = { ...want, ...(before === undefined ? {} : { length: before.length }) };
+            break;
+          }
+          case "close":
+          case "escape":
+            await tab.evaluate(() => {
+              (window as unknown as Helpers).cpWatch();
+            });
+            await (verb === "close"
+              ? tab.locator(".cp-detail [data-detail-close]").click()
+              : tab.keyboard.press("Escape"));
+            break;
+          case "back":
+            await tab.goBack();
+            break;
+          case "forward":
+            await tab.goForward();
+            break;
+        }
+        const left = await settle(tab, want);
+        if (verb === "close" || verb === "escape") {
+          // Invariant 2: one traversal, so no entry on the way shows its row.
+          const made = await tab
+            .evaluate(() => (window as unknown as Helpers).cpMade ?? [])
+            .catch(() => []);
+          if (made.length > 0) {
+            left.push(`made current on the way: ${made.join(" ")}`);
           }
         }
-      }).observe(document.getElementById("msg-list") ?? document, {
-        subtree: true,
-        attributeFilter: ["aria-current"],
-      });
-    });
-    await tab.locator("#msg > .cp-detail [data-detail-close]").click();
-    await detail(true);
-    const url = new URL(tab.url());
-    const closed = {
-      path: url.pathname,
-      hash: url.hash,
-      shown: await tab.evaluate(
-        () => document.querySelector<HTMLElement>("#msg > .cp-detail")?.hidden === false,
-      ),
-      flashed: await tab.evaluate(
-        () => (window as { shownWhileClosing?: string[] }).shownWhileClosing,
-      ),
-    };
-    return { tab, row, detail, closed };
-  };
-  const opened = (tab: Page, href: string) =>
-    tab.evaluate(
-      (h) => ({
-        shown: document.querySelector<HTMLElement>("#msg > .cp-detail")?.hidden === false,
-        current: document
-          .querySelector(`#msg-list a.cp-list-row[href="${h}"]`)
-          ?.getAttribute("aria-current"),
-      }),
-      href,
-    );
-  const onList = { path: "/messages.html", hash: "", shown: false, flashed: [] };
-
-  it.each([
-    ["after a second press", "messages.html", ["#c-announce", "#c-kiro-codex"], "#c-announce"],
-    [
-      "after a press on a page that loaded on one",
-      "messages.html#c-ui-data",
-      ["#c-marotte"],
-      "#c-ui-data",
-    ],
-    [
-      "after two presses on a page that loaded on one",
-      "messages.html#c-ui-data",
-      ["#c-marotte", "#c-announce"],
-      "#c-ui-data",
-    ],
-  ])(
-    "leaves the address on the list when Close shuts a docked conversation %s",
-    async (_, page, presses, again) => {
-      const { tab, row, detail, closed } = await closedAfter(page, presses);
-      await tab.goBack();
-      const left = new URL(tab.url()).pathname;
-      await tab.goForward();
-      await tab.waitForFunction(() => document.querySelector("[data-build]") !== null);
-      await row(again).click();
-      await detail(false);
-      const reopened = await opened(tab, again);
+        if (left.length > 0) {
+          report.push(`${String(i + 1)} ${action} → ${address}: ${left.join("; ")}`);
+        }
+      }
       await tab.close();
-      expect({ closed, left, reopened }).toEqual({
-        closed: onList,
-        left: "/index.html",
-        reopened: { shown: true, current: "page" },
-      });
-    },
-    60_000,
-  );
+      return report;
+    };
 
-  it("closes a docked conversation after a press on its own open row", async () => {
-    const fresh = await closedAfter("messages.html#c-ui-data", ["#c-ui-data"], true);
-    await fresh.row("#c-marotte").click();
-    await fresh.detail(false);
-    const next = await opened(fresh.tab, "#c-marotte");
-    await fresh.tab.close();
-
-    const after = await closedAfter("messages.html#c-ui-data", ["#c-ui-data"]);
-    await after.tab.goBack();
-    const left = new URL(after.tab.url()).pathname;
-    await after.tab.close();
-    expect({ fresh: fresh.closed, next, after: after.closed, left }).toEqual({
-      fresh: onList,
-      next: { shown: true, current: "page" },
-      after: onList,
-      left: "/index.html",
-    });
-  }, 60_000);
+    const W = 1280;
+    const P = 390;
+    const AFTER = false;
+    const FRESH = true;
+    it.each<readonly [string, number, boolean, readonly Step[]]>([
+      [
+        "two presses, then Close and a press after Back and Forward",
+        W,
+        AFTER,
+        [
+          ["load messages.html", `${M}#c-internal`],
+          ["press #c-announce", `${M}#c-announce`],
+          ["press #c-kiro-codex", `${M}#c-kiro-codex`],
+          ["close", M],
+          ["back", "/index.html"],
+          ["forward", M],
+          ["press #c-announce", `${M}#c-announce`],
+        ],
+      ],
+      [
+        "Back and Forward between two docked conversations, then Close",
+        W,
+        AFTER,
+        [
+          ["load messages.html", `${M}#c-internal`],
+          ["press #c-marotte", `${M}#c-marotte`],
+          ["back", `${M}#c-internal`],
+          ["forward", `${M}#c-marotte`],
+          ["close", M, '#msg-list a[href="#c-marotte"]'],
+          ["back", "/index.html"],
+        ],
+      ],
+      [
+        "Close, a press, then Back to the list",
+        W,
+        AFTER,
+        [
+          ["load messages.html", `${M}#c-internal`],
+          ["close", M],
+          ["press #c-marotte", `${M}#c-marotte`],
+          ["back", M],
+          ["back", "/index.html"],
+        ],
+      ],
+      [
+        "a load on a conversation a later page brings in, Show older, Close",
+        W,
+        AFTER,
+        [
+          ["load messages.html#c-ci", `${M}#c-ci`],
+          ["older", `${M}#c-ci`],
+          ["close", M],
+          ["back", "/index.html"],
+        ],
+      ],
+      [
+        "a load on a conversation a later page brings in, Show older, Close, a press",
+        W,
+        FRESH,
+        [
+          ["load messages.html#c-ci", `${M}#c-ci`],
+          ["older", `${M}#c-ci`],
+          ["close", M],
+          ["press #c-marotte", `${M}#c-marotte`],
+        ],
+      ],
+      [
+        "a press, an author link, Back, Close",
+        W,
+        AFTER,
+        [
+          ["load messages.html", `${M}#c-internal`],
+          ["press #c-marotte", `${M}#c-marotte`],
+          ["author", `${M}#agent-kiro`],
+          ["back", `${M}#c-marotte`],
+          ["close", M],
+          ["back", "/index.html"],
+        ],
+      ],
+      [
+        "an author link, Back, Close",
+        W,
+        AFTER,
+        [
+          ["load messages.html", `${M}#c-internal`],
+          ["author", `${M}#agent-kiro`],
+          ["back", `${M}#c-internal`],
+          ["close", M],
+          ["back", "/index.html"],
+        ],
+      ],
+      [
+        "a press on the open row and on its chip, then Close",
+        W,
+        AFTER,
+        [
+          ["load messages.html#c-internal", `${M}#c-internal`],
+          ["press #c-internal", `${M}#c-internal`],
+          ["chip #c-internal", `${M}#c-internal`],
+          ["close", M],
+          ["back", "/index.html"],
+        ],
+      ],
+      [
+        "a press on the open row, Close, a press",
+        W,
+        FRESH,
+        [
+          ["load messages.html#c-ui-data", `${M}#c-ui-data`],
+          ["press #c-ui-data", `${M}#c-ui-data`],
+          ["close", M],
+          ["press #c-marotte", `${M}#c-marotte`],
+        ],
+      ],
+      [
+        "a press, the same row again, a chip to another, Close",
+        W,
+        AFTER,
+        [
+          ["load messages.html", `${M}#c-internal`],
+          ["press #c-marotte", `${M}#c-marotte`],
+          ["press #c-marotte", `${M}#c-marotte`],
+          ["chip #c-kiro-codex", `${M}#c-kiro-codex`],
+          ["close", M],
+          ["back", "/index.html"],
+        ],
+      ],
+      [
+        "a reload after a press, then Close",
+        W,
+        AFTER,
+        [
+          ["load messages.html", `${M}#c-internal`],
+          ["press #c-marotte", `${M}#c-marotte`],
+          ["reload", `${M}#c-marotte`],
+          ["close", M],
+          ["back", "/index.html"],
+        ],
+      ],
+      [
+        "two presses on a page that loaded on one, Close, then a press after Forward",
+        W,
+        AFTER,
+        [
+          ["load messages.html#c-ui-data", `${M}#c-ui-data`],
+          ["press #c-marotte", `${M}#c-marotte`],
+          ["press #c-announce", `${M}#c-announce`],
+          ["close", M],
+          ["back", "/index.html"],
+          ["forward", M],
+          ["press #c-ui-data", `${M}#c-ui-data`],
+        ],
+      ],
+      [
+        "Back out of the page and Forward into it, then Close",
+        W,
+        AFTER,
+        [
+          ["load messages.html#c-ui-data", `${M}#c-ui-data`],
+          ["press #c-marotte", `${M}#c-marotte`],
+          ["back", `${M}#c-ui-data`],
+          ["back", "/index.html"],
+          ["forward", `${M}#c-ui-data`],
+          ["close", M],
+          ["back", "/index.html"],
+        ],
+      ],
+      [
+        "a load on an address that names no conversation, a press, Close",
+        W,
+        AFTER,
+        [
+          ["load messages.html#agent-kiro", `${M}#agent-kiro`],
+          ["press #c-marotte", `${M}#c-marotte`],
+          ["close", M],
+          ["back", "/index.html"],
+        ],
+      ],
+      [
+        "a phone's load on a conversation, then Close",
+        P,
+        AFTER,
+        [
+          ["load messages.html#c-ui-data", `${M}#c-ui-data`],
+          ["close", M, '#msg-list a[href="#c-ui-data"]'],
+          ["back", "/index.html"],
+        ],
+      ],
+      [
+        "a phone's load on the list, a press, Back, a press, Escape",
+        P,
+        AFTER,
+        [
+          ["load messages.html", M],
+          ["press #c-marotte", `${M}#c-marotte`],
+          ["back", M, '#msg-list a[href="#c-marotte"]'],
+          ["press #c-marotte", `${M}#c-marotte`],
+          ["escape", M, '#msg-list a[href="#c-marotte"]'],
+          ["back", "/index.html"],
+        ],
+      ],
+      [
+        "a phone's load on a conversation a later page brings in, Close, Show older, a press",
+        P,
+        FRESH,
+        [
+          ["load messages.html#c-ci", `${M}#c-ci`],
+          ["close", M],
+          ["older", M],
+          ["press #c-ci", `${M}#c-ci`],
+          ["close", M, '#msg-list a[href="#c-ci"]'],
+        ],
+      ],
+      [
+        "a phone's reload after a press, then Close",
+        P,
+        AFTER,
+        [
+          ["load messages.html", M],
+          ["press #c-marotte", `${M}#c-marotte`],
+          ["reload", `${M}#c-marotte`],
+          ["close", M, '#msg-list a[href="#c-marotte"]'],
+          ["back", "/index.html"],
+        ],
+      ],
+      [
+        "a phone's press on a chip, then Close",
+        P,
+        AFTER,
+        [
+          ["load messages.html", M],
+          ["chip #c-announce", `${M}#c-announce`],
+          ["close", M],
+          ["back", "/index.html"],
+        ],
+      ],
+    ])(
+      "holds after each step of %s",
+      async (_, width, fresh, steps) => {
+        expect(await run(width, fresh, steps)).toEqual([]);
+      },
+      120_000,
+    );
+  });
 
   it.each(pageNames)(
     "runs %s's script to its end inside a sandboxed frame, as a preview tab shows it",
