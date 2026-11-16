@@ -10,6 +10,7 @@
 import { enhanceConfirm, type Confirm } from "../../buttons/confirm/confirm.js";
 import { turnWhile } from "../../buttons/turn/turn.js";
 import { until, whenAborted } from "../../core/lifetime/lifetime.js";
+import { localeOf } from "../../core/locale/locale.js";
 import { safely } from "../../core/safely/safely.js";
 import { focusOn } from "../../data/list-row/row.js";
 import { glyph } from "../../foundations/icons/glyph.js";
@@ -51,11 +52,12 @@ export interface LoadingRegionOptions<T> {
   /** The first load's placeholder, such as a skeleton in the content's
    *  shape. Default: a `.cp-inline-load` with the loading words. */
   readonly placeholder?: () => Node;
-  /** When the content the region holds now was loaded. Default: now when
-   *  the region holds content, so the cycle starts `ready`, else `idle`. */
+  /** When the content the region holds now was loaded. Default: when the
+   *  region is wired. */
   readonly loadedAt?: Date;
-  /** The locale the time in the refresh failure is written in. Default:
-   *  the document's language. */
+  /** The locale the time in the refresh failure is written in, a malformed
+   *  one throwing a `RangeError` here. Default: the region's `lang`, or its
+   *  nearest ancestor's. */
   readonly locale?: string;
   readonly words?: LoadingRegionWords;
   /** Ends a load under way and the region's wiring. */
@@ -153,7 +155,9 @@ export function enhanceLoadingRegion<T>(
   const { signal } = options;
   const words = options.words ?? {};
   const retryWords = words.retry ?? "Retry";
-  const locale = options.locale ?? (document.documentElement.lang || undefined);
+  const locale = options.locale ?? localeOf(region);
+  const time = new Intl.DateTimeFormat(locale, { timeStyle: "short" });
+  const dateTime = new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" });
   let state: LoadingState = holdsContent(region) ? "ready" : "idle";
   let loadedAt = options.loadedAt ?? new Date();
   let running: Run | null = null;
@@ -190,13 +194,13 @@ export function enhanceLoadingRegion<T>(
       : failed;
   };
 
+  // safely's fallback for refreshFailed, so it must not throw: an
+  // invalid loadedAt leaves the time out rather than format it.
   const sinceSentence = (): string => {
-    const format = new Intl.DateTimeFormat(
-      locale,
-      sameDay(loadedAt, new Date())
-        ? { timeStyle: "short" }
-        : { dateStyle: "medium", timeStyle: "short" },
-    );
+    if (Number.isNaN(loadedAt.getTime())) {
+      return "The refresh failed.";
+    }
+    const format = sameDay(loadedAt, new Date()) ? time : dateTime;
     return `The refresh failed. What you see is from ${format.format(loadedAt)}.`;
   };
 

@@ -56,7 +56,7 @@ Ended, a job reads:
 - `JobsOptions` = `{ stop?, locale?, words?, signal? }`.
   - `stop(row, signal)` stops the job of `row`, the pressed Stop's `.cp-list-row`. Without it the module leaves the Stop buttons to the host, which calls `end` itself.
   - `locale` is the language the counts are written in, by default the list's `lang`.
-  - `words` = `{ count?, stopped?, stoppedCause?, said?, stopFailed? }`, each count already written in that language. A word function that throws when a stop settles is reported to the page as an uncaught error, and its default takes its place, so the job still ends.
+  - `words` = `{ count?, stopped?, stoppedCause?, said?, stopFailed? }`, each count already written in that language. A word function that throws is reported to the page as an uncaught error, and its default takes its place, so the count is still written and a stopped job still ends.
     - `count(done, total)` is how far the job is, by default "{done} of {total}".
     - `stopped` is the outcome of a job stopped from its button, by default "Stopped". An app whose button reads Cancel passes "Cancelled".
     - `stoppedCause(done?, total?)` is its cause, given how far the bar was at the press, or nothing for a row with no bar, by default "Stopped by you at {count}", such as "Stopped by you at 12 of 40", or "Stopped by you". An app whose button reads Cancel passes `(done, total) => \`Cancelled by you at ${done} of ${total}\``.

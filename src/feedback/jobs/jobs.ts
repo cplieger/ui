@@ -105,8 +105,11 @@ export function enhanceJobs(list: HTMLElement, options: JobsOptions = {}): Jobs 
     const bar = row.querySelector(":scope > progress");
     return bar instanceof HTMLProgressElement ? [format(bar.value), format(bar.max)] : null;
   };
-  const countWords = (at: readonly [string, string]): string =>
-    words.count?.(...at) ?? `${at[0]} of ${at[1]}`;
+  const countWords = (at: readonly [string, string]): string => {
+    const plain = (): string => `${at[0]} of ${at[1]}`;
+    const { count } = words;
+    return count === undefined ? plain() : safely(() => count(...at), plain);
+  };
 
   const progress = (item: Element, done: number, total?: number): void => {
     const row = rowOf(item);
@@ -233,18 +236,20 @@ export function enhanceJobs(list: HTMLElement, options: JobsOptions = {}): Jobs 
             if (life.signal.aborted || row.hasAttribute("data-ended")) {
               return;
             }
-            const cause = (): string =>
-              at === null ? "Stopped by you" : `Stopped by you at ${at[0]} of ${at[1]}`;
+            const defaultCause = (): string =>
+              at === null ? "Stopped by you" : `Stopped by you at ${countWords(at)}`;
+            const { stoppedCause } = words;
             const said = (): string => `${kind} stopped`;
             end(row, {
               words: words.stopped ?? "Stopped",
               tone: "neutral",
-              cause: safely(
-                () =>
-                  (at === null ? words.stoppedCause?.() : words.stoppedCause?.(...at)) ??
-                  (at === null ? cause() : `Stopped by you at ${countWords(at)}`),
-                cause,
-              ),
+              cause:
+                stoppedCause === undefined
+                  ? defaultCause()
+                  : safely(
+                      () => (at === null ? stoppedCause() : stoppedCause(...at)),
+                      defaultCause,
+                    ),
               said: safely(() => words.said?.(kind) ?? said(), said),
             });
           },

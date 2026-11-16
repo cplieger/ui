@@ -399,6 +399,21 @@ describe("enhanceLoadingRegion: a refresh", () => {
     await done;
   });
 
+  it("runs the line under the part of the table's head still in view", async () => {
+    const { region, table } = scrollingTable("120px");
+    const head = table.tHead as HTMLTableSectionElement;
+    region.scrollTop = Math.floor(head.getBoundingClientRect().height / 2);
+    const { handle, loads } = wired(region);
+    const done = handle.load();
+    const top = region.getBoundingClientRect().top + region.clientTop;
+    const showing = head.getBoundingClientRect().bottom - top;
+    expect(showing).toBeGreaterThan(3);
+    expect(lineAt(region)).toBeCloseTo(region.scrollTop + showing - 3, 0);
+    expect(lineAt(region)).toBeGreaterThan(region.scrollTop);
+    loads[0]?.resolve("x");
+    await done;
+  });
+
   it("keeps the line inside a region shorter than the table's head", async () => {
     const { region, table } = scrollingTable("16px");
     region.scrollTop = 4;
@@ -433,6 +448,69 @@ describe("enhanceLoadingRegion: a refresh", () => {
     expect(handle.state).toBe("ready");
     expect(region.getAttribute("aria-busy")).toBe("false");
     expect(await handle.load()).toBe(false);
+  });
+});
+
+describe("enhanceLoadingRegion: the refresh failure's time", () => {
+  it("refuses a malformed language tag when it is wired", () => {
+    const section = document.createElement("section");
+    section.lang = "en_US";
+    document.body.append(section);
+    const region = panel("Old");
+    section.append(region);
+    expect(() => wired(region)).toThrow(RangeError);
+  });
+
+  it("writes the time in the language of the region's nearest lang", async () => {
+    const section = document.createElement("section");
+    section.lang = "fr";
+    document.body.append(section);
+    const region = panel("Old");
+    section.append(region);
+    const at = new Date();
+    at.setHours(14, 2, 0, 0);
+    const { handle, loads } = wired(region, { loadedAt: at });
+    const done = handle.load();
+    loads[0]?.reject(new Error("no"));
+    await done;
+    expect(notice(region)?.textContent).toContain("What you see is from 14:02.");
+  });
+
+  it("leaves the time out when the content's time is not a date", async () => {
+    const region = panel("Old");
+    const { handle, loads } = wired(region, { loadedAt: new Date(Number.NaN) });
+    const done = handle.load();
+    loads[0]?.reject(new Error("no"));
+    expect(await done).toBe(false);
+    expect(handle.state).toBe("stale");
+    expect(region.getAttribute("aria-busy")).toBe("false");
+    expect(region.querySelector("p")?.textContent).toBe("Old");
+    expect(notice(region)?.getAttribute("data-tone")).toBe("warning");
+    expect(notice(region)?.querySelector('[data-part="text"]')?.textContent).toBe(
+      "The refresh failed.",
+    );
+    expect(retryIn(region)).not.toBeNull();
+  });
+
+  it("falls back to the timeless sentence when the host's refresh words throw too", async () => {
+    const errors = reported();
+    const region = panel("Old");
+    const { handle, loads } = wired(region, {
+      loadedAt: new Date(Number.NaN),
+      words: {
+        refreshFailed: (_reason, loadedAt) => loadedAt.toISOString(),
+      },
+    });
+    const done = handle.load();
+    loads[0]?.reject(new Error("no"));
+    expect(await done).toBe(false);
+    expect(handle.state).toBe("stale");
+    expect(region.getAttribute("aria-busy")).toBe("false");
+    expect(notice(region)?.querySelector('[data-part="text"]')?.textContent).toBe(
+      "The refresh failed.",
+    );
+    expect(retryIn(region)).not.toBeNull();
+    expect(errors).toHaveLength(1);
   });
 });
 

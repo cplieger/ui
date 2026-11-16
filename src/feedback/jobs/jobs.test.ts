@@ -243,6 +243,27 @@ describe("enhanceJobs", () => {
     expect(errors).toHaveLength(2);
   });
 
+  it("falls back to the app's count words when its stopped cause throws", async () => {
+    const errors = reported();
+    const ul = list();
+    const { calls } = wire(ul, {
+      words: {
+        count: (done, total) => `${done}/${total}`,
+        stoppedCause: () => {
+          throw new Error("no words");
+        },
+      },
+    });
+    const row = first(ul);
+    stopOf(row).click();
+    calls[0]?.resolve();
+    await until(() => row.hasAttribute("data-ended"));
+    expect(row.querySelector(".cp-cell-stack > small")?.textContent).toBe(
+      "Stopped by you at 12/40",
+    );
+    expect(errors).toHaveLength(1);
+  });
+
   it("says the default failure when the app's stop-failed words throw", async () => {
     const errors = reported();
     const ul = list();
