@@ -4,16 +4,15 @@ import { slicePath, sliceRing } from "./geometry.js";
 import { chartModel, type PieModel } from "./model.js";
 import { shareWriter, sliceAngles, TURN, type Disc } from "./pie.js";
 import type { ChartSpec } from "./spec.js";
+import { categories } from "./test-helpers/frames.js";
 
 const pie = (values: readonly (number | null)[], hole = false): PieModel => {
   const spec: ChartSpec = {
-    marks: [
-      {
-        mark: "pie",
-        hole,
-        slices: values.map((value, i) => ({ name: `S${String(i)}`, value })),
-      },
-    ],
+    data: categories(
+      values.map((_, i) => `S${String(i)}`),
+      [values],
+    ),
+    mark: { mark: "pie", hole },
   };
   const m = chartModel(spec, "en", "UTC").marks[0];
   if (m?.kind !== "pie") {

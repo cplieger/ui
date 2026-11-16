@@ -557,7 +557,13 @@ function refAxes(kind: Kind, frame: Frame): readonly [("x" | "y") | undefined, r
       return ["x", ["x"]];
     case "slope":
       return ["y", ["y"]];
-    case "cell":
+    case "cell": {
+      // A grid's binned axes are continuous, so a ref may name one; its
+      // unit is on the colour, which holds no rule.
+      const grid = frame.type === "grid" ? (frame as GridFrame) : undefined;
+      const binned = (["x", "y"] as const).filter((a) => grid?.[a].edges !== undefined);
+      return [undefined, binned];
+    }
     case "pie":
     case "tree":
       return [undefined, []];
@@ -1348,8 +1354,12 @@ function mergeScales(list: readonly Scales[]): Scales {
     const { domain: _, ...x } = first.x ?? {};
     return { ...first, x };
   }
-  const lo = Math.min(...domains.map((dm) => dm?.[0] ?? 0));
-  const hi = Math.max(...domains.map((dm) => dm?.[1] ?? 0));
+  let lo = Number.POSITIVE_INFINITY;
+  let hi = Number.NEGATIVE_INFINITY;
+  for (const dm of domains) {
+    lo = Math.min(lo, dm?.[0] ?? 0);
+    hi = Math.max(hi, dm?.[1] ?? 0);
+  }
   return { ...first, x: { ...first.x, domain: [lo, hi] } };
 }
 

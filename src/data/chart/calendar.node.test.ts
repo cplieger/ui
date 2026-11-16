@@ -15,8 +15,11 @@ import {
 } from "./calendar.js";
 import { layout, type Metrics } from "./layout.js";
 import { chartModel, type CalendarModel } from "./model.js";
-import type { ChartSpec, Mark } from "./spec.js";
+import type { CalendarFrame } from "../frame/frame.js";
+
+import type { ChartSpec } from "./spec.js";
 import { generatedSummary, shortDescription } from "./summary.js";
+import { calendar, grid } from "./test-helpers/frames.js";
 import { chartWords } from "./words.js";
 
 const DAY = 86_400_000;
@@ -40,16 +43,19 @@ const words = chartWords();
 const JAN1 = Date.UTC(2026, 0, 1);
 const dayNo = (t: number) => Math.floor(t / DAY);
 
-const year = (over: Partial<Extract<Mark, { mark: "cell" }>> = {}, spec: Partial<ChartSpec> = {}) =>
+// 2026's days in UTC, its weeks from Monday.
+const year = (
+  data: Partial<CalendarFrame> = {},
+  spec: Partial<ChartSpec> = {},
+  weekStart: unknown = 1,
+) =>
   ({
-    marks: [
-      {
-        mark: "cell",
-        days: { start: JAN1, values: Array.from({ length: 365 }, (_, i) => i % 10) },
-        weekStart: 1,
-        ...over,
-      } as Mark,
-    ],
+    data: calendar(
+      JAN1,
+      Array.from({ length: 365 }, (_, i) => i % 10),
+      data,
+    ),
+    mark: { mark: "cell", weekStart },
     ...spec,
   }) as ChartSpec;
 
@@ -148,98 +154,96 @@ describe("a calendar's model", () => {
     expect(model.xText(JAN1 + 12 * 3_600_000)).toBe("Thursday, January 1, 2026");
   });
 
-  it("takes the first day's date on the chart's wall clock", () => {
+  it("takes the first day's date in its frame's zone, whatever the chart's wall clock", () => {
     // Midnight of 2 January in Paris is 11 PM on 1 January in UTC.
     const start = Date.UTC(2026, 0, 1, 23);
-    const model = chartModel(year({ days: { start, values: [1] } }), "en", "Europe/Paris");
+    const model = chartModel(
+      year({ zone: "Europe/Paris", start, values: [1] }),
+      "en",
+      "America/New_York",
+    );
     expect((model.marks[0] as CalendarModel).day).toBe(dayNo(Date.UTC(2026, 0, 2)));
     expect(model.x.lo).toBe(start);
     expect(model.x.hi).toBe(start + DAY);
+    expect(model.xText(start + 12 * 3_600_000)).toBe("Friday, January 2, 2026");
   });
 
   it("is empty with no days or every value null", () => {
-    expect(chartModel(year({ days: { start: JAN1, values: [] } }), "en", "UTC").empty).toBe(true);
-    expect(
-      chartModel(year({ days: { start: JAN1, values: [null, Number.NaN] } }), "en", "UTC").empty,
-    ).toBe(true);
-    expect(chartModel(year({ days: { start: JAN1, values: [null, 0] } }), "en", "UTC").empty).toBe(
-      false,
-    );
+    expect(chartModel(year({ values: [] }), "en", "UTC").empty).toBe(true);
+    expect(chartModel(year({ values: [null, Number.NaN] }), "en", "UTC").empty).toBe(true);
+    expect(chartModel(year({ values: [null, 0] }), "en", "UTC").empty).toBe(false);
   });
 
-  it("refuses days beside x, y or values, and a bad week start", () => {
-    for (const field of ["x", "y", "values"]) {
-      throws(
-        year({ [field]: ["a"] } as never),
-        TypeError,
-        new RegExp(`\\.${field} has no place beside days`),
-      );
-    }
+  it("refuses a bad week start, and a week start beside a grid frame", () => {
     for (const weekStart of [0, 8, 1.5, "1"]) {
-      throws(year({ weekStart } as never), TypeError, /weekStart must be an ISO weekday/u);
+      throws(year({}, {}, weekStart), TypeError, /mark\.weekStart must be an ISO weekday/u);
     }
     throws(
       {
-        marks: [{ mark: "cell", x: ["a"], y: ["b"], values: [[1]], weekStart: 1 } as never],
-      },
+        data: grid({ names: ["a"] }, { names: ["b"] }, [[1]]),
+        mark: { mark: "cell", weekStart: 1 },
+      } as ChartSpec,
       TypeError,
-      /weekStart has no place without days/u,
+      /mark\.weekStart has no place beside a grid frame/u,
     );
   });
 
-  it("refuses a start that is not a finite number and values that are not numbers or infinite", () => {
+  it("refuses a start that is not a finite midnight in its zone and values that are not numbers or infinite", () => {
+    throws(year({ start: "x" } as never), TypeError, /data\.start must be a number/u);
+    throws(year({ start: Number.NaN }), RangeError, /data\.start must be finite/u);
     throws(
-      year({ days: { start: "x", values: [] } } as never),
-      TypeError,
-      /days\.start must be a number/u,
-    );
-    throws(
-      year({ days: { start: Number.NaN, values: [] } }),
+      year({ start: JAN1 + 3_600_000 }),
       RangeError,
-      /days\.start must be finite/u,
+      /data\.start must be the first instant of a day in UTC/u,
     );
-    throws(
-      year({ days: { start: JAN1, values: ["1"] } } as never),
-      TypeError,
-      /days\.values must be/u,
-    );
-    throws(
-      year({ days: { start: JAN1, values: [Number.POSITIVE_INFINITY] } }),
-      RangeError,
-      /cannot hold an infinite value/u,
-    );
-    throws(
-      year({ days: { start: JAN1, values: [1], open: 1 } } as never),
-      TypeError,
-      /days\.open/u,
-    );
+    throws(year({ zone: "Mars/Olympus" }), RangeError, /data\.zone must name a time zone/u);
+    throws(year({ values: ["1"] } as never), TypeError, /data\.values\[0\] must be/u);
+    throws(year({ values: [Number.POSITIVE_INFINITY] }), RangeError, /data\.values\[0\]/u);
+    throws(year({ values: [1], open: 1 } as never), TypeError, /data\.open/u);
   });
 
-  it("refuses height, an x or y scale, and rules, and takes a colour scale", () => {
+  it("refuses height, an x or y scale, gives its refs in the summary, and takes a colour scale", () => {
     throws(year({}, { height: 200 }), TypeError, /height has no place on a calendar/u);
     throws(year({}, { x: {} }), TypeError, /a calendar takes no x scale/u);
     throws(year({}, { y: {} }), TypeError, /a calendar takes no y scale/u);
-    const rule = (r: Mark) => year({}, { marks: [...year().marks, r] });
-    throws(rule({ mark: "rule", x: JAN1, label: "Launch" }), TypeError, /a rule on a calendar/u);
-    throws(rule({ mark: "rule", y: 3, label: "Target" }), TypeError, /a rule on a calendar/u);
+    const reffed = chartModel(
+      year({ refs: [{ key: "target", value: 3 }] }, { refs: [{ key: "target", label: "Target" }] }),
+      "en",
+      "UTC",
+    );
+    expect(reffed.marks.map((m) => m.kind)).toEqual(["calendar"]);
+    expect(reffed.unplaced.rules).toEqual([{ label: "Target", value: 3 }]);
+    throws(
+      year({ refs: [{ key: "target", value: 3 }] }, { refs: [{ key: "target", axis: "x" }] }),
+      TypeError,
+      /refs\[0\]\.axis "x" has no place beside a cell mark/u,
+    );
     expect(
       chartModel(year({}, { colour: { type: "diverging", pivot: 5 } }), "en", "UTC").kind,
     ).toBe("calendar");
   });
 
-  it("takes a note's x as an instant and refuses its y", () => {
-    const noted = (t: Mark) => year({}, { marks: [...year().marks, t] });
+  it("takes a note's at as an instant on its day", () => {
+    const model = chartModel(
+      year(
+        { notes: [{ key: "launch", at: JAN1 + 40 * DAY }] },
+        { notes: [{ key: "launch", text: "A" }] },
+      ),
+      "en",
+      "UTC",
+    );
+    expect(model.marks.map((m) => m.kind)).toEqual(["calendar", "text"]);
+    expect(model.marks[1]).toMatchObject({ kind: "text", x: JAN1 + 40 * DAY, text: "A" });
     throws(
-      noted({ mark: "text", x: JAN1, y: 1, text: "A" }),
+      year({ notes: [{ key: "launch", at: "Jan" }] } as never),
       TypeError,
-      /\.y has no place on a calendar/u,
+      /data\.notes\[0\]\.at must be a number/u,
     );
     throws(
-      noted({ mark: "text", x: "Jan", text: "A" }),
+      year({ notes: [{ key: "launch" }] } as never),
       TypeError,
-      /\.x must be a number on a calendar/u,
+      /data\.notes\[0\]\.at must be a number/u,
     );
-    throws(noted({ mark: "text", text: "A" }), TypeError, /\.x must be a number on a calendar/u);
   });
 });
 
@@ -295,7 +299,7 @@ describe("a calendar's layout", () => {
   });
 
   it("starts its weeks on the week start it is given", () => {
-    const model = chartModel(year({ weekStart: 7 }), "en", "UTC");
+    const model = chartModel(year({}, {}, 7), "en", "UTC");
     const lay = layout(model, words, metrics, 900, { axis: 0, label: 0 });
     expect(lay.days?.weeks.lead).toBe(4);
     expect(lay.yLabels[0]?.text).toBe("Sun");
@@ -307,10 +311,7 @@ describe("a calendar's summary", () => {
 
   it("counts the days and names the highest and lowest, the earliest on a tie", () => {
     const model = chartModel(
-      year(
-        { days: { start: JAN1, values } },
-        { colour: { unit: { one: "post", other: "posts" } } },
-      ),
+      year({ values }, { colour: { unit: { one: "post", other: "posts" } } }),
       "en",
       "UTC",
     );
@@ -320,7 +321,7 @@ describe("a calendar's summary", () => {
   });
 
   it("leaves an open last day out of the extremes", () => {
-    const model = chartModel(year({ days: { start: JAN1, values, open: true } }), "en", "UTC");
+    const model = chartModel(year({ values, open: true }), "en", "UTC");
     expect(generatedSummary(model, words)).toBe(
       "7 days. Highest Friday, January 2, 2026: 9. Lowest Sunday, January 4, 2026: 1.",
     );
