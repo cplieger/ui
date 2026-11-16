@@ -27,7 +27,8 @@ describe("the icon list", () => {
     const host = build(
       '<span class="cp-icon" data-cp-icon="not-a-glyph" aria-hidden="true"></span>',
     );
-    expect(getComputedStyle(q(host, ".cp-icon")).maskImage).toBe("none");
+    // A mask of none would paint the whole box in currentcolor, a filled square.
+    expect(getComputedStyle(q(host, ".cp-icon")).maskImage).toMatch(/^linear-gradient\(/);
   });
 
   it("gives way to the URL createIcons sets", () => {

@@ -12,6 +12,8 @@
   --cp-control-pad-x: 0.75rem;
   --cp-hit-min: 24px;
   --cp-row-h: 2.25rem;
+  --cp-cover-row-w: 2rem;
+  --cp-cover-inset: 0.375rem;
   --cp-focus-w: 2px;
   --cp-focus-offset: 2px;
   --cp-icon-ui: 1.125rem;

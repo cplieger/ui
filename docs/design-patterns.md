@@ -31,7 +31,7 @@ Every region that loads data has four designed states, for loading, empty, error
 </span>
 ```
 
-**An item's own work.** An item that runs work of its own, such as an upload, a send or a check, says where that work is in a `.cp-state` with `data-cp-state`, which holds only its word: `busy`, such as "Uploading…", `done`, such as "Uploaded", or `failed`, such as "Not uploaded". The stylesheet draws the spinner, the check or the cross. In a list row the state sits in the row's end and a failure's reason is the row's second line. A state that is its line's own content, such as a test's answer beside its button, holds the whole sentence. A failed item that can run again has one action, Retry, a small `.cp-button` whose accessible name adds the item, such as "Retry Frieren.S01E05.en.ass", run through [confirm](buttons/confirm.md) with `done: false`. A failure that would fail the same way again, such as a file over the size limit or a format the app cannot write, is final: the item shows its reason and no Retry.
+**An item's own work.** An item that runs work of its own, such as an upload, a send or a check, says where that work is in a `.cp-state` with `data-cp-state`, which holds only its word: `busy`, such as "Uploading…", `done`, such as "Uploaded", or `failed`, such as "Not uploaded". The stylesheet draws the spinner, the check or the cross. In a list row the state sits in the row's end and a failure's reason is the row's second line. A state that is its line's own content, such as a test's answer beside its button, holds the whole sentence. A failed item that can run again has one action, Retry, a small `.cp-button` whose accessible name adds the item, such as "Retry Frieren.S01E05.en.ass", run through [confirm](buttons/confirm.md) with `done: false`. A failure that would fail the same way again, such as a file over the size limit or a format the app cannot write, is final: the item shows its reason and no Retry. An upload's row is [file](forms/file.md)'s `uploadFile`, which runs these steps.
 
 ```html
 <div class="cp-list-row" tabindex="-1">
@@ -68,6 +68,10 @@ A form never loses what the person typed, and every error is text that says how 
 6. While the form saves, the submit button is busy, and the fields stay as they are.
 7. A form with unsaved changes asks before a navigation or a close that would discard them. [form](forms/form.md#unsaved-changes)'s `guardChanges` counts the changes, asks, and takes in values saved elsewhere while keeping the person's.
 
+**A value set elsewhere.** A value the page shows but cannot change, because a config file, the environment or an administrator sets it, is a `.cp-set-elsewhere` line where its control would be: the value as text, a neutral `.cp-chip` naming where it is set, such as "from config.yaml", and one sentence of help on how to change it. It is never a disabled control, which would hide the value from some readers and say nothing about why. A secret shows its state in place of its value.
+
+**Several from a fixed set.** The set's size picks the shape. A few values, up to about seven, are checkboxes in a `.cp-choices` fieldset, all in view under a legend that names the set. A longer set that falls into named groups of a few each, such as eleven subtitle formats as text, picture and broadcast, stays checkboxes: each group is a `.cp-choices` fieldset of its own inside the set's, its legend naming the group in a quieter line, so every value stays in view and a screen reader hears the group with each box. Values that filter a list are `.cp-filter-chip` buttons. A set too long to scan, or a long one with no groups, such as the labels on an entry, is the [select panel](overlays/select-panel.md). When the app has a default set, a quiet small "Reset to default" button sits at the end of the legend's line, described by the legend, and checks the default set again, each box it changes firing `input` and `change` as a press would.
+
 ![Fields with an error under one of them, and an error summary with a link to the field](images/system-parts-light.png)
 
 ## Tables
@@ -98,7 +102,7 @@ Rows are never interactive. A row's actions are buttons in its last cell, and a 
 
 1. It shows the range and the total, such as "1 to 25 of 412", then Previous and Next as links. At the first or the last page that link has `aria-disabled="true"` and no `href`.
 2. The page and the page size are in the URL. Offer a page size choice only when people need it.
-3. After a page change, focus moves to the table's caption or the first row's title link, and the scroll returns to the top of the table.
+3. After a page change, focus moves to the heading that names the table, which carries `tabindex="-1"`, or the first row's title link, and the scroll returns to the top of the table.
 4. When the last page empties, such as after a delete, the list moves to the new last page.
 
 ## Charts
@@ -114,7 +118,7 @@ Pick the form by the question the data answers, after [Datawrapper's guide to ch
 
 **Five series at most in a stack.** Each 3px segment on a phone must stand apart from its neighbours and in the legend. Group the smallest into "Other". Give each series a slot of the [series colours](design-colour.md#series-colours), the same slot for the same category on every chart of a screen.
 
-**The duration ladder.** Waits are binned on one ladder. Its edges are 0, 1 sec, 2 sec, 5 sec, 10 sec and 30 sec. In minutes they are 1, 2, 5, 10 and 30, and in hours 1, 2, 6 and 12. In days they are 1, 3, 7, 14, 30 and 90. `durationEdges` from [chart](data/chart.md) returns its edges in milliseconds, and a server in another language bins on the same numbers.
+**The duration ladder.** Waits are binned on one ladder. Its edges are 0, 1 sec, 2 sec, 5 sec, 10 sec and 30 sec. In minutes they are 1, 2, 5, 10 and 30, and in hours 1, 2, 6 and 12. In days they are 1, 3, 7, 14, 30 and 90. chartdata's `DurationEdges` returns its edges in seconds, the edges a Go service bins waits on and a [chart](data/chart.md#a-histogram-of-waits)'s duration axis ticks on, and a server in another language bins on the same numbers.
 
 1. Each bin is `[edge, next edge)`, and the last is closed, so every wait from 0 to the last edge lands in exactly one bin.
 2. The ladder ends at the first edge at or above the longest wait the data can hold. That is the larger of the retention and the longest wait stored. A retention lowered after older data was written leaves that data in place.
@@ -267,7 +271,7 @@ First sync running is a `.cp-empty` whose heading starts with a `.cp-loader`, th
   <section class="cp-empty" data-variant="page" aria-labelledby="not-found-title">
     <span class="cp-icon" data-cp-icon="telescope" aria-hidden="true"></span>
     <h1 id="not-found-title" tabindex="-1">This page does not exist</h1>
-    <p>The address may be old, or it was mistyped.</p>
+    <p>The address may be old, or the item was removed.</p>
     <a class="cp-button" data-variant="primary" href="/">Go to the start</a>
   </section>
 </main>

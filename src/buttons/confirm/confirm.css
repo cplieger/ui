@@ -9,7 +9,13 @@
     background-color 600ms var(--cp-ease-out),
     color 600ms var(--cp-ease-out),
     transform var(--cp-dur-press) var(--cp-ease-out),
-    margin-inline-end 300ms var(--cp-ease-out);
+    margin-inline 300ms var(--cp-ease-out);
+}
+
+/* A held width shows each state's content centred in it at once, so the
+ * words never slide sideways as they roll. */
+.cp-button[data-cp-confirm="fixed"] > .cp-roll {
+  transition: none;
 }
 
 /* (0,4,1) lifts this over the primary and quiet hover fills, (0,4,0) rules
@@ -27,8 +33,10 @@ button.cp-button[data-tone="danger"][data-cp-state="done"]:not(:disabled) {
 }
 
 /* Only a button's parts: a row, a form or a state also takes a
- * data-cp-state, and its own icons stay. */
+ * data-cp-state, and its own icons stay. Any button's busy and done parts
+ * are hidden from the first paint, before the script marks it. */
 :where(.cp-button[data-cp-confirm]) > .cp-icon[data-part],
+:where(.cp-button) > .cp-icon:is([data-part="busy"], [data-part="done"]),
 .cp-button[data-cp-state="busy"] > .cp-icon:not([data-part="busy"]),
 .cp-button[data-cp-state="done"] > .cp-icon:not([data-part="done"]) {
   display: none;

@@ -300,6 +300,31 @@ describe(".cp-table-scroll", () => {
     expect(width(cells[1])).toBeLessThan(6 * em);
   });
 
+  it("centres a one-line cell in a row another cell makes taller, and keeps a value with its unit", async () => {
+    const md =
+      "| Release | Size | Added | Notes |\n|:--|--:|:--|:--|\n" +
+      "| Frieren S01E04 | 1.4 GB | 2023-10-20 | a note long enough to wrap onto a second line here |\n";
+    const el = prose(md, 332);
+    await frame();
+    const [release, size, added, notes] = [...el.querySelectorAll("tbody td")] as HTMLElement[];
+    const line = (c: HTMLElement | undefined) => {
+      const words = document.createRange();
+      words.selectNodeContents(c as HTMLElement);
+      return new Set([...words.getClientRects()].map((r) => Math.round(r.bottom))).size;
+    };
+    expect(line(notes)).toBeGreaterThan(1);
+    const row = (notes as HTMLElement).getBoundingClientRect();
+    for (const cell of [release, size, added]) {
+      expect(line(cell)).toBe(1);
+      const words = document.createRange();
+      words.selectNodeContents(cell as HTMLElement);
+      const box = words.getBoundingClientRect();
+      expect(Math.abs(box.top + box.height / 2 - (row.top + row.height / 2))).toBeLessThanOrEqual(
+        1,
+      );
+    }
+  });
+
   it("is as wide as a table that fits", () => {
     const el = prose("| a | b |\n| --- | --- |\n| 1 | 2 |\n", 480);
     const region = q(el, ".cp-table-scroll");

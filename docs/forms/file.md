@@ -2,7 +2,7 @@
 
 `@cplieger/ui/file`
 
-A file field with its limits and its list. A file of a type the field does not accept, or over its size limit, is refused with a sentence on the field, and the files taken are listed by name and size. In a `.cp-drop`, the field also takes files dropped on it.
+A file field with its limits and its list. A file of a type the field does not accept, or over its size limit, is refused with a sentence on the field, and the files taken are listed by name and size. In a `.cp-drop`, the field also takes files dropped on it. Each file sent lists its upload's state, with Retry when it fails.
 
 ```html
 <div class="cp-field">
@@ -34,3 +34,25 @@ subs.files; // the files the field holds
 - A field nobody filled is the form's to report on submit, since the forms pattern keeps submit enabled. That error clears with the next choice the field takes whole.
 - A reset of the field's form empties the list and clears the refusal.
 - `signal` removes the listeners.
+
+## Uploads
+
+```ts
+import { uploadFile } from "@cplieger/ui/file";
+
+dialog.addEventListener("close", () => {
+  for (const file of picked) {
+    uploadFile(uploads, file, (f, signal) => api.upload(f, { signal }), { signal: page.signal });
+  }
+});
+```
+
+`uploadFile(list, file, send, options?)` appends the file's row to `list`, a `ul.cp-list[data-density="compact"]`, and uploads it through `send`, then returns the row's `li`. The row is the one `enhanceFiles` lists with the size moved under the name, so its end holds the work's state alone and a failed row's Retry leaves the name room at a phone's width, as [An item's own work](../design-patterns.md#loading) says:
+
+- While `send` runs, the state reads "Uploading…" beside the spinner.
+- `send` resolves `{ ok: true }`, and the state reads "Uploaded", said politely ("Frieren.S01E05.en.ass uploaded").
+- `send` resolves `{ ok: false, message }`, and the state reads "Not uploaded", the message takes the size's place as the row's second line, and a small Retry, named "Retry Frieren.S01E05.en.ass", follows the end. The failure is said assertively, with its reason. A `send` that rejects is the same failure with "The upload did not finish." as its reason.
+- `final: true` on a failure, such as a format the server refuses, would fail the same way again, so the row shows its reason and no Retry.
+- Retry runs `send` again through [confirm](../buttons/confirm.md) with `done: false`: Retry turns busy, and the state and its reason stay until the answer comes. Once the file is uploaded, Retry leaves, and if it had focus the row takes it, since the row carries `tabindex="-1"`.
+- `signal` aborts the `send` in flight, which gets it as its second argument, and ends Retry. An aborted upload's row stays as it was. With a `signal` already aborted, nothing is listed or sent.
+- `words` gives other `uploading`, `uploaded`, `failed`, `failedWhy`, `retry` and `retrying` words, and `retryFor(name)`, `saidUploaded(name)` and `saidFailed(name, why)`.

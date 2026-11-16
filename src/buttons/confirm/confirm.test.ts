@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { rollText } from "../../core/roll/roll.js";
 import { enhanceConfirm, type ConfirmOptions } from "./confirm.js";
@@ -220,6 +220,21 @@ describe("enhanceConfirm", () => {
     expect(footprint()).toBeCloseTo(atRest, 0);
   });
 
+  it("keeps an end-aligned button flush with its cell's end, its footprint's slack before it", async () => {
+    const table = document.createElement("table");
+    const row = table.insertRow();
+    const cell = row.insertCell();
+    cell.dataset["col"] = "actions";
+    cell.style.cssText = "text-align: end; inline-size: 240px; padding: 0";
+    document.body.append(table);
+    const b = button("Grab", cell);
+    confirm(b, { busy: "Grabbing…", done: "Grabbed" });
+    await sleep(400);
+    expect(Number.parseFloat(b.style.marginInlineStart)).toBeGreaterThan(0);
+    expect(b.style.marginInlineEnd).toBe("");
+    expect(b.getBoundingClientRect().right).toBeCloseTo(cell.getBoundingClientRect().right, 0);
+  });
+
   it("holds the widest word's width in a split button", () => {
     const split = document.createElement("div");
     split.className = "cp-split";
@@ -227,8 +242,7 @@ describe("enhanceConfirm", () => {
     const b = button("Grab the best", split);
     confirm(b, { busy: "Grabbing…", done: "Grabbed" });
     expect(b.dataset["cpConfirm"]).toBe("fixed");
-    const roll = b.querySelector(".cp-roll") as HTMLElement;
-    expect(Number.parseFloat(roll.style.minInlineSize)).toBeGreaterThan(0);
+    expect(Number.parseFloat(b.style.minInlineSize)).toBeGreaterThan(0);
   });
 
   it("measures its held width again once a web font loads", () => {
@@ -238,8 +252,7 @@ describe("enhanceConfirm", () => {
     const b = button("Grab the best", split);
     const stop = new AbortController();
     confirm(b, { busy: "Grabbing…", done: "Grabbed", signal: stop.signal });
-    const roll = b.querySelector(".cp-roll") as HTMLElement;
-    const held = () => Number.parseFloat(roll.style.minInlineSize);
+    const held = () => Number.parseFloat(b.style.minInlineSize);
     const before = held();
     b.style.fontSize = "32px";
     document.fonts.dispatchEvent(new Event("loadingdone"));
@@ -279,5 +292,50 @@ describe("enhanceConfirm", () => {
   it("throws a TypeError without its words", () => {
     const b = document.createElement("button");
     expect(() => enhanceConfirm(b, { busy: "Saving…", done: "Saved" })).toThrow(TypeError);
+  });
+});
+
+describe("the first paint, before the script", () => {
+  let sheet: HTMLLinkElement;
+
+  beforeAll(async () => {
+    document.documentElement.classList.add("cp");
+    sheet = document.createElement("link");
+    sheet.rel = "stylesheet";
+    sheet.href = new URL("../../../css/system.css", import.meta.url).href;
+    const loaded = new Promise((resolve, reject) => {
+      sheet.addEventListener("load", resolve, { once: true });
+      sheet.addEventListener("error", reject, { once: true });
+    });
+    document.head.append(sheet);
+    await loaded;
+  });
+
+  afterAll(() => {
+    sheet.remove();
+    document.documentElement.classList.remove("cp");
+  });
+
+  it("shows only a button's icon at rest, its busy and done parts hidden", () => {
+    const b = document.createElement("button");
+    b.className = "cp-button";
+    b.type = "button";
+    const icon = (name: string, part?: string) => {
+      const s = document.createElement("span");
+      s.className = "cp-icon";
+      s.dataset["cpIcon"] = name;
+      if (part !== undefined) {
+        s.dataset["part"] = part;
+      }
+      return s;
+    };
+    const rest = icon("download");
+    const busy = icon("spinner-arc", "busy");
+    const done = icon("check", "done");
+    b.append(rest, busy, done, "Grab");
+    document.body.append(b);
+    expect(getComputedStyle(rest).display).not.toBe("none");
+    expect(getComputedStyle(busy).display).toBe("none");
+    expect(getComputedStyle(done).display).toBe("none");
   });
 });

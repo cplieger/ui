@@ -13,6 +13,47 @@
   padding: 0;
 }
 
+/* A button right after the legend, such as "Reset to default", sits at the
+ * end of the legend's line. Floated, the legend still names the group, but
+ * HTML no longer renders it as the fieldset's legend. Floats have no effect
+ * on grid items (https://www.w3.org/TR/css-grid-1/#grid-containers), so this
+ * fieldset lays out as blocks, its rows cleared under the floats' margins. */
+.cp-choices:has(> legend + .cp-button) {
+  display: block;
+}
+
+.cp-choices:has(> legend + .cp-button) > legend {
+  display: flex;
+  float: inline-start;
+  align-items: center;
+  min-block-size: var(--cp-control-h-sm);
+}
+
+.cp-choices > legend + .cp-button {
+  float: inline-end;
+  margin-block-end: var(--cp-space-2);
+  margin-inline-start: var(--cp-space-2);
+}
+
+.cp-choices:has(> legend + .cp-button) > :not(legend, legend + .cp-button) {
+  clear: both;
+  margin-block-start: var(--cp-space-2);
+}
+
+/* A longer set split into named groups, such as subtitle formats by kind: a
+ * fieldset of its own per group inside the set's, its legend quieter than
+ * the set's, and twice a row's gap between two groups. */
+.cp-choices .cp-choices > legend {
+  margin-block-end: var(--cp-space-1);
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-xs);
+  font-weight: var(--cp-weight-medium);
+}
+
+.cp-choices > .cp-choices:not(:first-of-type) > legend {
+  padding-block-start: var(--cp-space-2);
+}
+
 .cp-choice {
   display: flex;
   align-items: center;

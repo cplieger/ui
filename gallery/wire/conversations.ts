@@ -308,7 +308,7 @@ if (root !== null && list instanceof HTMLUListElement && filters !== null) {
     const time = link.querySelector("time");
     if (time !== null) {
       time.dateTime = new Date(Date.now() - c.ago * 1000).toISOString();
-      enhanceRelativeTime(time, { style: "short" });
+      enhanceRelativeTime(time);
     }
     return item;
   };
@@ -350,7 +350,7 @@ if (root !== null && list instanceof HTMLUListElement && filters !== null) {
     const time = link.querySelector("time");
     if (time !== null) {
       time.dateTime = new Date().toISOString();
-      enhanceRelativeTime(time, { style: "short" });
+      enhanceRelativeTime(time);
     }
     if (unread) {
       link.setAttribute("data-unread", "");

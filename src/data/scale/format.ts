@@ -22,6 +22,9 @@ export type Unit = { readonly other: string } & Readonly<
 
 const NBSP = "\u00A0";
 
+// A duration value is seconds, as a frame carries it; its words are built from ms.
+const toMs = (seconds: number): number => seconds * 1_000;
+
 // Intl objects are slow to build and a chart writes thousands of values.
 const cache = new Map<string, unknown>();
 
@@ -74,12 +77,11 @@ const MOST_DIGITS = 100;
 
 /**
  * The one way the chart and the sparkline write a number: `format` in
- * `locale`, "number" when undefined, never with a signed zero. A number
- * format's own `signDisplay` is kept unless it signs a zero: "always"
- * becomes "exceptZero", and "auto" (the default) "exceptZero" when `signed`
- * and "negative" when not. When `signed`, a duration gets a "+" before a
- * value it writes above 0 ms, and a function's string, as it is, before a
- * positive value's text unless it has one.
+ * `locale` ("number" when undefined, a duration from seconds), never with a
+ * signed zero: `signDisplay` "always" is "exceptZero", "auto" "exceptZero"
+ * when `signed` and "negative" when not. When `signed`, a duration gets a
+ * "+" before a value it writes above 0 ms, and a function's string, as it
+ * is, before a positive value's text unless it has one.
  */
 export function writer(
   format: Format | undefined,
@@ -87,9 +89,11 @@ export function writer(
   { digits, signed = false }: Writing = {},
 ): (value: number) => string {
   if (typeof format === "function" || format === "duration") {
-    const write = typeof format === "function" ? format : (v: number) => formatDuration(v, locale);
-    // `durationRecord` rounds |v| half up to whole ms, so the plus starts at 0.5.
-    const positive = typeof format === "function" ? (v: number) => v > 0 : (v: number) => v >= 0.5;
+    const write =
+      typeof format === "function" ? format : (v: number) => formatDuration(toMs(v), locale);
+    // `durationRecord` rounds |ms| half up to whole ms, so the plus starts at 0.5.
+    const positive =
+      typeof format === "function" ? (v: number) => v > 0 : (v: number) => toMs(v) >= 0.5;
     return signed
       ? (v) => {
           const text = write(v);
@@ -282,7 +286,7 @@ function digitCount(n: number): number {
 
 // A count's text is its digits and its unit's plural form, so a record's
 // width is fixed by its units and those, but for a signed writer's "+" on a
-// record above 0; a record of zero is written unsigned, so 0.3 writes "0 ms".
+// record above 0; a record of zero is written unsigned, so 0.0003 writes "0 ms".
 function durationKey(locale: string | undefined): WidthKey {
   const rules = pluralRules(locale);
   const forms = new Map<number, number>();
@@ -295,7 +299,7 @@ function durationKey(locale: string | undefined): WidthKey {
     return digitCount(n) * FORMS.length + form;
   };
   return (v) => {
-    const record = durationRecord(v);
+    const record = durationRecord(toMs(v));
     const at = FIELDS.findIndex((unit) => record[unit] !== undefined);
     const next = FIELDS[at + 1];
     const big = record[FIELDS[at] ?? "milliseconds"] ?? 0;

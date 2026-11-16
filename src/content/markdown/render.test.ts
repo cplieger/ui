@@ -81,12 +81,13 @@ describe("the element vocabulary", () => {
     expect(el.querySelector("li")?.textContent).toBe(" done");
   });
 
-  it("marks a cell of running text data-cp-wrap and leaves short cells alone", () => {
+  it("marks a cell of running text data-cp-wrap, a short one data-cp-line, a long token neither", () => {
     const el = render(
-      "| a | b | c |\n|-|-|-|\n| x | a note long enough to wrap | a-long-token-with-no-space-in-it |",
+      "| a | b | c |\n|-|-|-|\n| 1.4 GB | a note long enough to wrap | a-long-token-with-no-space-in-it |",
     );
     const cells = [...el.querySelectorAll("td")];
     expect(cells.map((c) => c.hasAttribute("data-cp-wrap"))).toEqual([false, true, false]);
+    expect(cells.map((c) => c.hasAttribute("data-cp-line"))).toEqual([true, false, false]);
   });
 
   it("puts a table in its region, header cells in thead, alignment as data-align", () => {

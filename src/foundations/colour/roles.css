@@ -15,6 +15,11 @@
   --cp-fill: var(--cp-neutral-4);
   --cp-fill-hover: var(--cp-neutral-5);
   --cp-fill-active: var(--cp-neutral-6);
+  /* A quiet control's hover and press: the ink over whatever it sits on, so
+   * the step holds on every surface, about 1.23:1 and 1.38:1 at the least
+   * (light, sunken), where a fixed grey is 1.07:1 on the sunken surface. */
+  --cp-wash-hover: color-mix(in oklch, var(--cp-ink) 10%, transparent);
+  --cp-wash-active: color-mix(in oklch, var(--cp-ink) 16%, transparent);
   --cp-line: var(--cp-neutral-6);
   --cp-border: var(--cp-neutral-7);
   --cp-border-strong: var(--cp-neutral-8);

@@ -1,0 +1,38 @@
+/* A video under the library's controls (@cplieger/ui/video): the native
+ * element 16:9 on black, its captions on a dark plate, then a bar of play
+ * and pause, the seek bar and both times. */
+.cp-video {
+  display: grid;
+  gap: var(--cp-space-2);
+  max-inline-size: 40rem;
+}
+
+.cp-video > video {
+  inline-size: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--cp-radius-surface);
+  background: oklch(0% 0 0deg);
+}
+
+.cp-video > video::cue {
+  background: oklch(0% 0 0deg / 70%);
+  color: oklch(100% 0 0deg);
+  font-family: var(--cp-font-body);
+}
+
+.cp-video > [data-part="bar"] {
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-3);
+  font-size: var(--cp-text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.cp-video > [data-part="bar"] > .cp-range {
+  flex: 1;
+  min-inline-size: 0;
+}
+
+.cp-video [data-part="time"] {
+  white-space: nowrap;
+}

@@ -3,6 +3,7 @@
  * glyph shows until the image has loaded, or while there is none. */
 .cp-cover {
   position: relative;
+  isolation: isolate;
   display: grid;
   place-items: center;
   aspect-ratio: 2 / 3;
@@ -27,8 +28,11 @@
   color: var(--cp-harmony-4-on);
 }
 
+/* The glyph's mask makes it a stacking context, which would paint it over
+ * an <img> written before it; the order of the two is the app's. */
 .cp-cover > img {
   position: absolute;
+  z-index: 1;
   inset: 0;
   inline-size: 100%;
   block-size: 100%;
@@ -41,6 +45,7 @@
 
 .cp-cover > .cp-chip {
   position: absolute;
+  z-index: 2;
   inset-block-start: var(--cp-space-2);
   inset-inline-start: var(--cp-space-2);
 }

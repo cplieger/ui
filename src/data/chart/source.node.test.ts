@@ -4,9 +4,10 @@ import { join } from "node:path";
 import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
-// The chart's modules, the scales they share and the sparkline.
+// The chart's modules, the frame reader and the scales they share, and the
+// sparkline.
 const DATA = join(import.meta.dirname, "..");
-const DIRS = ["chart", "scale", "sparkline"];
+const DIRS = ["chart", "frame", "scale", "sparkline"];
 
 // Comments name these calls without making them.
 const code = (text: string): string => text.replaceAll(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/gu, "");
