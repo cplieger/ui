@@ -199,7 +199,7 @@ Where the app manages sign-in through single sign-on for this person (`MeRespons
 
 **API keys.** Each key's label, its two ends in `.cp-mono` (`rt_exa…nce`), its scopes as chips, expiry, last use and state. A key another key made reads "Minted by ci" under its label, and a key with no label reads "Unnamed key".
 
-- "Create key…" asks for a label of at most 128 characters, the scopes, and an expiry of 30, 90 or 365 days or "Never", 90 by default. The scopes are an access level, one of a radio group with "No level" first and none chosen, then extra permissions as checkboxes, each with its line. The form asks for at least one. `auth_key_label_taken` says "You already have a key named Agent." on the label. The key shows once.
+- "Create key…" asks for a label of at most 128 characters, the scopes, and an expiry of 30, 90 or 365 days or "Never", 90 by default. The scopes are an access level, one of a radio group with "No level" first and none chosen, then extra permissions as checkboxes, each with its line. The form asks for at least one. An app whose every key holds exactly one level drops "No level", may start on its least-privileged level, and the form asks for a level. `auth_key_label_taken` says "You already have a key named Agent." on the label. The key shows once.
 - "Rename…" edits the label in place: Enter saves and Escape puts it back.
 - "Rotate…", on an active key that has not expired, asks "Rotate backup script?" with "A new secret replaces the current one, shown once. The current secret keeps working until this machine first uses the new one, or for 1 hour." and "Lost or leaked? Revoke it instead." The new secret shows once, and the row reads "Retiring until 14:32" until the machine uses it or the time passes.
 - "Revoke…" asks first and says what stops, as in "Revoke backup script? Anything using it stops working at once, both its current and its previous secret." A key that minted others counts them: "Revoke ci and the key it minted?"
@@ -213,7 +213,8 @@ A new API key or secret, a recovery code, a temporary password, an invite link a
 1. Show it in a dialog, never in a toast, in a `.cp-code` with a Copy button, as [copy](forms/copy.md) describes. The `<code>` takes `tabindex="0"`, so the arrow keys reach the end of a long value.
 2. Above it, a warning notice: "Copy it now. It will not be shown again."
 3. Hold it with [secret](forms/secret.md)'s `shownOnce`, which clears it when the dialog closes and on `pagehide`. "Done" dismisses it, and until it is copied, Escape and a press outside keep the dialog open.
-4. A recovery code adds "Download", the line "Keep it offline, such as on paper, away from this device." and a checkbox "I saved my recovery code" that enables Continue.
+4. An API key, new or rotated, may carry the app's own line under it, saying where the secret goes.
+5. A recovery code adds "Download", the line "Keep it offline, such as on paper, away from this device." and a checkbox "I saved my recovery code" that enables Continue.
 
 ## Admin
 

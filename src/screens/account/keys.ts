@@ -49,6 +49,31 @@ export interface KeyScope {
 export interface KeyScopes {
   readonly levels?: readonly KeyScope[];
   readonly permissions?: readonly KeyScope[];
+  /** Every key holds one of `levels`: no "No level" choice, and a key
+   *  with permissions only is refused before sending. */
+  readonly required?: boolean;
+  /** The level checked when Create key… opens, one of `levels`' values.
+   *  Default: none. */
+  readonly initial?: string;
+}
+
+/**
+ * The app's line under a new secret, such as where to put it, for a key
+ * just created or rotated. A string is a muted line; a node goes as it is.
+ */
+export type KeyNote = (made: "create" | "rotate", key: KeyView) => string | Node | undefined;
+
+/** Throws a `RangeError` for scopes no picker can offer: `required` with
+ *  no levels, or an `initial` that is not one of them. */
+export function checkScopes(scopes: KeyScopes | undefined): void {
+  const levels = scopes?.levels ?? [];
+  if (scopes?.required === true && levels.length === 0) {
+    throw new RangeError("scopes.required needs levels");
+  }
+  const initial = scopes?.initial;
+  if (initial !== undefined && !levels.some((s) => s.value === initial)) {
+    throw new RangeError(`scopes.initial "${initial}" is not one of the levels`);
+  }
 }
 
 /** What a keys table reads from the screen it is part of. */
@@ -63,6 +88,7 @@ export type KeysCtx = Pick<
   | "httpsOrigin"
   | "scopes"
   | "keysElsewhere"
+  | "keyNote"
   | "write"
   | "settle"
 >;
@@ -122,12 +148,19 @@ export function drawKeys(
   const permissions = ctx.scopes?.permissions ?? [];
   const picked = levels.length > 0 || permissions.length > 0;
   const scopeLabel = new Map([...levels, ...permissions].map((s) => [s.value, s.label]));
+  const levelValues = new Set(levels.map((s) => s.value));
+  const levelRequired = ctx.scopes?.required === true;
+  const initial = ctx.scopes?.initial;
   let list: readonly KeyView[] = [];
   let editing = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
   // How long the previous secret worked after the last rotation here, which
   // the app sets and only a rotation's answer tells.
   let overlap: string | undefined;
+  const noted = (made: "create" | "rotate", key: KeyView): { help?: string | Node } => {
+    const help = ctx.keyNote?.(made, key);
+    return help === undefined ? {} : { help };
+  };
 
   const labelOf = (k: KeyView): string => (k.label === "" ? w["keys.unnamed"] : k.label);
 
@@ -537,7 +570,11 @@ export function drawKeys(
       }
       const scopes = picker?.value() ?? [];
       if (picker !== undefined && scopes.length === 0) {
-        picker.refuse(w["keys.scopeNeeded"]);
+        picker.refuse(w[levelRequired ? "keys.levelNeeded" : "keys.scopeNeeded"]);
+        return;
+      }
+      if (levelRequired && !scopes.some((s) => levelValues.has(s))) {
+        picker?.refuse(w["keys.levelNeeded"]);
         return;
       }
       d.notices.clear();
@@ -594,6 +631,7 @@ export function drawKeys(
                 title: w["keys.createdTitle"](made.details.label),
                 label: w["keys.secret"],
                 secret: made.key,
+                ...noted("create", made.details),
               },
               w,
               ctx.signal,
@@ -673,6 +711,7 @@ export function drawKeys(
         input.type = type;
         input.name = name;
         input.value = s?.value ?? "";
+        input.checked = type === "radio" && s !== undefined && s.value === initial;
         const words = el("span", undefined, s?.label ?? w["keys.noLevel"]);
         if (s?.line !== undefined) {
           words.append(el("small", undefined, s.line));
@@ -684,7 +723,7 @@ export function drawKeys(
       return set;
     };
     if (levels.length > 0) {
-      root.append(group(w["keys.level"], "radio", [undefined, ...levels]));
+      root.append(group(w["keys.level"], "radio", levelRequired ? levels : [undefined, ...levels]));
     }
     if (permissions.length > 0) {
       root.append(group(w["keys.permissions"], "checkbox", permissions));
@@ -817,6 +856,7 @@ export function drawKeys(
           ...(Number.isNaN(end) ? {} : { line: w["keys.rotatedLine"](clockAt(new Date(end))) }),
           label: w["keys.secret"],
           secret: made.key,
+          ...noted("rotate", made.details),
         },
         w,
         ctx.signal,
@@ -866,6 +906,7 @@ export function drawKeys(
         ...(revoked ? { line: w["keys.swappedLine"] } : {}),
         label: w["keys.secret"],
         secret: made.result.data.key,
+        ...noted("rotate", made.result.data.details),
       },
       w,
       ctx.signal,

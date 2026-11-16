@@ -210,6 +210,94 @@ describe("mountSecurity: Create key", () => {
     });
   });
 
+  it("offers a required level with its first choice checked and no No level", async () => {
+    const fake = new Fake();
+    const { region } = mount(fake, {
+      parts: [...KEY_PARTS],
+      scopes: { ...SCOPES, required: true, initial: "write" },
+    });
+    const d = await openCreate(region);
+    const radios = [...d.querySelectorAll<HTMLInputElement>("input[type='radio']")];
+    expect(radios.map((r) => r.value)).toEqual(["read", "write"]);
+    expect(radios.map((r) => r.checked)).toEqual([false, true]);
+    expect(d.textContent).not.toContain("No level");
+    await userEvent.fill(field(d, "label"), "agent");
+    await userEvent.click(button(d, "Create key"));
+    await vi.waitFor(() => {
+      expect(fake.named("createKey")[0]?.args).toEqual([
+        { label: "agent", scopes: ["write"], expires_in_days: 90 },
+      ]);
+    });
+  });
+
+  it("refuses permissions alone when a level is required", async () => {
+    const fake = new Fake();
+    const { region } = mount(fake, {
+      parts: [...KEY_PARTS],
+      scopes: { ...SCOPES, required: true },
+    });
+    const d = await openCreate(region);
+    expect(
+      [...d.querySelectorAll<HTMLInputElement>("input[type='radio']")].some((r) => r.checked),
+    ).toBe(false);
+    await userEvent.fill(field(d, "label"), "agent");
+    await userEvent.click(button(d, "Create key"));
+    const first = d.querySelector<HTMLInputElement>(".cp-choices input") as HTMLInputElement;
+    expect(errorOf(first)).toBe("Choose a level.");
+    await choose(d, "Manage users");
+    await userEvent.click(button(d, "Create key"));
+    expect(errorOf(first)).toBe("Choose a level.");
+    expect(fake.named("createKey")).toHaveLength(0);
+  });
+
+  it("refuses scopes no picker can offer when it mounts", () => {
+    const fake = new Fake();
+    expect(() => mount(fake, { parts: [...KEY_PARTS], scopes: { required: true } })).toThrow(
+      RangeError,
+    );
+    expect(() =>
+      mount(fake, { parts: [...KEY_PARTS], scopes: { ...SCOPES, initial: "constructor" } }),
+    ).toThrow(RangeError);
+  });
+
+  it("puts the app's line under a created and a rotated secret", async () => {
+    const until = hour(1);
+    const fake = new Fake()
+      .always("keys", ok([BACKUP]))
+      .answer("rotateKey", ok({ key: "rt_new", details: { ...BACKUP, previous_until: until } }));
+    const notes: [string, string][] = [];
+    const line = document.createElement("p");
+    line.append(
+      "Then run ",
+      Object.assign(document.createElement("code"), { textContent: "version" }),
+    );
+    const { region } = mount(fake, {
+      parts: [...KEY_PARTS],
+      keyNote: (made, key) => {
+        notes.push([made, key.label]);
+        if (made === "create") {
+          return "Put it in the client config as token.";
+        }
+        return line;
+      },
+    });
+    await userEvent.fill(field(await openCreate(region), "label"), "agent");
+    await userEvent.click(button(await dialogOf("Create an API key"), "Create key"));
+    const created = await dialogOf("New key for agent");
+    expect([...created.querySelectorAll("p.cp-help")].map((p) => p.textContent)).toContain(
+      "Put it in the client config as token.",
+    );
+    await userEvent.click(button(created, "Done"));
+    await press(await keyRow(region, "backup script"), "Rotate…");
+    await answerQuestion("Rotate backup script?", "Rotate key");
+    const rotated = await dialogOf("New secret for backup script");
+    expect(rotated.contains(line)).toBe(true);
+    expect(notes).toEqual([
+      ["create", "agent"],
+      ["rotate", "backup script"],
+    ]);
+  });
+
   it("keeps the dialog on a taken label, an unknown scope and an empty label's answer", async () => {
     const fake = new Fake().answer(
       "createKey",

@@ -369,6 +369,11 @@
         <footer>A person who may not make keys here reads the app's line, linked to where keys are made, in place of Create key.</footer>
       </div>
       <div class="card" data-new>
+        <h2>One required scope</h2>
+        <div data-security-demo="keys-required"></div>
+        <footer>Every key holds exactly one of two scopes, so the picker has no "No level" and starts on Agent. The app's own line under a new or rotated secret says where it goes.</footer>
+      </div>
+      <div class="card" data-new>
         <h2>A server that cannot rotate</h2>
         <div data-security-demo="keys-swap"></div>
         <footer>On a server with no rotation, Rotate makes a key like it, with its label, scopes and the days it had left, then revokes the old one, as one step.</footer>

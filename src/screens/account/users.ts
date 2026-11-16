@@ -594,6 +594,7 @@ export function mountUsers<C extends UsersClient>(
         httpsOrigin,
         scopes: undefined,
         keysElsewhere: undefined,
+        keyNote: undefined,
         write: (name, reason, work) => write(name, work, reason),
         settle,
       },

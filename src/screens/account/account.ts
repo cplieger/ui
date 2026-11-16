@@ -71,7 +71,7 @@ export type {
 export { mountInvite } from "./invite.js";
 export type { InviteOptions } from "./invite.js";
 export { accountActions, accountRunner, runDirect } from "./run.js";
-export type { KeyScope, KeyScopes } from "./keys.js";
+export type { KeyNote, KeyScope, KeyScopes } from "./keys.js";
 export { mountSecurityLog } from "./log.js";
 export type { LogKinds, LogOptions, SecurityLogOptions, SecurityLogScreen } from "./log.js";
 export type { AccountAction, DefineAction, Runner } from "./run.js";

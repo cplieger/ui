@@ -31,7 +31,7 @@ import type {
   SecurityClient,
 } from "./client.js";
 import { clockAt, el, heading, sketch, stateMark } from "./dom.js";
-import { drawKeys, type KeyScopes, type KeysSection } from "./keys.js";
+import { checkScopes, drawKeys, type KeyNote, type KeyScopes, type KeysSection } from "./keys.js";
 import { drawLog, type LogOptions, type SecurityLogScreen } from "./log.js";
 import { drawMethods } from "./methods.js";
 import { drawProfile } from "./profile.js";
@@ -76,6 +76,8 @@ export interface SecurityOptions<C extends SecurityClient> extends ScreenOptions
   /** In place of Create key…, for a person who may not make keys here: a
    *  link to where they are made, worded by `words`. */
   readonly keysCreatedElsewhere?: { readonly words: string; readonly href: string };
+  /** The app's line under a key's new secret, such as where to put it. */
+  readonly keyNote?: KeyNote;
   /**
    * The security log, for a viewer who may read it: by default the entries
    * about the viewer, or every entry with `everyone` (an app with one
@@ -119,6 +121,7 @@ export interface Ctx<C extends SecurityClient> {
   readonly plain: boolean;
   readonly scopes: KeyScopes | undefined;
   readonly keysElsewhere: { readonly words: string; readonly href: string } | undefined;
+  readonly keyNote: KeyNote | undefined;
   /** Ends the screen for `reason`, as `onSignedOut` says. */
   signedOut(reason: SignedOutReason): void;
   /**
@@ -155,6 +158,7 @@ export function mountSecurity<C extends SecurityClient>(
   options: SecurityOptions<C>,
 ): SecurityScreen {
   const { client, access, signal } = options;
+  checkScopes(options.scopes);
   const w = wordsOf(options.words);
   const run = options.run ?? runDirect;
   const has = partsOf(options.parts);
@@ -425,6 +429,7 @@ export function mountSecurity<C extends SecurityClient>(
         plain: !me.session.secure,
         scopes: options.scopes,
         keysElsewhere: options.keysCreatedElsewhere,
+        keyNote: options.keyNote,
         signedOut: leave,
         write,
         settle,

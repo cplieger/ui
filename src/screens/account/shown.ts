@@ -23,8 +23,9 @@ export interface ShownSpec {
   readonly secret: string;
   /** Offers the secret as a text file of this name. */
   readonly download?: string;
-  /** A muted line under the secret, such as where to keep it. */
-  readonly help?: string;
+  /** A muted line under the secret, such as where to keep it; a node goes
+   *  in as it is. */
+  readonly help?: string | Node;
   /** A box the person checks once they saved the secret; the dialog stays
    *  open until it is checked. */
   readonly saved?: { readonly label: string; readonly first: string };
@@ -90,7 +91,7 @@ export function showSecret(spec: ShownSpec, w: AccountWords, signal?: AbortSigna
     stack.append(actions);
   }
   if (spec.help !== undefined) {
-    stack.append(el("p", "cp-help", spec.help));
+    stack.append(typeof spec.help === "string" ? el("p", "cp-help", spec.help) : spec.help);
   }
 
   const done = el("button", "cp-button", spec.done ?? w["shown.done"]);

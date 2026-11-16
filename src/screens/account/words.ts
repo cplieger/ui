@@ -410,6 +410,7 @@ export interface AccountWords {
   readonly "keys.noLevel": string;
   readonly "keys.permissions": string;
   readonly "keys.scopeNeeded": string;
+  readonly "keys.levelNeeded": string;
   readonly "keys.expiresIn": string;
   readonly "keys.days": (n: number) => string;
   readonly "keys.createSubmit": string;
@@ -1318,6 +1319,7 @@ export const defaultAccountWords: AccountWords = {
   "keys.noLevel": "No level",
   "keys.permissions": "Extra permissions",
   "keys.scopeNeeded": "Choose a level or a permission.",
+  "keys.levelNeeded": "Choose a level.",
   "keys.expiresIn": "Expires",
   "keys.days": (n) => `In ${String(n)} days`,
   "keys.createSubmit": "Create key",

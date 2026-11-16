@@ -1245,6 +1245,16 @@ const ACCOUNTS: Readonly<Record<string, () => Account>> = {
   "keys-none": () => account({}, {}, { keys: [] }),
   "keys-elsewhere": () => account({}, {}, { keys: keysOf().slice(0, 2) }),
   "keys-swap": () => account({}, {}, { keys: keysOf().slice(0, 1), rotates: false }),
+  "keys-required": () =>
+    account(
+      {},
+      {},
+      {
+        keys: keysOf()
+          .slice(0, 1)
+          .map((k) => ({ ...k, scopes: ["agent"] })),
+      },
+    ),
   "plain-keys": () =>
     account(
       {},
@@ -1850,6 +1860,35 @@ const CARD_OPTIONS: Readonly<Record<string, Partial<SecurityOptions<SecurityDemo
     },
   },
   "keys-swap": { parts: KEY_PARTS },
+  "keys-required": {
+    parts: KEY_PARTS,
+    scopes: {
+      levels: [
+        {
+          value: "agent",
+          label: "Agent",
+          line: "For a machine whose coding agents send and read mail.",
+        },
+        {
+          value: "owner",
+          label: "Owner",
+          line: "For a script that reads statistics and changes settings.",
+        },
+      ],
+      required: true,
+      initial: "agent",
+    },
+    keyNote: () => {
+      const line = document.createElement("p");
+      line.className = "cp-help";
+      const config = document.createElement("code");
+      config.textContent = "token";
+      const check = document.createElement("code");
+      check.textContent = "grelot version";
+      line.append("Put it in this machine's client config as ", config, ", then run ", check, ".");
+      return line;
+    },
+  },
   "plain-keys": { parts: [...SESSION_PARTS, ...KEY_PARTS], scopes: SCOPES },
 };
 
