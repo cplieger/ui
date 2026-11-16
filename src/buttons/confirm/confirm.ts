@@ -60,6 +60,22 @@ const STATE = "data-cp-state";
 
 const wait = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
+/** Whether the box holding `button` lines its content up at the end. */
+function endAligned(button: HTMLElement): boolean {
+  const box = button.parentElement;
+  if (box === null) {
+    return false;
+  }
+  const cs = getComputedStyle(box);
+  const rtl = cs.direction === "rtl";
+  if (cs.display.includes("flex")) {
+    const j = cs.justifyContent;
+    return j === "end" || j === "flex-end" || j === (rtl ? "left" : "right");
+  }
+  const t = cs.textAlign;
+  return t === "end" || t === (rtl ? "left" : "right");
+}
+
 /**
  * `button` holds a `.cp-roll` with its words at rest and, beside its icon at
  * rest, two `.cp-icon`s marked `data-part="busy"` (the spinner-arc) and
@@ -103,7 +119,14 @@ export function enhanceConfirm(button: HTMLButtonElement, options: ConfirmOption
       words.style.minInlineSize = `${String(most)}px`;
       return;
     }
-    button.style.marginInlineEnd = `${String(most - measureRoll(words, text))}px`;
+    const slack = `${String(most - measureRoll(words, text))}px`;
+    // The slack sits away from the edge its container aligns to, so an
+    // end-aligned button, as in a table's actions cell, stays flush there.
+    if (endAligned(button)) {
+      button.style.marginInlineStart = slack;
+    } else {
+      button.style.marginInlineEnd = slack;
+    }
   };
 
   const toRest = (): void => {

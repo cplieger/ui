@@ -220,6 +220,21 @@ describe("enhanceConfirm", () => {
     expect(footprint()).toBeCloseTo(atRest, 0);
   });
 
+  it("keeps an end-aligned button flush with its cell's end, its footprint's slack before it", async () => {
+    const table = document.createElement("table");
+    const row = table.insertRow();
+    const cell = row.insertCell();
+    cell.dataset["col"] = "actions";
+    cell.style.cssText = "text-align: end; inline-size: 240px; padding: 0";
+    document.body.append(table);
+    const b = button("Grab", cell);
+    confirm(b, { busy: "Grabbing…", done: "Grabbed" });
+    await sleep(400);
+    expect(Number.parseFloat(b.style.marginInlineStart)).toBeGreaterThan(0);
+    expect(b.style.marginInlineEnd).toBe("");
+    expect(b.getBoundingClientRect().right).toBeCloseTo(cell.getBoundingClientRect().right, 0);
+  });
+
   it("holds the widest word's width in a split button", () => {
     const split = document.createElement("div");
     split.className = "cp-split";

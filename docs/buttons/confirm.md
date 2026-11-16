@@ -47,7 +47,7 @@ button.addEventListener("click", async () => {
 | Option | Default | What it does |
 | --- | --- | --- |
 | `busy`, `done` | | The words while the work runs and once it is done. `done: false` is for a button whose success replaces it, such as Create in a dialog that then shows what it made: busy, then straight back to rest. |
-| `width` | see below | `"glide"` follows each word's width. `"footprint"` keeps the widest word's footprint, so the buttons after it never move. `"fixed"` holds the widest word's width. |
+| `width` | see below | `"glide"` follows each word's width. `"footprint"` keeps the widest word's footprint, so the buttons beside it never move: the button hugs its word, and the slack sits on the side away from the edge its container aligns to, so in an end-aligned cell it stays flush with the end. `"fixed"` holds the widest word's width. |
 | `hold` | `1600` | How long the done state shows, in ms. |
 | `busyDelay`, `busyMin` | `150`, `400` | When the busy state starts, and how long it lasts once it shows, in ms. |
 | `onRest` | none | Runs each time the button is back at rest after a run, done, failed or ended by `signal`, such as for a save bar that leaves then. A run started during the done state goes on without a rest, so `onRest` waits for it. |

@@ -195,10 +195,6 @@ th[aria-sort="descending"] > .cp-sort::after {
   font-variant-numeric: tabular-nums;
 }
 
-.cp-table [data-col="actions"] > .cp-button:only-child {
-  inline-size: 100%;
-}
-
 .cp-table [data-col="actions"] {
   text-align: end;
   inline-size: 1%;

@@ -9,7 +9,7 @@
     background-color 600ms var(--cp-ease-out),
     color 600ms var(--cp-ease-out),
     transform var(--cp-dur-press) var(--cp-ease-out),
-    margin-inline-end 300ms var(--cp-ease-out);
+    margin-inline 300ms var(--cp-ease-out);
 }
 
 /* (0,4,1) lifts this over the primary and quiet hover fills, (0,4,0) rules
