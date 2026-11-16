@@ -73,6 +73,7 @@ Raw HTML in the text is shown as text. A character reference is decoded once, HT
 - Copy is [copy](../forms/copy.md) on the block's code. Its hint is inside the block, so a hook that replaces the block takes it too.
 - Add an app's buttons to `[data-part="actions"]`, each a `.cp-button` with `data-variant="quiet"` and `data-size="sm"`, from the `code` hook.
 - Long lines scroll instead of wrapping, since a wrapped command reads as two. The `pre` takes a tab stop only while it overflows.
+- Written by hand with no bar, the block is its `pre` alone, as on a page that runs no script and so has no Copy: one click selects the whole code, so the platform's copy takes all of it. Give that `pre` `tabindex="0"`, since no script adds the tab stop when it overflows.
 
 ### The table region
 

@@ -4,13 +4,27 @@ import { server } from "vitest/browser";
 import { drawing, maskUrl, shipped } from "./test-helpers/css.js";
 
 const APP_PAGES = ["app.html", "list-detail.html", "settings.html", "not-found.html"] as const;
-const GATE_PAGES = ["gate.html", "gate-steps.html", "gate-message.html"] as const;
+const GATE_PAGES = [
+  "gate.html",
+  "gate-steps.html",
+  "gate-message.html",
+  "accounts-unavailable.html",
+] as const;
+const SCRIPTLESS_PAGES = ["gate-message.html", "accounts-unavailable.html"] as const;
+const isGate = (name: string): boolean => (GATE_PAGES as readonly string[]).includes(name);
 const STRICT = "default-src 'none'; style-src 'self'; img-src 'self' data:";
 
 async function parse(name: string): Promise<Document> {
   // As the file ships: the dev server's copy carries its client script.
   const text = await server.commands.readFile(`templates/${name}`);
   return new DOMParser().parseFromString(text, "text/html");
+}
+
+/** The commands a page gives to run: each a bar-less code block's code. */
+function commands(root: ParentNode): string[] {
+  return [...root.querySelectorAll('.cp-code[data-variant="block"] > pre:only-child > code')].map(
+    (code) => code.textContent ?? "",
+  );
 }
 
 /** The names of the page's region or slot comments, in document order. */
@@ -167,12 +181,10 @@ describe("the page templates", () => {
       expect(doc.querySelectorAll('[data-part="about"]')).toHaveLength(1);
       expect(
         about?.matches(
-          name.startsWith("gate")
-            ? ".cp-gate > p.cp-meta:last-child"
-            : ".cp-status > span.cp-meta:last-child",
+          isGate(name) ? ".cp-gate > p.cp-meta:last-child" : ".cp-status > span.cp-meta:last-child",
         ),
       ).toBe(true);
-      if (!name.startsWith("gate")) {
+      if (!isGate(name)) {
         expect(marks(doc, "slot").at(-1)).toBe("about");
       }
       expect(about?.firstElementChild?.matches("span")).toBe(true);
@@ -396,35 +408,86 @@ describe("the page templates", () => {
     ).not.toBeNull();
     expect(panel?.querySelector("dl.cp-facts")).not.toBeNull();
     const remedies = [...(panel?.querySelectorAll(".cp-prose > ol > li") ?? [])];
-    expect(remedies.length).toBeGreaterThan(1);
-    expect(remedies.every((li) => li.querySelector("code.cp-mono") !== null)).toBe(true);
+    expect(remedies.map((li) => commands(li).length)).toEqual([0, 1, 1]);
+    expect(commands(panel ?? doc).map((c) => /store (restore|reset)/.exec(c)?.[0])).toEqual([
+      "store restore",
+      "store reset",
+    ]);
     const lead = remedies[0]?.querySelector('.cp-notice[data-tone="warning"]');
     expect(lead?.querySelector('.cp-icon[data-cp-icon="triangle-alert"]')).not.toBeNull();
     expect(region(doc, "foot")?.textContent).toMatch(/\d+\.\d+\.\d+/);
   });
 
-  it("gate-message.html paints its look and glyphs with no script under a strict policy", async () => {
-    const doc = await loadStrict("gate-message.html", STRICT);
-    const view = doc.defaultView;
-    if (!view) {
-      throw new Error("no window");
+  it("accounts-unavailable.html says sign-in is off and gives the two commands", async () => {
+    const doc = await parse("accounts-unavailable.html");
+    expect(doc.title).toBe("Accounts unavailable · Release tracker");
+    expect(marks(doc, "slot")).toEqual(["heading", "notices", "facts", "remedies"]);
+    expect(
+      doc.querySelectorAll("form, button, input, select, textarea, a:not([rel])"),
+    ).toHaveLength(0);
+    const panel = region(doc, "panel");
+    const h1 = panel?.querySelector("h1");
+    expect(h1?.textContent).toBe("Release tracker cannot open its accounts");
+    expect(panel?.getAttribute("aria-labelledby")).toBe(h1?.id);
+    const danger = panel?.querySelector('.cp-stack > .cp-notice[data-tone="danger"]');
+    expect(danger?.querySelector(':scope > .cp-icon[data-cp-icon="circle-x"]')).not.toBeNull();
+    expect(danger?.textContent).toContain("Nobody can sign in");
+    const facts = [...(panel?.querySelectorAll("dl.cp-facts > dt") ?? [])].map((dt) => [
+      dt.textContent,
+      dt.nextElementSibling?.textContent,
+    ]);
+    expect(facts).toEqual([
+      ["Accounts file", "/config/accounts.db"],
+      ["Error", "The file cannot be read."],
+      ["Backups", "/config/backups/"],
+    ]);
+    const remedies = [...(panel?.querySelectorAll(".cp-prose > ol > li") ?? [])];
+    expect(remedies.map((li) => commands(li))).toEqual([
+      ["docker exec release-tracker release-tracker accounts restore <archive>"],
+      ["docker exec release-tracker release-tracker accounts reset"],
+    ]);
+    const reset = remedies[1]?.querySelector(".cp-stack")?.firstElementChild;
+    expect(reset?.matches('.cp-notice[data-tone="warning"]')).toBe(true);
+    expect(reset?.querySelector('.cp-icon[data-cp-icon="triangle-alert"]')).not.toBeNull();
+    for (const pre of panel?.querySelectorAll(".cp-code > pre") ?? []) {
+      expect(pre.getAttribute("tabindex")).toBe("0");
     }
-    const probe = doc.getElementById("probe");
-    if (!probe) {
-      throw new Error("no probe");
-    }
-    expect(view.getComputedStyle(probe).display).not.toBe("none");
-    const gate = doc.querySelector(".cp-gate");
-    expect(gate && view.getComputedStyle(gate).display).toBe("grid");
-    const icons = [...doc.querySelectorAll(".cp-icon")];
-    expect(icons.length).toBeGreaterThan(1);
-    for (const icon of icons) {
-      const url = new URL(maskUrl(icon), doc.baseURI);
-      expect(url.protocol === "data:" || url.origin === location.origin).toBe(true);
-      const name = icon.getAttribute("data-cp-icon") ?? "";
-      expect(await drawing(url)).toBe(await shipped(name));
-    }
-    const panel = doc.querySelector(".cp-panel");
-    expect(panel && panel.scrollWidth <= panel.clientWidth).toBe(true);
   });
+
+  it.each(SCRIPTLESS_PAGES)(
+    "%s paints its look and glyphs with no script under a strict policy",
+    async (name) => {
+      const doc = await loadStrict(name, STRICT);
+      const view = doc.defaultView;
+      if (!view) {
+        throw new Error("no window");
+      }
+      const probe = doc.getElementById("probe");
+      if (!probe) {
+        throw new Error("no probe");
+      }
+      expect(view.getComputedStyle(probe).display).not.toBe("none");
+      const gate = doc.querySelector(".cp-gate");
+      expect(gate && view.getComputedStyle(gate).display).toBe("grid");
+      const icons = [...doc.querySelectorAll(".cp-icon")];
+      expect(icons.length).toBeGreaterThan(1);
+      for (const icon of icons) {
+        const url = new URL(maskUrl(icon), doc.baseURI);
+        expect(url.protocol === "data:" || url.origin === location.origin).toBe(true);
+        const name = icon.getAttribute("data-cp-icon") ?? "";
+        expect(await drawing(url)).toBe(await shipped(name));
+      }
+      const panel = doc.querySelector(".cp-panel");
+      expect(panel && panel.scrollWidth <= panel.clientWidth).toBe(true);
+      const pres = [...doc.querySelectorAll<HTMLElement>(".cp-code > pre")];
+      expect(pres.length).toBeGreaterThan(0);
+      for (const pre of pres) {
+        expect(view.getComputedStyle(pre).overflowX).toBe("auto");
+        expect(pre.getBoundingClientRect().right).toBeLessThanOrEqual(
+          (panel?.getBoundingClientRect().right ?? 0) + 0.5,
+        );
+      }
+      expect(pres.some((pre) => pre.scrollWidth > pre.clientWidth)).toBe(true);
+    },
+  );
 });

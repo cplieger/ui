@@ -91,5 +91,17 @@ The gate page for a recovery or error message, for a store or server that cannot
 | Region | Slots, in order |
 | --- | --- |
 | brand | |
-| panel | heading (what happened, in the app's words), notices (a danger `.cp-notice` naming the class of the error in words), facts (`dl.cp-facts`: what the person needs to choose a remedy), remedies (an `<ol>` in `.cp-prose`, in the order to try them, each command in `.cp-mono`; a warning `.cp-notice` leads a remedy that needs it) |
+| panel | heading (what happened, in the app's words), notices (a danger `.cp-notice` naming the class of the error in words), facts (`dl.cp-facts`: what the person needs to choose a remedy), remedies (an `<ol>` in `.cp-prose`, in the order to try them, each command a [code block](../docs/content/markdown.md#the-code-block) holding its `pre` alone, which one click selects whole; a warning `.cp-notice` leads a remedy that needs it) |
 | foot | the about line, the build's version first |
+
+## Accounts unavailable: `accounts-unavailable.html`
+
+The message with no script, filled for an app whose accounts file cannot open. The server answers every page path with it, so nobody can sign in while the rest of the app keeps running. Its text is fixed: nothing in it is read at run time, so the page needs no store and no account.
+
+| Region | Slots, in order |
+| --- | --- |
+| brand | the app's mark: its letter, or its logo as one `<img alt="">` |
+| panel | heading ("Release tracker cannot open its accounts"), notices (a danger `.cp-notice`: nobody can sign in until the file is restored or reset, and everything else keeps running), facts (`dl.cp-facts`: each file that cannot open, its error, and where the backups are), remedies (restore from an archive, then reset, each its command in a code block, the warning naming what a reset deletes leading the reset; then "Reload this page once the command has finished.") |
+| foot | the about line, the build's version first |
+
+When the product's own store cannot open too, the facts name both files with their errors, and the remedies give the accounts commands first, then the store's.

@@ -31,7 +31,7 @@
             <dt>Newest backup</dt>
             <dd><code class="cp-mono">store-2026-11-13.db</code>, <time datetime="2026-11-13T03:00">13 Nov, 03:00</time></dd>
           </dl>
-          <!-- slot: remedies: an ol in .cp-prose, in the order to try them, each command in .cp-mono, which breaks anywhere; a warning .cp-notice leads the remedy that needs it -->
+          <!-- slot: remedies: an ol in .cp-prose, in the order to try them; each command a .cp-code[data-variant="block"] holding its pre alone, which one click selects whole; a warning .cp-notice leads the remedy that needs it -->
           <div class="cp-prose">
             <ol>
               <li>
@@ -43,8 +43,22 @@
                   <p>Free space on <code class="cp-mono">/config</code>, then restart the container.</p>
                 </div>
               </li>
-              <li>Restore the newest backup with <code class="cp-mono">docker exec release-tracker release-tracker store restore /config/backups/store-2026-11-13.db</code>, then restart the container.</li>
-              <li>Or start again with an empty store: <code class="cp-mono">docker exec release-tracker release-tracker store reset</code>, then restart the container.</li>
+              <li>
+                <div class="cp-stack" data-gap="tight">
+                  <p>Restore the newest backup, then restart the container:</p>
+                  <div class="cp-code" data-variant="block">
+                    <pre tabindex="0"><code>docker exec release-tracker release-tracker store restore /config/backups/store-2026-11-13.db</code></pre>
+                  </div>
+                </div>
+              </li>
+              <li>
+                <div class="cp-stack" data-gap="tight">
+                  <p>Or start again with an empty store, then restart the container:</p>
+                  <div class="cp-code" data-variant="block">
+                    <pre tabindex="0"><code>docker exec release-tracker release-tracker store reset</code></pre>
+                  </div>
+                </div>
+              </li>
             </ol>
           </div>
         </div>

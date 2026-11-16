@@ -53,7 +53,14 @@
         <div class="g-shell">
           <div class="g-shell-view" data-template-frame="The scriptless gate page template"><iframe data-frame src="templates/gate-message.html" title="The scriptless gate page template"></iframe></div>
         </div>
-        <footer><code>templates/gate-message.html</code>: the page a server sends when it cannot serve the app, such as a store that will not open. It runs no script and paints under <code>default-src 'none'; style-src 'self'; img-src 'self' data:</code>: what happened as its heading, a danger notice naming the kind of error, the facts, the remedies as numbered steps with each command to copy, a warning leading the one that needs it, and the build version as the line under the panel. It holds no control, since the page accepts nothing. <a href="templates/gate-message.html">Open the template</a>.</footer>
+        <footer><code>templates/gate-message.html</code>: the page a server sends when it cannot serve the app, such as a store that will not open. It runs no script and paints under <code>default-src 'none'; style-src 'self'; img-src 'self' data:</code>: what happened as its heading, a danger notice naming the kind of error, the facts, the remedies as numbered steps, each command a code block that one click selects whole, a warning leading the one that needs it, and the build version as the line under the panel. It holds no control, since the page accepts nothing. <a href="templates/gate-message.html">Open the template</a>.</footer>
+      </div>
+      <div class="card g-wide" data-new>
+        <h2>Accounts unavailable</h2>
+        <div class="g-shell">
+          <div class="g-shell-view" data-template-frame="The accounts-unavailable page"><iframe data-frame src="templates/accounts-unavailable.html" title="The accounts-unavailable page"></iframe></div>
+        </div>
+        <footer><code>templates/accounts-unavailable.html</code>: the page with no script, filled for an app whose accounts file cannot open. The server sends it for every page, so nobody can sign in while everything else keeps running. Its text is fixed: what happened, the file and its error, where the backups are, then the two commands to run in the container, each a code block that one click selects whole, the warning naming what a reset deletes leading the reset. <a href="templates/accounts-unavailable.html">Open the page</a>.</footer>
       </div>
       <div class="card g-wide" data-new>
         <h2>Not found</h2>

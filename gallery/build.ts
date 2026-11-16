@@ -57,8 +57,8 @@ const FRAMES: readonly (readonly [frame: string, title: string, script: boolean]
 
 export const frameNames: readonly string[] = FRAMES.map(([frame]) => `frame-${frame}`);
 
-/** The page templates, copied to `templates/` as they ship. Each but the
- *  scriptless one gains the frame script, so its look follows the card's. */
+/** The page templates, copied to `templates/` as they ship. All but the
+ *  scriptless ones gain the frame script, so their look follows the card's. */
 const TEMPLATES: readonly (readonly [template: string, script: boolean])[] = [
   ["app", true],
   ["list-detail", true],
@@ -67,6 +67,7 @@ const TEMPLATES: readonly (readonly [template: string, script: boolean])[] = [
   ["gate", true],
   ["gate-steps", true],
   ["gate-message", false],
+  ["accounts-unavailable", false],
 ];
 
 export const templateNames: readonly string[] = TEMPLATES.map(([t]) => `templates/${t}`);
