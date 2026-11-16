@@ -4,7 +4,8 @@
  * @module
  */
 
-import { writer, type Unit } from "../scale/format.js";
+import { grainStep, writer, type Unit } from "../scale/format.js";
+import { grainsBetween } from "../scale/time.js";
 
 import {
   barTotal,
@@ -22,6 +23,7 @@ import {
   type CellAxis,
   type CellModel,
   type DotModel,
+  type FacetsModel,
   type Model,
   type PieModel,
   type PointModel,
@@ -54,6 +56,7 @@ import {
   partName,
   partsText,
   partAmount,
+  panelCount,
   rowsText,
   sliceShare,
   totalWord,
@@ -67,8 +70,20 @@ function evenStep(steps: readonly number[]): number | undefined {
   return first !== undefined && steps.every((s) => s === first) ? first : undefined;
 }
 
-// A bucket's or a sample interval's size, a duration on a time x.
-function sizeText(model: Model, size: number | undefined, words: Words): string {
+// The one size of every span `[from, to)` of `spans`, in words: whole
+// calendar units at a coarser grain than the minute, which a month's or a
+// clock change's length in ms would hide, else a duration on a time x.
+function sizeText(
+  model: Model,
+  spans: readonly (readonly [number, number])[],
+  words: Words,
+): string {
+  const { grain } = model;
+  if (model.x.type === "time" && grain !== "minute") {
+    const count = evenStep(spans.map(([a, b]) => grainsBetween(a, b, grain, model.timeZone)));
+    return count === undefined ? "" : words.every(grainStep(count, grain, model.locale));
+  }
+  const size = evenStep(spans.map(([a, b]) => b - a));
   if (size === undefined) {
     return "";
   }
@@ -98,7 +113,7 @@ function rectSummary(model: Model, m: RectModel, words: Words): string[] {
   }
   const every = sizeText(
     model,
-    evenStep(m.shown.map((i) => (m.x2[i] ?? 0) - (m.x1[i] ?? 0))),
+    m.shown.map((i) => [m.x1[i] ?? 0, m.x2[i] ?? 0] as const),
     words,
   );
   const out = [words.stackSummary(all, every, range, parts)];
@@ -170,13 +185,11 @@ function seriesSentence(
 }
 
 function lineSummary(model: Model, m: SampleModel, words: Words): string[] {
-  const steps: number[] = [];
+  const steps: (readonly [number, number])[] = [];
   for (let i = m.from + 1; i < m.to; i++) {
-    steps.push((m.x[i] ?? 0) - (m.x[i - 1] ?? 0));
+    steps.push([m.x[i - 1] ?? 0, m.x[i] ?? 0]);
   }
-  const out = [
-    words.lineSummary(domainText(model, words), sizeText(model, evenStep(steps), words)),
-  ];
+  const out = [words.lineSummary(domainText(model, words), sizeText(model, steps, words))];
   const yText = (v: number) => model.yText(v);
   for (const s of m.series) {
     // Under "share" a layer's share exists only where its stack is drawn.
@@ -537,12 +550,32 @@ function treeSummary(model: Model, m: TreeModel, words: Words): string[] {
   return [words.partsSummary(total, named.join(", "))];
 }
 
-/** Each rule's sentence, in spec order. */
+/** Each rule's sentence, in spec order; under `facets` the chart's rules
+ *  once, then each panel's own in panel order, its label after the panel's
+ *  name through `panelAt`. */
 export function ruleSentences(model: Model, words: Words): string[] {
+  if (model.facets === undefined) {
+    return rulesOf(model, model.marks, words);
+  }
+  // A panel's model holds its own marks, then the chart's, which are rules
+  // alone beside facets.
+  const { panels } = model.facets;
+  const own = (p: Model) => p.marks.length - model.spec.marks.length;
+  const [first] = panels;
+  return [
+    ...(first === undefined
+      ? []
+      : rulesOf(first.model, first.model.marks.slice(own(first.model)), words)),
+    ...panels.flatMap((p) => rulesOf(p.model, p.model.marks.slice(0, own(p.model)), words, p.name)),
+  ];
+}
+
+function rulesOf(model: Model, marks: Model["marks"], words: Words, panel?: string): string[] {
   const out: string[] = [];
-  for (const m of model.marks) {
+  for (const m of marks) {
     if (m.kind === "rule") {
-      out.push(words.rule(m.label, m.axis === "x" ? model.xText(m.value) : model.yText(m.value)));
+      const label = panel === undefined ? m.label : words.panelAt(panel, m.label);
+      out.push(words.rule(label, m.axis === "x" ? model.xText(m.value) : model.yText(m.value)));
     }
   }
   return out;
@@ -552,10 +585,13 @@ export function ruleSentences(model: Model, words: Words): string[] {
  *  slope's column name), under a dot mark after its row's name, on a bar or
  *  point chart its row's name alone, on a scatter the name of the dot it
  *  joins or else both its measures, on a cell chart the place of the cell it
- *  joins or else both its values, on a calendar its instant's date. */
-export function noteSentences(model: Model, words: Words): string[] {
+ *  joins or else both its values, on a calendar its instant's date; in a
+ *  panel of small multiples that place through `panelAt`. */
+export function noteSentences(model: Model, words: Words, panel?: string): string[] {
   const out: string[] = [];
   const m = model.primary;
+  const note = (at: string, text: string) =>
+    words.note(panel === undefined ? at : words.panelAt(panel, at), text);
   for (const t of model.marks) {
     if (t.kind === "text" && m?.kind === "scatter") {
       const d = t.x === undefined ? undefined : scatterDotAt(m, t.x, t.y);
@@ -563,57 +599,107 @@ export function noteSentences(model: Model, words: Words): string[] {
         d === undefined
           ? `${measureText(model, "x", t.x ?? null, words)}, ${measureText(model, "y", t.y, words)}`
           : (m.series[d.series]?.names[d.i] ?? "");
-      out.push(words.note(at, t.text));
+      out.push(note(at, t.text));
     } else if (t.kind === "text" && m?.kind === "cell") {
       const j = noteJoin(model, t);
       const at =
         j?.kind === "cell"
           ? cellPlaceText(model, m, j.row, j.column, words)
           : words.cellPlace(model.xText(t.x ?? 0), model.yText(t.y));
-      out.push(words.note(at, t.text));
+      out.push(note(at, t.text));
     } else if (t.kind === "text" && m?.kind === "calendar") {
-      out.push(words.note(model.xText(t.x ?? 0), t.text));
+      out.push(note(model.xText(t.x ?? 0), t.text));
     } else if (t.kind === "text") {
       const row = model.y.type === "band" ? (model.y.rows[t.y] ?? "") : undefined;
       const x = t.x === undefined ? undefined : model.xText(t.x);
       const at =
         row === undefined ? x : m?.kind === "dot" && x !== undefined ? `${row}, ${x}` : row;
-      out.push(words.note(at ?? "", t.text));
+      out.push(note(at ?? "", t.text));
     }
   }
   return out;
 }
 
+/** Every panel's notes in panel order, each place after its panel's name. */
+export function panelNotes(facets: FacetsModel, words: Words): string[] {
+  return facets.panels.flatMap((p) => noteSentences(p.model, words, p.name));
+}
+
+// The data mark's own sentences, before the rules and notes.
+function headSentences(model: Model, words: Words): string[] {
+  const m = model.primary;
+  return m?.kind === "rect"
+    ? rectSummary(model, m, words)
+    : m?.kind === "line" || m?.kind === "area"
+      ? lineSummary(model, m, words)
+      : m?.kind === "dot"
+        ? dotSummary(model, m, words)
+        : m?.kind === "bar"
+          ? barSummary(model, m, words)
+          : m?.kind === "point"
+            ? pointSummary(model, m, words)
+            : m?.kind === "slope"
+              ? slopeSummary(model, m, words)
+              : m?.kind === "scatter"
+                ? scatterSummary(model, m, words)
+                : m?.kind === "cell"
+                  ? cellSummary(model, m, words)
+                  : m?.kind === "calendar"
+                    ? calendarSummary(model, m, words)
+                    : m?.kind === "box"
+                      ? boxSummary(model, m, words)
+                      : m?.kind === "pie"
+                        ? pieSummary(model, m, words)
+                        : m?.kind === "tree"
+                          ? treeSummary(model, m, words)
+                          : [];
+}
+
+// These marks' sentence for one series starts with its name.
+const NAMING = new Set(["line", "area", "box"]);
+
+// The panel count, the sentences every panel writes alike, once, from two
+// panels up, then each panel's own: led by its one series' sentence when
+// that starts with the panel's name, so the name is written once, else
+// after `panel`. A panel left with none says nothing, as the shared ones say it.
+function facetSentences(model: Model, facets: FacetsModel, words: Words): string[] {
+  const each = facets.panels.map((p) => headSentences(p.model, words));
+  const [first = []] = each;
+  const shared = new Set(
+    each.length > 1 ? first.filter((s) => each.every((list) => list.includes(s))) : [],
+  );
+  const out = [words.facetSummary(panelCount(model, facets, words)), ...shared];
+  facets.panels.forEach((p, k) => {
+    const own = (each[k] ?? []).filter((s) => !shared.has(s));
+    const m = p.model.primary;
+    const series = m !== undefined && "series" in m ? m.series : [];
+    const named = NAMING.has(m?.kind ?? "") && series.length === 1 && series[0]?.name === p.name;
+    const heads = named ? own.filter((s) => s.startsWith(p.name)) : [];
+    if (heads.length === 1) {
+      for (const s of [...heads, ...own.filter((t) => !heads.includes(t))]) {
+        out.push(s);
+      }
+    } else if (own.length > 0) {
+      out.push(words.panel(p.name, own.join(" ")));
+    }
+  });
+  return out;
+}
+
 /** The summary the chart writes for `model`, before the spec's own `summary`. */
 export function generatedSummary(model: Model, words: Words): string {
-  const m = model.primary;
-  const head =
-    m?.kind === "rect"
-      ? rectSummary(model, m, words)
-      : m?.kind === "line" || m?.kind === "area"
-        ? lineSummary(model, m, words)
-        : m?.kind === "dot"
-          ? dotSummary(model, m, words)
-          : m?.kind === "bar"
-            ? barSummary(model, m, words)
-            : m?.kind === "point"
-              ? pointSummary(model, m, words)
-              : m?.kind === "slope"
-                ? slopeSummary(model, m, words)
-                : m?.kind === "scatter"
-                  ? scatterSummary(model, m, words)
-                  : m?.kind === "cell"
-                    ? cellSummary(model, m, words)
-                    : m?.kind === "calendar"
-                      ? calendarSummary(model, m, words)
-                      : m?.kind === "box"
-                        ? boxSummary(model, m, words)
-                        : m?.kind === "pie"
-                          ? pieSummary(model, m, words)
-                          : m?.kind === "tree"
-                            ? treeSummary(model, m, words)
-                            : [];
-  return [...head, ...ruleSentences(model, words), ...noteSentences(model, words)].join(" ");
+  if (model.facets !== undefined) {
+    return [
+      ...facetSentences(model, model.facets, words),
+      ...ruleSentences(model, words),
+      ...panelNotes(model.facets, words),
+    ].join(" ");
+  }
+  return [
+    ...headSentences(model, words),
+    ...ruleSentences(model, words),
+    ...noteSentences(model, words),
+  ].join(" ");
 }
 
 /** The summary the figure shows: the spec's string, its function of the
