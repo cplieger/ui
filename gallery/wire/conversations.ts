@@ -195,8 +195,17 @@ if (root !== null && list instanceof HTMLUListElement && filters !== null) {
       return false;
     }
   };
+  // The app's own keys in an entry's state, such as its router's scroll, stay beside the depth.
+  const stamp = (depth: number, url?: string): void => {
+    const own: unknown = history.state;
+    history.replaceState(
+      { ...(typeof own === "object" && own !== null ? own : {}), [DEPTH]: depth },
+      "",
+      url,
+    );
+  };
   const toList = () => {
-    history.replaceState({ [DEPTH]: 0 }, "", location.pathname + location.search);
+    stamp(0, location.pathname + location.search);
   };
   let here = 0;
   let closing = false;
@@ -250,7 +259,7 @@ if (root !== null && list instanceof HTMLUListElement && filters !== null) {
     if ((closing || intent) && depth === 0) {
       toList();
     } else if (depth === undefined) {
-      history.replaceState({ [DEPTH]: here + 1 }, "");
+      stamp(here + 1);
     }
     closing = false;
     here = depthOf(history.state) ?? 0;
@@ -264,7 +273,7 @@ if (root !== null && list instanceof HTMLUListElement && filters !== null) {
   } else if (depthOf(history.state) === undefined) {
     // A wide page docks the markup's open conversation, so the address names it.
     const open = location.hash === "" && wide ? current()?.hash : undefined;
-    history.replaceState({ [DEPTH]: 0 }, "", open ?? location.href);
+    stamp(0, open ?? location.href);
   }
   here = depthOf(history.state) ?? 0;
   // On a phone the addressed row takes focus first, so Close returns it there.

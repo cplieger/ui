@@ -598,6 +598,31 @@ describe.each(browsers)("the gallery in %s", (name) => {
       },
       120_000,
     );
+
+    it("keeps the app's own keys in each entry's state through a press, Close and Forward", async () => {
+      const tab = await (browser as Browser).newPage({ viewport: { width: W, height: 800 } });
+      await tab.goto(`${origin}/index.html`);
+      await tab.goto(`${origin}${M}`);
+      await tab.waitForFunction(() => document.querySelector("[data-build]") !== null);
+      const own = (key: string) =>
+        tab.evaluate((k) => {
+          history.replaceState({ ...(history.state as object), app: k }, "");
+        }, key);
+      const read = () =>
+        tab.evaluate(() => (history.state as Record<string, unknown> | null)?.["app"]);
+      await own("list");
+      await enter(tab, '#msg-list a.cp-list-row[href="#c-marotte"]');
+      await tab.waitForFunction(() => location.hash === "#c-marotte" && history.state !== null);
+      await own("marotte");
+      await tab.locator(".cp-detail [data-detail-close]").click();
+      await tab.waitForFunction(() => location.hash === "");
+      const listed = await read();
+      await tab.goForward();
+      await tab.waitForFunction(() => location.hash === "#c-marotte");
+      const forward = await read();
+      await tab.close();
+      expect({ listed, forward }).toEqual({ listed: "list", forward: "marotte" });
+    });
   });
 
   it.each(pageNames)(
