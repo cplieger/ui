@@ -346,7 +346,10 @@ describe("enhanceProposal: buttons beside the words", () => {
     calls[0]?.resolve();
     await until(() => card.dataset["cpState"] === "applied");
     const undo = card.lastElementChild as HTMLButtonElement;
-    expect([...card.children]).toEqual([words, undo]);
+    const lead = card.firstElementChild;
+    expect(lead?.getAttribute("data-part")).toBe("tone");
+    expect(card.children).toHaveLength(3);
+    expect(card.children[1]).toBe(words);
     expect(words?.textContent).toBe("Applied: +1.250 s with drift corrected.");
     expect(undo.textContent).toBe("Undo");
     expect(document.activeElement).toBe(undo);
@@ -367,8 +370,9 @@ describe("enhanceProposal: buttons beside the words", () => {
     part(card, "apply").click();
     calls[0]?.resolve();
     await until(() => card.dataset["cpState"] === "applied");
-    expect(card.children).toHaveLength(1);
-    expect(card.firstElementChild).toBe(words);
+    expect(card.children).toHaveLength(2);
+    expect(card.firstElementChild?.getAttribute("data-part")).toBe("tone");
+    expect(card.lastElementChild).toBe(words);
     expect(words?.textContent).toBe("Applied: +1.250 s with drift corrected.");
     expect(document.activeElement).toBe(words);
   });
@@ -490,17 +494,109 @@ describe("enhanceProposal: wiring", () => {
   });
 });
 
-describe(".cp-proposal", () => {
-  it("draws a dashed edge, the warning wash unverified and a solid edge applied", () => {
+describe("enhanceProposal: its tone", () => {
+  const confirm = { title: "Apply an unchecked change?", message: "Nothing confirmed it." };
+  /** The tone glyph the card leads with, and the card's tone. */
+  const tone = (card: HTMLElement): [string | undefined, string | null | undefined] => {
+    const lead = card.firstElementChild;
+    return [
+      card.dataset["tone"],
+      lead?.matches('.cp-icon[data-part="tone"][aria-hidden="true"]') === true
+        ? lead.getAttribute("data-cp-icon")
+        : undefined,
+    ];
+  };
+
+  it("leads an unverified proposal with the warning glyph, an applied one with success's, and puts the warning back on Undo", async () => {
+    const card = proposal(true);
+    const undone = deferred();
+    const calls = wire(card, { confirm, undo: () => undone.promise });
+    expect(tone(card)).toEqual(["warning", "triangle-alert"]);
+    part(card, "apply").click();
+    await until(() => document.querySelector("dialog[open]") !== null);
+    const yes = [...document.querySelectorAll("dialog[open] button")].find(
+      (b) => b.textContent === "Apply",
+    ) as HTMLButtonElement;
+    await userEvent.click(yes);
+    await until(() => calls.length === 1);
+    calls[0]?.resolve();
+    await until(() => card.dataset["cpState"] === "applied");
+    expect(tone(card)).toEqual(["success", "circle-check"]);
+    expect(card.querySelectorAll('[data-part="tone"]')).toHaveLength(1);
+    (document.activeElement as HTMLButtonElement).click();
+    undone.resolve();
+    await until(() => card.dataset["cpState"] === undefined);
+    expect(tone(card)).toEqual(["warning", "triangle-alert"]);
+    expect(card.querySelectorAll('[data-part="tone"]')).toHaveLength(1);
+  });
+
+  it("gives a checked proposal no tone until it applies, and none again after Undo", async () => {
     const card = proposal();
-    const unchecked = proposal(true);
-    const edge = getComputedStyle(card);
-    expect(edge.borderTopStyle).toBe("dashed");
-    expect(getComputedStyle(unchecked).backgroundColor).not.toBe(edge.backgroundColor);
+    const undone = deferred();
+    const calls = wire(card, { undo: () => undone.promise });
+    expect(tone(card)).toEqual([undefined, undefined]);
+    expect(card.querySelector('[data-part="tone"]')).toBeNull();
+    part(card, "apply").click();
+    calls[0]?.resolve();
+    await until(() => card.dataset["cpState"] === "applied");
+    expect(tone(card)).toEqual(["success", "circle-check"]);
+    (document.activeElement as HTMLButtonElement).click();
+    undone.resolve();
+    await until(() => card.dataset["cpState"] === undefined);
+    expect(tone(card)).toEqual([undefined, undefined]);
+    expect(card.querySelector('[data-part="tone"]')).toBeNull();
+  });
+});
+
+describe(".cp-proposal", () => {
+  /** A notice in `tone`, the surface whose wash and glyph a toned proposal shares. */
+  const notice = (tone: string): HTMLElement => {
+    const box = document.createElement("div");
+    box.className = "cp-notice";
+    box.dataset["tone"] = tone;
+    box.innerHTML = '<span class="cp-icon" data-cp-icon="info" aria-hidden="true"></span><p>x</p>';
+    document.body.append(box);
+    return box;
+  };
+
+  it("draws a dashed edge, a tone's wash and edge, and a solid edge applied", () => {
+    const card = proposal();
+    const plain = getComputedStyle(card);
+    expect(plain.borderTopStyle).toBe("dashed");
+    const [fill, edge] = [plain.backgroundColor, plain.borderTopColor];
+    for (const name of ["warning", "success"]) {
+      card.dataset["tone"] = name;
+      const box = notice(name);
+      const toned = getComputedStyle(card);
+      expect(toned.backgroundColor).toBe(getComputedStyle(box).backgroundColor);
+      expect(toned.backgroundColor).not.toBe(fill);
+      expect(toned.borderTopColor).not.toBe(edge);
+    }
     card.dataset["cpState"] = "applied";
     expect(getComputedStyle(card).borderTopStyle).toBe("solid");
-    expect(getComputedStyle(card).backgroundColor).not.toBe(
-      getComputedStyle(unchecked).backgroundColor,
+  });
+
+  it("puts its tone glyph before the words, in the tone's ink, the words and buttons beside it", () => {
+    const card = proposal();
+    card.dataset["tone"] = "warning";
+    const lead = document.createElement("span");
+    lead.className = "cp-icon";
+    lead.dataset["cpIcon"] = "triangle-alert";
+    lead.dataset["part"] = "tone";
+    card.prepend(lead);
+    const words = card.querySelector("p") as HTMLElement;
+    const cluster = card.querySelector(".cp-cluster") as HTMLElement;
+    const icon = lead.getBoundingClientRect();
+    const text = words.getBoundingClientRect();
+    expect(icon.right).toBeLessThan(text.left);
+    expect(icon.top).toBeGreaterThanOrEqual(text.top);
+    expect(icon.bottom).toBeLessThanOrEqual(
+      text.top + parseFloat(getComputedStyle(words).lineHeight),
+    );
+    expect(cluster.getBoundingClientRect().left).toBe(text.left);
+    const box = notice("warning");
+    expect(getComputedStyle(lead).color).toBe(
+      getComputedStyle(box.querySelector(".cp-icon") as Element).color,
     );
   });
 });

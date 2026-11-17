@@ -194,7 +194,7 @@ describe("enhanceJobs", () => {
     expect(document.activeElement).toBe(row.querySelector("a"));
     expect(row.querySelector('[data-part="end"] .cp-state')?.textContent).toBe("Stopped");
     expect(row.querySelector('[data-part="end"] .cp-icon')?.getAttribute("data-cp-icon")).toBe(
-      "circle-minus",
+      "info",
     );
     expect(row.querySelector(".cp-cell-stack > small")?.textContent).toBe(
       "Stopped by you at 12 of 40",

@@ -50,7 +50,7 @@ enhanceProposal(unchecked, {
 
 ## API
 
-- `enhanceProposal(card, opts)` wires a `.cp-proposal`. The card holds its words in a `<p>`, a `data-part="apply"` button with a `.cp-roll` and its `spinner-arc` busy span, and may hold a `data-part="discard"` button. It throws a `TypeError` when the `<p>` or Apply is missing, when a `data-variant="unverified"` card has no `confirm`, and when any other card has one.
+- `enhanceProposal(card, opts)` wires a `.cp-proposal`. The card holds its words in a `<p>`, a `data-part="apply"` button with a `.cp-roll` and its `spinner-arc` busy span, and may hold a `data-part="discard"` button. It throws a `TypeError` when the `<p>` or Apply is missing, when a `data-variant="unverified"` card has no `confirm`, and when any other card has one. It writes the card's `data-tone` and puts that tone's glyph first in the card, as a notice leads with its tone's glyph: `warning` and `triangle-alert` while it is unverified, `success` and `circle-check` once applied. A checked proposal before Apply has neither, and keeps its dashed accent edge.
 - `ProposalOptions` = `{ apply, discard?, undo?, confirm?, returnFocus?, words, signal? }`.
   - `apply(signal)` applies the change. A rejection is the failed state.
   - `discard(signal)` drops the change where the app keeps it. Without it, Discard removes the card at once.
@@ -63,8 +63,8 @@ enhanceProposal(unchecked, {
 ## Behaviour
 
 - One action runs at a time. Apply and Undo turn busy through [confirm](../buttons/confirm.md)'s cycle and stay focusable. Discard carries `aria-busy` while `discard` runs.
-- Apply that succeeds marks the card `data-cp-state="applied"`, which turns its edge solid on the success wash, puts the `applied` words in the `<p>` and says them politely. Focus goes to Undo, or to the words when there is no Undo. Undo takes Apply's place and Discard goes, and nothing else in the card moves.
-- Undo that succeeds puts the proposal's words and buttons back where they were, focuses Apply and says `undone`.
+- Apply that succeeds marks the card `data-cp-state="applied"` and `data-tone="success"`, which turns its edge solid on the success wash behind the success glyph, puts the `applied` words in the `<p>` and says them politely. Focus goes to Undo, or to the words when there is no Undo. Undo takes Apply's place and Discard goes, and nothing else in the card moves.
+- Undo that succeeds puts the proposal's tone, words and buttons back where they were, focuses Apply and says `undone`.
 - Discard that succeeds removes the card, focuses `returnFocus` and says `discarded`.
 - Each of these focus moves happens only when focus was in the card, or would drop to the page. A person who moved on while the action ran keeps their place.
 - An action that fails leaves the card as it was, with a `.cp-state[data-cp-state="failed"]` line under the words, said assertively, and focus on the button pressed, so a second press tries again. The next action removes the line.
@@ -73,4 +73,4 @@ enhanceProposal(unchecked, {
 ## Accessibility
 
 - The applied card and each failure are said through [announce](announce.md), so a person on a screen reader hears what happened without moving.
-- The failed line is a `.cp-state` in the danger tone after its glyph, so colour is never the only signal. In forced colours the dashed edge of a proposal and the solid edge of an applied change still differ.
+- The failed line is a `.cp-state` in the danger tone after its glyph, so colour is never the only signal. The tone's glyph leads the words, so the warning and success washes are never the only signal. In forced colours the dashed edge of a proposal and the solid edge of an applied change still differ.

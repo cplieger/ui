@@ -9,7 +9,7 @@ import { enhanceConfirm } from "../../buttons/confirm/confirm.js";
 import { until, whenAborted } from "../../core/lifetime/lifetime.js";
 import { safely } from "../../core/safely/safely.js";
 import { focusOn } from "../../data/list-row/row.js";
-import { glyph } from "../../foundations/icons/glyph.js";
+import { glyph, toneGlyph, type Tone } from "../../foundations/icons/glyph.js";
 import { ask } from "../../overlays/ask/ask.js";
 import { announce } from "../announce/announce.js";
 
@@ -78,7 +78,9 @@ type Action = keyof typeof DEFAULT_FAILED;
  * `data-part="apply"` button with a `.cp-roll` and its busy span, beside an
  * optional `data-part="discard"` button. Throws a TypeError when a part is
  * missing, or when `confirm` and the card's `data-variant="unverified"` do
- * not come together.
+ * not come together. It writes the card's `data-tone` and leads the card
+ * with that tone's glyph: warning while unverified, success once applied,
+ * neither on a checked proposal before it applies.
  */
 export function enhanceProposal(card: HTMLElement, options: ProposalOptions): void {
   const { signal, words } = options;
@@ -96,6 +98,18 @@ export function enhanceProposal(card: HTMLElement, options: ProposalOptions): vo
   }
   /** The proposal's words as Apply found them, which Undo puts back. */
   let proposed: Node[] = [];
+  /** Writes the card's tone and the glyph it leads with, or neither. */
+  const setTone = (tone: Tone | null): void => {
+    card.querySelector(':scope > [data-part="tone"]')?.remove();
+    if (tone === null) {
+      delete card.dataset["tone"];
+      return;
+    }
+    card.dataset["tone"] = tone;
+    card.prepend(glyph(toneGlyph(tone), "tone"));
+  };
+  const resting: Tone | null = unverified ? "warning" : null;
+  setTone(resting);
   const life = new AbortController();
   whenAborted(signal, () => {
     life.abort();
@@ -180,6 +194,7 @@ export function enhanceProposal(card: HTMLElement, options: ProposalOptions): vo
           }
           const follow = following();
           delete card.dataset["cpState"];
+          setTone(resting);
           lines.replaceChildren(...proposed);
           button.replaceWith(apply);
           if (discard !== null && discardAt !== null) {
@@ -201,6 +216,7 @@ export function enhanceProposal(card: HTMLElement, options: ProposalOptions): vo
   const toApplied = (): void => {
     const follow = following();
     card.dataset["cpState"] = "applied";
+    setTone("success");
     proposed = [...lines.childNodes];
     lines.textContent = words.applied;
     if (discard?.parentNode != null) {
@@ -233,7 +249,7 @@ export function enhanceProposal(card: HTMLElement, options: ProposalOptions): vo
             confirmLabel: question.confirmLabel ?? "Apply",
             cancelLabel: question.cancelLabel ?? "Cancel",
             focus: "decline",
-            icon: glyph("triangle-alert"),
+            icon: glyph(toneGlyph("warning")),
             signal: life.signal,
           }).finally(() => {
             busy = false;

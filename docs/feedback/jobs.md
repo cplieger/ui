@@ -46,7 +46,7 @@ Ended, a job reads:
 ```html
 <div class="cp-list-row" data-ended>
   <span class="cp-cell-stack"><strong data-part="kind">Finding subtitles</strong><a href="/library/frieren/1">Frieren, Season 1</a><small data-part="cause">Stopped by you at 12 of 40</small></span>
-  <span data-part="end"><span class="cp-state" data-tone="neutral"><span class="cp-icon" data-cp-icon="circle-minus" aria-hidden="true"></span>Stopped</span></span>
+  <span data-part="end"><span class="cp-state" data-tone="neutral"><span class="cp-icon" data-cp-icon="info" aria-hidden="true"></span>Stopped</span></span>
 </div>
 ```
 
@@ -66,7 +66,7 @@ Ended, a job reads:
 - `Jobs` = `{ progress, phase, end }`, each taking a job's `.cp-list-row` or its `li`.
   - `progress(row, done, total?)` sets the bar to `done` of `total`, by default its `max`, and writes the count from the bar's own value, so a `done` past `total` reads as the bar does. A `done`, or a given `total`, that is not a finite number throws a `RangeError` before anything is written.
   - `phase(row, words)` writes the job's phase.
-  - `end(row, { words, tone, cause?, said? })` ends the job: `data-ended`, the outcome as a `.cp-state` in `data-part="end"` after the body, its glyph by `tone` (`success` a `circle-check`, `warning` a `triangle-alert`, `danger` a `circle-x`, `neutral` a `circle-minus`), and `cause` as the body's last `small`. The bar, Stop and the lines under the bar go. Calling it again on an ended job rewrites its outcome and cause. `said` is said politely, such as "Fixing timing finished", since a job ends while the reader is elsewhere.
+  - `end(row, { words, tone, cause?, said? })` ends the job: `data-ended`, the outcome as a `.cp-state` in `data-part="end"` after the body, its glyph by `tone` (`success` a `circle-check`, `warning` a `triangle-alert`, `danger` a `circle-x`, `neutral` an `info`), and `cause` as the body's last `small`. The bar, Stop and the lines under the bar go. Calling it again on an ended job rewrites its outcome and cause. `said` is said politely, such as "Fixing timing finished", since a job ends while the reader is elsewhere.
 
 ## Behaviour
 

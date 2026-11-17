@@ -9,8 +9,7 @@ import { until, whenAborted } from "../../core/lifetime/lifetime.js";
 import { localeOf } from "../../core/locale/locale.js";
 import { safely } from "../../core/safely/safely.js";
 import { focusOn, landing, rowOf } from "../../data/list-row/row.js";
-import { glyph } from "../../foundations/icons/glyph.js";
-import type { IconName } from "../../foundations/icons/icons.js";
+import { glyph, toneGlyph } from "../../foundations/icons/glyph.js";
 import { announce } from "../announce/announce.js";
 
 /** The outcome's tone, which picks its glyph. */
@@ -70,13 +69,6 @@ export interface Jobs {
    *  first part that takes focus, such as its link. */
   end(row: Element, end: JobEnd): void;
 }
-
-const GLYPH: Record<JobTone, IconName> = {
-  success: "circle-check",
-  warning: "triangle-alert",
-  danger: "circle-x",
-  neutral: "circle-minus",
-};
 
 const part = (row: Element, name: string): HTMLElement | null =>
   row.querySelector<HTMLElement>(`[data-part="${name}"]`);
@@ -153,7 +145,7 @@ export function enhanceJobs(list: HTMLElement, options: JobsOptions = {}): Jobs 
     const state = document.createElement("span");
     state.className = "cp-state";
     state.dataset["tone"] = how.tone;
-    state.append(glyph(GLYPH[how.tone]), how.words);
+    state.append(glyph(toneGlyph(how.tone)), how.words);
     let outcome = row.querySelector(':scope > [data-part="end"]');
     if (outcome === null) {
       outcome = document.createElement("span");

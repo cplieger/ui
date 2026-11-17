@@ -77,10 +77,6 @@
   --cp-icon-image: url("../icons/svg/circle-dashed.svg");
 }
 
-:where(.cp) .cp-icon:where([data-cp-icon="circle-minus"]) {
-  --cp-icon-image: url("../icons/svg/circle-minus.svg");
-}
-
 :where(.cp) .cp-icon:where([data-cp-icon="circle-x"]) {
   --cp-icon-image: url("../icons/svg/circle-x.svg");
 }

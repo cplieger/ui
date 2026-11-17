@@ -13,7 +13,7 @@ import { until, whenAborted } from "../../core/lifetime/lifetime.js";
 import { localeOf } from "../../core/locale/locale.js";
 import { safely } from "../../core/safely/safely.js";
 import { focusOn } from "../../data/list-row/row.js";
-import { glyph } from "../../foundations/icons/glyph.js";
+import { glyph, toneGlyph } from "../../foundations/icons/glyph.js";
 import { announce } from "../announce/announce.js";
 import { skeletonTiming } from "../skeleton/skeleton.js";
 
@@ -233,7 +233,7 @@ export function enhanceLoadingRegion<T>(
       const body = document.createElement("span");
       body.dataset["part"] = "text";
       body.append(sentence);
-      notice.append(glyph("circle-x"), body, button);
+      notice.append(glyph(toneGlyph("danger")), body, button);
       retry = button;
       retryCycle = enhanceConfirm(button, {
         busy: words.retrying ?? "Retrying…",
@@ -248,8 +248,9 @@ export function enhanceLoadingRegion<T>(
         until(signal),
       );
     }
-    notice.dataset["tone"] = over ? "warning" : "danger";
-    notice.firstElementChild?.replaceWith(glyph(over ? "triangle-alert" : "circle-x"));
+    const tone = over ? "warning" : "danger";
+    notice.dataset["tone"] = tone;
+    notice.firstElementChild?.replaceWith(glyph(toneGlyph(tone)));
     sentence.textContent = text;
     const { remedy: remedyOf } = words;
     const remedy =

@@ -8505,10 +8505,11 @@ div.cp-list-foot {
 }
 
 /* A change shown before it applies (@cplieger/ui/proposal): its words, then
- * Apply and Discard. The dashed edge says it has not happened yet; an
- * unverified one takes the warning wash, and an applied one turns solid on
- * the success wash. In forced colours the dashed and solid edges still tell
- * them apart. */
+ * Apply and Discard. The dashed edge says it has not happened yet; a toned
+ * one (warning unverified, success applied) takes its tone's wash and edge
+ * and leads with its tone's glyph, as a notice does, and an applied one
+ * turns solid. In forced colours the dashed and solid edges still tell them
+ * apart. */
 .cp-proposal {
   display: grid;
   gap: var(--cp-space-3);
@@ -8518,15 +8519,31 @@ div.cp-list-foot {
   background: var(--cp-selected);
 }
 
-.cp-proposal[data-variant="unverified"] {
-  border-color: var(--cp-warning-8);
-  background: var(--cp-warning-3);
-}
-
 .cp-proposal[data-cp-state="applied"] {
   border-style: solid;
-  border-color: var(--cp-success-8);
-  background: var(--cp-success-3);
+}
+
+/* enhanceProposal writes data-tone and its glyph together. The glyph takes
+ * the first column and every other part the second, so the words and the
+ * buttons line up after it. Keyed on the attribute, not a :has() left of
+ * the combinator, which makes Chromium restyle the whole page on every
+ * insertion. */
+.cp-proposal[data-tone] {
+  border-color: var(--cp-tone-8);
+  grid-template-columns: auto minmax(0, 1fr);
+  background: var(--cp-tone-3);
+}
+
+.cp-proposal[data-tone] > :not([data-part="tone"]) {
+  grid-column: 2;
+}
+
+/* Centred on the words' first line. */
+.cp-proposal > [data-part="tone"] {
+  grid-row: 1;
+  margin-block-start: calc((1lh - var(--cp-icon-size, var(--cp-icon-ui))) / 2);
+  color: var(--cp-tone-11);
+  line-height: var(--cp-leading-body);
 }
 
 .cp-proposal > p {
@@ -12517,10 +12534,6 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
 
 :where(.cp) .cp-icon:where([data-cp-icon="circle-dashed"]) {
   --cp-icon-image: url("../icons/svg/circle-dashed.svg");
-}
-
-:where(.cp) .cp-icon:where([data-cp-icon="circle-minus"]) {
-  --cp-icon-image: url("../icons/svg/circle-minus.svg");
 }
 
 :where(.cp) .cp-icon:where([data-cp-icon="circle-x"]) {
