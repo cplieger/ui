@@ -2,18 +2,17 @@
  * feed.ts — the gallery's lists, feeds and times, on the library.
  */
 
-import { anchorTo } from "@cplieger/ui/anchor";
 import { announce, installAnnouncer } from "@cplieger/ui/announce";
 import { enhanceConfirm } from "@cplieger/ui/confirm";
 import { enhanceConnectionTest } from "@cplieger/ui/connection-test";
 import { enhanceContextPanel } from "@cplieger/ui/context-panel";
 import { type Feed, enhanceFeed } from "@cplieger/ui/feed";
 import { type FieldError, reportErrors } from "@cplieger/ui/form";
-import { enhanceLoadMore } from "@cplieger/ui/load-more";
-import { enhancePanel } from "@cplieger/ui/panel";
 import { enhanceRelativeTime } from "@cplieger/ui/relative-time";
 import { enhanceReorder } from "@cplieger/ui/reorder";
 import { enhanceTextarea, utf8Length } from "@cplieger/ui/textarea";
+
+import { readButton, readSummary } from "./feedback.js";
 
 installAnnouncer();
 
@@ -36,102 +35,6 @@ document.querySelector("[data-dot-next]")?.addEventListener("click", () => {
   dot.dataset["tone"] = live ? "success" : "neutral";
   dotWords.textContent = live ? "Checking now" : "Waiting";
 });
-
-interface JobEnd {
-  readonly words: string;
-  readonly glyph: string;
-  readonly tone: string;
-  readonly cause: string;
-}
-
-// Stop leaves with its job's end, so focus moves to the job's link first
-// rather than drop to the body.
-function endJob(job: HTMLElement, end: JobEnd): void {
-  job.dataset["ended"] = "";
-  const mark = document.createElement("span");
-  mark.className = "cp-icon";
-  mark.dataset["cpIcon"] = end.glyph;
-  mark.setAttribute("aria-hidden", "true");
-  const state = document.createElement("span");
-  state.className = "cp-state";
-  state.dataset["tone"] = end.tone;
-  state.append(mark, end.words);
-  const outcome = document.createElement("span");
-  outcome.dataset["part"] = "end";
-  outcome.append(state);
-  const cause = document.createElement("small");
-  cause.textContent = end.cause;
-  const body = job.querySelector(":scope > .cp-cell-stack");
-  body?.append(cause);
-  body?.after(outcome);
-  const stop = job.querySelector<HTMLElement>("[data-stop]");
-  if (stop?.contains(document.activeElement) === true) {
-    job.querySelector("a")?.focus();
-  }
-  for (const part of job.querySelectorAll(":scope > :is([data-stop], progress, small)")) {
-    part.remove();
-  }
-}
-
-for (const list of document.querySelectorAll<HTMLElement>("[data-jobs]")) {
-  const template = list.querySelector("li:has(> .cp-list-row)")?.cloneNode(true);
-  setInterval(() => {
-    for (const job of list.querySelectorAll<HTMLElement>(".cp-list-row:not([data-ended])")) {
-      const bar = job.querySelector("progress");
-      const n = job.querySelector("[data-job-n]");
-      if (bar === null || n === null) {
-        continue;
-      }
-      bar.value = Math.min(bar.max, bar.value + 1);
-      n.textContent = `${String(bar.value)} of ${String(bar.max)}`;
-      if (bar.value === bar.max) {
-        endJob(job, {
-          words: "Finished",
-          glyph: "circle-check",
-          tone: "success",
-          cause: `All ${String(bar.max)} done`,
-        });
-      }
-    }
-  }, 700);
-  list.addEventListener("click", (e) => {
-    const target = e.target instanceof Element ? e.target : null;
-    const job = target?.closest("[data-stop]")?.closest<HTMLElement>(".cp-list-row");
-    if (job != null) {
-      const at = job.querySelector("[data-job-n]")?.textContent ?? "";
-      endJob(job, {
-        words: "Stopped",
-        glyph: "circle-minus",
-        tone: "neutral",
-        cause: at === "" ? "Stopped by you" : `Stopped by you at ${at}`,
-      });
-      announce(`${job.querySelector("[data-job-kind]")?.textContent ?? "The job"} stopped`);
-    }
-  });
-  const more = list.querySelector<HTMLButtonElement>("[data-more-jobs]");
-  if (more === null || !(template instanceof HTMLElement)) {
-    continue;
-  }
-  enhanceLoadMore(more, {
-    load: () => {
-      const added = Array.from({ length: 3 }, () => template.cloneNode(true) as HTMLElement);
-      for (const item of added) {
-        const bar = item.querySelector("progress");
-        const n = item.querySelector("[data-job-n]");
-        if (bar !== null && n !== null) {
-          bar.value = 0;
-          n.textContent = `0 of ${String(bar.max)}`;
-        }
-      }
-      return new Promise((resolve) => {
-        setTimeout(() => {
-          resolve({ items: added, more: false });
-        }, 600);
-      });
-    },
-    words: { count: (n) => (n === 1 ? "1 more job" : `${String(n)} more jobs`) },
-  });
-}
 
 for (const list of document.querySelectorAll<HTMLOListElement>("ol[data-reorder]")) {
   enhanceReorder(list);
@@ -195,125 +98,6 @@ function inlineLoad(words: string): HTMLSpanElement {
   load.className = "cp-inline-load";
   load.append(square, words);
   return load;
-}
-
-function people(list: string | undefined): string[] {
-  return (list ?? "").split(" ").filter((name) => name !== "");
-}
-
-function readers(title: string, names: readonly string[]): HTMLElement {
-  const heading = document.createElement("h4");
-  heading.textContent = title;
-  const section = document.createElement("section");
-  section.append(heading);
-  if (names.length === 0) {
-    const none = document.createElement("p");
-    none.className = "cp-meta";
-    none.textContent = "No one yet.";
-    section.append(none);
-    return section;
-  }
-  const list = document.createElement("ul");
-  for (const name of names) {
-    const link = document.createElement("a");
-    link.href = `#agent-${name === "You" ? "user" : name.slice(1)}`;
-    link.textContent = name;
-    const item = document.createElement("li");
-    item.append(link);
-    list.append(item);
-  }
-  section.append(list);
-  return section;
-}
-
-let readSeq = 0;
-
-const wait = (): Promise<void> =>
-  new Promise((resolve) => {
-    setTimeout(resolve, 600);
-  });
-
-// The names load each time the panel first opens, after 600 ms, and a
-// button marked data-read-fails fails once, so its Retry shows.
-function readSummary(button: HTMLButtonElement): void {
-  const panel = document.createElement("div");
-  panel.className = "cp-popover cp-feed-readers";
-  panel.dataset["variant"] = "panel";
-  panel.popover = "auto";
-  panel.id = `msg-readers-${String(++readSeq)}`;
-  panel.setAttribute("aria-label", "Who read this message");
-  button.setAttribute("popovertarget", panel.id);
-  button.after(panel);
-  anchorTo(panel, button);
-  enhancePanel(panel);
-  let fails = button.hasAttribute("data-read-fails");
-  let state: "idle" | "loading" | "loaded" = "idle";
-  const settle = () => {
-    panel.removeAttribute("aria-busy");
-    const regain =
-      panel.matches(":popover-open") &&
-      (panel.contains(document.activeElement) ||
-        document.activeElement === button ||
-        document.activeElement === document.body);
-    if (fails) {
-      fails = false;
-      state = "idle";
-      const retry = smallButton("");
-      const words = document.createElement("span");
-      words.className = "cp-roll";
-      words.textContent = "Retry";
-      const spinner = icon("spinner-arc");
-      spinner.dataset["part"] = "busy";
-      const check = icon("check");
-      check.dataset["part"] = "done";
-      retry.append(spinner, check, words);
-      const again = enhanceConfirm(retry, { busy: "Retrying…", done: false });
-      retry.addEventListener("click", () => {
-        state = "loading";
-        void again.run(wait).then(settle);
-      });
-      const body = document.createElement("div");
-      body.dataset["part"] = "body";
-      body.append("The readers could not be loaded.", " ", retry);
-      const notice = document.createElement("div");
-      notice.className = "cp-notice";
-      notice.dataset["tone"] = "danger";
-      notice.append(icon("circle-x"), body);
-      panel.replaceChildren(notice);
-      if (regain) {
-        retry.focus();
-      }
-      return;
-    }
-    state = "loaded";
-    panel.replaceChildren(
-      readers("Read", people(button.dataset["read"])),
-      readers("Not read yet", people(button.dataset["waiting"])),
-    );
-    const heading = panel.querySelector("h4");
-    if (regain && heading !== null) {
-      heading.tabIndex = -1;
-      heading.focus();
-    }
-  };
-  panel.addEventListener("toggle", (e) => {
-    if (e.newState === "open" && state === "idle") {
-      state = "loading";
-      panel.setAttribute("aria-busy", "true");
-      panel.replaceChildren(inlineLoad("Loading who read it…"));
-      void wait().then(settle);
-    }
-  });
-}
-
-function readButton(read: readonly string[], waiting: readonly string[]): HTMLButtonElement {
-  const button = smallButton(
-    `Read by ${String(read.length)} of ${String(read.length + waiting.length)}`,
-  );
-  button.dataset["variant"] = "quiet";
-  button.dataset["read"] = read.join(" ");
-  button.dataset["waiting"] = waiting.join(" ");
-  return button;
 }
 
 interface Post {

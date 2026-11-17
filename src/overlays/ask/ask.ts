@@ -1,9 +1,9 @@
 /**
- * ask.ts — `ask()` puts one question to the person in a modal
- * `.cp-dialog`: a yes or no that resolves true or false, with `input` a
- * value that resolves its text or null, or with `choices` the groups the
- * action takes, which resolve their values or null. A question asked while
- * another is open replaces it, and the open one answers as cancelled.
+ * ask.ts — `ask()` puts one question to the person in a modal `.cp-dialog`:
+ * a yes or no resolves true or false, `input` resolves its text or null, and
+ * `choices`, the groups the action takes, resolves their values or null. A
+ * question asked while another is open replaces it, and the open one answers
+ * as cancelled, as on an aborted `signal`.
  * @module
  */
 
@@ -52,6 +52,9 @@ export interface AskOptions {
   /** Ask which groups the action takes, none chosen to start; the answer
    *  stays disabled until one is. */
   readonly choices?: readonly AskChoice[];
+  /** Aborting it answers the open question as declined (false, or null) and
+   *  removes its dialog; one already aborted answers so with nothing opened. */
+  readonly signal?: AbortSignal;
 }
 
 let current: { dialog: HTMLDialogElement; settle: () => void } | null = null;
@@ -114,13 +117,17 @@ function checkChoices(choices: unknown): void {
 }
 
 function checkOptions(opts: AskOptions): void {
-  const { tone, focus, input, choices, confirmLabel } = opts as {
+  const { tone, focus, input, choices, confirmLabel, signal } = opts as {
     tone?: unknown;
     focus?: unknown;
     input?: unknown;
     choices?: unknown;
     confirmLabel?: unknown;
+    signal?: unknown;
   };
+  if (signal !== undefined && !(signal instanceof AbortSignal)) {
+    throw new TypeError("ask: signal must be an AbortSignal");
+  }
   if (tone !== undefined && tone !== "danger") {
     throw new TypeError('ask: tone must be "danger" or left out');
   }
@@ -167,6 +174,10 @@ export function ask(
   opts: AskOptions = {},
 ): Promise<boolean | string | readonly string[] | null> {
   checkOptions(opts);
+  const declined = opts.input !== undefined || opts.choices !== undefined ? null : false;
+  if (opts.signal?.aborted === true) {
+    return Promise.resolve(declined);
+  }
   current?.settle();
 
   const input = opts.input === true ? {} : opts.input;
@@ -273,15 +284,16 @@ export function ask(
 
   return new Promise((resolve) => {
     let done = false;
-    const settle = (): void => {
+    const settle = (aborted = false): void => {
       if (done) {
         return;
       }
       done = true;
+      opts.signal?.removeEventListener("abort", onAbort);
       if (current?.dialog === dialog) {
         current = null;
       }
-      const yes = dialog.returnValue === "confirm";
+      const yes = !aborted && dialog.returnValue === "confirm";
       if (field !== null) {
         resolve(yes ? field.value : null);
       } else if (boxes.length > 0) {
@@ -294,8 +306,18 @@ export function ask(
       }
       dialog.remove();
     };
+    const onAbort = (): void => {
+      settle(true);
+    };
     current = { dialog, settle };
-    dialog.addEventListener("close", settle, { once: true });
+    dialog.addEventListener(
+      "close",
+      () => {
+        settle();
+      },
+      { once: true },
+    );
+    opts.signal?.addEventListener("abort", onAbort, { once: true });
     dialog.showModal();
     const focus = opts.focus ?? (opts.tone === "danger" ? "decline" : "answer");
     const answer = boxes[0]?.box ?? confirm;

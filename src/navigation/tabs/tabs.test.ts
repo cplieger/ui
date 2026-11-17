@@ -425,15 +425,15 @@ describe("enhanceTabs", () => {
     it("starts with the current link in view, and follows a router that moves aria-current", async () => {
       const { list, links } = nav(2);
       narrow(list, links);
+      const started = scrolledTo(list, links[2]);
       enhanceTabs(list, { signal: life.signal });
-      await vi.waitFor(() => {
-        expect(inView(list, links[2])).toBe(true);
-      });
+      await started;
+      expect(inView(list, links[2])).toBe(true);
+      const followed = scrolledTo(list, links[0]);
       links[2]?.removeAttribute("aria-current");
       links[0]?.setAttribute("aria-current", "page");
-      await vi.waitFor(() => {
-        expect(inView(list, links[0])).toBe(true);
-      });
+      await followed;
+      expect(inView(list, links[0])).toBe(true);
     });
 
     it("slides the pill under the current link, and its signal removes the pill", async () => {

@@ -705,7 +705,9 @@ describe("enhanceKeyedList", () => {
       }
       expect(Math.abs(panel.scrollHeight - height)).toBeLessThan(1);
       expect(Math.abs(offsetIn(panel, list.rowOf("t399") as HTMLElement) - end)).toBeLessThan(1);
-    });
+      // Its 68 page steps wait two frames each, which a loaded
+      // engine stretches past the default 15 s.
+    }, 60_000);
 
     it("draws a day's heading as an item of the list: no line above it, the space a group's heading has, lined up with the rows", () => {
       const item = (inner: string) => `<li>${inner}</li>`;

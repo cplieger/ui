@@ -6,9 +6,13 @@ import { forgetMeasures } from "../scale/measure.js";
 import { renderChart, type ChartSpec } from "./chart.js";
 import { events, grid, named, points, seriesFrame, tree } from "./test-helpers/frames.js";
 
-// The targets are a 16 ms render and a 2 ms move of script time; these
-// bounds leave room for a slow runner and still fail one DOM node per point.
-const RENDER_MS = 50;
+// A render's cost is its main-thread CPU time over a fixed reference
+// workload's, measured beside it, so a loaded runner slows both alike. Each
+// case states the cost it measures, and the bound of 1.5 times that passes
+// load's noise (up to a fifth) and fails a render that doubles.
+const SLACK = 1.5;
+// The target is a 2 ms move of script time; this bound leaves room for a
+// slow runner and still fails one DOM node per point.
 const MOVE_MS = 8;
 const MIN = 60_000;
 const START = Date.UTC(2026, 10, 9, 13);
@@ -69,28 +73,72 @@ async function cpu(): Promise<number> {
   return (metrics.find((m) => m.name === "ThreadTime")?.value ?? Number.NaN) * 1000;
 }
 
-const RUNS = 3;
+const RUNS = 9;
 
-// The fastest of three renders, after a small chart of the same kind, so the
-// bound measures what the data costs: the first large render also pays the
-// engine's one-time Intl, font and compile work, about twice the rest.
+/** Builds and lays out six 4,000-point paths with 240 formatted labels, the
+ *  same kinds of work a chart's render does. */
+function reference(): void {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  document.body.append(svg);
+  const ys = Array.from({ length: 4_000 }, (_, i) => Math.sin(i * 0.37) * 100);
+  const format = new Intl.NumberFormat("en-GB");
+  for (let k = 0; k < 6; k++) {
+    let d = "M0 0";
+    for (let i = 0; i < ys.length; i++) {
+      d += `L${(i / 4).toFixed(2)} ${(ys[i] ?? 0).toFixed(2)}`;
+    }
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", d);
+    svg.append(path);
+    for (let i = 0; i < 40; i++) {
+      const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      text.textContent = format.format(i * 1234.5);
+      svg.append(text);
+    }
+  }
+  svg.getBoundingClientRect();
+  svg.remove();
+}
+
+/** The median of nine renders' cost, each against the reference run just
+ *  before it, after a small chart of the same kind: the first large render
+ *  also pays the engine's one-time Intl, font and compile work. */
+async function costOf(
+  render: () => HTMLElement,
+  small?: () => void,
+): Promise<{ cost: number; fig: HTMLElement }> {
+  small?.();
+  reference();
+  const costs: number[] = [];
+  let fig: HTMLElement | null = null;
+  for (let k = 0; k < RUNS; k++) {
+    const r0 = await cpu();
+    reference();
+    const ref = (await cpu()) - r0;
+    const t0 = await cpu();
+    fig = render();
+    costs.push(((await cpu()) - t0) / ref);
+  }
+  costs.sort((a, b) => a - b);
+  return { cost: costs[(RUNS - 1) / 2] ?? Infinity, fig: fig as HTMLElement };
+}
+
 async function timed(
   spec: ChartSpec,
   small: ChartSpec,
-): Promise<{ ms: number; plot: HTMLElement }> {
+): Promise<{ cost: number; plot: HTMLElement }> {
   const life = new AbortController();
   lives.push(life);
-  renderChart(figure(), small, { signal: life.signal });
-  let ms = Infinity;
-  let plot: HTMLElement | null = null;
-  for (let k = 0; k < RUNS; k++) {
+  const draw = (s: ChartSpec): HTMLElement => {
     const fig = figure();
-    const t0 = await cpu();
-    renderChart(fig, spec, { signal: life.signal });
-    ms = Math.min(ms, (await cpu()) - t0);
-    plot = fig.querySelector('[data-part="plot"]');
-  }
-  return { ms, plot: plot as HTMLElement };
+    renderChart(fig, s, { signal: life.signal });
+    return fig;
+  };
+  const { cost, fig } = await costOf(
+    () => draw(spec),
+    () => draw(small),
+  );
+  return { cost, plot: fig.querySelector('[data-part="plot"]') as HTMLElement };
 }
 
 const MOVES = 21;
@@ -326,16 +374,16 @@ const fewAreaPanels: ChartSpec = {
 
 describe("performance", () => {
   it.skipIf(!chromium)("renders a 72-hour step line of 8,640 values within its bound", async () => {
-    const { ms, plot } = await timed(stepLine, few);
-    expect(ms).toBeLessThan(RENDER_MS);
+    const { cost, plot } = await timed(stepLine, few);
+    expect(cost).toBeLessThan(1.05 * SLACK);
     expect(await moveMs(plot)).toBeLessThan(MOVE_MS);
   });
 
   it.skipIf(!chromium)(
     "renders a 72-hour step line of 8,640 distinct durations within its bound",
     async () => {
-      const { ms, plot } = await timed(durationLine, fewDurations);
-      expect(ms).toBeLessThan(RENDER_MS);
+      const { cost, plot } = await timed(durationLine, fewDurations);
+      expect(cost).toBeLessThan(1.1 * SLACK);
       expect(await moveMs(plot)).toBeLessThan(MOVE_MS);
     },
   );
@@ -343,8 +391,8 @@ describe("performance", () => {
   it.skipIf(!chromium)(
     "renders a 72-hour stacked area of three layers of 4,320 samples within its bound",
     async () => {
-      const { ms, plot } = await timed(stackedArea, fewLayers);
-      expect(ms).toBeLessThan(RENDER_MS);
+      const { cost, plot } = await timed(stackedArea, fewLayers);
+      expect(cost).toBeLessThan(1.3 * SLACK);
       expect(await moveMs(plot)).toBeLessThan(MOVE_MS);
     },
   );
@@ -352,9 +400,9 @@ describe("performance", () => {
   it.skipIf(!chromium)(
     "renders six line panels of 1,440 values each within the step line's bound",
     async () => {
-      const { ms, plot } = await timed(linePanels, fewLinePanels);
+      const { cost, plot } = await timed(linePanels, fewLinePanels);
       expect(plot.querySelectorAll('[data-part="panel"]')).toHaveLength(6);
-      expect(ms).toBeLessThan(RENDER_MS);
+      expect(cost).toBeLessThan(1.2 * SLACK);
       const frame = plot.querySelector<HTMLElement>('[data-part="frame"]') as HTMLElement;
       expect(await moveMs(frame)).toBeLessThan(MOVE_MS);
     },
@@ -363,58 +411,58 @@ describe("performance", () => {
   it.skipIf(!chromium)(
     "renders four stacked area panels of three layers of 1,080 samples within the area's bound",
     async () => {
-      const { ms, plot } = await timed(areaPanels, fewAreaPanels);
+      const { cost, plot } = await timed(areaPanels, fewAreaPanels);
       expect(plot.querySelectorAll('[data-part="layers"] > path')).toHaveLength(12);
-      expect(ms).toBeLessThan(RENDER_MS);
+      expect(cost).toBeLessThan(1.6 * SLACK);
       const frame = plot.querySelector<HTMLElement>('[data-part="frame"]') as HTMLElement;
       expect(await moveMs(frame)).toBeLessThan(MOVE_MS);
     },
   );
 
   it.skipIf(!chromium)("renders a scatter plot of 10,000 dots within its bound", async () => {
-    const { ms, plot } = await timed(scatter, fewPlaces);
+    const { cost, plot } = await timed(scatter, fewPlaces);
     expect(plot.querySelectorAll('[data-part="scatter"] > path')).toHaveLength(5);
-    expect(ms).toBeLessThan(RENDER_MS);
+    expect(cost).toBeLessThan(1.5 * SLACK);
     expect(await moveMs(plot)).toBeLessThan(MOVE_MS);
   });
 
   it.skipIf(!chromium)("renders a bubble chart of 2,000 bubbles within its bound", async () => {
-    const { ms, plot } = await timed(bubbles, fewBubbles);
+    const { cost, plot } = await timed(bubbles, fewBubbles);
     const paths = [...plot.querySelectorAll('[data-part="scatter"] > path')];
     expect(paths.reduce((n, p) => n + (p.getAttribute("d")?.match(/Z/g) ?? []).length, 0)).toBe(
       2_000,
     );
-    expect(ms).toBeLessThan(RENDER_MS);
+    expect(cost).toBeLessThan(1.1 * SLACK);
     expect(await moveMs(plot)).toBeLessThan(MOVE_MS);
   });
 
   it.skipIf(!chromium)("renders a 2D histogram of 10,000 cells within its bound", async () => {
-    const { ms, plot } = await timed(histogram2d, fewCells);
+    const { cost, plot } = await timed(histogram2d, fewCells);
     // One path per class and one for the missing cells' outlines.
     expect(plot.querySelectorAll('[data-part="cell"] > path')).toHaveLength(6);
-    expect(ms).toBeLessThan(RENDER_MS);
+    expect(cost).toBeLessThan(1.1 * SLACK);
     expect(await moveMs(plot)).toBeLessThan(MOVE_MS);
   });
 
   it.skipIf(!chromium)("renders a treemap of 1,000 parts within its bound", async () => {
     expect(countries.reduce((n, g) => n + g.children.length, 0)).toBe(1_000);
-    const { ms, plot } = await timed(treemap, fewParts);
+    const { cost, plot } = await timed(treemap, fewParts);
     // One path per group's slot.
     expect(plot.querySelectorAll('[data-part="tree"] > path')).toHaveLength(9);
-    expect(ms).toBeLessThan(RENDER_MS);
+    expect(cost).toBeLessThan(1.25 * SLACK);
     expect(await moveMs(plot)).toBeLessThan(MOVE_MS);
   });
 
   it.skipIf(!chromium)("renders a timeline of 20,000 dots within its bound", async () => {
     expect(posts.rows.reduce((n, r) => n + r.at.length, 0)).toBeGreaterThanOrEqual(20_000);
-    const { ms, plot } = await timed(timeline, fewDots);
-    expect(ms).toBeLessThan(RENDER_MS);
+    const { cost, plot } = await timed(timeline, fewDots);
+    expect(cost).toBeLessThan(0.9 * SLACK);
     expect(await moveMs(plot)).toBeLessThan(MOVE_MS);
   });
 });
 
-// The fastest of three renders' main-thread CPU time: a few dots draw in well
-// under the bound, and only ticks generated across the span's days could reach it.
+// A line of three points; only ticks generated across the span's days
+// could make it cost more than its bound.
 describe("a time axis over a long span", () => {
   const year = (y: number) => new Date(Date.UTC(2000, 0, 1)).setUTCFullYear(y);
 
@@ -427,17 +475,9 @@ describe("a time axis over a long span", () => {
       data: seriesFrame([lo, 0, hi], [[1, 3, 2]]),
       mark: { mark: "line" },
     };
-    const life = new AbortController();
-    lives.push(life);
-    let ms = Infinity;
-    let fig = figure();
-    for (let k = 0; k < RUNS; k++) {
-      fig = figure();
-      const t0 = await cpu();
-      renderChart(fig, spec, { signal: life.signal });
-      ms = Math.min(ms, (await cpu()) - t0);
-    }
+    const { cost, plot } = await timed(spec, spec);
+    const fig = plot.closest("figure") as HTMLElement;
     expect(fig.querySelectorAll('[data-part="x"] text').length).toBeGreaterThan(2);
-    expect(ms).toBeLessThan(RENDER_MS);
+    expect(cost).toBeLessThan(0.55 * SLACK);
   });
 });
