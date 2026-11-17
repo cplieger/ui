@@ -742,9 +742,11 @@ describe("enhanceSettings", () => {
   ): Promise<number> => {
     const checks = document.getElementById("b-chk") as HTMLElement;
     links[1]?.click();
-    await vi.waitFor(() => {
-      expect(Math.abs(checks.getBoundingClientRect().top - want)).toBeLessThanOrEqual(1);
-    });
+    // A glide under load outlasts any fixed poll, so this waits for the jump
+    // to bring Checks within 1px, bounded only by the test's timeout.
+    while (Math.abs(checks.getBoundingClientRect().top - want) > 1) {
+      await new Promise(requestAnimationFrame);
+    }
     await still(document.documentElement, ...scrollers);
     return links.findIndex((l) => l.hasAttribute("aria-current"));
   };
@@ -1058,6 +1060,29 @@ describe("enhanceSettings", () => {
     await still();
     const fresh = [...nav.querySelectorAll<HTMLAnchorElement>("a.cp-list-row")];
     expect(fresh.map((l) => l.getAttribute("aria-current"))).toEqual([null, "location"]);
+  });
+
+  it("keeps a pressed category through its own jump when update lengthens the page above it", async () => {
+    const { form, nav, links } = page(true);
+    const s = enhanceSettings(form, { signal: life.signal });
+    // Display's jump ends at the page's end. Before its scroll event, the
+    // app adds a row above the form, so the section ends lower than planned.
+    links[2]?.click();
+    const ul = nav.querySelector("ul") as HTMLElement;
+    ul.innerHTML =
+      row("Connections", "#s-con") +
+      row("Account", "#s-acc") +
+      row("Checks", "#s-chk") +
+      row("Display", "#s-dis");
+    s.update();
+    await still();
+    const fresh = [...nav.querySelectorAll<HTMLAnchorElement>("a.cp-list-row")];
+    expect(fresh.map((l) => l.getAttribute("aria-current"))).toEqual([
+      null,
+      null,
+      null,
+      "location",
+    ]);
   });
 
   it("ends the hold when update removes the pressed category, and marks the section in view", async () => {

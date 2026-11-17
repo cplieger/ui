@@ -165,12 +165,16 @@ function scaleOf(el: Element): number {
 
 /** A scroller a fragment jump moves: its offset at the press and the
  *  offset the jump takes it to. `reach` is where an earlier press's glide,
- *  still running at this press, was taking it (else `to`). */
+ *  still running at this press, was taking it (else `to`). `seen` is its
+ *  offset at the last scroll the hold read, and `gap` how far the section
+ *  was then from where a jump would rest it. */
 interface Leg {
   readonly box: Element;
   readonly from: number;
   readonly to: number;
   readonly reach: number;
+  readonly seen: number;
+  readonly gap: number;
 }
 
 /** Where a fragment jump to `section` takes each scroller holding it, keyed
@@ -195,7 +199,7 @@ function plan(section: Element): Map<EventTarget, Leg> {
     const from = box.scrollTop;
     const want = from + (top - edge) / scale - inset - pad;
     const to = Math.max(0, Math.min(want, box.scrollHeight - box.clientHeight));
-    legs.set(key, { box, from, to, reach: to });
+    legs.set(key, { box, from, to, reach: to, seen: from, gap: to - from });
     top -= (to - from) * scale;
   };
   const html = document.documentElement;
@@ -246,7 +250,7 @@ type Hold =
       /** The scrollers the jump moves that have not landed yet. */
       readonly left: ReadonlySet<EventTarget>;
     }
-  | { readonly kind: "held"; readonly link: HTMLAnchorElement; readonly at: string };
+  | { readonly kind: "held"; readonly link: HTMLAnchorElement; readonly at: DOMRect | undefined };
 
 type HoldEvent =
   | { readonly type: "press"; readonly link: HTMLAnchorElement }
@@ -435,16 +439,25 @@ export function enhanceSettings(form: HTMLFormElement, options: SettingsOptions 
 
   // A pressed link stays current until the page scrolls after the press's
   // own jump, so a last section too short to reach the band still reads as
-  // current. Every event goes through `step`; `release` is the only way back
-  // to idle. The press plans the jump (`plan`); each scroller's `scrollend`
-  // at its planned offset lands it, and the last lands the jump in `held`
-  // (Firefox jumps a frame after the click, a smooth scroll glides). A
-  // scroller off its course, or stopped short, releases. A jump that moves
-  // nothing is held at once; `held` releases once the section moves.
+  // current. `step` reads every event and `release` alone returns to idle.
+  // Each scroller lands at its planned offset, or where a jump would rest
+  // the section once an app's re-render moved it; a scroll that keeps the
+  // section as far from there is scroll anchoring, not the jump. A scroller
+  // off its course or stopped short releases; `held` releases once the
+  // section moves.
   let hold: Hold = IDLE;
-  const placeOf = (link: HTMLAnchorElement): string => {
-    const box = targets.get(link)?.getBoundingClientRect();
-    return box === undefined ? "" : `${String(box.left)} ${String(box.top)}`;
+  const placeOf = (link: HTMLAnchorElement): DOMRect | undefined =>
+    targets.get(link)?.getBoundingClientRect();
+  // WebKit keeps a fragment's target in place across later layouts, moving
+  // the page by up to a whole pixel, so a hold ends on a larger move.
+  const shifted = (link: HTMLAnchorElement, at: DOMRect | undefined): boolean => {
+    const now = placeOf(link);
+    return (
+      now === undefined ||
+      at === undefined ||
+      Math.abs(now.left - at.left) > 1 ||
+      Math.abs(now.top - at.top) > 1
+    );
   };
   const release = (): void => {
     hold = IDLE;
@@ -504,7 +517,7 @@ export function enhanceSettings(form: HTMLFormElement, options: SettingsOptions 
       return;
     }
     if (hold.kind === "held") {
-      if (e.type === "scroll" && placeOf(link) !== hold.at) {
+      if (e.type === "scroll" && shifted(link, hold.at)) {
         release();
       }
       return;
@@ -517,16 +530,23 @@ export function enhanceSettings(form: HTMLFormElement, options: SettingsOptions 
       return;
     }
     const y = leg.box.scrollTop;
-    // A page that shrinks under the jump, such as an app's re-render, stops
-    // it at the range's new end, as the browser clamps a scroll.
-    const end = leg.box.scrollHeight - leg.box.clientHeight;
-    const from = Math.min(leg.from, end);
-    const to = Math.min(leg.to, end);
-    const reach = Math.min(leg.reach, end);
+    const section = targets.get(link);
+    const to =
+      hold.left.has(at) && section !== undefined ? (plan(section).get(at)?.to ?? leg.to) : leg.to;
+    if (e.type === "scroll" && hold.left.has(at) && y !== leg.seen) {
+      const by = y - leg.seen;
+      if (Math.abs(to - y - leg.gap) <= 1) {
+        const kept = { ...leg, from: leg.from + by, reach: leg.reach + by, to, seen: y };
+        hold = { ...hold, legs: new Map(hold.legs).set(at, kept) };
+        return;
+      }
+      hold = { ...hold, legs: new Map(hold.legs).set(at, { ...leg, seen: y, gap: to - y }) };
+    }
     // On its way a scroller stays between its offsets, within the 1px a
     // planned offset may differ from the browser's; once still, on its own.
     const onCourse = hold.left.has(at)
-      ? y >= Math.min(from, to, reach) - 1 && y <= Math.max(from, to, reach) + 1
+      ? y >= Math.min(leg.from, leg.to, leg.reach, to) - 1 &&
+        y <= Math.max(leg.from, leg.to, leg.reach, to) + 1
       : y === to;
     if (!onCourse) {
       release();
@@ -535,7 +555,7 @@ export function enhanceSettings(form: HTMLFormElement, options: SettingsOptions 
         hold = { ...hold, moved: new Set([...hold.moved, at]) };
       }
     } else if (hold.moved.has(at) && hold.left.has(at)) {
-      if (Math.abs(y - to) > 1) {
+      if (Math.abs(y - to) > 1 && Math.abs(y - leg.to) > 1) {
         release();
         return;
       }

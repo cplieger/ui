@@ -268,9 +268,10 @@ async function run(page: Setup, moves: readonly Move[]): Promise<void> {
     }
     if (seen !== null && marked()[0] !== seen) {
       expect(marked()[0]?.href).toBe(pressed);
-      // A live hold ends on a pixel's scroll of the categories' scroller and
-      // marks the section in view; a mark left by an ended hold stays put.
-      const by = (scroller?.scrollTop ?? scrollY) > 0 ? -1 : 1;
+      // A live hold ends on a two-pixel scroll of the categories' scroller,
+      // past the pixel a fragment jump may settle by, and marks the section
+      // in view; a mark left by an ended hold stays put.
+      const by = (scroller?.scrollTop ?? scrollY) > 0 ? -2 : 2;
       (scroller ?? window).scrollBy({ top: by, behavior: "instant" });
       await still(scroller);
       const now = await inView(links);
@@ -348,6 +349,39 @@ describe("enhanceSettings' pressed-category hold, for any order of events", () =
               { kind: "input", type: "wheel" },
               { kind: "render", drop: 2 },
               { kind: "glide", frames: 9 },
+            ],
+          ],
+          // A re-render that moves the section before the jump's scroll
+          // event (seed -2123999880 in WebKit).
+          [
+            { ...flat, short: true, tail: true },
+            [
+              { kind: "press", at: 1 },
+              { kind: "wait", for: "task" },
+              { kind: "input", type: "pointerdown" },
+              { kind: "wait", for: "scrollend" },
+              { kind: "render", drop: 3 },
+              { kind: "press", at: 2 },
+              { kind: "render", drop: null },
+            ],
+          ],
+          // A re-render after the jump moves the section, and WebKit settles
+          // the page a pixel off to keep the fragment in place.
+          [
+            { ...flat, tail: true },
+            [
+              { kind: "wait", for: "scrollend" },
+              { kind: "render", drop: 3 },
+              { kind: "press", at: 2 },
+              { kind: "render", drop: null },
+            ],
+          ],
+          [
+            { ...flat, tail: true },
+            [
+              { kind: "render", drop: 3 },
+              { kind: "press", at: 2 },
+              { kind: "render", drop: null },
             ],
           ],
         ],
