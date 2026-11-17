@@ -33,13 +33,14 @@ if (md !== null && mdTabs !== null) {
   enhanceTabs(mdTabs);
   const current = (): HTMLAnchorElement | undefined => rows.find((r) => r.hash === location.hash);
   const route = routeListDetail({
-    root: md,
     names: (hash) => rows.some((r) => r.hash === hash),
     list: "#detail",
     sync: render,
-    rowOrStop: (key) => rows.find((r) => r.hash === key) ?? null,
   });
-  const detail = enhanceListDetail(md, { onDismiss: route.close });
+  const detail = enhanceListDetail(md, {
+    onDismiss: route.close,
+    entry: (key) => rows.find((r) => r.hash === key) ?? null,
+  });
   function render(still: boolean): void {
     const row = current();
     for (const r of rows) {

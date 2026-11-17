@@ -381,11 +381,75 @@ describe("enhanceListDetail", () => {
     elsewhere.focus();
     api.show(null);
     expect(document.activeElement, "on another control").toBe(elsewhere);
+  });
+
+  it("returns focus on the page to the opener", () => {
+    const { root, opener, api } = mount(1000);
+    const elsewhere = outsideButton(root);
     api.show("entry");
     elsewhere.focus();
     elsewhere.blur();
     api.show(null);
-    expect(document.activeElement, "on the page").toBe(document.body);
+    expect(document.activeElement).toBe(opener);
+  });
+
+  /** A wide box of `rows` row links, opened on a still load, so the opener
+   *  is the page, and the detail's entry is the second row. */
+  function loaded(rows: number, options: Omit<ListDetailOptions, "signal"> = {}) {
+    const m = mount(1000, options);
+    m.opener.remove();
+    const list = document.createElement("ul");
+    const links = Array.from({ length: rows }, (_, i) => {
+      const li = document.createElement("li");
+      const a = document.createElement("a");
+      a.href = `#row-${String(i)}`;
+      a.textContent = `Row ${String(i)}`;
+      li.append(a);
+      list.append(li);
+      return a;
+    });
+    m.root.prepend(list);
+    (document.activeElement as HTMLElement | null)?.blur();
+    m.api.show("row-1", { still: true });
+    m.close.focus();
+    return { ...m, list, links };
+  }
+
+  it("focuses the entry's row from entry when the opener was the page", () => {
+    const m = loaded(3, {
+      entry: (key) => document.querySelector<HTMLElement>(`a[href="#${key}"]`),
+    });
+    m.api.show(null);
+    expect(document.activeElement).toBe(m.links[1]);
+  });
+
+  it("falls back to the list's roving item when the row is not drawn", () => {
+    const m = loaded(3, { entry: () => null });
+    m.links[2]!.tabIndex = 0;
+    m.api.show(null);
+    expect(document.activeElement).toBe(m.links[2]);
+  });
+
+  it("falls back to the list's first drawn link when it has no roving item", () => {
+    const m = loaded(3, { entry: () => null });
+    m.links[0]!.hidden = true;
+    m.api.show(null);
+    expect(document.activeElement).toBe(m.links[1]);
+  });
+
+  it("falls back to the list column's heading, focusable until it loses focus, when no link is drawn", () => {
+    const m = loaded(0);
+    const heading = document.createElement("h3");
+    heading.textContent = "Library";
+    m.list.before(heading);
+    const column = document.createElement("div");
+    column.append(heading, m.list);
+    m.root.prepend(column);
+    m.api.show(null);
+    expect(document.activeElement).toBe(heading);
+    expect(heading.getAttribute("tabindex")).toBe("-1");
+    outsideButton(m.root).focus();
+    expect(heading.hasAttribute("tabindex"), "no tab stop left behind").toBe(false);
   });
 
   /** A part of the page far below the list, and a link to it in the detail. */
@@ -449,6 +513,56 @@ describe("enhanceListDetail", () => {
       expect(part.hasAttribute("tabindex"), "no tab stop left behind").toBe(false);
     },
   );
+
+  it("ends focus on an a element its fragment names by name, as the spec finds the part", async () => {
+    const m = mount(400);
+    const tall = document.createElement("div");
+    tall.style.blockSize = "300vh";
+    const part = document.createElement("a");
+    part.name = "far-name";
+    part.textContent = "Far";
+    m.root.after(tall, part);
+    const link = document.createElement("a");
+    link.href = "#far-name";
+    link.textContent = "To the far part";
+    m.detail.querySelector(".cp-detail-body")!.append(link);
+    hideOn(m.api);
+    m.api.show("entry");
+    await played(m.dialog);
+    const done = closed(m.root);
+    await userEvent.click(link);
+    await done;
+    expect(document.activeElement).toBe(part);
+  });
+
+  it("keeps a link's part as the cause when the route rewrites the entry's state before the hide", async () => {
+    const m = mount(1000);
+    const { part, link } = farPart(m);
+    addEventListener(
+      "popstate",
+      () => {
+        history.replaceState({ ...(history.state as object | null), scroll: 0 }, "");
+        m.api.show(null);
+      },
+      { signal: life.signal },
+    );
+    m.api.show("entry");
+    const done = closed(m.root);
+    await userEvent.click(link);
+    await done;
+    expect(document.activeElement).toBe(part);
+  });
+
+  it("returns focus to the opener after a Ctrl press on a link that opened no page here", async () => {
+    const m = mount(400);
+    const { link } = farPart(m);
+    m.api.show("entry");
+    await played(m.dialog);
+    await userEvent.click(link, { modifiers: ["Control"] });
+    m.api.show(null);
+    await exited(m.dialog);
+    expect(document.activeElement).toBe(m.opener);
+  });
 
   it("returns focus to the opener after a link press the page took over", async () => {
     const m = mount(400);

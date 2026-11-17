@@ -173,22 +173,17 @@ if (root !== null && list instanceof HTMLUListElement && filters !== null) {
     replyFor(view);
   }
 
-  /** The open conversation's row, or the list's tab stop when a filter or a later page leaves it undrawn. */
-  const rowOrStop = (id: string): HTMLElement | null => {
-    const link = linkOf(items.get(id));
-    return link?.isConnected === true
-      ? link
-      : list.querySelector<HTMLElement>('a.cp-list-row[tabindex="0"]');
-  };
   // The address is the state: its fragment names the open conversation, and sync() renders it.
   const route = routeListDetail({
-    root,
     names: (hash) => named(hash.slice(1)) !== undefined,
     list: location.pathname + location.search,
     sync,
-    rowOrStop,
   });
-  const detail = enhanceListDetail(root, { onDismiss: route.close, dockAt: DOCK_AT });
+  const detail = enhanceListDetail(root, {
+    onDismiss: route.close,
+    dockAt: DOCK_AT,
+    entry: (id) => linkOf(items.get(id)),
+  });
   root.addEventListener("detailopen", (e) => {
     const view = named((e as DetailOpenEvent).detail.key);
     if (view !== undefined) {

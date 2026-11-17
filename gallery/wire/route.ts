@@ -1,4 +1,4 @@
-import type { DetailCloseEvent, ListDetail } from "@cplieger/ui/list-detail";
+import type { ListDetail } from "@cplieger/ui/list-detail";
 
 // Each entry this router owns records whether the entry before it showed the
 // list, beside the app's other `history.state` keys, so Close is one Back to
@@ -22,8 +22,6 @@ const stamp = (from: boolean, url?: string): void => {
 };
 
 export interface ListRouteOptions {
-  /** The `.cp-list-detail`, before `enhanceListDetail` runs on it. */
-  readonly root: HTMLElement;
   /** Whether a fragment, with its `#`, names an entry the page can show. */
   readonly names: (hash: string) => boolean;
   /** The list's own address, which Close pushes when the entry before it showed no list. */
@@ -31,9 +29,6 @@ export interface ListRouteOptions {
   /** Renders what the address names, `still` on the page's load; called again
    *  for the same address, it changes nothing. */
   readonly sync: (still: boolean) => void;
-  /** Where focus goes when the detail closes with focus in it or on the page:
-   *  the closed entry's row, or the list's tab stop when that row is gone. */
-  readonly rowOrStop: (key: string) => HTMLElement | null;
 }
 
 export interface ListRoute {
@@ -47,8 +42,7 @@ export interface ListRoute {
 
 /** The gallery's sample router for a list-detail whose address is the page's fragment. */
 export function routeListDetail(options: ListRouteOptions): ListRoute {
-  const { root, names, list, sync, rowOrStop } = options;
-  const shown = root.querySelector(":scope > .cp-detail");
+  const { names, list, sync } = options;
   /** Set from a Close's Back until the page arrives, so a second Close leaves no further. */
   let leaving = false;
 
@@ -59,13 +53,6 @@ export function routeListDetail(options: ListRouteOptions): ListRoute {
     }
     sync(false);
   };
-
-  root.addEventListener("detailclose", (e) => {
-    const active = document.activeElement;
-    if (active === document.body || shown?.contains(active) === true) {
-      rowOrStop((e as DetailCloseEvent).detail.key)?.focus({ preventScroll: true });
-    }
-  });
 
   return {
     close: () => {

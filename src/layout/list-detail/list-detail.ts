@@ -21,6 +21,10 @@ export interface ListDetailOptions {
    *  `show(null)`; until then Close, Escape and a press outside leave the
    *  sheet open. Default: `show(null)`. */
   readonly onDismiss?: () => void;
+  /** The entry's own row, which takes focus after a hide when the element
+   *  that showed the entry is gone or was the page; null when the row is not
+   *  drawn. Default: none, so focus goes to the list's tab stop. */
+  readonly entry?: (key: string) => HTMLElement | null;
 }
 
 export interface ShowOptions {
@@ -36,13 +40,11 @@ export interface ListDetail {
   readonly key: string | null;
   /** With a key, shows the detail, docked or in its sheet, and focuses its
    *  heading; the same key again only focuses the heading, scrolling only as
-   *  far as it takes to show the heading when it is entirely out of view or
-   *  under the page's scroll padding.
-   *  With null, hides it and, when focus is inside it, returns focus to what
-   *  had it before it showed, or before a later `show()` made from outside
-   *  the shown detail. When the hide follows a link pressed to another part
-   *  of the page, focus ends on that part instead, in the sheet and docked
-   *  alike. The sheet keeps the detail until its exit has played. */
+   *  far as it takes to show it when it is entirely out of view or under the
+   *  page's scroll padding.
+   *  With null, hides it. Focus the reader moved out of the detail stays;
+   *  otherwise it ends on the part of the page a link went to, else on what
+   *  showed the entry, else on the entry's row, else on the list's tab stop. */
   show(key: string | null, options?: ShowOptions): void;
 }
 
@@ -53,10 +55,9 @@ export type DetailOpenEvent = CustomEvent<{
   readonly previous: string | null;
 }>;
 
-/** On the root once per hide of `key`: after its sheet has closed, so a
- *  listener can move focus out of it, or, when a `show()` keeps the leaving
- *  sheet open, just before that show's `detailopen`, while the sheet is
- *  still open. */
+/** On the root once per hide of `key`, for reacting to it: after focus has
+ *  moved, or, when a `show()` keeps the leaving sheet open, just before that
+ *  show's `detailopen`. */
 export type DetailCloseEvent = CustomEvent<{ readonly key: string }>;
 
 const DOCKED = "data-cp-docked";
@@ -82,29 +83,9 @@ function padding(): readonly [number, number] {
   return [px(style.scrollPaddingTop), px(style.scrollPaddingBottom)];
 }
 
-/** Focuses `heading` where it is, then scrolls it in only when none of it is
- *  in the viewport clear of its scroll padding, so a focus ring never lands
- *  where nobody sees it. */
-function refocus(heading: HTMLElement | null): void {
-  if (heading === null) {
-    return;
-  }
-  heading.focus({ preventScroll: true });
-  const r = heading.getBoundingClientRect();
-  const vh = document.documentElement.clientHeight;
-  const vw = document.documentElement.clientWidth;
-  const [top, bottom] = padding();
-  if (r.bottom <= top || r.top >= vh - bottom || r.right <= 0 || r.left >= vw) {
-    heading.scrollIntoView({ block: "nearest", inline: "nearest" });
-  }
-}
-
-/** Focuses `target` as a fragment navigation outside a modal dialog leaves
- *  it: on it, or, when it takes no focus, on it with `tabindex="-1"` until
- *  it loses focus, so the next Tab starts there; its top scrolled clear of
- *  the scroll padding when it is not in view
- *  (https://html.spec.whatwg.org/multipage/browsing-the-web.html#scroll-to-the-fragment-identifier). */
-function reach(target: HTMLElement): void {
+/** Focuses `target` without scrolling; one that takes no focus gets
+ *  `tabindex="-1"` until it loses focus, so the next Tab starts there. */
+function land(target: HTMLElement): void {
   target.focus({ preventScroll: true });
   if (document.activeElement !== target && !target.hasAttribute("tabindex")) {
     target.tabIndex = -1;
@@ -117,6 +98,31 @@ function reach(target: HTMLElement): void {
     );
     target.focus({ preventScroll: true });
   }
+}
+
+/** Focuses `el` where it is, then scrolls it in only when none of it is in
+ *  the viewport clear of its scroll padding, so a focus ring never lands
+ *  where nobody sees it and a ring in view never jumps the page. */
+function refocus(el: HTMLElement | null): void {
+  if (el === null) {
+    return;
+  }
+  land(el);
+  const r = el.getBoundingClientRect();
+  const vh = document.documentElement.clientHeight;
+  const vw = document.documentElement.clientWidth;
+  const [top, bottom] = padding();
+  if (r.bottom <= top || r.top >= vh - bottom || r.right <= 0 || r.left >= vw) {
+    el.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }
+}
+
+/** Focuses `target` as a fragment navigation outside a modal dialog leaves
+ *  it, with its top scrolled clear of the scroll padding when it is not in
+ *  view
+ *  (https://html.spec.whatwg.org/multipage/browsing-the-web.html#scroll-to-the-fragment-identifier). */
+function reach(target: HTMLElement): void {
+  land(target);
   const top = target.getBoundingClientRect().top;
   const [clear, foot] = padding();
   if (top < clear - 1 || top >= document.documentElement.clientHeight - foot) {
@@ -127,32 +133,54 @@ function reach(target: HTMLElement): void {
 /** The element of this document a press on `link` scrolls to, by its
  *  fragment, or null when it goes to another document, another browsing
  *  context or no element
- *  (https://html.spec.whatwg.org/multipage/browsing-the-web.html#find-a-potential-indicated-element). */
+ *  (https://html.spec.whatwg.org/multipage/browsing-the-web.html#find-the-indicated-part). */
 function indicated(link: HTMLAnchorElement | HTMLAreaElement): HTMLElement | null {
   const self = (link.target === "" || link.target === "_self") && !link.hasAttribute("download");
   if (!self || link.hash.length <= 1 || link.href.split("#")[0] !== document.URL.split("#")[0]) {
     return null;
   }
   const raw = link.hash.slice(1);
-  let decoded = raw;
+  let decoded: string | null = null;
   try {
     decoded = decodeURIComponent(raw);
   } catch {
-    // A malformed escape names only the raw id.
+    // A malformed escape names only by the raw fragment.
   }
-  const el = document.getElementById(raw) ?? document.getElementById(decoded);
+  const potential = (fragment: string): Element | null =>
+    document.getElementById(fragment) ??
+    [...document.getElementsByName(fragment)].find((e) => e instanceof HTMLAnchorElement) ??
+    null;
+  const el = potential(raw) ?? (decoded === null ? null : potential(decoded));
   return el instanceof HTMLElement ? el : null;
 }
 
-function restore(to: Element | null, away: boolean): void {
-  if (!(to instanceof HTMLElement) || !to.isConnected) {
-    return;
-  }
-  if (away) {
-    reach(to);
-  } else {
-    to.focus();
-  }
+/** Whether `el` is an element a person sees now. */
+const drawn = (el: Element | null | undefined): el is HTMLElement =>
+  el instanceof HTMLElement && el.isConnected && el.checkVisibility();
+
+const isPage = (el: Element | null): boolean =>
+  el === null || el === document.body || el === document.documentElement;
+
+/** A same-page link press the Navigation API reported
+ *  (https://html.spec.whatwg.org/multipage/nav-history-apis.html#the-navigation-interface). */
+interface Press {
+  readonly link: Element;
+  /** The part of the page its fragment names. */
+  readonly part: HTMLElement | null;
+  /** Set once the navigation has committed: a press that navigated nothing,
+   *  as a Ctrl press in WebKit, fires `navigate` and never commits. */
+  committed: boolean;
+}
+
+/** What a hide hands `focusOnHide`, read at the hide: a modal sheet keeps
+ *  focus until it closes, so the decision runs then. */
+interface Hidden {
+  readonly key: string;
+  /** The part a committed press went to, when that press is why it hides. */
+  readonly part: HTMLElement | null;
+  /** Whether the reader had moved focus out of the detail. */
+  readonly moved: boolean;
+  readonly opener: Element | null;
 }
 
 /**
@@ -165,7 +193,7 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
   if (detail === null) {
     throw new TypeError("enhanceListDetail: root has no .cp-detail child");
   }
-  const { signal, onDismiss } = options;
+  const { signal, onDismiss, entry } = options;
   const listen = until(signal);
   const dockAt = options.dockAt ?? 52;
 
@@ -185,16 +213,10 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
   /** Where the shown detail sits; null while it is hidden. */
   let at: "dock" | "dialog" | null = null;
   let opener: Element | null = null;
-  /** The opener while the sheet's exit plays in script: the page stays
-   *  inert until the dialog closes. */
-  let returnTo: Element | null = null;
-  /** Whether `returnTo` is the part of the page a pressed link went to. */
-  let returnAway = false;
-  /** The last press on the page when it was on a link, with the part of
-   *  the page that link names; null after any other press. */
-  let pressed: { readonly event: MouseEvent; readonly part: HTMLElement | null } | null = null;
-  /** The hidden key whose `detailclose` waits for that exit to end. */
-  let closing: string | null = null;
+  /** The hide whose focus and `detailclose` wait for the sheet's exit in
+   *  script to end: the page stays inert until the dialog closes. */
+  let pending: Hidden | null = null;
+  let press: Press | null = null;
   /** Counts opens and closes, so an exit that ends after the next open
    *  leaves the detail where it is. */
   let turn = 0;
@@ -302,32 +324,68 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
     root.dispatchEvent(new CustomEvent("detailclose", { detail: { key } }));
   };
 
-  const firePendingClose = (): void => {
-    if (closing !== null) {
-      const key = closing;
-      closing = null;
-      fireClose(key);
-    }
+  /** Reads a hide's inputs now, using up the press that caused it. */
+  const hidden = (key: string): Hidden => {
+    const p = press?.committed === true ? press : null;
+    press = null;
+    const active = document.activeElement;
+    const inside = detail.contains(active) || dialog.contains(active);
+    return {
+      key,
+      part: p?.part ?? null,
+      moved: !inside && !isPage(active) && active !== p?.link,
+      opener,
+    };
   };
 
-  /** The part of the page a link pressed last went to, when that navigation
-   *  is why the detail hides: a modal sheet keeps focus from it, and docked,
-   *  the opener or an app's fallback to the row would take focus from it. */
-  const away = (): HTMLElement | null => {
-    const press = pressed;
-    pressed = null;
-    if (press === null) {
+  /** The list column's tab stop: its roving item, else its first link, else
+   *  its first heading, else the column. */
+  const tabStop = (): HTMLElement | null => {
+    const column = [...root.children].find((c) => c !== detail);
+    const first = (selector: string): HTMLElement | undefined =>
+      [...(column?.querySelectorAll(selector) ?? [])].find(drawn);
+    const stop = first('[tabindex="0"]') ?? first("a[href]") ?? first("h1, h2, h3, h4, h5, h6");
+    return stop ?? (drawn(column) ? column : null);
+  };
+
+  /** Where focus goes after a hide, and whether the target's top is
+   *  revealed as a fragment's is; null to leave focus where it is. Resolved
+   *  when focus moves, so a row the app redraws during the sheet's exit is
+   *  found. */
+  const focusTarget = (h: Hidden): { readonly el: HTMLElement; readonly top: boolean } | null => {
+    if (h.moved) {
       return null;
     }
-    const target = press.part;
-    return target !== null &&
-      !press.event.defaultPrevented &&
-      target.isConnected &&
-      !target.contains(root) &&
-      !detail.contains(target) &&
-      target.checkVisibility()
-      ? target
-      : null;
+    const { part } = h;
+    if (drawn(part) && !detail.contains(part) && !part.contains(root)) {
+      return { el: part, top: true };
+    }
+    const outside = (el: Element | null): el is HTMLElement =>
+      drawn(el) && !isPage(el) && !detail.contains(el) && !dialog.contains(el);
+    // A part a fragment reached held focus only until it blurred, so it is
+    // no control to return to: the row is.
+    const control = (el: Element | null): el is HTMLElement =>
+      outside(el) && (el.hasAttribute("tabindex") || el.tabIndex >= 0) && !el.matches(":disabled");
+    if (control(h.opener)) {
+      return { el: h.opener, top: false };
+    }
+    const row = entry?.(h.key) ?? null;
+    if (control(row)) {
+      return { el: row, top: false };
+    }
+    const stop = tabStop();
+    return outside(stop) ? { el: stop, top: false } : null;
+  };
+
+  /** The one place focus moves after a hide, then `detailclose` fires. */
+  const focusOnHide = (h: Hidden): void => {
+    const to = focusTarget(h);
+    if (to?.top === true) {
+      reach(to.el);
+    } else if (to !== null) {
+      refocus(to.el);
+    }
+    fireClose(h.key);
   };
 
   const hide = (animate: boolean): void => {
@@ -340,13 +398,8 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
     const was = at;
     at = null;
     root.removeAttribute(DOCKED);
-    const target = away();
-    // Focus the reader moved out of the detail stays where they put it.
-    const to =
-      target ??
-      (detail.contains(document.activeElement) || dialog.contains(document.activeElement)
-        ? opener
-        : null);
+    // Read before closing the sheet, which moves focus.
+    const h = hidden(key);
     opener = null;
     if (was === "dialog" && animate) {
       closeDialog(dialog);
@@ -355,12 +408,9 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
     }
     if (dialog.open) {
       // The modal sheet refuses focus outside it until it closes.
-      returnTo = to;
-      returnAway = target !== null;
-      closing = key;
+      pending = h;
     } else {
-      restore(to, target !== null);
-      fireClose(key);
+      focusOnHide(h);
     }
     // getAnimations() flushes style, so it holds the exit Chromium has
     // just started in CSS.
@@ -388,14 +438,18 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
       }
       const previous = shown;
       if (key !== previous) {
-        pressed = null;
+        press = null;
       }
       if (previous === null) {
         turn += 1;
-        opener = closing === null ? document.activeElement : returnAway ? null : returnTo;
-        returnTo = null;
-        returnAway = false;
-        firePendingClose();
+        const leaving = pending;
+        pending = null;
+        // A show during the sheet's exit takes the element that hide would
+        // have focused as its opener.
+        opener = leaving === null ? document.activeElement : (focusTarget(leaving)?.el ?? null);
+        if (leaving !== null) {
+          fireClose(leaving.key);
+        }
         detail.hidden = false;
         detail.toggleAttribute(STILL, opts.still === true);
         if (opts.still === true) {
@@ -456,10 +510,11 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
     "close",
     () => {
       if (shown === null) {
-        restore(returnTo, returnAway);
-        returnTo = null;
-        returnAway = false;
-        firePendingClose();
+        const h = pending;
+        pending = null;
+        if (h !== null) {
+          focusOnHide(h);
+        }
       } else if (at === "dialog" && !dialog.open) {
         // The engine closed it itself, as Chromium does on a second Escape
         // with no user activation between, so the route has to follow
@@ -507,16 +562,44 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
     },
     listen,
   );
-  document.addEventListener(
-    "click",
+  const navigation = (globalThis as { readonly navigation?: Navigation }).navigation;
+  navigation?.addEventListener(
+    "navigate",
     (e) => {
-      const link = e.target instanceof Element ? e.target.closest("a[href], area[href]") : null;
-      pressed =
-        link instanceof HTMLAnchorElement || link instanceof HTMLAreaElement
-          ? { event: e, part: indicated(link) }
-          : null;
+      const link = e.sourceElement;
+      if (e.hashChange && (link instanceof HTMLAnchorElement || link instanceof HTMLAreaElement)) {
+        press = { link, part: indicated(link), committed: false };
+      } else if (!(e.navigationType === "replace" && e.destination.url === location.href)) {
+        // A router rewriting the entry's state keeps the press it handles.
+        press = null;
+      }
     },
-    until(signal, true),
+    listen,
+  );
+  navigation?.addEventListener(
+    "currententrychange",
+    () => {
+      if (press !== null) {
+        press.committed = true;
+      }
+    },
+    listen,
+  );
+  addEventListener(
+    "hashchange",
+    () => {
+      const p = press;
+      if (p?.committed === true) {
+        // A task queued here runs after every listener of this hashchange,
+        // the router's included, so the press causes no later hide.
+        setTimeout(() => {
+          if (press === p) {
+            press = null;
+          }
+        }, 0);
+      }
+    },
+    listen,
   );
 
   const teardown = (): void => {
@@ -528,10 +611,11 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
     if (dialog.open) {
       dialog.close();
     }
-    restore(returnTo, returnAway);
-    returnTo = null;
-    returnAway = false;
-    firePendingClose();
+    const h = pending;
+    pending = null;
+    if (h !== null) {
+      focusOnHide(h);
+    }
     turn += 1;
     stow();
     dialog.remove();
