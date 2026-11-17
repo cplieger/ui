@@ -121,6 +121,15 @@ async function routed(width: number) {
   return { ...m, onDismiss };
 }
 
+/** A button outside the list and its detail. */
+function outsideButton(root: HTMLElement): HTMLButtonElement {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.textContent = "Elsewhere";
+  root.before(button);
+  return button;
+}
+
 const popped = (): Promise<unknown> =>
   new Promise((r) => {
     addEventListener("popstate", r, { once: true });
@@ -326,6 +335,72 @@ describe("enhanceListDetail", () => {
     api.show(null);
     expect(api.key).toBe(null);
     expect(said).toEqual(["open a from null, focus A", "open b from a, focus H2", "close b"]);
+  });
+
+  it("says detailclose after the sheet has closed, so its listener can move focus out of it", async () => {
+    const { root, dialog, api } = mount(400);
+    const elsewhere = outsideButton(root);
+    api.show("entry");
+    await played(dialog);
+    const open: boolean[] = [];
+    root.addEventListener("detailclose", () => {
+      open.push(dialog.open);
+      elsewhere.focus();
+    });
+    api.show(null);
+    await exited(dialog);
+    expect(open, "one detailclose, with the sheet shut").toEqual([false]);
+    expect(document.activeElement).toBe(elsewhere);
+  });
+
+  it("says detailclose once per hide, before the detailopen of a show() that keeps the leaving sheet open", async () => {
+    const { root, dialog, api } = mount(400);
+    const said: string[] = [];
+    root.addEventListener("detailopen", (e) => {
+      said.push(`open ${(e as DetailOpenEvent).detail.key}`);
+    });
+    root.addEventListener("detailclose", (e) => {
+      said.push(`close ${(e as DetailCloseEvent).detail.key}`);
+    });
+    api.show("a");
+    await played(dialog);
+    api.show(null);
+    api.show("b");
+    await played(dialog);
+    api.show(null);
+    await exited(dialog);
+    expect(said).toEqual(["open a", "close a", "open b", "close b"]);
+  });
+
+  it("leaves focus the reader moved out of the detail where it is", () => {
+    const { root, api } = mount(1000);
+    const elsewhere = outsideButton(root);
+    api.show("entry");
+    elsewhere.focus();
+    api.show(null);
+    expect(document.activeElement, "on another control").toBe(elsewhere);
+    api.show("entry");
+    elsewhere.focus();
+    elsewhere.blur();
+    api.show(null);
+    expect(document.activeElement, "on the page").toBe(document.body);
+  });
+
+  it("refocuses the shown heading without scrolling the page", async () => {
+    const { root, opener, heading, api } = mount(1000);
+    const tall = document.createElement("div");
+    tall.style.blockSize = "300vh";
+    root.after(tall);
+    api.show("entry");
+    scrollTo(0, innerHeight);
+    await frames();
+    const y = scrollY;
+    expect(y, "the heading is above the view").toBeGreaterThan(0);
+    opener.focus({ preventScroll: true });
+    api.show("entry");
+    await frames();
+    expect(document.activeElement).toBe(heading);
+    expect(scrollY).toBe(y);
   });
 
   it("returns focus to the link of the entry opened last while the detail stayed docked", () => {
@@ -620,10 +695,13 @@ describe("enhanceListDetail", () => {
 
   it("puts the detail back at once when the signal aborts while the sheet leaves", async () => {
     const { root, opener, detail, dialog, api } = mount(400);
+    const closes = vi.fn();
+    root.addEventListener("detailclose", closes);
     api.show("entry");
     await played(dialog);
     api.show(null);
     life.abort();
+    expect(closes, "its detailclose").toHaveBeenCalledTimes(1);
     expect(detail.hidden).toBe(true);
     expect(detail.parentElement).toBe(root);
     expect(root.nextElementSibling).toBeNull();

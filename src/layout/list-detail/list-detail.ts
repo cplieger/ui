@@ -33,10 +33,10 @@ export interface ListDetail {
   /** The entry the detail shows, or null while it is hidden. */
   readonly key: string | null;
   /** With a key, shows the detail, docked or in its sheet, and focuses its
-   *  heading; the same key again only focuses the heading. With null, hides
-   *  it and returns focus to what had it before it showed, or before a later
-   *  `show()` made from outside the shown detail. The sheet keeps the detail
-   *  until its exit has played. */
+   *  heading; the same key again only focuses the heading, without scrolling.
+   *  With null, hides it and, when focus is inside it, returns focus to what
+   *  had it before it showed, or before a later `show()` made from outside
+   *  the shown detail. The sheet keeps the detail until its exit has played. */
   show(key: string | null, options?: ShowOptions): void;
 }
 
@@ -47,7 +47,8 @@ export type DetailOpenEvent = CustomEvent<{
   readonly previous: string | null;
 }>;
 
-/** On the root when the detail stops showing `key`. */
+/** On the root once per hide of `key`, after its sheet has closed, so a
+ *  listener can move focus out of it. */
 export type DetailCloseEvent = CustomEvent<{ readonly key: string }>;
 
 const DOCKED = "data-cp-docked";
@@ -99,6 +100,8 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
   /** The opener while the sheet's exit plays in script: the page stays
    *  inert until the dialog closes. */
   let returnTo: Element | null = null;
+  /** The hidden key whose `detailclose` waits for that exit to end. */
+  let closing: string | null = null;
   /** Counts opens and closes, so an exit that ends after the next open
    *  leaves the detail where it is. */
   let turn = 0;
@@ -161,7 +164,7 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
     const want = root.getBoundingClientRect().width >= dockAt * remPx() ? "dock" : "dialog";
     if (want === at && (want === "dock" || dialog.open)) {
       if (opening) {
-        heading()?.focus();
+        heading()?.focus({ preventScroll: true });
       }
       return;
     }
@@ -201,6 +204,18 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
     }
   };
 
+  const fireClose = (key: string): void => {
+    root.dispatchEvent(new CustomEvent("detailclose", { detail: { key } }));
+  };
+
+  const firePendingClose = (): void => {
+    if (closing !== null) {
+      const key = closing;
+      closing = null;
+      fireClose(key);
+    }
+  };
+
   const hide = (animate: boolean): void => {
     if (shown === null) {
       return;
@@ -211,7 +226,11 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
     const was = at;
     at = null;
     root.removeAttribute(DOCKED);
-    const to = opener;
+    // Focus the reader moved out of the detail stays where they put it.
+    const to =
+      detail.contains(document.activeElement) || dialog.contains(document.activeElement)
+        ? opener
+        : null;
     opener = null;
     if (was === "dialog" && animate) {
       closeDialog(dialog);
@@ -219,11 +238,13 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
       dialog.close();
     }
     if (dialog.open) {
+      // The modal sheet refuses focus outside it until it closes.
       returnTo = to;
+      closing = key;
     } else {
       restore(to);
+      fireClose(key);
     }
-    root.dispatchEvent(new CustomEvent("detailclose", { detail: { key } }));
     // getAnimations() flushes style, so it holds the exit Chromium has
     // just started in CSS.
     const exit = was === "dialog" && animate ? dialog.getAnimations() : [];
@@ -251,8 +272,9 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
       const previous = shown;
       if (previous === null) {
         turn += 1;
-        opener = returnTo ?? document.activeElement;
+        opener = closing === null ? document.activeElement : returnTo;
         returnTo = null;
+        firePendingClose();
         detail.hidden = false;
         detail.toggleAttribute(STILL, opts.still === true);
         if (opts.still === true) {
@@ -315,6 +337,7 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
       if (shown === null) {
         restore(returnTo);
         returnTo = null;
+        firePendingClose();
       } else if (at === "dialog" && !dialog.open) {
         // The engine closed it itself, as Chromium does on a second Escape
         // with no user activation between, so the route has to follow
@@ -374,6 +397,7 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
     }
     restore(returnTo);
     returnTo = null;
+    firePendingClose();
     turn += 1;
     stow();
     dialog.remove();
