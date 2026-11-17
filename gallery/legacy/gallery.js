@@ -401,11 +401,6 @@ const el = (tag, attrs = {}, ...kids) => {
   n.append(...kids);
   return n;
 };
-const icon = (name, extra = "") => {
-  const s = el("span", { class: `cp-icon ${extra}`.trim(), "data-cp-icon": name, "aria-hidden": "true" });
-  paintIcon(s);
-  return s;
-};
 // Icons added after load get their drawing too.
 new MutationObserver((records) => {
   for (const r of records) {
