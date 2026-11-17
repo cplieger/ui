@@ -35,7 +35,8 @@
   margin-inline-start: var(--cp-space-2);
 }
 
-.cp-choices:has(> legend + .cp-button) > :not(legend, legend + .cp-button) {
+/* No `:has()` here: Chromium then restyles the page on every insertion (gallery.node.test.ts). */
+.cp-choices > legend + .cp-button ~ :not(legend, legend + .cp-button) {
   clear: both;
   margin-block-start: var(--cp-space-2);
 }

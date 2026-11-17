@@ -3209,12 +3209,17 @@
 
 /* Whatever focus scrolls into view lands with its ring clear of the bar
  * (WCAG 2.4.11). `./settings` sets the bar's measured height, which grows
- * when it wraps on a phone; one row's height stands in without it. */
-:where(form:has(.cp-savebar:not([hidden]))) * {
-  scroll-margin-block-end: calc(
+ * when it wraps on a phone; one row's height stands in without it.
+ * No `:has()` left of `*`: Chromium restyles the page per insertion (gallery.node.test.ts). */
+form:has(.cp-savebar:not([hidden])) {
+  --cp-savebar-clear: calc(
     var(--cp-savebar-size, var(--cp-control-h) + 2 * var(--cp-space-3) + 2 * var(--cp-line-w)) +
       var(--cp-space-3) + var(--cp-focus-w) + var(--cp-focus-offset)
   );
+}
+
+:where(form) * {
+  scroll-margin-block-end: var(--cp-savebar-clear, 0);
 }
 
 :where(.cp-savebar) * {
@@ -4349,7 +4354,8 @@ input.cp-input:is([type^="date"], [type="time"]) {
   margin-inline-start: var(--cp-space-2);
 }
 
-.cp-choices:has(> legend + .cp-button) > :not(legend, legend + .cp-button) {
+/* No `:has()` here: Chromium then restyles the page on every insertion (gallery.node.test.ts). */
+.cp-choices > legend + .cp-button ~ :not(legend, legend + .cp-button) {
   clear: both;
   margin-block-start: var(--cp-space-2);
 }
