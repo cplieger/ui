@@ -70,6 +70,8 @@ const STATE: StateResponse = {
   password_login: true,
   passkeys: true,
   oidc: true,
+  secure: true,
+  https_required: [],
 };
 
 /** Checks the `.cp-choice` box worded `text` in `root`. */

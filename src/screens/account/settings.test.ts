@@ -21,7 +21,15 @@ const owned = (sso: "alongside" | "for_linked" | "only" = "alongside"): Fake =>
   new Fake()
     .always(
       "state",
-      ok({ setup_required: false, password_login: true, passkeys: true, oidc: true, sso }),
+      ok({
+        setup_required: false,
+        password_login: true,
+        passkeys: true,
+        oidc: true,
+        sso,
+        secure: true,
+        https_required: [],
+      }),
     )
     .always("me", ok(meWith({}, { owner: true, single_user: false })));
 
@@ -100,7 +108,7 @@ describe("mountAccessSettings", () => {
     expect(region.childElementCount).toBe(0);
   });
 
-  it("shows nothing on a client before access Part 5", async () => {
+  it("shows nothing on a client without the SSO calls", async () => {
     const fake = owned().without("adminSSOReadiness", "adminApplySSO");
     const { region } = mount(fake);
     await vi.waitFor(() => {
@@ -343,6 +351,7 @@ describe("mountAccessSettings", () => {
           secure: false,
           https_origin: "https://tracker.example",
           sso: "alongside" as const,
+          https_required: [],
         }),
       )
       .always(

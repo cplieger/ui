@@ -1,5 +1,5 @@
 /**
- * proof.ts — the proof of a second factor access Part 4 asks before a
+ * proof.ts — the proof of a second factor access asks before a
  * passkey is added or removed, the authenticator app is removed or the
  * recovery code is replaced: a code from the app, or a passkey.
  * @module

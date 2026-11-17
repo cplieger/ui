@@ -44,6 +44,8 @@ const SETUP: StateResponse = {
   password_login: true,
   passkeys: true,
   oidc: false,
+  secure: true,
+  https_required: [],
 };
 
 type Options = Partial<Omit<SetupOptions<FakeClient>, "client" | "access">>;

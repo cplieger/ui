@@ -76,7 +76,7 @@ export function runes(text: string): number {
 }
 
 /** The bounds a new password must fit: `state()`'s, else access's fixed
- *  15 to 128, which it held before Part 4 sent them. */
+ *  15 to 128, from a server that does not send them. */
 export function passwordLengthOf(s: StateResponse | undefined): PasswordLength {
   return s?.password_length ?? { min: 15, max: 128 };
 }

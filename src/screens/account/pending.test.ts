@@ -317,6 +317,21 @@ describe("mountSignIn: the recovery code", () => {
     expect(fake.named("loginRecoveryCode")).toHaveLength(0);
   });
 
+  it.each(["ßßßß-ßßßß", "ıııı ıııı ıııı ıııı", "ﬀﬀﬀﬀ-ﬀﬀﬀﬀ", "abcdefghijkmnpß"])(
+    "refuses %s, which only upper-casing makes 16 characters",
+    async (typed) => {
+      const fake = new Fake();
+      const { panel } = await stepped(fake);
+      await userEvent.click(button(panel, "Use your recovery code"));
+      await userEvent.fill(input(panel, "recovery_code"), typed);
+      await userEvent.click(submit(panel));
+      expect(errorOf(input(panel, "recovery_code"))).toBe(
+        "Enter the 16 characters of your recovery code.",
+      );
+      expect(fake.named("loginRecoveryCode")).toHaveLength(0);
+    },
+  );
+
   it("then sets up a new authenticator, and shows the new recovery code before going on", async () => {
     const fake = new Fake()
       .answer(
@@ -412,6 +427,8 @@ describe("mountSignIn: choosing a credential after a temporary password", () => 
         passkeys: true,
         oidc: true,
         password_length: { min: 12, max: 64 },
+        secure: true,
+        https_required: [],
       }),
     );
     const { panel } = await stepped(fake, choose);

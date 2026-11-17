@@ -6,9 +6,10 @@ afterEach(() => {
   document.body.replaceChildren();
 });
 
-// The expected symbols come from Project Nayuki's qrcodegen (an independent
-// encoder of ISO/IEC 18004), as module strings or the SHA-256 of the rows
-// joined; the capacities are the standard's Table 7.
+// The Annex I symbol is the standard's own example; the other expected
+// symbols are the output of Project Nayuki's qrcodegen, which qr.ts ports,
+// as module strings or the SHA-256 of the rows joined; the capacities are
+// the standard's Table 7.
 const ANNEX_I_1M = [
   "111111100011101111111",
   "100000101110001000001",

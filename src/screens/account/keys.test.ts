@@ -121,10 +121,10 @@ describe("mountSecurity: API keys", () => {
     );
   });
 
-  it("offers no Rotate without its part, and no Rename without the call", async () => {
-    const fake = new Fake().answer("keys", ok([BACKUP])).without("renameKey");
+  it("offers no Rotate without its part", async () => {
+    const fake = new Fake().answer("keys", ok([BACKUP]));
     const { region } = mount(fake, { parts: ["keys"] });
-    expect(actions(await keyRow(region, "backup script"))).toEqual(["Revoke backup script…"]);
+    expect(actions(await keyRow(region, "backup script"))).toEqual(["Rename…", "Revoke…"]);
   });
 
   it("holds the empty state's Create key, and the host's line in its place", async () => {
@@ -479,39 +479,6 @@ describe("mountSecurity: Rename, Rotate and Revoke", () => {
     expect(fake.named("rotateKey")).toHaveLength(3);
   });
 
-  it("makes a key like it, then revokes the old one, on a client with no rotation", async () => {
-    const expiring = { ...BACKUP, expires_at: hour(24 * 10 - 1) };
-    const fake = new Fake().answer("keys", ok([expiring])).without("rotateKey");
-    const { region, ran } = mount(fake, { parts: [...KEY_PARTS] });
-    await press(await keyRow(region, "backup script"), "Rotate…");
-    await answerQuestion("Rotate backup script?", "Rotate key");
-    const shown = await dialogOf("New secret for backup script");
-    expect(shown.textContent).toContain("The old key is revoked.");
-    expect(fake.named("createKey")[0]?.args).toEqual([
-      { label: "backup script", scopes: ["read"], expires_in_days: 10 },
-    ]);
-    expect(fake.named("revokeKey")[0]?.args).toEqual([12]);
-    expect(ran).toEqual(["auth.api_key_rotate", "auth.api_key_revoke"]);
-  });
-
-  it("keeps the new key shown when the old one cannot be revoked", async () => {
-    const fake = new Fake()
-      .answer("keys", ok([BACKUP]))
-      .answer("revokeKey", refuse(503, "auth_unavailable"))
-      .without("rotateKey");
-    const { region } = mount(fake, { parts: [...KEY_PARTS] });
-    await press(await keyRow(region, "backup script"), "Rotate…");
-    await answerQuestion("Rotate backup script?", "Rotate key");
-    const shown = await dialogOf("New secret for backup script");
-    expect(shown.textContent).not.toContain("The old key is revoked.");
-    await userEvent.click(button(shown, "Done"));
-    await vi.waitFor(() => {
-      expect(noticeOf(keysSection(region))).toBe(
-        "The new key is made, but the old one could not be revoked. Revoke it in the list.",
-      );
-    });
-  });
-
   it("revokes after a danger question that counts the keys it minted", async () => {
     const fake = new Fake().answer("keys", ok([CI, CHILD, BACKUP]), ok([BACKUP]));
     const { region, ran } = mount(fake, { parts: [...KEY_PARTS] });
@@ -548,6 +515,60 @@ describe("mountSecurity: Rename, Rotate and Revoke", () => {
     });
   });
 
+  it("reads the keys again when Rename… ends, after a retiring key's end passed during it", async () => {
+    const fake = new Fake().answer(
+      "keys",
+      ok([{ ...BACKUP, previous_until: new Date(Date.now() + 500).toISOString() }]),
+      ok([BACKUP]),
+      ok([BACKUP]),
+    );
+    const { region } = mount(fake, { parts: [...KEY_PARTS] });
+    const row = await keyRow(region, "backup script");
+    expect(stateOf(row)).toMatch(/^Retiring until /);
+    await press(row, "Rename…");
+    await vi.waitFor(
+      () => {
+        expect(fake.named("keys")).toHaveLength(2);
+      },
+      { timeout: 5000 },
+    );
+    expect(stateOf(row)).toMatch(/^Retiring until /);
+    await userEvent.keyboard("{Escape}");
+    await vi.waitFor(async () => {
+      expect(stateOf(await keyRow(region, "backup script"))).toBe("Active");
+    });
+    expect(fake.named("keys")).toHaveLength(3);
+  });
+
+  it("waits twice as long each time the server sends back an end this clock has passed", async () => {
+    const past = { ...BACKUP, previous_until: new Date(Date.now() - 5000).toISOString() };
+    const fake = new Fake().answer("keys", ok([BACKUP])).always("keys", ok([past]));
+    const { region } = mount(fake, { parts: [...KEY_PARTS] });
+    await keyRow(region, "backup script");
+    const realWait = globalThis.setTimeout.bind(globalThis);
+    const reads = (): number => fake.named("keys").length;
+    const readsAfter = async (ms: number): Promise<number> => {
+      await vi.advanceTimersByTimeAsync(ms);
+      for (let i = 0; i < 20; i++) {
+        await new Promise((done) => realWait(done, 10));
+      }
+      return reads();
+    };
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      window.dispatchEvent(new FocusEvent("focus"));
+      expect(await readsAfter(0)).toBe(2);
+      expect(await readsAfter(999)).toBe(2);
+      expect(await readsAfter(1)).toBe(3);
+      expect(await readsAfter(1999)).toBe(3);
+      expect(await readsAfter(1)).toBe(4);
+      expect(await readsAfter(3999)).toBe(4);
+      expect(await readsAfter(1)).toBe(5);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("holds Create key and Rotate on a plain session, with the way to HTTPS", async () => {
     const fake = new Fake()
       .answer(
@@ -559,6 +580,7 @@ describe("mountSecurity: Rename, Rotate and Revoke", () => {
           oidc: false,
           secure: false,
           https_origin: "https://tracker.example",
+          https_required: [],
         }),
       )
       .answer("me", ok(meWith({}, { session: { ...SESSION, secure: false } })))

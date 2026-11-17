@@ -1,7 +1,8 @@
 /**
  * invite.ts — the invite screen: a new account from an invite link, by
- * password or, from access Part 5, by single sign-on, with each answer's
- * words as docs/design-account.md "First run and invites" lists them.
+ * password or, when the client has the call, by single sign-on, with each
+ * answer's words as docs/design-account.md "First run and invites" lists
+ * them.
  * @module
  */
 
@@ -176,7 +177,7 @@ export function mountInvite<C extends InviteClient>(
       }
       const s = state.data;
       const t = transportOf(s);
-      // Accepting an invite needs HTTPS (access Part 3).
+      // access refuses an invite's acceptance over plain HTTP.
       if (t.plain) {
         holdable = [];
         body.replaceChildren(needsHttps(t, app, w));

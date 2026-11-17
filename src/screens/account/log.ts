@@ -103,7 +103,7 @@ interface View {
 }
 
 // access's own kinds, each in the class its entries take (its
-// account.eventKinds, and the kinds its Parts 4 and 5 add).
+// account.eventKinds, and the second-factor, owner and link kinds).
 const SESSION_KINDS = [
   "signed_in",
   "stepped_up",

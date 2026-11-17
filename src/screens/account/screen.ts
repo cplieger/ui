@@ -243,7 +243,7 @@ export async function read<T>(work: () => Promise<Result<T>>): Promise<Result<T>
   }
 }
 
-/** How the request that read `state()` travelled (access Part 3). */
+/** How the request that read `state()` travelled. */
 export interface Transport {
   readonly plain: boolean;
   /** What HTTPS would add here, of what the screen offers. */
@@ -253,8 +253,8 @@ export interface Transport {
 }
 
 export function transportOf(s: StateResponse): Transport {
-  const plain = s.secure === false;
-  const withheld = (s.https_required ?? []).filter(
+  const plain = !s.secure;
+  const withheld = s.https_required.filter(
     (m): m is "passkeys" | "oidc" => m === "passkeys" || m === "oidc",
   );
   return {

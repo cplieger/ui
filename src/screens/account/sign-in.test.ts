@@ -56,7 +56,13 @@ describe("mountSignIn: the panel", () => {
   });
 
   it("draws single sign-on from the server's offer alone: none with no provider named, a plain name with one", async () => {
-    const passkeyOnly = { setup_required: false, password_login: true, passkeys: true };
+    const passkeyOnly = {
+      setup_required: false,
+      password_login: true,
+      passkeys: true,
+      secure: true,
+      https_required: [],
+    };
     const off = mount(new Fake(), { state: { ...passkeyOnly, oidc: false } });
     await drawn(off.panel);
     expect(off.panel.querySelector("a[href*='/oidc/']")).toBeNull();
@@ -94,7 +100,14 @@ describe("mountSignIn: the panel", () => {
   it("shows a method only while the state and the mounted parts both have it", async () => {
     const fake = new Fake().answer(
       "state",
-      ok({ setup_required: false, password_login: true, passkeys: true, oidc: true }),
+      ok({
+        setup_required: false,
+        password_login: true,
+        passkeys: true,
+        oidc: true,
+        secure: true,
+        https_required: [],
+      }),
     );
     const { panel } = mount(fake, { parts: ["password", "single-sign-on"] });
     await drawn(panel);
@@ -106,7 +119,14 @@ describe("mountSignIn: the panel", () => {
   it("makes the only method the primary when password sign-in is off, and draws no rule", async () => {
     const fake = new Fake().answer(
       "state",
-      ok({ setup_required: false, password_login: false, passkeys: true, oidc: false }),
+      ok({
+        setup_required: false,
+        password_login: false,
+        passkeys: true,
+        oidc: false,
+        secure: true,
+        https_required: [],
+      }),
     );
     const { panel } = mount(fake);
     await drawn(panel);
@@ -118,7 +138,14 @@ describe("mountSignIn: the panel", () => {
   it("makes no primary of two methods without a password", async () => {
     const fake = new Fake().answer(
       "state",
-      ok({ setup_required: false, password_login: false, passkeys: true, oidc: true }),
+      ok({
+        setup_required: false,
+        password_login: false,
+        passkeys: true,
+        oidc: true,
+        secure: true,
+        https_required: [],
+      }),
     );
     const { panel } = mount(fake);
     await drawn(panel);
@@ -135,7 +162,14 @@ describe("mountSignIn: the panel", () => {
   it("says sign-in is off when no method is on", async () => {
     const fake = new Fake().answer(
       "state",
-      ok({ setup_required: false, password_login: false, passkeys: false, oidc: false }),
+      ok({
+        setup_required: false,
+        password_login: false,
+        passkeys: false,
+        oidc: false,
+        secure: true,
+        https_required: [],
+      }),
     );
     const { panel } = mount(fake);
     await drawn(panel);
@@ -158,7 +192,14 @@ describe("mountSignIn: the panel", () => {
   it("uses the state the host passes, and reads none", async () => {
     const fake = new Fake();
     const { panel } = mount(fake, {
-      state: { setup_required: false, password_login: true, passkeys: false, oidc: false },
+      state: {
+        setup_required: false,
+        password_login: true,
+        passkeys: false,
+        oidc: false,
+        secure: true,
+        https_required: [],
+      },
     });
     await drawn(panel);
     expect(fake.named("state")).toHaveLength(0);
@@ -422,8 +463,22 @@ describe("mountSignIn: password", () => {
       .answer("loginPassword", refuse(403, "auth_password_login_disabled"))
       .answer(
         "state",
-        ok({ setup_required: false, password_login: true, passkeys: true, oidc: false }),
-        ok({ setup_required: false, password_login: false, passkeys: true, oidc: false }),
+        ok({
+          setup_required: false,
+          password_login: true,
+          passkeys: true,
+          oidc: false,
+          secure: true,
+          https_required: [],
+        }),
+        ok({
+          setup_required: false,
+          password_login: false,
+          passkeys: true,
+          oidc: false,
+          secure: true,
+          https_required: [],
+        }),
       );
     const { panel } = mount(fake);
     await drawn(panel);
@@ -547,6 +602,37 @@ describe("mountSignIn: passkey", () => {
     });
     expect(other.panel.querySelector("form")).not.toBeNull();
   });
+
+  it.each([
+    [
+      "a refused begin",
+      { ok: false, status: 503, error: "unavailable", code: "auth_unavailable" },
+      "Sign-in is unavailable right now. Try again in a few seconds.",
+    ],
+    [
+      "a relying party that does not fit the host",
+      "SecurityError",
+      "Passkeys do not work at this address. Open the app at its usual address, or ask its admin to check its public URL.",
+    ],
+  ] as const)(
+    "asks the autofill once after %s, and once more per press",
+    async (_, error, words) => {
+      const fake = new Fake()
+        .answer("passkeySupport", { webauthn: true, conditional: true })
+        .always("signInWithPasskey", { kind: "failed", error });
+      const { panel } = mount(fake);
+      await drawn(panel);
+      const second = (): Promise<void> => new Promise((done) => setTimeout(done, 1000));
+      await second();
+      expect(fake.named("signInWithPasskey")).toHaveLength(1);
+      expect(noticeOf(panel)?.textContent).toBe(words);
+      await userEvent.click(button(panel, "Sign in with a passkey"));
+      await second();
+      // The press's own request, then the autofill's one restart.
+      expect(fake.named("signInWithPasskey")).toHaveLength(3);
+      expect(noticeOf(panel)?.textContent).toBe(words);
+    },
+  );
 });
 
 describe("mountSignIn: single sign-on return", () => {
@@ -760,19 +846,21 @@ describe("mountSignIn: over plain HTTP", () => {
   });
 });
 
-/** A state from access Part 4, which brings temporary passwords. */
-const part4 = {
+/** A state from a server with temporary passwords. */
+const temporaryState = {
   setup_required: false,
   password_login: true,
   passkeys: true,
   oidc: true,
   totp: true,
+  secure: true,
+  https_required: [],
 } as const;
 
 describe("mountSignIn: a temporary password", () => {
   it("switches the field to a temporary password and back, which the browser never keeps", async () => {
     const fake = new Fake()
-      .answer("state", ok(part4))
+      .answer("state", ok(temporaryState))
       .answer(
         "loginPassword",
         ok({ pending: { ticket: "t1", next: "set_credential", methods: ["password"] } }),
@@ -810,7 +898,10 @@ describe("mountSignIn: a temporary password", () => {
   });
 
   it("labels the form for a temporary password only when password sign-in is off", async () => {
-    const fake = new Fake().answer("state", ok({ ...part4, password_login: false, oidc: false }));
+    const fake = new Fake().answer(
+      "state",
+      ok({ ...temporaryState, password_login: false, oidc: false }),
+    );
     const { panel } = mount(fake);
     await drawn(panel);
     const pass = input(panel, "password");
@@ -820,14 +911,19 @@ describe("mountSignIn: a temporary password", () => {
   });
 
   it("is left out when the host does not mount it, or the server has none", async () => {
-    const fake = new Fake().answer("state", ok({ ...part4, password_login: false, oidc: false }));
+    const fake = new Fake().answer(
+      "state",
+      ok({ ...temporaryState, password_login: false, oidc: false }),
+    );
     const { panel } = mount(fake, { parts: ["password", "passkeys"] });
     await drawn(panel);
     expect(panel.querySelector("form")).toBeNull();
     const before = mount(new Fake());
     await drawn(before.panel);
     expect(button(before.panel, "Use a temporary password")).toBeUndefined();
-    const again = mount(new Fake().answer("state", ok(part4)), { parts: ["password", "passkeys"] });
+    const again = mount(new Fake().answer("state", ok(temporaryState)), {
+      parts: ["password", "passkeys"],
+    });
     await drawn(again.panel);
     expect(button(again.panel, "Use a temporary password")).toBeUndefined();
   });
@@ -917,6 +1013,8 @@ describe("mountSignIn: answers at the first step", () => {
           passkeys: true,
           oidc: true,
           sso: "for_linked",
+          secure: true,
+          https_required: [],
         }),
       )
       .answer("loginPassword", refuse(403, "auth_sso_only"));
@@ -939,6 +1037,8 @@ describe("mountSignIn: the single sign-on mode", () => {
       oidc: true,
       sso: mode,
       ...over,
+      secure: true,
+      https_required: [],
     });
 
   it("says who signs in with the provider for linked accounts", async () => {

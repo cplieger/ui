@@ -436,9 +436,6 @@ export interface AccountWords {
   readonly "keys.rotateRecent": string;
   readonly "keys.rotatedTitle": (label: string) => string;
   readonly "keys.rotatedLine": (time: string) => string;
-  /** Rotate on a server with no rotation: a new key, the old one revoked. */
-  readonly "keys.swappedLine": string;
-  readonly "keys.swapRevokeFailed": string;
   readonly "keys.overlap": string;
   readonly "keys.revoke": string;
   readonly "keys.revokeLabel": (label: string) => string;
@@ -792,8 +789,8 @@ function lockOf(method: string): string {
   }
 }
 
-/** Every kind access logs, from its docs/security-log.md and the kinds
- *  its Parts 4 and 5 add. */
+/** Every kind access logs, from its docs/security-log.md and the
+ *  second-factor, owner and link kinds. */
 function logKind(e: LogEntryView, how: (method: string) => string): string | undefined {
   const by =
     e.method === "password" || e.method === "passkey" || e.method === "oidc"
@@ -1344,9 +1341,6 @@ export const defaultAccountWords: AccountWords = {
   "keys.rotatedTitle": (label) => `New secret for ${label}`,
   "keys.rotatedLine": (time) =>
     `The old secret stops working at ${time}, or as soon as the new one is used.`,
-  "keys.swappedLine": "The old key is revoked. Put this one where the old one was.",
-  "keys.swapRevokeFailed":
-    "The new key is made, but the old one could not be revoked. Revoke it in the list.",
   "keys.overlap": "1 hour",
   "keys.revoke": "Revoke…",
   "keys.revokeLabel": (label) => `Revoke ${label}…`,

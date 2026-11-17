@@ -36,12 +36,16 @@ export function inFours(text: string, by: string): string {
   return (text.replace(/[\s-]/g, "").match(/.{1,4}/g) ?? []).join(by);
 }
 
-/** A recovery code as access Part 4 (d) normalises it: dashes and spaces
- *  dropped, upper case, O read as 0 and I or L as 1, ASCII only; undefined
- *  unless that leaves 16 letters and digits. */
+/** A recovery code as access normalises it: dashes and spaces dropped,
+ *  then 16 ASCII letters and digits, upper-cased, with O read as 0 and I
+ *  or L as 1; undefined for anything else. The ASCII test comes before
+ *  case mapping, which turns ß into SS and ı into I. */
 export function recoveryCode(value: string): string | undefined {
-  const code = value.replace(/[\s-]/g, "").toUpperCase().replace(/O/g, "0").replace(/[IL]/g, "1");
-  return /^[0-9A-Z]{16}$/.test(code) ? code : undefined;
+  const bare = value.replace(/[\s-]/g, "");
+  if (!/^[0-9A-Za-z]{16}$/.test(bare)) {
+    return undefined;
+  }
+  return bare.toUpperCase().replace(/O/g, "0").replace(/[IL]/g, "1");
 }
 
 /** A `.cp-field` for a recovery code, which groups what is typed in fours

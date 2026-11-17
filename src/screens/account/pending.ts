@@ -1,6 +1,6 @@
 /**
  * pending.ts — the steps of a sign-in that needs more after its first
- * factor (access Part 4): a second factor, a credential of the person's
+ * factor: a second factor, a credential of the person's
  * own after a temporary password, or a second factor set up there and
  * then. The ticket lives in this closure only, and each answer's newer
  * ticket replaces it.
@@ -73,7 +73,7 @@ interface Sent {
   readonly hold?: readonly HTMLElement[];
 }
 
-/** A password answer as a step's: the session alone before access Part 4. */
+/** A password answer as a step's: a bare session is signed in. */
 export function stepOf(d: PasswordAnswer): SignInOutcome {
   return "pending" in d || "signed_in" in d ? d : { signed_in: d };
 }

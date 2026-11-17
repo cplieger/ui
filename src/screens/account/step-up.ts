@@ -251,8 +251,8 @@ export async function stepUp<T, C extends StepUpClient>(
       if (answer === null) {
         again.say({ tone: "danger", text: w["generic.server"] });
       } else if (answer.ok) {
-        // From access Part 4 a sign-in may answer a further step, which
-        // this dialog does not hold.
+        // A sign-in may answer a further step, which this dialog does not
+        // hold.
         if (Object.hasOwn(answer.data as object, "pending")) {
           ended = { kind: "failed", words: w["stepUp.signInElsewhere"] };
           return false;

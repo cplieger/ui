@@ -80,7 +80,7 @@ The screen reads `state()` and draws what it allows: the password form, a passke
 
 Every write runs through `stepUp`, so a refusal asking for a recent sign-in opens "Confirm it is you" with the action's own sentence, such as "Revoking a key needs a recent sign-in.", and a write that needs none costs nothing. A new secret, recovery code or temporary password shows once in a dialog, held with [secret](../forms/secret.md)'s `shownOnce`.
 
-Rotate… calls `client.rotateKey(id)`. A client without it rotates by creating a key with the old key's label, scopes and remaining days, then revoking the old one, both under `auth.api_key_rotate`.
+Rotate… calls `client.rotateKey(id)`: the key keeps its id, label, scopes and expiry, and only its secret changes.
 
 ## Security log
 

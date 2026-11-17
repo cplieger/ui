@@ -77,6 +77,8 @@ const EVERY: StateResponse = {
   password_login: true,
   passkeys: true,
   oidc: true,
+  secure: true,
+  https_required: [],
 };
 const SIGNED_IN: SignedIn = { user: { username: "mika" } };
 
@@ -118,7 +120,7 @@ interface Script {
 
 const ALICE: PendingLinkView = { issuer: "https://id.example", username_hint: "mika@example.com" };
 
-/** A pending sign-in from access Part 4. */
+/** A pending sign-in: a step after the first factor. */
 const step = (
   next: Pending["next"],
   methods: Pending["methods"],
@@ -604,7 +606,13 @@ for (const panel of document.querySelectorAll<HTMLElement>("[data-account-demo]"
   }
 }
 
-const SETUP: StateResponse = { ...EVERY, setup_required: true, oidc: false };
+const SETUP: StateResponse = {
+  ...EVERY,
+  setup_required: true,
+  oidc: false,
+  secure: true,
+  https_required: [],
+};
 
 /** The setup answers, by what the person types. */
 function setupByWords(r: {
@@ -1064,8 +1072,6 @@ interface Account {
   /** The app offers authenticator apps. */
   readonly totp: boolean;
   readonly secure: boolean;
-  /** The server rotates a key in place (access Part 2). */
-  readonly rotates: boolean;
   /** The session's sign-in is old, so a key write asks to confirm it is you. */
   readonly stale: boolean;
 }
@@ -1233,7 +1239,6 @@ function account(
     keys: more.keys ?? keysOf(),
     totp: more.totp ?? true,
     secure: more.secure ?? true,
-    rotates: more.rotates ?? true,
     stale: more.stale ?? false,
   };
 }
@@ -1255,7 +1260,6 @@ const ACCOUNTS: Readonly<Record<string, () => Account>> = {
   keys: () => account(),
   "keys-none": () => account({}, {}, { keys: [] }),
   "keys-elsewhere": () => account({}, {}, { keys: keysOf().slice(0, 2) }),
-  "keys-swap": () => account({}, {}, { keys: keysOf().slice(0, 1), rotates: false }),
   "keys-required": () =>
     account(
       {},
@@ -1758,37 +1762,33 @@ function securityFake(a: Account): {
       a.keys = a.keys.map((k) => (k.id === id ? { ...k, label: r.name } : k));
       return done;
     },
-    ...(a.rotates
-      ? {
-          async rotateKey(
-            id: number,
-          ): Promise<Result<{ readonly key: string; readonly details: KeyView }>> {
-            await wait(700);
-            const no = fresh();
-            if (no !== undefined) {
-              return no;
-            }
-            const key = secret();
-            let details: KeyView | undefined;
-            a.keys = a.keys.map((k) => {
-              if (k.id !== id) {
-                return k;
-              }
-              const { last_used_at: _, ...rest } = k;
-              details = {
-                ...rest,
-                prefix: key.slice(0, 6),
-                suffix: key.slice(-3),
-                previous_until: later(HOUR),
-              };
-              return details;
-            });
-            return details === undefined
-              ? refusal(404, "auth_not_found")
-              : { ok: true, data: { key, details } };
-          },
+    async rotateKey(
+      id: number,
+    ): Promise<Result<{ readonly key: string; readonly details: KeyView }>> {
+      await wait(700);
+      const no = fresh();
+      if (no !== undefined) {
+        return no;
+      }
+      const key = secret();
+      let details: KeyView | undefined;
+      a.keys = a.keys.map((k) => {
+        if (k.id !== id) {
+          return k;
         }
-      : {}),
+        const { last_used_at: _, ...rest } = k;
+        details = {
+          ...rest,
+          prefix: key.slice(0, 6),
+          suffix: key.slice(-3),
+          previous_until: later(HOUR),
+        };
+        return details;
+      });
+      return details === undefined
+        ? refusal(404, "auth_not_found")
+        : { ok: true, data: { key, details } };
+    },
     async revokeKey(id) {
       await wait(600);
       const no = fresh();
@@ -1870,7 +1870,6 @@ const CARD_OPTIONS: Readonly<Record<string, Partial<SecurityOptions<SecurityDemo
       href: "#account-keys",
     },
   },
-  "keys-swap": { parts: KEY_PARTS },
   "keys-required": {
     parts: KEY_PARTS,
     scopes: {

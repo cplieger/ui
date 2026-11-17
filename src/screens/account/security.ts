@@ -454,8 +454,8 @@ export function mountSecurity<C extends SecurityClient>(
           revoke: (id) => client.revokeKey(id),
           own: {
             create: (r) => client.createKey(r),
-            ...(client.renameKey === undefined ? {} : { rename: client.renameKey.bind(client) }),
-            ...(client.rotateKey === undefined ? {} : { rotate: client.rotateKey.bind(client) }),
+            rename: (id, r) => client.renameKey(id, r),
+            rotate: (id) => client.rotateKey(id),
           },
         });
         top.append(keysPart.root);

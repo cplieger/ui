@@ -1,7 +1,7 @@
 /**
  * users.ts — the admin's people: each person's role, owner badge, state,
- * ways in and the keys that reached them, with the row actions access
- * Parts 4 and 5 add; Add user… and Invite…; the waiting invites; and every
+ * ways in and the keys that reached them, with the row actions the
+ * client has calls for; Add user… and Invite…; the waiting invites; and every
  * account's API keys, as docs/design-account.md "Admin" lists them.
  * @module
  */

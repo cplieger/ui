@@ -1,7 +1,7 @@
 /**
  * link.ts — the forms of "Link this identity", the sign-in screen's view
- * after a single sign-on return that no account uses (access Part 5's
- * pending link): an admin's temporary password under `sso: "only"`, and
+ * after a single sign-on return that no account uses (the pending link):
+ * an admin's temporary password under `sso: "only"`, and
  * "Create a new account" when the answer offers it.
  * @module
  */
@@ -149,7 +149,7 @@ export function adminLinkForm(x: LinkContext): HTMLFormElement {
     } else if (answer.ok) {
       x.done(answer.data);
     } else if (codeOf(answer) === "auth_invalid_credentials") {
-      // The same answer as a mode that is no longer "only" (access Part 5).
+      // access answers a mode that is no longer "only" the same way.
       const state = await read(() => client.state());
       if (state.ok && (state.data.sso ?? "alongside") !== "only") {
         x.redraw({ tone: "warning", text: w["link.notNow"] });

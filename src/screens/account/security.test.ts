@@ -129,6 +129,7 @@ describe("mountSecurity: a plain session", () => {
           oidc: false,
           secure: false,
           https_origin: "https://tracker.example",
+          https_required: [],
         }),
       )
       .answer("me", ok(meWith({}, { session: { ...SESSION, secure: false } })));
@@ -348,6 +349,8 @@ describe("mountSecurity: the password", () => {
         passkeys: true,
         oidc: true,
         password_length: { min: 30, max: 64 },
+        secure: true,
+        https_required: [],
       }),
     );
     const { region } = mount(fake);
@@ -557,7 +560,15 @@ describe("mountSecurity: the authenticator app", () => {
     new Fake()
       .answer(
         "state",
-        ok({ setup_required: false, password_login: true, passkeys: true, oidc: true, totp: true }),
+        ok({
+          setup_required: false,
+          password_login: true,
+          passkeys: true,
+          oidc: true,
+          totp: true,
+          secure: true,
+          https_required: [],
+        }),
       )
       .answer("me", ok(meWith(methods)));
 

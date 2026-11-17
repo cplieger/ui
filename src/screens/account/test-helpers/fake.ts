@@ -59,12 +59,14 @@ const everyMethod: StateResponse = {
   password_login: true,
   passkeys: true,
   oidc: true,
+  secure: true,
+  https_required: [],
 };
 
 export const signedIn: SignedIn = { user: { username: "mika" } };
 
 /** A person holding a password and a passkey, on an app with every method
- *  on, before access Part 4. */
+ *  on, holding no second factor. */
 const holdsAll: MethodsView = {
   password: true,
   passkey_count: 1,
@@ -329,7 +331,7 @@ export class Fake {
     ["inviteAcceptPassword", ok(signedIn)],
     ["inviteAcceptOIDC", ok({ url: "https://id.example/authorize?state=invite" })],
   ]);
-  /** Calls the client leaves out, as a server before access Part 2. */
+  /** Calls the client leaves out, as an app that does not wire them. */
   readonly #without = new Set<string>();
   readonly #gates = new Map<string, Promise<void>>();
 
@@ -379,8 +381,9 @@ export class Fake {
       : next;
   }
 
-  /** `@cplieger/access`'s `withStepUp` as dev.13 runs it, with access
-   *  Part 4's code; the passkey's browser step answers `passkeyAssertion`. */
+  /** `@cplieger/access`'s `withStepUp` as the pinned release runs it, plus
+   *  the authenticator code; the passkey's browser step answers
+   *  `passkeyAssertion`. */
   async #withStepUp<T>(
     c: FakeClient,
     action: () => Promise<Result<T>>,

@@ -22,6 +22,8 @@ const ONLY: StateResponse = {
   password_login: true,
   passkeys: true,
   oidc: true,
+  secure: true,
+  https_required: [],
   totp: true,
   sso: "only",
 };

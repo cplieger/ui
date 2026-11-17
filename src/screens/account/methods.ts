@@ -1,8 +1,8 @@
 /**
  * methods.ts — Account and security's sign-in methods: a `.cp-table` of
  * each method the person holds or may add, its state and its actions,
- * then the passkeys, as docs/design-account.md "Account and security" and
- * access Parts 3 to 5 say which shows when.
+ * then the passkeys, as docs/design-account.md "Account and security"
+ * says which shows when.
  * @module
  */
 

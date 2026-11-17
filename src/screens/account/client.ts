@@ -26,8 +26,7 @@ export interface StateResponse {
   readonly password_login: boolean;
   readonly passkeys: boolean;
   readonly oidc: boolean;
-  /** Absent before access Part 3: read as true. */
-  readonly secure?: boolean;
+  readonly secure: boolean;
   /** Only on a plain request to an app that allows one. */
   readonly plain_session?: {
     readonly idle_seconds: number;
@@ -35,17 +34,17 @@ export interface StateResponse {
   };
   /** What HTTPS would add: only what the app offers and the transport
    *  withholds. */
-  readonly https_required?: readonly ("password" | "setup" | "passkeys" | "oidc")[];
+  readonly https_required: readonly ("password" | "setup" | "passkeys" | "oidc")[];
   readonly https_origin?: string;
-  /** From access Part 4: the app offers authenticator apps. Absent: no. */
+  /** The app offers authenticator apps. Absent: no. */
   readonly totp?: boolean;
-  /** From access Part 4, on a plain request only: this form must not send
-   *  a temporary password. */
+  /** On a plain request only: this form must not send a temporary
+   *  password. */
   readonly temporary_password_https_only?: boolean;
-  /** From access Part 5: how single sign-on sits beside local sign-in.
-   *  Absent reads as `"alongside"`. */
+  /** How single sign-on sits beside local sign-in. Absent reads as
+   *  `"alongside"`. */
   readonly sso?: SSOMode;
-  /** From access Part 4: the bounds a new password must fit. */
+  /** The bounds a new password must fit, when the server sends them. */
   readonly password_length?: PasswordLength;
 }
 
@@ -56,18 +55,17 @@ export interface PasswordLength {
 }
 
 /** How single sign-on sits beside local sign-in, for everyone but the
- *  owners (access Part 5). */
+ *  owners. */
 export type SSOMode = "alongside" | "for_linked" | "only";
 
 export interface SignedIn {
   readonly user: { readonly username: string };
   readonly clone_warning?: boolean;
-  /** From access Part 4: set once, when this sign-in bound a factor that
-   *  issued one. */
+  /** Set once, when this sign-in bound a factor that issued one. */
   readonly recovery_code?: string;
 }
 
-/** A method a pending sign-in's step accepts (access Part 4). */
+/** A method a pending sign-in's step accepts. */
 export type PendingMethod = "totp" | "passkey" | "recovery_code" | "password";
 
 /** A sign-in that needs another step. The ticket lives in memory only, and
@@ -82,7 +80,7 @@ export interface Pending {
   readonly recovered?: boolean;
 }
 
-/** A sign-in step's answer (access Part 4). */
+/** A sign-in step's answer: signed in, or a further step. */
 export type SignInOutcome = { readonly signed_in: SignedIn } | { readonly pending: Pending };
 
 /** A finish that created an account waiting for an administrator, with no
@@ -112,8 +110,8 @@ export type PasskeySignInOutcome =
 export type RegisterOutcome =
   | {
       readonly kind: "registered";
-      /** From access Part 4: set when this passkey is the first second
-       *  factor of a person with a password. Show it once. */
+      /** Set when this passkey is the first second factor of a person
+       *  with a password. Show it once. */
       readonly recovery_code?: string;
     }
   | { readonly kind: "cancelled" | "duplicate" | "timeout" | "not-discoverable" }
@@ -124,12 +122,12 @@ export type OIDCReturn =
   | { readonly kind: "none" | "not_linked" | "linked" | "stepped_up" }
   | { readonly kind: "error"; readonly code: string | undefined };
 
-/** A password sign-in's, setup's or invite's answer: the session before
- *  access Part 4, a step's answer from it. */
+/** A password sign-in's, setup's or invite's answer: the session, from a
+ *  server with no further steps, or a step's answer. */
 export type PasswordAnswer = SignedIn | SignInOutcome;
 
-/** The client calls a pending sign-in's steps make. They come with access
- *  Part 4: a step shows a method only when the client has its call. */
+/** The client calls a pending sign-in's steps make, each optional: a step
+ *  shows a method only when the client has its call. */
 export interface PendingClient {
   loginCode?(ticket: string, code: string): Promise<Result<SignInOutcome>>;
   loginRecoveryCode?(ticket: string, code: string): Promise<Result<SignInOutcome>>;
@@ -155,10 +153,10 @@ export interface SignInClient extends PendingClient {
   oidcPending?(): Promise<Result<PendingLinkView>>;
   /** Links the pending identity to the account just signed in. */
   oidcLinkPending?(): Promise<Result<unknown>>;
-  /** From access Part 5: a new account for the pending identity. */
+  /** A new account for the pending identity. */
   oidcCreatePending?(r: { readonly username: string }): Promise<Result<SignedIn>>;
-  /** From access Part 5, under `sso: "only"`: links the pending identity
-   *  to an account with a temporary password from an admin. */
+  /** Under `sso: "only"`: links the pending identity to an account with
+   *  a temporary password from an admin. */
   oidcLinkByAdmin?(r: {
     readonly username: string;
     readonly temporary_password: string;
@@ -170,8 +168,7 @@ export interface PendingLinkView {
   readonly issuer: string;
   readonly username_hint?: string;
   readonly email?: string;
-  /** From access Part 5: "Create a new account" is offered. Absent reads
-   *  as false. */
+  /** "Create a new account" is offered. Absent reads as false. */
   readonly can_create?: boolean;
   readonly suggested_username?: string;
 }
@@ -184,13 +181,12 @@ export interface InviteClient extends PendingClient {
     readonly username: string;
     readonly password: string;
   }): Promise<Result<PasswordAnswer>>;
-  /** From access Part 5: the provider's address to accept by single
-   *  sign-on. */
+  /** The provider's address to accept by single sign-on. */
   inviteAcceptOIDC?(r: { readonly token: string }): Promise<Result<{ readonly url: string }>>;
 }
 
 /** The `@cplieger/access` functions a pending sign-in's steps call, over
- *  the host's client type `C`. The ones access Part 4 adds are optional. */
+ *  the host's client type `C`; the passkey steps are optional. */
 export interface PendingAccess<C> {
   storePasswordCredential(username: string, password: string): Promise<void>;
   /** A passkey as the second step. */
@@ -244,19 +240,19 @@ export interface MethodsView {
     readonly untrusted: boolean;
     readonly trusted: boolean;
   }[];
-  /** From access Part 4; absent reads as no authenticator app. */
+  /** Absent reads as no authenticator app. */
   readonly totp?: {
     readonly enrolled: boolean;
     readonly since?: string;
     readonly usable: boolean;
     readonly removable: boolean;
   };
-  /** From access Part 4; absent reads as true. */
+  /** Absent reads as true. */
   readonly password_step_up?: boolean;
-  /** From access Part 4: the person holds a recovery code. */
+  /** The person holds a recovery code. */
   readonly recovery_code?: boolean;
-  /** From access Part 4: adding or removing a passkey needs a proof of a
-   *  second factor. Absent reads as false. */
+  /** Adding or removing a passkey needs a proof of a second factor.
+   *  Absent reads as false. */
   readonly second_factor_held?: boolean;
 }
 
@@ -272,7 +268,7 @@ export interface SessionNow {
   readonly auth_time: string;
   readonly idle_deadline: string;
   readonly absolute_deadline: string;
-  /** False for a session made over plain HTTP (access Part 3). */
+  /** False for a session made over plain HTTP. */
   readonly secure: boolean;
 }
 
@@ -280,14 +276,14 @@ export interface SessionNow {
 export interface AccountView extends MeView {
   readonly user: MeView["user"] & { readonly id: number; readonly role: string };
   readonly can_link_oidc: boolean;
-  /** From access Part 5: the app has one account. */
+  /** The app has one account. */
   readonly single_user?: boolean;
-  /** From access Part 5: the identity provider manages this person's
-   *  sign-in, so their local methods are dormant. */
+  /** The identity provider manages this person's sign-in, so their
+   *  local methods are dormant. */
   readonly sso_only?: boolean;
-  /** Before access Part 5, the same as `sso_only`. */
+  /** The older name of `sso_only`, read when that is absent. */
   readonly sso_governed?: boolean;
-  /** From access Part 5: an owner keeps every local method. */
+  /** An owner keeps every local method. */
   readonly owner?: boolean;
   readonly session: SessionNow;
 }
@@ -301,13 +297,12 @@ export interface PasskeyView {
   readonly backed_up: boolean;
   readonly clone_warning?: boolean;
   readonly rp_id: string;
-  /** From access Part 4: Remove would not be refused. Absent reads as
-   *  true. */
+  /** Remove would not be refused. Absent reads as true. */
   readonly removable?: boolean;
 }
 
-/** Proof of a second factor (access Part 4): a code from the
- *  authenticator app, or a passkey assertion from `stepUpPasskeyBegin`. */
+/** Proof of a second factor: a code from the authenticator app, or a
+ *  passkey assertion from `stepUpPasskeyBegin`. */
 export type SecondFactorProof =
   { readonly code: string } | { readonly ceremony: string; readonly assertion: unknown };
 
@@ -320,7 +315,7 @@ export interface TotpBegin {
 }
 
 /** How a step-up confirms the person: `"totp"` is a code from their
- *  authenticator app (access Part 4). */
+ *  authenticator app. */
 export type StepUpChoice = "password" | "passkey" | "oidc" | "totp" | "cancel";
 
 /** What `withStepUp` takes, as `@cplieger/access` defines it. The prompt is
@@ -328,9 +323,9 @@ export type StepUpChoice = "password" | "passkey" | "oidc" | "totp" | "cancel";
 export interface StepUpCallbacks {
   prompt(methods: MethodsView): Promise<StepUpChoice>;
   readonly password: () => Promise<string | null>;
-  /** Read from access Part 4. */
+  /** A code from the authenticator app. */
   readonly code?: () => Promise<string | null>;
-  /** Read from access Part 3: a fresh sign-in for a plain session. */
+  /** A fresh sign-in for a plain session. */
   readonly signInAgain?: () => Promise<boolean>;
   readonly redirect?: string;
   readonly navigate?: (url: string) => void;
@@ -376,15 +371,14 @@ export interface SetupAccess<C> extends PendingAccess<C> {
 }
 
 /** The client calls Account and security's profile and sign-in methods
- *  make. The calls access Part 4 adds are optional: a control that needs
- *  one shows only when the client has it. */
+ *  make. The second-factor calls are optional: a control that needs one
+ *  shows only when the client has it. */
 export interface SecurityClient extends StepUpClient, SessionsClient, KeysClient, LogClient {
   state(): Promise<Result<StateResponse>>;
   me(): Promise<Result<AccountView>>;
   updateProfile(r: { readonly display_name: string }): Promise<Result<AccountView>>;
-  /** Answers nothing before access Part 4, then `{recovery_code?}`: set
-   *  when the new password joins a usable passkey of a person who held
-   *  no code. */
+  /** Answers nothing or `{recovery_code?}`: set when the new password
+   *  joins a usable passkey of a person who held no code. */
   setPassword(r: {
     readonly current_password?: string;
     readonly password: string;
@@ -420,7 +414,7 @@ export interface SessionView {
   readonly idle_deadline: string;
   readonly absolute_deadline: string;
   readonly current: boolean;
-  /** False for a session made over plain HTTP (access Part 3). */
+  /** False for a session made over plain HTTP. */
   readonly secure: boolean;
 }
 
@@ -464,11 +458,10 @@ export interface KeysClient {
     readonly scopes: readonly string[];
     readonly expires_in_days?: number;
   }): Promise<Result<KeyCreated>>;
-  /** From access Part 2; absent, a key has no Rename…. */
-  renameKey?(id: number, r: { readonly name: string }): Promise<Result<void>>;
-  /** From access Part 2; absent, Rotate… creates a key like it and revokes
-   *  the old one. */
-  rotateKey?(id: number): Promise<Result<KeyCreated>>;
+  renameKey(id: number, r: { readonly name: string }): Promise<Result<void>>;
+  /** A new secret for the same key; the previous one works until
+   *  `previous_until`. */
+  rotateKey(id: number): Promise<Result<KeyCreated>>;
   revokeKey(id: number): Promise<Result<void>>;
 }
 
@@ -547,8 +540,8 @@ export interface LogClient {
   adminUsers?(): Promise<Result<readonly PersonView[]>>;
 }
 
-/** A person's ways in, as only the admin's users list carries them. The
- *  fields access Parts 4 and 5 add are optional: absent reads as none. */
+/** A person's ways in, as only the admin's users list carries them.
+ *  Each optional field absent reads as none. */
 export interface UserMethodsView {
   readonly password: boolean;
   readonly passkey_count: number;
@@ -566,7 +559,6 @@ export interface UserView extends PersonView {
   readonly role: string;
   readonly enabled: boolean;
   readonly oidc_linked: boolean;
-  /** From access Part 5. */
   readonly owner?: boolean;
   readonly created_at: string;
   readonly methods?: UserMethodsView;
@@ -613,9 +605,8 @@ export interface TemporaryPasswordResponse {
   readonly password_kept: boolean;
 }
 
-/** The client calls the admin's users list makes. The calls access Parts
- *  4 and 5 add are optional: a row offers an action only when the client
- *  has its call. */
+/** The client calls the admin's users list makes. A row offers an
+ *  optional call's action only when the client has it. */
 export interface UsersClient extends StepUpClient {
   state(): Promise<Result<StateResponse>>;
   me(): Promise<Result<AccountView>>;
@@ -662,8 +653,8 @@ export interface Readiness {
   readonly temporary_passwords_withdrawn: number;
 }
 
-/** The client calls the owner's access settings make; the two calls
- *  arrive with access Part 5, and the screen draws nothing without them. */
+/** The client calls the access settings make; without the two optional
+ *  calls the screen draws nothing. */
 export interface AccessSettingsClient extends StepUpClient {
   state(): Promise<Result<StateResponse>>;
   me(): Promise<Result<AccountView>>;
@@ -677,11 +668,11 @@ export type ProofOutcome =
 
 /** The `@cplieger/access` functions Account and security calls. */
 export interface SecurityAccess<C> extends StepUpAccess<C> {
-  /** `proof` from access Part 4, while `second_factor_held`. */
+  /** `proof` while `second_factor_held`. */
   registerPasskey(c: C, proof?: SecondFactorProof): Promise<RegisterOutcome>;
   sendSignals(c: C): Promise<void>;
   storePasswordCredential(username: string, password: string): Promise<void>;
   readOIDCReturn(search: string): OIDCReturn;
-  /** From access Part 4: a passkey assertion as a second-factor proof. */
+  /** A passkey assertion as a second-factor proof. */
   passkeyProof?(c: C): Promise<ProofOutcome>;
 }

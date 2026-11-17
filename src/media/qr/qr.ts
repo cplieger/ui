@@ -2,6 +2,7 @@
  * qr.ts — `qrCode()` draws a text as a QR code symbol (ISO/IEC 18004) in an
  * SVG, encoded in the page, so a secret such as an `otpauth://` URI never
  * leaves it. `encodeQr()` gives the symbol's modules for another drawing.
+ * A port of Project Nayuki's qrcodegen (MIT, THIRD_PARTY_NOTICES.md).
  * @module
  */
 

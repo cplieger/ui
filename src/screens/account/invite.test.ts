@@ -35,6 +35,8 @@ const EVERY: StateResponse = {
   password_login: true,
   passkeys: true,
   oidc: true,
+  secure: true,
+  https_required: [],
 };
 
 type Options = Partial<Omit<InviteOptions<FakeClient>, "client" | "access">>;
@@ -127,7 +129,7 @@ describe("mountInvite: the panel", () => {
     expect(button(panel, "Accept with Authelia").dataset["variant"]).toBe("primary");
   });
 
-  it("leaves the provider out for a client before access Part 5", async () => {
+  it("leaves the provider out for a client without inviteAcceptOIDC", async () => {
     const { panel } = mount(new Fake().without("inviteAcceptOIDC"));
     await drawn(panel);
     expect(button(panel, "Accept with Authelia")).toBeUndefined();

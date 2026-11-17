@@ -1,8 +1,8 @@
 /**
- * settings.ts — the owner's access settings: how single sign-on sits beside
- * local sign-in, each choice checked with the server before it applies, as
- * docs/design-account.md "Admin" describes. The app's own second-factor
- * settings take their words from `AccountWords`.
+ * settings.ts — the access settings: how single sign-on sits beside local
+ * sign-in, each choice checked with the server for any admin and applied
+ * by an owner, as docs/design-account.md "Admin" describes. The app's own
+ * second-factor settings take their words from `AccountWords`.
  * @module
  */
 
@@ -95,8 +95,8 @@ const passing = (r: Refusal): boolean => {
 /**
  * Fills `region` with the SSO mode's three choices for an admin of a
  * multi-user app, each previewed by the server; only an owner applies
- * one. It stays empty for anyone else, and on a client before access
- * Part 5.
+ * one. It stays empty for anyone else, and on a client without
+ * `adminSSOReadiness`.
  */
 export function mountAccessSettings<C extends AccessSettingsClient>(
   region: HTMLElement,
@@ -167,7 +167,7 @@ export function mountAccessSettings<C extends AccessSettingsClient>(
   };
 
   // access answers the readiness read to any admin, and the change only
-  // to an owner (access design 4.55).
+  // to an owner.
   const shows = (me: AccountView): boolean =>
     me.single_user !== true &&
     (me.owner === true || me.user.role === "admin") &&

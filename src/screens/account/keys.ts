@@ -1,9 +1,8 @@
 /**
  * keys.ts — the one API keys table: Account and security's own keys, with
- * Create key…, the scope picker, Rename… in place and Rotate…, as access
- * Part 2's UI contract says; and the admin's every-account table, with
- * each key's owner, origin, the people it reached and its live invites.
- * Both revoke.
+ * Create key…, the scope picker, Rename… in place and Rotate…; and the
+ * admin's every-account table, with each key's owner, origin, the people
+ * it reached and its live invites. Both revoke.
  * @module
  */
 
@@ -100,8 +99,8 @@ export interface KeyCalls {
   /** The person's own keys: Create key…, Rename… and Rotate…. */
   readonly own?: {
     readonly create: SecurityClient["createKey"];
-    readonly rename?: NonNullable<SecurityClient["renameKey"]>;
-    readonly rotate?: NonNullable<SecurityClient["rotateKey"]>;
+    readonly rename: SecurityClient["renameKey"];
+    readonly rotate: SecurityClient["rotateKey"];
   };
   /** The admin's every-account table. */
   readonly admin?: KeysAdmin;
@@ -153,7 +152,13 @@ export function drawKeys(
   const initial = ctx.scopes?.initial;
   let list: readonly KeyView[] = [];
   let editing = false;
+  // A read that came back while Rename… was open, run again when it ends.
+  let skipped = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
+  // A past end the server still sent, and the wait before asking again:
+  // its clock is behind this one, so the wait doubles rather than polling.
+  let pastEnd: number | undefined;
+  let pastWait = 0;
   // How long the previous secret worked after the last rotation here, which
   // the app sets and only a rotation's answer tells.
   let overlap: string | undefined;
@@ -166,9 +171,14 @@ export function drawKeys(
 
   const refresh = async (focus?: string): Promise<void> => {
     const got = await read(() => calls.list());
-    if (ctx.signal?.aborted === true || editing) {
+    if (ctx.signal?.aborted === true) {
       return;
     }
+    if (editing) {
+      skipped = true;
+      return;
+    }
+    skipped = false;
     if (!got.ok) {
       ctx.settle({ kind: "done", result: got }, notices, (r) => unavailable(r, refresh));
       return;
@@ -188,9 +198,19 @@ export function drawKeys(
       .map((k) => (k.previous_until === undefined ? Number.NaN : Date.parse(k.previous_until)))
       .filter((t) => !Number.isNaN(t));
     if (ends.length === 0) {
+      pastEnd = undefined;
       return;
     }
-    const wait = Math.max(1000, Math.min(...ends) - Date.now() + 1000);
+    const soonest = Math.min(...ends);
+    const left = soonest - Date.now();
+    let wait = left + 1000;
+    if (left < 0) {
+      pastWait = soonest === pastEnd ? Math.min(pastWait * 2, MINUTE) : 1000;
+      pastEnd = soonest;
+      wait = pastWait;
+    } else {
+      pastEnd = undefined;
+    }
     timer = setTimeout(() => void refresh(), Math.min(wait, DAY_MS));
   };
 
@@ -370,7 +390,7 @@ export function drawKeys(
       lines.push(reachedLink(k.id, w["keys.reached"]));
     }
     const actions: Action[] = [];
-    if (own?.rename !== undefined) {
+    if (own !== undefined) {
       actions.push({
         text: w["keys.rename"],
         key: `key-rename-${String(k.id)}`,
@@ -808,8 +828,8 @@ export function drawKeys(
       },
       ended: (saved) => {
         editing = false;
-        if (saved) {
-          void refresh(`key-rename-${String(k.id)}`);
+        if (saved || skipped) {
+          void refresh(saved ? `key-rename-${String(k.id)}` : undefined);
         }
       },
     });
@@ -833,12 +853,14 @@ export function drawKeys(
       return;
     }
     const rotateKey = own?.rotate;
-    await (rotateKey === undefined ? swap(k, opener) : send(k, rotateKey, opener));
+    if (rotateKey !== undefined) {
+      await send(k, rotateKey, opener);
+    }
   }
 
   async function send(
     k: KeyView,
-    rotateKey: NonNullable<SecurityClient["rotateKey"]>,
+    rotateKey: SecurityClient["rotateKey"],
     opener: HTMLElement,
   ): Promise<void> {
     const name = labelOf(k);
@@ -867,53 +889,6 @@ export function drawKeys(
     ctx.settle(a, notices, (r) => refused(r, () => send(k, rotateKey, opener)));
     if (opener.isConnected) {
       opener.focus();
-    }
-  }
-
-  /** Rotate on a client with no `rotateKey`: a key like `k`, with its
-   *  label, scopes and remaining days, then `k` revoked. */
-  async function swap(k: KeyView, opener: HTMLElement): Promise<void> {
-    const create = own?.create;
-    if (create === undefined) {
-      return;
-    }
-    const left =
-      k.expires_at === undefined
-        ? 0
-        : Math.max(1, Math.ceil((Date.parse(k.expires_at) - Date.now()) / DAY_MS));
-    const request = {
-      label: k.label,
-      scopes: k.scopes,
-      ...(left > 0 ? { expires_in_days: left } : {}),
-    };
-    const made = await ctx.write("auth.api_key_rotate", w["keys.rotateRecent"], () =>
-      create(request),
-    );
-    if (made.kind !== "done" || !made.result.ok) {
-      ctx.settle(made, notices, (r) => refused(r, () => void swap(k, opener)));
-      if (opener.isConnected) {
-        opener.focus();
-      }
-      return;
-    }
-    const gone = await ctx.write("auth.api_key_revoke", w["keys.revokeRecent"], () =>
-      calls.revoke(k.id),
-    );
-    const revoked = gone.kind === "done" && gone.result.ok;
-    await showSecret(
-      {
-        title: w["keys.rotatedTitle"](labelOf(k)),
-        ...(revoked ? { line: w["keys.swappedLine"] } : {}),
-        label: w["keys.secret"],
-        secret: made.result.data.key,
-        ...noted("rotate", made.result.data.details),
-      },
-      w,
-      ctx.signal,
-    );
-    await refresh(`key-rename-${String(made.result.data.details.id)}`);
-    if (!revoked) {
-      notices.show("warning", w["keys.swapRevokeFailed"]);
     }
   }
 

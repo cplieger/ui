@@ -303,16 +303,16 @@ export function mountSignIn<C extends SignInClient>(
     });
   };
 
-  /** Part 3's strict posture over plain HTTP, or a plain screen whose form
-   *  could only be refused (Part 4). */
+  /** A plain request whose password form access would refuse: password
+   *  sign-in needs HTTPS here, or only a temporary password could be
+   *  sent and it must not cross in clear. */
   const strict = (s: StateResponse): boolean =>
     transport.plain &&
-    ((s.https_required ?? []).includes("password") ||
+    (s.https_required.includes("password") ||
       (!s.password_login && s.temporary_password_https_only === true));
 
   const temporaryOf = (s: StateResponse): Temporary => {
-    // Temporary passwords come with access Part 4, whose state always
-    // carries `totp`.
+    // A server with temporary passwords always sends `totp`.
     if (!has("temporary-password") || s.totp === undefined) {
       return "none";
     }
@@ -713,7 +713,7 @@ export function mountSignIn<C extends SignInClient>(
     }
     notices.clear();
     // Over plain HTTP a temporary password would cross in clear, and the
-    // server's cancel cannot win against a replay (access Part 4 (b)).
+    // server cancelling it afterwards cannot stop a replay of it.
     if (precheck && access.looksLikeTemporaryPassword?.(f.password.value) === true) {
       notices.show("warning", w["signIn.looksTemporary"](transport.httpsOrigin));
       f.password.focus();
@@ -856,7 +856,12 @@ export function mountSignIn<C extends SignInClient>(
         finish(outcome.result);
       } else if (outcome !== null && outcome.kind !== "cancelled" && outcome.kind !== "timeout") {
         passkeyRefused(outcome);
-        startConditional();
+        // "failed" answers at once, before any prompt (a refused begin, no
+        // network, a relying party id that does not fit the host), so
+        // restarting on it would loop; the passkey button asks again.
+        if (outcome.kind !== "failed") {
+          startConditional();
+        }
       }
     });
   };

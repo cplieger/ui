@@ -186,7 +186,7 @@ export function mountSetup<C extends SetupClient>(
         return;
       }
       const t = transportOf(state.data);
-      const required = state.data.https_required ?? [];
+      const required = state.data.https_required;
       if (t.plain && (required.includes("setup") || required.includes("password"))) {
         body.replaceChildren(needsHttps(t, app, w));
         return;
