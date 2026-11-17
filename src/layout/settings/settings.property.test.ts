@@ -365,6 +365,17 @@ describe("enhanceSettings' pressed-category hold, for any order of events", () =
               { kind: "render", drop: null },
             ],
           ],
+          // A re-render that shortens the page under the jump, after a box's
+          // own scroll (seed 972251911 in Chromium).
+          [
+            { ...flat, short: true },
+            [
+              { kind: "wait", for: "task" },
+              { kind: "box", to: 27 },
+              { kind: "press", at: 1 },
+              { kind: "render", drop: 2 },
+            ],
+          ],
           // A re-render after the jump moves the section, and WebKit settles
           // the page a pixel off to keep the fragment in place.
           [
