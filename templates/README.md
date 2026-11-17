@@ -13,7 +13,7 @@ The frame every screen inside the app shares, `.cp-app`.
 | Region | Element | Slots, in order |
 | --- | --- | --- |
 | skip | `a.cp-skip`, first in `<body>` | |
-| header | `header.cp-header` | brand (`a.cp-wordmark`), destinations (`nav.cp-nav`, the current one `aria-current="page"`), toolbar (the header status's button and its empty panel `#status`, the theme toggle, the global actions, the account button last when the app's account opens a menu, named by its avatar's initials then ", account", as "CP, account" or "C, account", and "Account" alone while the avatar shows no text) |
+| header | `header.cp-header` | brand (`a.cp-wordmark`), destinations (`nav.cp-nav`, the current one `aria-current="page"`), toolbar (the header status's button and its empty panel `#status`, the theme toggle, the global actions, then, last when the app's account opens a menu, the account button and its menu `#account`: the button named by its avatar's initials then ", account", as "CP, account" or "C, account", and "Account" alone while the avatar shows no text; the `.cp-menu` holding who is signed in, the account's page and Sign out). An account the app opens as a page is a destination in `nav.cp-nav` instead, named by its visible word, with no account button |
 | rail | `aside.cp-rail` | filters: a `.cp-list-heading` over a plain compact `.cp-list` per group. Under 60rem the rail leaves and the heading's Filters button, `.cp-rail-toggle`, opens the same filters in a sheet |
 | main | `main.cp-main#main`, `tabindex="-1"` | banner (the header status's urgent part `#urgent`, hidden while no urgent condition holds, then a `.cp-notice[data-variant="banner"]` per condition of the app's own that stops work on every screen), heading (`.cp-heading-row`: the `<h1 tabindex="-1">` and its facts line, then the page's actions), notices (a `.cp-notice` per condition of the whole screen), content |
 | status | `footer.cp-status` | the facts about the whole screen, freshness first, a part `data-state="late"` for work that has not run when it should have; about, last |
@@ -22,7 +22,7 @@ A route change moves focus to the screen's `<h1>`, which `tabindex="-1"` lets ta
 
 The about slot is `.cp-meta[data-part="about"]`: the product's version, then its source, licence or docs links, as [Design patterns](../docs/design-patterns.md#navigation-and-the-url) describes.
 
-Scripts: [press](../docs/core/press.md) and [pointer](../docs/core/pointer.md) for every page, [theme](../docs/core/theme.md) for the theme toggle, with its snippet before the first paint, [header-status](../docs/navigation/header-status.md) for the header status, its panel and its urgent part, with [anchor](../docs/overlays/anchor.md) and [announce](../docs/feedback/announce.md), [dialog](../docs/overlays/dialog.md) for the filter sheet, and [relative-time](../docs/data/relative-time.md) for the freshness fact.
+Scripts: [press](../docs/core/press.md) and [pointer](../docs/core/pointer.md) for every page, [theme](../docs/core/theme.md) for the theme toggle, with its snippet before the first paint, [header-status](../docs/navigation/header-status.md) for the header status, its panel and its urgent part, with [anchor](../docs/overlays/anchor.md) and [announce](../docs/feedback/announce.md), [menu](../docs/overlays/menu.md) for the account menu, [dialog](../docs/overlays/dialog.md) for the filter sheet, and [relative-time](../docs/data/relative-time.md) for the freshness fact.
 
 ## List and detail: `list-detail.html`
 

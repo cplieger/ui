@@ -1547,7 +1547,7 @@ html:has(.g-header) {
 }
 
 .f-box > small {
-  color: var(--cp-neutral-11);
+  color: var(--cp-ink-muted);
   font-size: var(--cp-text-xs);
 }
 

@@ -32,7 +32,7 @@
             <span class="cp-nav-label">Releases</span>
           </a>
         </nav>
-        <!-- slot: toolbar: the header status and its panel, the theme toggle, the global actions, the account button last -->
+        <!-- slot: toolbar: the header status and its panel, the theme toggle, the global actions, the account button and its menu last -->
         <div class="cp-toolbar">
           <!-- slot: header status: the button and its empty panel, which createHeaderStatus fills; the run controls are its starts -->
           <button class="cp-header-status" type="button" data-state="ok" popovertarget="status">
@@ -46,9 +46,16 @@
           <a class="cp-button" data-variant="quiet" href="#" aria-label="Settings">
             <span class="cp-icon" data-cp-icon="settings" aria-hidden="true"></span>
           </a>
-          <button class="cp-button cp-account" data-variant="quiet" type="button" aria-label="CP, account">
+          <!-- slot: account: the button and its menu: who is signed in, the account's page, Sign out -->
+          <button class="cp-button cp-account" data-variant="quiet" type="button" aria-label="CP, account" popovertarget="account" aria-haspopup="menu">
             <span class="cp-avatar" data-size="sm">CP</span>
           </button>
+          <div class="cp-popover cp-menu" id="account" popover role="menu" aria-label="Account">
+            <div class="cp-menu-label">Signed in as cplieger</div>
+            <a role="menuitem" href="#"><span class="cp-icon" data-cp-icon="user" aria-hidden="true"></span>Account and security</a>
+            <hr>
+            <button role="menuitem" type="button"><span class="cp-icon" data-cp-icon="log-out" aria-hidden="true"></span>Sign out</button>
+          </div>
         </div>
       </header>
       <!-- region: rail: the screen's filters; under 60rem it leaves, and the heading's Filters button opens them in a sheet -->

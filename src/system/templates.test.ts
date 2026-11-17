@@ -245,6 +245,16 @@ describe("the page templates", () => {
     },
   );
 
+  // docs/design-components.md: the account button opens a .cp-menu.
+  it.each(APP_PAGES)("%s opens the account menu from the account button", async (name) => {
+    const doc = await load(name, 1600);
+    const button = doc.querySelector<HTMLButtonElement>(".cp-header > .cp-toolbar > .cp-account");
+    const menu = button?.popoverTargetElement;
+    expect(button?.getAttribute("aria-haspopup")).toBe("menu");
+    expect(menu?.matches('.cp-popover.cp-menu[popover][role="menu"]')).toBe(true);
+    expect(menu?.querySelectorAll('[role="menuitem"]').length).toBeGreaterThan(0);
+  });
+
   it("app.html's header status takes createHeaderStatus as its parts", async () => {
     const doc = await parse("app.html");
     const host = document.createElement("div");
