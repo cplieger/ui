@@ -526,7 +526,11 @@ describe("enhanceListDetail", () => {
     | "ctrl"
     | "shift"
     | "prevented"
-    | "ctrl-escape";
+    | "ctrl-escape"
+    | "ctrl-replace"
+    | "shift-replace"
+    | "intercepted"
+    | "intercept-hide";
   type At = "detail" | "page" | "moved" | "link";
   type Drawn = "opener" | "entry" | "roving" | "link" | "heading";
   type Ends = Drawn | "part" | "moved";
@@ -606,6 +610,37 @@ describe("enhanceListDetail", () => {
     await userEvent.click(s.link);
     await done;
   };
+  const nav = (globalThis as { readonly navigation?: Navigation }).navigation!;
+  /** A route on the Navigation API's `intercept()`, which fires no
+   *  hashchange, keeping scroll and focus to itself; `then` runs in its
+   *  handler after an await. */
+  const intercepting = (then?: () => void): void => {
+    nav.addEventListener(
+      "navigate",
+      (e) => {
+        if (e.hashChange && e.canIntercept) {
+          e.intercept({
+            scroll: "manual",
+            focusReset: "manual",
+            handler: async () => {
+              await task();
+              then?.();
+            },
+          });
+        }
+      },
+      { signal: life.signal },
+    );
+  };
+  /** A modifier press, then a router stamping state on the same address, as
+   *  grelot keeps its scroll, then the route's hide. */
+  const modifiedThenStamped = async (s: Scene, typed: string): Promise<void> => {
+    await keys(s.link, typed);
+    await task();
+    history.replaceState({ ...(history.state as object | null), scroll: 0 }, "", location.href);
+    await task();
+    s.api.show(null);
+  };
   /** Presses `el` from the keyboard, since a pointer press first scrolls
    *  what it presses into view. */
   const keys = (el: HTMLElement, typed: string): Promise<void> => {
@@ -651,6 +686,28 @@ describe("enhanceListDetail", () => {
       await keys(s.link, "{Enter}");
       s.api.show(null);
     },
+    "ctrl-replace": (s) => modifiedThenStamped(s, "{Control>}{Enter}{/Control}"),
+    "shift-replace": (s) => modifiedThenStamped(s, "{Shift>}{Enter}{/Shift}"),
+    // The intercepting route keeps the detail open; a later change hides it.
+    intercepted: async (s) => {
+      intercepting();
+      const done = new Promise((r) => {
+        nav.addEventListener("navigatesuccess", r, { once: true });
+      });
+      await keys(s.link, "{Enter}");
+      await done;
+      await task();
+      await task();
+      s.api.show(null);
+    },
+    "intercept-hide": async (s) => {
+      intercepting(() => {
+        s.api.show(null);
+      });
+      const done = closed(s.root);
+      await keys(s.link, "{Enter}");
+      await done;
+    },
     "ctrl-escape": async (s) => {
       await userEvent.click(s.link, { modifiers: ["Control"] });
       await task();
@@ -658,7 +715,7 @@ describe("enhanceListDetail", () => {
     },
   };
   /** The causes that scroll the page to the part before the hide. */
-  const NAVIGATES = new Set<Cause>(["link", "beside", "kept"]);
+  const NAVIGATES = new Set<Cause>(["link", "beside", "kept", "intercept-hide"]);
 
   const DOCK = 1000;
   const SHEET = 400;
@@ -695,6 +752,13 @@ describe("enhanceListDetail", () => {
         row(w, c, "link", "entry", "entry"),
       ]),
     ),
+    ...[DOCK, SHEET].flatMap((w) => [
+      ...(["ctrl-replace", "shift-replace", "intercepted"] as const).flatMap((c) => [
+        row(w, c, "link", "opener", "opener"),
+        row(w, c, "link", "entry", "entry"),
+      ]),
+      row(w, "intercept-hide", "link", "opener", "part"),
+    ]),
     row(SHEET, "ctrl-escape", "link", "opener", "opener"),
     row(SHEET, "ctrl-escape", "link", "entry", "entry"),
   ];

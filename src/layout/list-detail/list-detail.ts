@@ -167,8 +167,10 @@ interface Press {
   readonly link: Element;
   /** The part of the page its fragment names. */
   readonly part: HTMLElement | null;
-  /** Set once the navigation has committed: a press that navigated nothing,
-   *  as a Ctrl press in WebKit, fires `navigate` and never commits. */
+  /** Set by the `currententrychange` of the press's own navigation, the next
+   *  one after its `navigate` with no other `navigate` between: a press that
+   *  navigated nothing, as a Ctrl press in WebKit, never commits, and a
+   *  router's later same-URL `replaceState` commits only itself. */
   committed: boolean;
 }
 
@@ -217,6 +219,8 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
    *  script to end: the page stays inert until the dialog closes. */
   let pending: Hidden | null = null;
   let press: Press | null = null;
+  /** The press the next `currententrychange` commits. */
+  let awaiting: Press | null = null;
   /** Counts opens and closes, so an exit that ends after the next open
    *  leaves the detail where it is. */
   let turn = 0;
@@ -569,7 +573,11 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
       const link = e.sourceElement;
       if (e.hashChange && (link instanceof HTMLAnchorElement || link instanceof HTMLAreaElement)) {
         press = { link, part: indicated(link), committed: false };
-      } else if (!(e.navigationType === "replace" && e.destination.url === location.href)) {
+        awaiting = press;
+        return;
+      }
+      awaiting = null;
+      if (!(e.navigationType === "replace" && e.destination.url === location.href)) {
         // A router rewriting the entry's state keeps the press it handles.
         press = null;
       }
@@ -579,9 +587,23 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
   navigation?.addEventListener(
     "currententrychange",
     () => {
-      if (press !== null) {
-        press.committed = true;
+      const p = awaiting;
+      awaiting = null;
+      if (p === null || p !== press) {
+        return;
       }
+      p.committed = true;
+      // An intercepted navigation fires no hashchange: its route has handled
+      // the press once the handler's promise settles.
+      const finished = navigation.transition?.finished;
+      const forget = (): void => {
+        setTimeout(() => {
+          if (press === p) {
+            press = null;
+          }
+        }, 0);
+      };
+      finished?.then(forget, forget);
     },
     listen,
   );
