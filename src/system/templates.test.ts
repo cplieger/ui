@@ -232,6 +232,19 @@ describe("the page templates", () => {
     },
   );
 
+  // WCAG 2.5.3 Label in Name: a voice user says the initials the button shows.
+  it.each(APP_PAGES)(
+    "%s names the account button by the initials it shows, first",
+    async (name) => {
+      const doc = await load(name, 1600);
+      const button = doc.querySelector<HTMLElement>(".cp-header > .cp-toolbar > .cp-account");
+      const shown = button?.innerText.trim() ?? "";
+      const label = button?.getAttribute("aria-label") ?? "";
+      expect(shown).toBe("CP");
+      expect(label.slice(0, shown.length).toLowerCase()).toBe(shown.toLowerCase());
+    },
+  );
+
   it("app.html's header status takes createHeaderStatus as its parts", async () => {
     const doc = await parse("app.html");
     const host = document.createElement("div");

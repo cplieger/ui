@@ -204,6 +204,77 @@ describe.each(browsers)("the gallery in %s", (name) => {
     expect([...missing]).toEqual([]);
   });
 
+  // docs/design-colour.md "Contrast": secondary text 4.5:1, and 7:1 with more contrast.
+  it("draws the layouts page's frame notes at 4.5:1, 7:1 with more contrast", async () => {
+    const low: string[] = [];
+    let seen = 0;
+    for (const contrast of ["no-preference", "more"] as const) {
+      for (const theme of ["light", "dark"]) {
+        for (const width of [1440, 390]) {
+          const tab = await (browser as Browser).newPage({
+            viewport: { width, height: 900 },
+            contrast,
+          });
+          await tab.goto(`${origin}/layouts.html`);
+          await tab.evaluate(async (t) => {
+            document.documentElement.dataset["theme"] = t;
+            await new Promise(requestAnimationFrame);
+            await Promise.all(
+              document
+                .getAnimations()
+                .filter((a) => a instanceof CSSTransition)
+                .map((a) => a.finished.catch(() => undefined)),
+            );
+          }, theme);
+          const ratios = await tab.evaluate(() => {
+            const ctx = new OffscreenCanvas(1, 1).getContext("2d", { willReadFrequently: true });
+            if (ctx === null) {
+              throw new Error("no 2d context");
+            }
+            const lum = (): number => {
+              const [r = 0, g = 0, b = 0] = ctx.getImageData(0, 0, 1, 1).data;
+              const lin = (v: number) =>
+                v / 255 <= 0.04045 ? v / 255 / 12.92 : ((v / 255 + 0.055) / 1.055) ** 2.4;
+              return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+            };
+            const paint = (colour: string): void => {
+              ctx.fillStyle = colour;
+              ctx.fillRect(0, 0, 1, 1);
+            };
+            return [...document.querySelectorAll<HTMLElement>(".f-box > small")]
+              .filter((s) => s.checkVisibility())
+              .map((small) => {
+                const chain: Element[] = [];
+                for (let e = small.parentElement; e; e = e.parentElement) {
+                  chain.unshift(e);
+                }
+                paint("#fff");
+                for (const e of chain) {
+                  paint(getComputedStyle(e).backgroundColor);
+                }
+                const bg = lum();
+                paint(getComputedStyle(small).color);
+                const [hi, lo] = [bg, lum()].sort((x, y) => y - x) as [number, number];
+                return { text: small.textContent, ratio: (hi + 0.05) / (lo + 0.05) };
+              });
+          });
+          await tab.close();
+          seen += ratios.length;
+          const floor = contrast === "more" ? 7 : 4.5;
+          for (const { text, ratio } of ratios) {
+            if (ratio < floor) {
+              low.push(
+                `${contrast} ${theme} ${String(width)}: ${String(text)} ${ratio.toFixed(2)}`,
+              );
+            }
+          }
+        }
+      }
+    }
+    expect(seen).toBeGreaterThan(0);
+    expect(low).toEqual([]);
+  }, 60_000);
+
   it("shows a template's destination as a route change, focus on its h1", async () => {
     const tab = await (browser as Browser).newPage({ viewport: { width: 1440, height: 900 } });
     await tab.goto(`${origin}/templates/app.html`);
