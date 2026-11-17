@@ -22,5 +22,6 @@ enhanceRange(range, { output, format: (v) => `${v} seeders`, signal: page.signal
 
 - Each `input` sets the fill, writes `format(value)` into `output` and into the tip over the thumb. Without `format`, the value shows as it is.
 - The tip shows while a pointer holds the thumb or the slider has keyboard focus, and follows the thumb, from the right in a right-to-left page.
+- In a settings page's `.cp-setting` row, the `.cp-range-row` is at least 14rem wide, and wraps under the label when the row is narrower.
 - A `.cp-range` outside a `.cp-range-row`, such as a video's seek bar, takes the fill and no tip.
 - `signal` removes the listeners and the tip.

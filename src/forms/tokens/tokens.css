@@ -27,6 +27,19 @@
   color: var(--cp-ink-muted);
 }
 
+/* A loader stands in for the glass while results load, at the glass's
+ * size, so the words beside it do not move. */
+.cp-tokens > .cp-loader {
+  inline-size: var(--cp-icon-ui);
+  block-size: var(--cp-icon-ui);
+  margin-inline: 0.25rem 0.125rem;
+}
+
+.cp-tokens > .cp-loader > span {
+  inline-size: 0.875rem;
+  block-size: 0.875rem;
+}
+
 .cp-tokens > input {
   flex: 1 1 8rem;
   min-inline-size: 6rem;
