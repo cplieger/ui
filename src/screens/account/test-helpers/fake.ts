@@ -349,16 +349,11 @@ export class Fake {
 
   /** Every later call of `name` waits until the returned release runs. */
   hold(name: string): () => void {
-    let release = (): void => undefined;
-    this.#gates.set(
-      name,
-      new Promise<void>((resolve) => {
-        release = resolve;
-      }),
-    );
+    const { promise, resolve }: PromiseWithResolvers<void> = Promise.withResolvers();
+    this.#gates.set(name, promise);
     return () => {
       this.#gates.delete(name);
-      release();
+      resolve();
     };
   }
 

@@ -39,7 +39,7 @@ function server(log: readonly LogEntryView[], evicted = 0) {
         (q.after === undefined || e.seq > q.after) &&
         (q.before === undefined || e.seq < q.before),
     );
-    const sorted = [...match].sort((a, b) =>
+    const sorted = match.toSorted((a, b) =>
       q.oldestFirst === true ? a.seq - b.seq : b.seq - a.seq,
     );
     const count = (c: string): number => log.filter((e) => e.class === c).length;

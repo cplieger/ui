@@ -274,7 +274,7 @@ export function drawSessions<C extends SecurityClient>(
 /** This device first, then the others by their last activity, newest
  *  first. */
 function order(sessions: readonly SessionView[]): SessionView[] {
-  return [...sessions].sort(
+  return sessions.toSorted(
     (a, b) =>
       Number(b.current) - Number(a.current) ||
       Date.parse(b.last_activity) - Date.parse(a.last_activity),

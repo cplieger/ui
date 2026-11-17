@@ -444,7 +444,7 @@ export function drawLog(
     );
 
   const shown = (list: readonly LogEntryView[]): LogEntryView[] =>
-    [...list].sort((a, b) => (view.order === "newest" ? b.seq - a.seq : a.seq - b.seq));
+    list.toSorted((a, b) => (view.order === "newest" ? b.seq - a.seq : a.seq - b.seq));
 
   const load = async (focus: boolean): Promise<void> => {
     loads += 1;
