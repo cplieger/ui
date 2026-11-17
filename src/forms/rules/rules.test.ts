@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { userEvent } from "vitest/browser";
 
 import { installAnnouncer } from "../../feedback/announce/announce.js";
@@ -160,5 +160,46 @@ describe("enhanceRules", () => {
       "Delete the rule when the audio is Japanese",
       "Delete the rule when the audio is Japanese",
     ]);
+  });
+});
+
+describe("the glyphs the stylesheet draws", () => {
+  let sheet: HTMLLinkElement;
+
+  beforeAll(async () => {
+    document.documentElement.classList.add("cp");
+    sheet = document.createElement("link");
+    sheet.rel = "stylesheet";
+    sheet.href = new URL("../../../css/system.css", import.meta.url).href;
+    const loaded = new Promise((resolve, reject) => {
+      sheet.addEventListener("load", resolve, { once: true });
+      sheet.addEventListener("error", reject, { once: true });
+    });
+    document.head.append(sheet);
+    await loaded;
+  });
+
+  afterAll(() => {
+    sheet.remove();
+    document.documentElement.classList.remove("cp");
+  });
+
+  const glyph = (b: Element): string => {
+    const s = getComputedStyle(b, "::before");
+    return s.getPropertyValue("mask-image") || s.getPropertyValue("-webkit-mask-image");
+  };
+
+  it("draws + on a rule's add and × on each remove", async () => {
+    const { box, list, addRule } = rules();
+    make(box);
+    await userEvent.click(addRule);
+    const added = list.lastElementChild as HTMLElement;
+    await userEvent.click(q<HTMLButtonElement>(added, "[data-add-target]"));
+    // The built stylesheet inlines each glyph, so the test compares them.
+    const remove = glyph(q(added, "[data-remove-rule]"));
+    expect(remove).toMatch(/^url\(/);
+    expect(glyph(q(added, "[data-remove-target]"))).toBe(remove);
+    expect(glyph(q(added, "[data-add-target]"))).toMatch(/^url\(/);
+    expect(glyph(q(added, "[data-add-target]"))).not.toBe(remove);
   });
 });

@@ -6,7 +6,8 @@
  * error states, and phone-width frames.
  */
 
-import { durationEdges, renderChart, type Chart, type ChartSpec } from "@cplieger/ui/chart";
+import { renderChart, type Chart, type ChartSpec } from "@cplieger/ui/chart";
+import type { BoxesFrame, CategoriesFrame, FrameBoxes, SeriesFrame } from "@cplieger/ui/frame";
 
 const S = 1_000;
 const MIN = 60 * S;
@@ -71,42 +72,57 @@ interface Drawn {
   readonly kinds?: number;
 }
 
+// A thread kind's key on the wire, the label value the server counts by.
+const kindKey = (name: string): string => name.toLowerCase();
+
+const kindKeys = (kinds: number) =>
+  KINDS.slice(0, kinds).map(([name], i) => ({
+    key: kindKey(name),
+    name,
+    slot: (i + 1) as 1 | 2 | 3 | 4,
+  }));
+
 function posts({ start, starts, ends, counts }: Posts, drawn: Drawn = {}): ChartSpec {
   const { kinds = KINDS.length, ...rect } = drawn;
   return {
-    x: { type: "time", domain: [start, END] },
+    data: {
+      type: "bins",
+      name: "posts",
+      unit: "count",
+      axis: "time",
+      x1: [...starts],
+      x2: [...ends],
+      domain: [start, END],
+      open: true,
+      series: KINDS.slice(0, kinds).map(([name], i) => ({
+        key: kindKey(name),
+        values: [...(counts[i] ?? [])],
+      })),
+    },
+    mark: { mark: "rect", ...rect, keys: kindKeys(kinds) },
     y: { label: "Posts", unit: { one: "post", other: "posts" } },
-    marks: [
-      {
-        mark: "rect",
-        x1: starts,
-        x2: ends,
-        open: true,
-        ...rect,
-        series: KINDS.slice(0, kinds).map(([name], i) => ({
-          name,
-          slot: (i + 1) as 1 | 2 | 3 | 4,
-          y: [...(counts[i] ?? [])],
-        })),
-      },
-    ],
     empty: "No posts in this range.",
   };
 }
+
+// chartdata's duration ladder in seconds, up to its 3-day edge.
+const LADDER = [
+  0, 1, 2, 5, 10, 30, 60, 120, 300, 600, 1_800, 3_600, 7_200, 21_600, 43_200, 86_400, 259_200,
+];
 
 // Reads binned as the server bins them, on the duration ladder: each bin
 // [edge, next edge), the last closed. The delays are log-normal round a
 // 42-second median, with 18 minutes at the 95th percentile.
 function reads(n: number, seed: number): ChartSpec {
   const rand = random(seed);
-  const edges = durationEdges();
+  const edges = LADDER;
   const last = edges[edges.length - 1] ?? 0;
   const delays: number[] = [];
   while (delays.length < n) {
     const z = Math.sqrt(-2 * Math.log(1 - rand())) * Math.cos(2 * Math.PI * rand());
-    const ms = Math.round(42 * S * Math.exp(1.974 * z));
-    if (ms <= last) {
-      delays.push(ms);
+    const seconds = Math.round(42 * S * Math.exp(1.974 * z)) / S;
+    if (seconds <= last) {
+      delays.push(seconds);
     }
   }
   delays.sort((a, b) => a - b);
@@ -118,17 +134,25 @@ function reads(n: number, seed: number): ChartSpec {
   }
   const rank = (q: number): number => delays[Math.ceil(q * delays.length) - 1] ?? 0;
   return {
-    x: { type: "log", format: "duration", label: "Time from post to read", domain: [S, last] },
+    data: {
+      type: "bins",
+      name: "read_delay_seconds",
+      unit: "seconds",
+      axis: "value",
+      x1: edges.slice(0, -1),
+      x2: edges.slice(1),
+      series: [{ key: "reads", values: counts }],
+      refs: [
+        { key: "median", value: rank(0.5) },
+        { key: "p95", value: rank(0.95) },
+      ],
+    },
+    mark: { mark: "rect", keys: [{ key: "reads", name: "Reads" }] },
+    x: { type: "log", label: "Time from post to read", domain: [1, last] },
     y: { label: "Reads", unit: { one: "read", other: "reads" } },
-    marks: [
-      {
-        mark: "rect",
-        x1: edges.slice(0, -1),
-        x2: edges.slice(1),
-        series: [{ name: "Reads", y: counts }],
-      },
-      { mark: "rule", x: rank(0.5), label: "Median" },
-      { mark: "rule", x: rank(0.95), label: "95th percentile" },
+    refs: [
+      { key: "median", label: "Median" },
+      { key: "p95", label: "95th percentile" },
     ],
     summary: (s) => `${s} 38 still unread.`,
     empty: "No reads in this range.",
@@ -191,12 +215,13 @@ function postTimes(rate: number, from: number, rand: () => number): number[] {
 function activity(hours: number): ChartSpec {
   const start = END - hours * HR;
   const rand = random(hours + 100);
-  const rows = AGENTS.map(([name, rate]) => ({ name, x: postTimes(rate, start, rand) }));
-  rows.sort((a, b) => b.x.length - a.x.length);
+  const rows = AGENTS.map(([key, rate]) => ({ key, at: postTimes(rate, start, rand) }));
+  rows.sort((a, b) => b.at.length - a.at.length);
   return {
-    x: { type: "time", domain: [start, END] },
+    data: { type: "events", name: "posts", rows },
+    mark: { mark: "dot", unit: { one: "post", other: "posts" } },
+    x: { domain: [start, END] },
     y: { type: "band", mono: true, unit: { one: "agent", other: "agents" } },
-    marks: [{ mark: "dot", unit: { one: "post", other: "posts" }, rows }],
     empty: "No agent posted in this range.",
   };
 }
@@ -229,19 +254,27 @@ function agents(hours: number): ChartSpec {
     active.push(a);
   }
   return {
-    x: { type: "time", domain: [start, END] },
+    data: {
+      type: "series",
+      name: "agents",
+      unit: "count",
+      x,
+      domain: [start, END],
+      series: [
+        { key: "live", values: live },
+        { key: "active", values: active },
+      ],
+    },
+    mark: {
+      mark: "line",
+      curve: "step",
+      keys: [
+        { key: "live", name: "Live" },
+        { key: "active", name: "Active" },
+      ],
+    },
+    x: { type: "time" },
     y: { label: "Agents" },
-    marks: [
-      {
-        mark: "line",
-        curve: "step",
-        x,
-        series: [
-          { name: "Live", slot: 1, y: live },
-          { name: "Active", slot: 2, y: active },
-        ],
-      },
-    ],
     empty: "No samples in this range.",
   };
 }
@@ -271,19 +304,21 @@ function memory(): ChartSpec {
     cache.push(Math.round(120 + (90 * (t - start)) / (6 * HR)));
   }
   return {
-    x: { type: "time", domain: [start, END] },
+    data: {
+      type: "series",
+      name: "memory",
+      unit: "none",
+      x,
+      domain: [start, END],
+      series: [
+        { key: "api", values: api },
+        { key: "worker", values: worker },
+        { key: "cache", values: cache },
+      ],
+    },
+    mark: { mark: "area" },
+    x: { type: "time" },
     y: { label: "Memory", unit: { one: "MB", other: "MB" } },
-    marks: [
-      {
-        mark: "area",
-        x,
-        series: [
-          { name: "api", slot: 1, y: api },
-          { name: "worker", slot: 2, y: worker },
-          { name: "cache", slot: 3, y: cache },
-        ],
-      },
-    ],
     empty: "No samples in this range.",
   };
 }
@@ -310,26 +345,35 @@ function energy(): ChartSpec {
     gas.push(Math.round(Math.max(250, demand - sun - w)));
   }
   return {
-    x: { type: "time", domain: [start, END] },
+    data: {
+      type: "series",
+      name: "generation",
+      unit: "none",
+      x,
+      domain: [start, END],
+      series: [
+        { key: "gas", values: gas },
+        { key: "wind", values: wind },
+        { key: "solar", values: solar },
+      ],
+    },
+    mark: {
+      mark: "area",
+      arrange: "share",
+      keys: [
+        { key: "gas", name: "Gas" },
+        { key: "wind", name: "Wind" },
+        { key: "solar", name: "Solar" },
+      ],
+    },
+    x: { type: "time" },
     y: { label: "Share of generation", unit: { one: "MW", other: "MW" } },
-    marks: [
-      {
-        mark: "area",
-        arrange: "share",
-        x,
-        series: [
-          { name: "Gas", slot: 1, y: gas },
-          { name: "Wind", slot: 2, y: wind },
-          { name: "Solar", slot: 3, y: solar },
-        ],
-      },
-    ],
     empty: "No generation in this range.",
   };
 }
 
-// The 95th percentile of response time each minute, round 240 ms, with a
-// deploy's spike at 10:20 AM and a flushed cache's dip at 12:40 PM.
+// The 95th percentile of response time each minute, in seconds, round 240
+// ms, with a deploy's spike at 10:20 AM and a flushed cache's dip at 12:40 PM.
 function latency(): ChartSpec {
   const start = END - 6 * HR;
   const deploy = new Date(2026, 10, 11, 10, 20).getTime();
@@ -342,17 +386,29 @@ function latency(): ChartSpec {
     const spike = after >= 0 && after < 12 ? 520 * Math.exp(-after / 4) : 0;
     const dip = t >= flush && t < flush + 25 * MIN ? -90 : 0;
     x.push(t);
-    p95.push(Math.round(200 + 60 * busy(t) + 30 * rand() + spike + dip));
+    p95.push(Math.round(200 + 60 * busy(t) + 30 * rand() + spike + dip) / S);
   }
-  const at = (t: number): number => p95[x.indexOf(t)] ?? 0;
   return {
-    x: { type: "time", domain: [start, END] },
-    y: { label: "Response time", format: "duration" },
-    marks: [
-      { mark: "line", x, series: [{ name: "95th percentile", slot: 1, y: p95 }] },
-      { mark: "rule", y: 500, label: "Target" },
-      { mark: "text", x: deploy, y: at(deploy), text: "Deploy of 1.4.0", side: "right" },
-      { mark: "text", x: flush, y: at(flush), text: "Cache flushed", side: "below" },
+    data: {
+      type: "series",
+      name: "response_seconds",
+      unit: "seconds",
+      x,
+      domain: [start, END],
+      series: [{ key: "p95", values: p95 }],
+      refs: [{ key: "target", value: 0.5 }],
+      notes: [
+        { key: "deploy", at: deploy },
+        { key: "flush", at: flush },
+      ],
+    },
+    mark: { mark: "line", keys: [{ key: "p95", name: "95th percentile" }] },
+    x: { type: "time" },
+    y: { label: "Response time" },
+    refs: [{ key: "target", label: "Target" }],
+    notes: [
+      { key: "deploy", text: "Deploy of 1.4.0", side: "right" },
+      { key: "flush", text: "Cache flushed", side: "below" },
     ],
     empty: "No samples in this range.",
   };
@@ -378,18 +434,37 @@ const COUNTRIES = [
 
 const YEARS = { one: "year", other: "years" } as const;
 
+// A categories frame of `names`, a series per key and its values, in order.
+function byName(
+  name: string,
+  unit: string,
+  names: readonly string[],
+  series: readonly (readonly [string, readonly (number | null)[]])[],
+  more: Partial<CategoriesFrame> = {},
+): CategoriesFrame {
+  return {
+    type: "categories",
+    name,
+    unit,
+    names: [...names],
+    series: series.map(([key, values]) => ({ key, values: [...values] })),
+    ...more,
+  };
+}
+
 function ages(): ChartSpec {
   return {
+    data: byName(
+      "median_age",
+      "none",
+      COUNTRIES.map(([name]) => name),
+      [["age", COUNTRIES.map(([, age]) => age)]],
+      { refs: [{ key: "world", value: 30.5 }] },
+    ),
+    mark: { mark: "bar", keys: [{ key: "age", name: "Median age" }] },
     x: { label: "Median age", unit: YEARS },
     y: { unit: { one: "country", other: "countries" } },
-    marks: [
-      {
-        mark: "bar",
-        y: COUNTRIES.map(([name]) => name),
-        series: [{ name: "Median age", slot: 1, x: COUNTRIES.map(([, age]) => age) }],
-      },
-      { mark: "rule", x: 30.5, label: "World" },
-    ],
+    refs: [{ key: "world", label: "World" }],
   };
 }
 
@@ -413,19 +488,24 @@ const BY_SEX = [
 
 function agesBySex(): ChartSpec {
   return {
+    data: byName(
+      "median_age",
+      "none",
+      BY_SEX.map(([name]) => name),
+      [
+        ["women", BY_SEX.map(([, women]) => women)],
+        ["men", BY_SEX.map(([, , men]) => men)],
+      ],
+    ),
+    mark: {
+      mark: "point",
+      keys: [
+        { key: "women", name: "Women" },
+        { key: "men", name: "Men" },
+      ],
+    },
     x: { label: "Median age", unit: YEARS },
     y: { unit: { one: "country", other: "countries" } },
-    marks: [
-      {
-        mark: "point",
-        y: BY_SEX.map(([name]) => name),
-        series: [
-          { name: "Women", slot: 1, x: BY_SEX.map(([, women]) => women) },
-          { name: "Men", slot: 2, x: BY_SEX.map(([, , men]) => men) },
-        ],
-      },
-      { mark: "text", y: "Nigeria", x: 18.8, text: "Half its people are under 19", side: "right" },
-    ],
   };
 }
 
@@ -443,23 +523,22 @@ const AGENT_POSTS = [
 
 function agentKinds(arrange?: "share"): ChartSpec {
   return {
+    data: byName(
+      "posts",
+      "count",
+      AGENT_POSTS.map(([name]) => name),
+      KINDS.map(([name], i) => [kindKey(name), AGENT_POSTS.map(([, counts]) => counts[i] ?? null)]),
+    ),
+    mark: {
+      mark: "bar",
+      ...(arrange === undefined ? {} : { arrange }),
+      keys: kindKeys(KINDS.length),
+    },
     x: {
       label: arrange === undefined ? "Posts" : "Share of posts",
       unit: { one: "post", other: "posts" },
     },
     y: { mono: true, unit: { one: "agent", other: "agents" } },
-    marks: [
-      {
-        mark: "bar",
-        y: AGENT_POSTS.map(([name]) => name),
-        ...(arrange === undefined ? {} : { arrange }),
-        series: KINDS.map(([name], i) => ({
-          name,
-          slot: (i + 1) as 1 | 2 | 3 | 4,
-          x: AGENT_POSTS.map(([, counts]) => counts[i] ?? null),
-        })),
-      },
-    ],
   };
 }
 
@@ -474,19 +553,25 @@ const AGENT_WEEKS = [
 
 function agentWeeks(): ChartSpec {
   return {
+    data: byName(
+      "posts",
+      "count",
+      AGENT_WEEKS.map(([name]) => name),
+      [
+        ["last", AGENT_WEEKS.map(([, last]) => last)],
+        ["this", AGENT_WEEKS.map(([, , now]) => now)],
+      ],
+    ),
+    mark: {
+      mark: "bar",
+      arrange: "group",
+      keys: [
+        { key: "last", name: "Last week", slot: 2 },
+        { key: "this", name: "This week", slot: 1 },
+      ],
+    },
     x: { label: "Posts", unit: { one: "post", other: "posts" } },
     y: { mono: true, unit: { one: "agent", other: "agents" } },
-    marks: [
-      {
-        mark: "bar",
-        y: AGENT_WEEKS.map(([name]) => name),
-        arrange: "group",
-        series: [
-          { name: "Last week", slot: 2, x: AGENT_WEEKS.map(([, last]) => last) },
-          { name: "This week", slot: 1, x: AGENT_WEEKS.map(([, , now]) => now) },
-        ],
-      },
-    ],
   };
 }
 
@@ -508,15 +593,15 @@ const CHANGE = [
 
 function populationChange(): ChartSpec {
   return {
+    data: byName(
+      "population_change",
+      "ratio",
+      CHANGE.map(([name]) => name),
+      [["change", CHANGE.map(([, change]) => change)]],
+    ),
+    mark: { mark: "bar", keys: [{ key: "change", name: "Change", below: 3 }] },
     x: { format: { style: "percent", maximumFractionDigits: 1 } },
     y: { unit: { one: "state", other: "states" } },
-    marks: [
-      {
-        mark: "bar",
-        y: CHANGE.map(([name]) => name),
-        series: [{ name: "Change", slot: 1, below: 3, x: CHANGE.map(([, change]) => change) }],
-      },
-    ],
   };
 }
 
@@ -532,21 +617,16 @@ const PLATFORMS = [
 ] as const;
 
 function platforms(): ChartSpec {
+  const often = ["Daily", "Weekly", "Less often"];
   return {
-    x: { format: "percent" },
+    data: byName(
+      "platform_use",
+      "ratio",
+      PLATFORMS.map(([name]) => name),
+      often.map((name, i) => [name, PLATFORMS.map(([, shares]) => shares[i] ?? null)]),
+    ),
+    mark: { mark: "bar", arrange: "split" },
     y: { unit: { one: "platform", other: "platforms" } },
-    marks: [
-      {
-        mark: "bar",
-        y: PLATFORMS.map(([name]) => name),
-        arrange: "split",
-        series: ["Daily", "Weekly", "Less often"].map((name, i) => ({
-          name,
-          slot: (i + 1) as 1 | 2 | 3,
-          x: PLATFORMS.map(([, shares]) => shares[i] ?? null),
-        })),
-      },
-    ],
   };
 }
 
@@ -567,22 +647,20 @@ const STATEMENTS = [
 
 function survey(): ChartSpec {
   return {
-    x: { format: "percent" },
+    data: byName(
+      "answers",
+      "ratio",
+      STATEMENTS.map(([name]) => name),
+      ANSWERS.map((name, i) => [name, STATEMENTS.map(([, shares]) => shares[i] ?? null)]),
+    ),
+    mark: {
+      mark: "bar",
+      arrange: "diverge",
+      left: 2,
+      centre: true,
+      keys: ANSWERS.map((key, i) => ({ key, slot: ANSWER_SLOTS[i] ?? 1 })),
+    },
     y: { unit: { one: "statement", other: "statements" } },
-    marks: [
-      {
-        mark: "bar",
-        y: STATEMENTS.map(([name]) => name),
-        arrange: "diverge",
-        left: 2,
-        centre: true,
-        series: ANSWERS.map((name, i) => ({
-          name,
-          slot: ANSWER_SLOTS[i] ?? 1,
-          x: STATEMENTS.map(([, shares]) => shares[i] ?? null),
-        })),
-      },
-    ],
   };
 }
 
@@ -613,23 +691,21 @@ const AGE_GROUPS = [
 
 function pyramid(): ChartSpec {
   return {
+    data: byName(
+      "population",
+      "count",
+      AGE_GROUPS.map(([name]) => name),
+      [
+        ["Men", AGE_GROUPS.map(([, men]) => men * 1_000)],
+        ["Women", AGE_GROUPS.map(([, , women]) => women * 1_000)],
+      ],
+    ),
+    mark: { mark: "bar", arrange: "mirror", labels: false },
     x: {
       format: { notation: "compact", maximumFractionDigits: 1 },
       unit: { one: "person", other: "people" },
     },
     y: { unit: { one: "age group", other: "age groups" } },
-    marks: [
-      {
-        mark: "bar",
-        y: AGE_GROUPS.map(([name]) => name),
-        arrange: "mirror",
-        labels: false,
-        series: [
-          { name: "Men", slot: 1, x: AGE_GROUPS.map(([, men]) => men * 1_000) },
-          { name: "Women", slot: 2, x: AGE_GROUPS.map(([, , women]) => women * 1_000) },
-        ],
-      },
-    ],
   };
 }
 
@@ -647,19 +723,18 @@ const DEGREES = [
 
 function pay(): ChartSpec {
   return {
+    data: byName(
+      "median_pay",
+      "none",
+      DEGREES.map(([name]) => name),
+      [
+        ["Women", DEGREES.map(([, women]) => women)],
+        ["Men", DEGREES.map(([, , men]) => men)],
+      ],
+    ),
+    mark: { mark: "point", link: "range" },
     x: { format: { style: "currency", currency: "USD", maximumFractionDigits: 0 } },
     y: { unit: { one: "degree", other: "degrees" } },
-    marks: [
-      {
-        mark: "point",
-        y: DEGREES.map(([name]) => name),
-        link: "range",
-        series: [
-          { name: "Women", slot: 1, x: DEGREES.map(([, women]) => women) },
-          { name: "Men", slot: 2, x: DEGREES.map(([, , men]) => men) },
-        ],
-      },
-    ],
   };
 }
 
@@ -682,19 +757,25 @@ const ELECTRIC = [
 
 function electricCars(): ChartSpec {
   return {
+    data: byName(
+      "electric_share",
+      "ratio",
+      ELECTRIC.map(([name]) => name),
+      [
+        ["2013", ELECTRIC.map(([, then]) => then)],
+        ["2023", ELECTRIC.map(([, , now]) => now)],
+      ],
+    ),
+    mark: {
+      mark: "point",
+      link: "arrow",
+      keys: [
+        { key: "2013", slot: 2 },
+        { key: "2023", slot: 1 },
+      ],
+    },
     x: { format: { style: "percent", maximumFractionDigits: 1 } },
     y: { unit: { one: "country", other: "countries" } },
-    marks: [
-      {
-        mark: "point",
-        y: ELECTRIC.map(([name]) => name),
-        link: "arrow",
-        series: [
-          { name: "2013", slot: 2, x: ELECTRIC.map(([, then]) => then) },
-          { name: "2023", slot: 1, x: ELECTRIC.map(([, , now]) => now) },
-        ],
-      },
-    ],
   };
 }
 
@@ -710,19 +791,14 @@ const LIFE = [
 
 function lifeSlope(): ChartSpec {
   return {
+    data: byName(
+      "life_expectancy",
+      "none",
+      ["2000", "2021"],
+      LIFE.map(([name, then, now]) => [name, [then, now]]),
+    ),
+    mark: { mark: "slope" },
     y: { label: "Life expectancy", zero: false },
-    marks: [
-      {
-        mark: "slope",
-        x: ["2000", "2021"],
-        series: LIFE.map(([name, then, now], i) => ({
-          name,
-          slot: (i + 1) as 1 | 2 | 3 | 4 | 5 | 6,
-          y: [then, now],
-        })),
-      },
-      { mark: "text", x: "2021", y: 76.3, text: "Below 2000 after Covid-19", side: "below" },
-    ],
   };
 }
 
@@ -778,6 +854,22 @@ const REGIONS = ["Europe", "Asia and Oceania", "Africa", "Americas"] as const;
 
 function nations(sized: boolean): ChartSpec {
   return {
+    data: {
+      type: "points",
+      name: "life_expectancy",
+      units: { x: "none", y: "none", ...(sized ? { r: "count" } : {}) },
+      series: REGIONS.map((region) => {
+        const rows = NATIONS.filter(([of]) => of === region);
+        return {
+          key: region,
+          names: rows.map(([, name]) => name),
+          x: rows.map(([, , gdp]) => gdp),
+          y: rows.map(([, , , life]) => life),
+          ...(sized ? { r: rows.map(([, , , , people]) => people) } : {}),
+        };
+      }),
+    },
+    mark: { mark: "scatter", unit: { one: "country", other: "countries" } },
     x: {
       type: "log",
       label: "GDP per capita",
@@ -787,32 +879,6 @@ function nations(sized: boolean): ChartSpec {
     ...(sized
       ? { r: { label: "Population", format: { notation: "compact", maximumFractionDigits: 1 } } }
       : {}),
-    marks: [
-      {
-        mark: "scatter",
-        unit: { one: "country", other: "countries" },
-        series: REGIONS.map((region, i) => {
-          const rows = NATIONS.filter(([of]) => of === region);
-          return {
-            name: region,
-            slot: (i + 1) as 1 | 2 | 3 | 4,
-            names: rows.map(([, name]) => name),
-            x: rows.map(([, , gdp]) => gdp),
-            y: rows.map(([, , , life]) => life),
-            ...(sized ? { r: rows.map(([, , , , people]) => people) } : {}),
-          };
-        }),
-      },
-      sized
-        ? { mark: "text", x: 2_400, y: 67.7, text: "1.4 billion people", side: "right" }
-        : {
-            mark: "text",
-            x: 76_400,
-            y: 76.4,
-            text: "Shorter lives than in Chile or Costa Rica",
-            side: "left",
-          },
-    ],
   };
 }
 
@@ -832,13 +898,18 @@ function weekHours(): ChartSpec {
     }),
   );
   return {
+    data: {
+      type: "grid",
+      name: "posts",
+      unit: "count",
+      x: { names: [...HOURS] },
+      y: { names: [...WEEKDAYS] },
+      values,
+    },
+    mark: { mark: "cell" },
     x: { unit: { one: "hour", other: "hours" } },
     y: { unit: { one: "day", other: "days" } },
     colour: { label: "Posts", unit: POSTS },
-    marks: [
-      { mark: "cell", x: HOURS, y: WEEKDAYS, values },
-      { mark: "text", x: "2 PM", y: "Tuesday", text: "Weekly release" },
-    ],
   };
 }
 
@@ -850,6 +921,20 @@ function anomalies(): ChartSpec {
   const rand = random(700);
   const years = Array.from({ length: 10 }, (_, i) => String(2016 + i));
   return {
+    data: {
+      type: "grid",
+      name: "temperature_anomaly",
+      unit: "none",
+      x: { names: [...MONTHS] },
+      y: { names: years },
+      values: years.map((_, i) =>
+        MONTHS.map((_, m) => {
+          const summer = m >= 5 && m <= 7 ? 0.5 : 0;
+          return Math.round((0.08 * i + summer + 2.6 * (rand() - 0.5)) * 10) / 10;
+        }),
+      ),
+    },
+    mark: { mark: "cell" },
     x: { unit: { one: "month", other: "months" } },
     y: { unit: { one: "year", other: "years" } },
     colour: {
@@ -864,19 +949,6 @@ function anomalies(): ChartSpec {
         signDisplay: "exceptZero",
       },
     },
-    marks: [
-      {
-        mark: "cell",
-        x: MONTHS,
-        y: years,
-        values: years.map((_, i) =>
-          MONTHS.map((_, m) => {
-            const summer = m >= 5 && m <= 7 ? 0.5 : 0;
-            return Math.round((0.08 * i + summer + 2.6 * (rand() - 0.5)) * 10) / 10;
-          }),
-        ),
-      },
-    ],
   };
 }
 
@@ -905,6 +977,15 @@ function requests(): ChartSpec {
     }
   }
   return {
+    data: {
+      type: "grid",
+      name: "requests",
+      unit: "count",
+      x: { edges: SIZE_EDGES },
+      y: { edges: TIME_EDGES },
+      values,
+    },
+    mark: { mark: "cell" },
     x: {
       type: "log",
       label: "Payload",
@@ -916,7 +997,6 @@ function requests(): ChartSpec {
       unit: { one: "request", other: "requests" },
       thresholds: [1, 10, 100],
     },
-    marks: [{ mark: "cell", x: { edges: SIZE_EDGES }, y: { edges: TIME_EDGES }, values }],
   };
 }
 
@@ -940,11 +1020,19 @@ function postDays(): ChartSpec {
     );
   }
   return {
+    data: {
+      type: "calendar",
+      name: "posts",
+      unit: "count",
+      zone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      start: start.getTime(),
+      values,
+      open: true,
+      notes: [{ key: "app", at: new Date(2026, 3, 14, 12).getTime() }],
+    },
+    mark: { mark: "cell" },
     colour: { label: "Posts", unit: POSTS },
-    marks: [
-      { mark: "cell", days: { start: start.getTime(), values, open: true } },
-      { mark: "text", x: new Date(2026, 3, 14, 12).getTime(), text: "Mobile app released" },
-    ],
+    notes: [{ key: "app", text: "Mobile app released" }],
   };
 }
 
@@ -964,75 +1052,94 @@ const ENDPOINTS: readonly (readonly [string, Five, Five])[] = [
   ["health", [1, 2, 2, 3, 4, []], [1, 2, 2, 3, 4, [9]]],
 ];
 
-function boxSeries(name: string, slot: 1 | 2, after: boolean) {
+function boxSeries(key: string, after: boolean): FrameBoxes {
   const fives = ENDPOINTS.map(([, then, now]) => (after ? now : then));
   return {
-    name,
-    slot,
+    key,
     low: fives.map((f) => f[0]),
     q1: fives.map((f) => f[1]),
     median: fives.map((f) => f[2]),
     q3: fives.map((f) => f[3]),
     high: fives.map((f) => f[4]),
-    outliers: fives.map((f) => f[5]),
+    outliers: fives.map((f) => [...f[5]]),
   };
 }
 
 function latencies(both: boolean): ChartSpec {
-  const after = boxSeries(both ? "After" : "Response time", 1, true);
-  return {
+  const common = {
     x: { type: "log", label: "Response time", format: MS },
     y: { unit: { one: "endpoint", other: "endpoints" } },
-    marks: [
-      {
-        mark: "box",
-        y: ENDPOINTS.map(([name]) => name),
-        whiskers: "1.5 × IQR",
-        series: both ? [boxSeries("Before", 2, false), after] : [after],
-      },
-      both
-        ? { mark: "text", y: "search", x: 210, text: "Index added in 1.4.0", side: "right" }
-        : { mark: "rule", x: 1_000, label: "Target" },
-    ],
+  } as const;
+  const data: BoxesFrame = {
+    type: "boxes",
+    name: "response_ms",
+    unit: "none",
+    names: ENDPOINTS.map(([name]) => name),
+    series: both
+      ? [boxSeries("Before", false), boxSeries("After", true)]
+      : [boxSeries("Response time", true)],
   };
+  return both
+    ? {
+        ...common,
+        data,
+        mark: {
+          mark: "box",
+          whiskers: "1.5 × IQR",
+          keys: [
+            { key: "Before", slot: 2 },
+            { key: "After", slot: 1 },
+          ],
+        },
+      }
+    : {
+        ...common,
+        data: { ...data, refs: [{ key: "target", value: 1_000 }] },
+        mark: { mark: "box", whiskers: "1.5 × IQR" },
+        refs: [{ key: "target", label: "Target" }],
+      };
+}
+
+// A pie's frame: one series `key`, a value per slice name.
+function slices(
+  name: string,
+  unit: string,
+  key: string,
+  parts: readonly (readonly [string, number])[],
+): CategoriesFrame {
+  return byName(
+    name,
+    unit,
+    parts.map(([slice]) => slice),
+    [[key, parts.map(([, v]) => v)]],
+  );
 }
 
 // Germany's land by use, 2022, in km²: a long total, so on a phone the
 // donut's hole stays empty and the legend row gives it.
 function landUse(): ChartSpec {
   return {
-    marks: [
-      {
-        mark: "pie",
-        hole: true,
-        unit: { other: "km²" },
-        slices: [
-          { name: "Agriculture", value: 182_637 },
-          { name: "Forest", value: 106_000 },
-          { name: "Housing & traffic", value: 49_276 },
-          { name: "Other land", value: 11_443 },
-          { name: "Water", value: 8_224 },
-        ],
-      },
-    ],
+    data: slices("land_use", "none", "area", [
+      ["Agriculture", 182_637],
+      ["Forest", 106_000],
+      ["Housing & traffic", 49_276],
+      ["Other land", 11_443],
+      ["Water", 8_224],
+    ]),
+    mark: { mark: "pie", hole: true, unit: { other: "km²" } },
   };
 }
 
 function browsers(): ChartSpec {
   return {
-    marks: [
-      {
-        mark: "pie",
-        unit: { one: "visit", other: "visits" },
-        slices: [
-          { name: "Chrome", value: 41_830 },
-          { name: "Safari", value: 12_420 },
-          { name: "Edge", value: 3_390 },
-          { name: "Firefox", value: 1_830 },
-          { name: "Other", value: 5_890 },
-        ],
-      },
-    ],
+    data: slices("visits", "count", "visits", [
+      ["Chrome", 41_830],
+      ["Safari", 12_420],
+      ["Edge", 3_390],
+      ["Firefox", 1_830],
+      ["Other", 5_890],
+    ]),
+    mark: { mark: "pie", unit: { one: "visit", other: "visits" } },
   };
 }
 
@@ -1056,15 +1163,13 @@ function storage(): ChartSpec {
     ["Other", 22],
   ];
   return {
-    marks: [
-      {
-        mark: "tree",
-        format: GB,
-        nodes: folders.map(([name, value]) =>
-          name === "Downloads" ? { name, slot: 3, value } : { name, value },
-        ),
-      },
-    ],
+    data: {
+      type: "tree",
+      name: "storage",
+      unit: "none",
+      parts: folders.map(([key, value]) => ({ key, value })),
+    },
+    mark: { mark: "tree", format: GB, keys: [{ key: "Downloads", slot: 3 }] },
   };
 }
 
@@ -1138,17 +1243,20 @@ const GDP: readonly (readonly [string, readonly (readonly [string, number])[]])[
 
 function gdp(): ChartSpec {
   return {
-    marks: [
-      {
-        mark: "tree",
-        unit: { other: "USD" },
-        format: { notation: "compact", maximumSignificantDigits: 3 },
-        nodes: GDP.map(([name, countries]) => ({
-          name,
-          children: countries.map(([country, bn]) => ({ name: country, value: bn * 1e9 })),
-        })),
-      },
-    ],
+    data: {
+      type: "tree",
+      name: "gdp",
+      unit: "none",
+      groups: GDP.map(([key, countries]) => ({
+        key,
+        children: countries.map(([country, bn]) => ({ key: country, value: bn * 1e9 })),
+      })),
+    },
+    mark: {
+      mark: "tree",
+      unit: { other: "USD" },
+      format: { notation: "compact", maximumSignificantDigits: 3 },
+    },
   };
 }
 
@@ -1169,28 +1277,34 @@ const PLANT_CLOSED = new Date(2023, 2, 1).getTime();
 function regions(context: boolean): ChartSpec {
   const rand = random(600);
   return {
-    x: { type: "time", domain: [MONTHS_2020[0] ?? 0, MONTHS_2020[59] ?? 0] },
-    y: { label: "Unemployment", format: "percent" },
+    mark: { mark: "line" },
+    x: { type: "time" },
+    y: { label: "Unemployment" },
+    refs: [{ key: "2019", label: "2019 average" }],
+    notes: [{ key: "plant", text: "Plant closes" }],
     facets: {
       unit: { one: "region", other: "regions" },
       context,
-      panels: JOBLESS.map(([name, base, spike, drift]) => {
-        const y = MONTHS_2020.map((t, m) => {
+      panels: JOBLESS.map(([key, base, spike, drift]): { key: string; data: SeriesFrame } => {
+        const values = MONTHS_2020.map((t, m) => {
           const shock = m < 3 ? 0 : spike * Math.exp(-(m - 3) / 7);
-          const plant = name === "North" && t >= PLANT_CLOSED ? 0.012 : 0;
+          const plant = key === "North" && t >= PLANT_CLOSED ? 0.012 : 0;
           return Number((base + shock + plant + drift * m + 0.003 * (rand() - 0.5)).toFixed(4));
         });
-        const marks: ChartSpec["marks"] =
-          name === "North"
-            ? [
-                { mark: "line", x: MONTHS_2020, series: [{ name, slot: 1, y }] },
-                { mark: "text", x: PLANT_CLOSED, y: y[38] ?? 0, text: "Plant closes" },
-              ]
-            : [{ mark: "line", x: MONTHS_2020, series: [{ name, slot: 1, y }] }];
-        return { marks };
+        return {
+          key,
+          data: {
+            type: "series",
+            name: "unemployment",
+            unit: "ratio",
+            x: [...MONTHS_2020],
+            series: [{ key, values }],
+            refs: [{ key: "2019", value: 0.05 }],
+            ...(key === "North" ? { notes: [{ key: "plant", at: PLANT_CLOSED }] } : {}),
+          },
+        };
       }),
     },
-    marks: [{ mark: "rule", y: 0.05, label: "2019 average" }],
   };
 }
 
@@ -1201,31 +1315,32 @@ function agentColumns(): ChartSpec {
   const starts = Array.from({ length: 24 }, (_, i) => start + i * HR);
   const rand = random(700);
   return {
-    x: { type: "time", domain: [start, END] },
+    mark: { mark: "rect", keys: kindKeys(3) },
     y: { label: "Posts", unit: { one: "post", other: "posts" } },
     facets: {
       unit: { one: "agent", other: "agents" },
-      panels: AGENTS.slice(0, 4).map(([name, rate]) => ({
-        name,
-        marks: [
-          {
-            mark: "rect",
-            x1: starts,
-            x2: starts.map((t) => t + HR),
-            open: true,
-            series: KINDS.slice(0, 3).map(([kind, share], i) => ({
-              name: kind,
-              slot: (i + 1) as 1 | 2 | 3,
-              y: starts.map((t) => {
-                const filled = Math.min(1, (NOW - t) / HR);
-                return Math.round(40 * rate * share * busy(t + HR / 2) * filled * (0.5 + rand()));
-              }),
-            })),
-          },
-        ],
+      panels: AGENTS.slice(0, 4).map(([key, rate]) => ({
+        key,
+        name: key,
+        data: {
+          type: "bins",
+          name: "posts",
+          unit: "count",
+          axis: "time",
+          x1: starts,
+          x2: starts.map((t) => t + HR),
+          domain: [start, END],
+          open: true,
+          series: KINDS.slice(0, 3).map(([kind, share]) => ({
+            key: kindKey(kind),
+            values: starts.map((t) => {
+              const filled = Math.min(1, (NOW - t) / HR);
+              return Math.round(40 * rate * share * busy(t + HR / 2) * filled * (0.5 + rand()));
+            }),
+          })),
+        },
       })),
     },
-    marks: [],
   };
 }
 
@@ -1244,21 +1359,21 @@ const AGE_BANDS = ["18 to 29", "30 to 49", "50 to 64", "65 and over"] as const;
 
 function dailyUse(): ChartSpec {
   return {
-    x: { label: "Use it daily", format: "percent" },
+    mark: { mark: "bar" },
+    x: { label: "Use it daily" },
     y: { unit: { one: "platform", other: "platforms" } },
     facets: {
       unit: { one: "age group", other: "age groups" },
       panels: AGE_BANDS.map((band, b) => ({
-        marks: [
-          {
-            mark: "bar",
-            y: DAILY.map(([platform]) => platform),
-            series: [{ name: band, slot: 1, x: DAILY.map(([, shares]) => shares[b] ?? null) }],
-          },
-        ],
+        key: band,
+        data: byName(
+          "daily_use",
+          "ratio",
+          DAILY.map(([platform]) => platform),
+          [[band, DAILY.map(([, shares]) => shares[b] ?? null)]],
+        ),
       })),
     },
-    marks: [],
   };
 }
 
@@ -1275,24 +1390,19 @@ const SITES = [
 
 function devices(): ChartSpec {
   return {
+    mark: { mark: "pie", unit: { one: "visit", other: "visits" } },
     facets: {
       unit: { one: "site", other: "sites" },
-      panels: SITES.map(([name, desktop, phone, tablet]) => ({
-        name,
-        marks: [
-          {
-            mark: "pie",
-            unit: { one: "visit", other: "visits" },
-            slices: [
-              { name: "Desktop", value: desktop },
-              { name: "Phone", value: phone },
-              { name: "Tablet", value: tablet },
-            ],
-          },
-        ],
+      panels: SITES.map(([key, desktop, phone, tablet]) => ({
+        key,
+        name: key,
+        data: slices("visits", "count", "visits", [
+          ["Desktop", desktop],
+          ["Phone", phone],
+          ["Tablet", tablet],
+        ]),
       })),
     },
-    marks: [],
   };
 }
 

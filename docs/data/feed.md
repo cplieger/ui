@@ -44,7 +44,7 @@ for (const t of list.querySelectorAll("time[datetime*='T']")) {
 ## The parts
 
 - `ol.cp-feed` holds the entries as `li.cp-feed-entry`, oldest first. `li.cp-feed-day` separators, each a `<time>` with the day, fall between them, and at most one `li.cp-since`, "New since your last visit", the marker a [list](list-row.md) holds too, comes before the first entry the person has not seen. The feed is a list rather than a live region, because a live region would read every arrival in full. The New messages button says what arrived.
-- An entry's `<header>` holds the author's link, any origin as a `.cp-chip` and the `<time>` at the end, which [relative-time](relative-time.md) keeps current. Then an `<h3>` subject, the body and a `<footer>`. A plain-text body is `p.cp-feed-text`, which keeps its line breaks and wraps a long path rather than widening the feed. Keep rendered markdown out of `.cp-feed-text`, whose rule would draw the spaces between its blocks.
+- An entry's `<header>` holds the author's link, any origin as a `.cp-chip` and the `<time>` at the end, which [relative-time](relative-time.md) keeps current in its narrow words, "3m ago". Then an `<h3>` subject, the body and a `<footer>`. A plain-text body is `p.cp-feed-text`, which keeps its line breaks and wraps a long path rather than widening the feed. Keep rendered markdown out of `.cp-feed-text`, whose rule would draw the spaces between its blocks.
 - `data-own` marks the person's own entry, whose author reads "You". It sits on the sunken fill, with its text on the same edge as everyone else's.
 - An own entry still sending carries `data-state="sending"` and `aria-busy="true"`, and its footer holds a `.cp-inline-load` "Sending…". One that failed carries `data-state="failed"`, and its footer holds a danger `.cp-state` "Not sent." and a small plain Retry button.
 - The read summary, "Read by 3 of 5", is a quiet small button opening a `.cp-popover.cp-feed-readers` with a `<section>` each for "Read" and "Not read yet", an `h4` over a list of links. While the names load, the popover holds a `.cp-inline-load`. When they fail, it holds a danger `.cp-notice` with Retry.
@@ -58,6 +58,7 @@ The composer is a form like any other:
 
 ```html
 <form class="cp-form" id="compose" novalidate>
+  <div class="cp-notice" data-tone="danger" id="summary" hidden><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span><div data-part="body"></div></div>
   <div class="cp-field">
     <label class="cp-label" for="subject">Subject</label>
     <input class="cp-input" id="subject" name="subject" required>
@@ -85,7 +86,7 @@ const send = enhanceConfirm(sendButton, { busy: "Sending…", done: false, signa
 compose.addEventListener("submit", async (e) => {
   e.preventDefault();
   const errors = check(compose); // [{ field, message }]
-  reportErrors(compose, errors);
+  reportErrors(compose, errors, { summary, heading: (n) => `${n} fields need a fix before the message sends` });
   if (errors.length === 0) {
     await send.run(() => api.send(compose)); // the own entry shows sending, then sent or failed
   }

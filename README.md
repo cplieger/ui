@@ -70,7 +70,9 @@ toast({ kind: "success", title: "Source added" });
 | --- | --- |
 | `@cplieger/ui/css/system` | the design language's stylesheet, on npm only |
 | `@cplieger/ui/fonts/*` | its two fonts, on npm only |
+| `@cplieger/ui/frame` | the types of the chart data frames a Go service sends with chartdata |
 | `@cplieger/ui/icons` | Lucide's lines in the package's own stroke, a few drawings of its own, and the factory that paints them |
+| `@cplieger/ui/templates/*` | whole screens in plain HTML on the stylesheet, each region named, on npm only: see [Page templates](templates/README.md) |
 | `@cplieger/ui/<module>` | one component's script |
 
 ## API
@@ -82,9 +84,9 @@ Each module is one subpath, grouped here by what it is for:
 - Buttons: [confirm](docs/buttons/confirm.md), [overflow](docs/buttons/overflow.md), [toggle](docs/buttons/toggle.md) and [turn](docs/buttons/turn.md).
 - Forms: [form](docs/forms/form.md), [checkbox](docs/forms/checkbox.md), [choice](docs/forms/choice.md), [stepper](docs/forms/stepper.md), [secret](docs/forms/secret.md), [copy](docs/forms/copy.md), [tokens](docs/forms/tokens.md), [combobox](docs/forms/combobox.md), [search](docs/forms/search.md), [textarea](docs/forms/textarea.md), [range](docs/forms/range.md), [date-range](docs/forms/date-range.md), [file](docs/forms/file.md), [rules](docs/forms/rules.md), [pairs](docs/forms/pairs.md) and [connection-test](docs/forms/connection-test.md).
 - Content: [markdown](docs/content/markdown.md) and [highlight](docs/content/highlight.md).
-- Navigation and layout: [disclosure](docs/navigation/disclosure.md), [tabs](docs/navigation/tabs.md), [header-status](docs/navigation/header-status.md), [list-detail](docs/layout/list-detail.md) and [context-panel](docs/layout/context-panel.md).
-- Data: [list-row](docs/data/list-row.md), [table](docs/data/table.md), [active-filters](docs/data/active-filters.md), [state-history](docs/data/state-history.md), [share-bar](docs/data/share-bar.md), [sparkline](docs/data/sparkline.md), [chart](docs/data/chart.md), [meter](docs/data/meter.md), [ranked-bars](docs/data/ranked-bars.md), [relative-time](docs/data/relative-time.md), [reorder](docs/data/reorder.md), [held-list](docs/data/held-list.md), [keyed-list](docs/data/keyed-list.md), [load-more](docs/data/load-more.md) and [feed](docs/data/feed.md).
-- Media: [qr](docs/media/qr.md).
+- Navigation and layout: [disclosure](docs/navigation/disclosure.md), [tabs](docs/navigation/tabs.md), [header-status](docs/navigation/header-status.md), [list-detail](docs/layout/list-detail.md), [context-panel](docs/layout/context-panel.md) and [settings](docs/layout/settings.md), and the [heading row](docs/layout/heading-row.md), a page's head and an item's hero that the stylesheet draws with no script.
+- Data: [list-row](docs/data/list-row.md), [table](docs/data/table.md), [active-filters](docs/data/active-filters.md), [state-history](docs/data/state-history.md), [share-bar](docs/data/share-bar.md), [sparkline](docs/data/sparkline.md), [chart](docs/data/chart.md), [frame](docs/data/frame.md), [meter](docs/data/meter.md), [ranked-bars](docs/data/ranked-bars.md), [relative-time](docs/data/relative-time.md), [reorder](docs/data/reorder.md), [held-list](docs/data/held-list.md), [keyed-list](docs/data/keyed-list.md), [load-more](docs/data/load-more.md) and [feed](docs/data/feed.md).
+- Media: [qr](docs/media/qr.md) and [video](docs/media/video.md).
 - Screens: [account](docs/screens/account.md).
 - Behaviour every page shares: [press](docs/core/press.md), [pointer](docs/core/pointer.md), [radio-focus](docs/core/radio-focus.md), [roving-focus](docs/core/roving-focus.md), [roll](docs/core/roll.md), [pill](docs/core/pill.md), [theme](docs/core/theme.md) and [view-transition](docs/core/view-transition.md).
 - [icons](docs/foundations/icons.md): `createIcons`, `iconNames` and `ownIconNames`, and the glyphs the stylesheet paints [with no script](docs/foundations/icons.md#with-no-script).
@@ -97,6 +99,7 @@ The full reference, generated from the doc comments, is on [JSR](https://jsr.io/
 - The [design language](docs/design.md) covers type, layout, touch, shape and motion, and [colour](docs/design-colour.md) the seeds, steps, tones, harmony colours and series colours.
 - [Components](docs/design-components.md) lists every class the stylesheet ships.
 - [Design patterns](docs/design-patterns.md) covers loading, forms, tables, lists, tabs, dialogs, notifications, the header status, messages, first run, navigation and words, with [settings](docs/design-settings.md) and [account screens](docs/design-account.md) on their own pages.
+- The [page templates](templates/README.md) are whole screens to copy: the app page, list and detail, settings, not found, and the gate pages, one of them for a message with no script.
 - [Moving from the earlier subpaths](docs/migrating.md) maps each subpath earlier releases carried to its replacement.
 
 ## Credits

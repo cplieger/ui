@@ -20,7 +20,7 @@ export interface Classes {
 }
 
 /** What the classes are built from: the chart's `colour`, checked. */
-export interface ClassSpec {
+interface ClassSpec {
   readonly type?: "sequential" | "diverging";
   readonly steps?: number;
   readonly domain?: readonly [number, number];

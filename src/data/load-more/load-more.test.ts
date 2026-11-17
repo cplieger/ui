@@ -254,6 +254,45 @@ describe("enhanceLoadMore", () => {
     await expect.poll(() => words(button)).toBe("Show older");
   });
 
+  it("keeps one width while it loads, its words centred and rolling only up and down", async () => {
+    const { button } = footed();
+    button.textContent = "Show all 5 running";
+    const wait = Promise.withResolvers<LoadMorePage>();
+    // The width is measured at enhance; with the page font settled first, a
+    // font that lands later can't re-measure it between the two readings.
+    await document.fonts.ready;
+    enhance(button, { load: () => wait.promise });
+    // The busy spinner turns about its centre, and a turned box's bounding
+    // rect grows up to √2 wide, so each part's laid-out box is its rect's
+    // centre plus or minus half its computed width.
+    const content = () => {
+      const parts = [
+        ...button.querySelectorAll<HTMLElement>(":scope > .cp-icon, :scope > .cp-roll"),
+      ]
+        .filter((p) => p.getBoundingClientRect().width > 0)
+        .map((p) => {
+          const r = p.getBoundingClientRect();
+          const half = Number.parseFloat(getComputedStyle(p).inlineSize) / 2;
+          return { left: r.left + r.width / 2 - half, right: r.left + r.width / 2 + half };
+        });
+      return (Math.min(...parts.map((r) => r.left)) + Math.max(...parts.map((r) => r.right))) / 2;
+    };
+    const rest = button.getBoundingClientRect();
+    const middle = rest.left + rest.width / 2;
+    expect(Math.abs(content() - middle)).toBeLessThanOrEqual(1);
+    press(button);
+    await expect.poll(() => button.getAttribute("aria-busy")).toBe("true");
+    const roll = button.querySelector(":scope > .cp-roll") as HTMLElement;
+    for (const a of roll.getAnimations({ subtree: true })) {
+      a.finish();
+    }
+    const busy = button.getBoundingClientRect();
+    expect([busy.left, busy.width]).toEqual([rest.left, rest.width]);
+    expect(Math.abs(content() - middle)).toBeLessThanOrEqual(1);
+    expect(getComputedStyle(roll).transitionDuration).toBe("0s");
+    wait.resolve(page([row()]));
+  });
+
   it("takes a page's words, and leaves with its foot once no page is left", async () => {
     const { ul, button } = footed();
     const pages = [page([row()], true, "Show the last 2"), page([row("Last 1"), row()], false)];

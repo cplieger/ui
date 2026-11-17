@@ -1,30 +1,31 @@
 <main class="cp-gate" data-variant="steps" data-new>
   <div class="cp-wordmark"><span class="cp-mark" aria-hidden="true">R</span>Release tracker</div>
-  <div class="cp-panel" data-steps data-current="0">
+  <section class="cp-panel" id="setup" aria-labelledby="setup-title">
     <div class="cp-stack">
       <ol class="cp-steps" aria-label="Setup steps">
-        <li data-name="Account">Account</li>
-        <li data-name="Sonarr">Sonarr</li>
-        <li data-name="Check">Check</li>
+        <li data-state="current" aria-current="step">Account<span class="cp-visually-hidden"> (current step)</span></li>
+        <li data-state="todo">Sonarr</li>
+        <li data-state="todo">Check</li>
       </ol>
-      <p class="cp-steps-compact"></p>
-      <h1 tabindex="-1" data-step-title></h1>
-      <section class="cp-stack" data-step data-title="Create the owner account">
-        <div class="cp-field"><label class="cp-label" for="su-user">Username</label><input class="cp-input" id="su-user" autocomplete="username" value="cplieger"></div>
-        <div class="cp-field"><label class="cp-label" for="su-pw">Password</label><div class="cp-input-wrap"><input class="cp-input" id="su-pw" type="password" autocomplete="new-password" aria-describedby="su-pw-help"><button class="cp-button" data-variant="quiet" type="button" aria-pressed="false" aria-label="Show password"><span class="cp-icon" data-cp-icon="eye" aria-hidden="true"></span><span class="cp-icon" data-cp-icon="eye-off" data-part="on" aria-hidden="true"></span></button></div><span class="cp-help" id="su-pw-help">At least 12 characters. A passkey can replace it later.</span></div>
-        <div data-part="actions"><button class="cp-button" data-variant="primary" type="button" data-next>Next</button></div>
-      </section>
-      <section class="cp-stack" data-step data-title="Connect Sonarr" hidden>
-        <div class="cp-field"><label class="cp-label" for="su-url">Address</label><input class="cp-input" id="su-url" type="url" value="http://sonarr.lan:8989" aria-describedby="su-url-error"><span class="cp-field-error" id="su-url-error" hidden><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span>No answer at this address and port.</span></div>
-        <div class="cp-field"><label class="cp-label" for="su-key">API key</label><input class="cp-input" id="su-key" value="0a1b2c3d4e5f"><span class="cp-help">In Sonarr: Settings, then General.</span></div>
-        <div class="cp-cluster"><button class="cp-button" type="button" data-test="su-verdict" data-url="su-url"><span class="cp-icon" data-cp-icon="refresh-cw" aria-hidden="true"></span>Test connection</button><span class="cp-state" data-size="ui" id="su-verdict"></span></div>
-        <div data-part="actions"><button class="cp-button" data-variant="quiet" type="button" data-back>Back</button><button class="cp-button" data-variant="primary" type="button" data-next>Next</button></div>
-      </section>
-      <section class="cp-stack" data-step data-title="Run the first check" hidden>
+      <p class="cp-steps-compact">Step 1 of 3</p>
+      <h1 id="setup-title" tabindex="-1">Step 1 of 3: Create the owner account</h1>
+      <form class="cp-stack" action="#" method="post" data-setup-step="Create the owner account">
+        <div class="cp-field"><label class="cp-label" for="su-user">Username</label><input class="cp-input" id="su-user" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" enterkeyhint="next" value="cplieger"></div>
+        <div class="cp-field"><label class="cp-label" for="su-pw">Password</label><div class="cp-input-wrap"><input class="cp-input" id="su-pw" name="password" type="password" autocomplete="new-password" enterkeyhint="next" aria-describedby="su-pw-help"><button class="cp-button" data-variant="quiet" type="button" aria-pressed="false" aria-label="Show password"><span class="cp-icon" data-cp-icon="eye" aria-hidden="true"></span><span class="cp-icon" data-cp-icon="eye-off" data-part="on" aria-hidden="true"></span></button></div><span class="cp-help" id="su-pw-help">At least 12 characters. A passkey can replace it later.</span></div>
+        <div data-part="actions"><button class="cp-button" data-variant="primary" type="submit">Next</button></div>
+      </form>
+      <form class="cp-stack" action="#" method="post" data-setup-step="Connect Sonarr" hidden>
+        <div class="cp-field"><label class="cp-label" for="su-url">Address</label><input class="cp-input" id="su-url" name="url" type="url" spellcheck="false" enterkeyhint="next" value="http://sonarr.lan:8989" aria-describedby="su-url-error"><span class="cp-field-error" id="su-url-error" hidden><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span>No answer at this address and port.</span></div>
+        <div class="cp-field"><label class="cp-label" for="su-key">API key</label><input class="cp-input" id="su-key" name="key" autocomplete="off" spellcheck="false" enterkeyhint="next" value="0a1b2c3d4e5f" aria-describedby="su-key-help"><span class="cp-help" id="su-key-help">In Sonarr: Settings, then General.</span></div>
+        <div class="cp-cluster"><button class="cp-button" type="button" id="su-test"><span class="cp-icon" data-cp-icon="refresh-cw" aria-hidden="true"></span>Test connection</button><span class="cp-state" data-size="ui" id="su-verdict"></span></div>
+        <div data-part="actions"><a class="cp-button" data-variant="quiet" href="#setup">Back</a><button class="cp-button" data-variant="primary" type="submit">Next</button></div>
+      </form>
+      <form class="cp-stack" action="#" method="post" data-setup-step="Run the first check" hidden>
         <p class="cp-meta">It reads every series in Sonarr and compares each with SeaDex. This takes about a minute for 400 series.</p>
-        <div data-part="actions"><button class="cp-button" data-variant="quiet" type="button" data-back>Back</button><button class="cp-button" data-variant="primary" type="button" data-next><span class="label">Start the check</span></button></div>
-      </section>
+        <div data-part="actions"><a class="cp-button" data-variant="quiet" href="#setup">Back</a><button class="cp-button" data-variant="primary" type="submit"><span class="cp-icon" data-cp-icon="spinner-arc" data-part="busy" aria-hidden="true"></span><span class="cp-icon" data-cp-icon="check" data-part="done" aria-hidden="true"></span><span class="cp-roll">Start the check</span></button></div>
+      </form>
     </div>
-  </div>
+  </section>
+  <p class="cp-meta" data-part="about"><span>Version 3.0.0</span> <a href="https://github.com/example/release-tracker" rel="external">Source<span class="cp-visually-hidden">, opens GitHub</span></a> <a href="https://github.com/example/release-tracker/blob/main/LICENSE" rel="external">Licence<span class="cp-visually-hidden">, opens GitHub</span></a></p>
   <p class="cp-meta">Clear the port from the address to see a failed test.</p>
 </main>

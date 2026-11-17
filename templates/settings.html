@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en" class="cp">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Connections · Settings · Release tracker</title>
+    <link rel="stylesheet" href="../css/system.css">
+  </head>
+  <body>
+    <!-- region: skip: the first focusable element, shown only while focused -->
+    <a class="cp-skip" href="#main">Skip to content</a>
+    <div class="cp-app">
+      <!-- region: header -->
+      <header class="cp-header">
+        <!-- slot: brand: the mark and the app's name, a link home -->
+        <a class="cp-wordmark" href="#">
+          <span class="cp-mark" aria-hidden="true">R</span>
+          <span class="cp-hidden-narrow">Release tracker</span>
+        </a>
+        <!-- slot: destinations -->
+        <nav class="cp-nav" aria-label="Main">
+          <a class="cp-nav-item" href="#">
+            <span class="cp-icon" data-cp-icon="layout-dashboard" aria-hidden="true"></span>
+            <span class="cp-nav-label">Overview</span>
+          </a>
+          <a class="cp-nav-item" href="#">
+            <span class="cp-icon" data-cp-icon="library" aria-hidden="true"></span>
+            <span class="cp-nav-label">Library</span>
+          </a>
+          <a class="cp-nav-item" href="#">
+            <span class="cp-icon" data-cp-icon="radio-tower" aria-hidden="true"></span>
+            <span class="cp-nav-label">Releases</span>
+          </a>
+        </nav>
+        <!-- slot: toolbar: Settings is the current page here -->
+        <div class="cp-toolbar">
+          <!-- slot: header status: the button and its empty panel, which createHeaderStatus fills; the run controls are its starts -->
+          <button class="cp-header-status" type="button" data-state="ok" popovertarget="status">
+            <span>All good</span>
+          </button>
+          <div class="cp-popover cp-status-panel" data-variant="panel" popover id="status"></div>
+          <button class="cp-button cp-toggle" data-variant="quiet" data-kind="theme" type="button" aria-label="Dark theme" aria-pressed="false">
+            <span class="cp-icon" data-cp-icon="sun" aria-hidden="true"></span>
+            <span class="cp-icon" data-cp-icon="moon" data-part="on" aria-hidden="true"></span>
+          </button>
+          <a class="cp-button" data-variant="quiet" href="#" aria-label="Settings" aria-current="page">
+            <span class="cp-icon" data-cp-icon="settings" aria-hidden="true"></span>
+          </a>
+          <!-- slot: account: the button and its menu: who is signed in, the account's page, Sign out -->
+          <button class="cp-button cp-account" data-variant="quiet" type="button" aria-label="CP, account" popovertarget="account" aria-haspopup="menu">
+            <span class="cp-avatar" data-size="sm">CP</span>
+          </button>
+          <div class="cp-popover cp-menu" id="account" popover role="menu" aria-label="Account">
+            <div class="cp-menu-label">Signed in as cplieger</div>
+            <a role="menuitem" href="#"><span class="cp-icon" data-cp-icon="user" aria-hidden="true"></span>Account and security</a>
+            <hr>
+            <button role="menuitem" type="button"><span class="cp-icon" data-cp-icon="log-out" aria-hidden="true"></span>Sign out</button>
+          </div>
+        </div>
+      </header>
+      <!-- region: main -->
+      <main class="cp-main" id="main" tabindex="-1">
+        <div class="cp-stack">
+          <!-- slot: banner: the header status's urgent part first, then a .cp-notice data-variant="banner" per condition of the app's own that stops work on every screen -->
+          <div class="cp-stack" data-gap="tight" id="urgent" hidden></div>
+          <!-- slot: heading -->
+          <div class="cp-heading-row">
+            <h1 tabindex="-1">Settings</h1>
+          </div>
+          <!-- slot: notices: a .cp-notice per condition of every category, such as a restart that waits -->
+          <div class="cp-settings">
+            <!-- slot: categories: one link per category, each its own address; the open one aria-current="page", one with unsaved changes a dot and its hidden words -->
+            <nav class="cp-settings-nav" aria-label="Settings">
+              <ul class="cp-list" data-surface="plain" data-divider="none" data-density="compact">
+                <li>
+                  <a class="cp-list-row" href="#" aria-current="page">
+                    <span class="cp-cell-stack">Connections</span>
+                    <span data-part="end"><span class="cp-dot" data-tone="accent" aria-hidden="true"></span><span class="cp-visually-hidden">, unsaved changes</span></span>
+                  </a>
+                </li>
+                <li><a class="cp-list-row" href="#"><span class="cp-cell-stack">Checks</span></a></li>
+                <li><a class="cp-list-row" href="#"><span class="cp-cell-stack">Display</span></a></li>
+                <li><a class="cp-list-row" href="#"><span class="cp-cell-stack">Sign-in</span></a></li>
+              </ul>
+            </nav>
+            <!-- slot: category: the open category's form; guardChanges from @cplieger/ui/form counts its changes -->
+            <form class="cp-stack" action="#" method="post" novalidate>
+              <!-- slot: category heading -->
+              <h2>Connections</h2>
+              <!-- slot: errors: the form's summary, which reportErrors fills and focuses -->
+              <div class="cp-notice" data-tone="danger" id="settings-errors" hidden>
+                <span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span>
+                <div data-part="body"></div>
+              </div>
+              <!-- slot: groups: a section with its heading over a panel of setting rows -->
+              <section class="cp-stack" aria-labelledby="sonarr-title">
+                <h3 id="sonarr-title">Sonarr</h3>
+                <div class="cp-panel">
+                  <div class="cp-setting">
+                    <div>
+                      <label class="cp-label" for="sonarr-url">Address</label>
+                      <span class="cp-help" id="sonarr-url-help">Where the app reaches Sonarr, with its port.</span>
+                    </div>
+                    <input class="cp-input" id="sonarr-url" name="sonarr-url" type="url" value="http://sonarr:8989" spellcheck="false" aria-describedby="sonarr-url-help">
+                  </div>
+                  <div class="cp-setting">
+                    <div>
+                      <span class="cp-label" id="sonarr-key-label">API key</span>
+                      <span class="cp-help">Settings, then General, in Sonarr.</span>
+                    </div>
+                    <div class="cp-secret" data-cp-state="saved">
+                      <div data-part="saved">
+                        <span class="cp-icon" data-cp-icon="lock" aria-hidden="true"></span><span>Saved</span>
+                        <button class="cp-button" data-size="sm" type="button" aria-describedby="sonarr-key-label">Replace</button>
+                      </div>
+                      <div data-part="edit">
+                        <div class="cp-input-wrap">
+                          <input class="cp-input" name="sonarr-key" type="password" aria-labelledby="sonarr-key-label" autocomplete="new-password" disabled>
+                          <button class="cp-button" data-variant="quiet" type="button" aria-label="Show the Sonarr API key">
+                            <span class="cp-icon" data-cp-icon="eye" aria-hidden="true"></span>
+                          </button>
+                        </div>
+                        <div>
+                          <button class="cp-button" data-variant="quiet" data-size="sm" type="button" data-part="keep">Keep saved value</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="cp-setting">
+                    <div>
+                      <label class="cp-label" for="check-every">Check every (minutes)</label>
+                    </div>
+                    <input class="cp-input" id="check-every" name="check-every" type="number" value="30" min="5">
+                  </div>
+                </div>
+              </section>
+              <section class="cp-stack" aria-labelledby="scans-title">
+                <h3 id="scans-title">Scans</h3>
+                <div class="cp-panel">
+                  <div class="cp-setting">
+                    <div>
+                      <label class="cp-label" for="scan-new">Scan a series Sonarr adds</label>
+                      <span class="cp-help" id="scan-new-help">Checks it at once instead of at the next full check.</span>
+                    </div>
+                    <input class="cp-checkbox" id="scan-new" name="scan-new" type="checkbox" checked aria-describedby="scan-new-help">
+                  </div>
+                </div>
+              </section>
+              <!-- slot: save bar: shown while a change waits; Discard is the form's reset -->
+              <div class="cp-savebar" role="group" aria-label="Unsaved changes">
+                <span data-part="count">2 unsaved changes</span>
+                <button class="cp-button" type="reset">Discard</button>
+                <button class="cp-button" data-variant="primary" type="submit">Save changes</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </main>
+      <!-- region: status -->
+      <footer class="cp-status">
+        <span>Data as of <time datetime="2026-11-14T14:02">14:02</time></span>
+        <!-- slot: about -->
+        <span class="cp-meta" data-part="about">
+          <span>Version 3.0.0</span>
+          <a href="https://github.com/example/release-tracker" rel="external">Source<span class="cp-visually-hidden">, opens GitHub</span></a>
+          <a href="https://github.com/example/release-tracker/blob/main/LICENSE" rel="external">Licence<span class="cp-visually-hidden">, opens GitHub</span></a>
+        </span>
+      </footer>
+    </div>
+  </body>
+</html>

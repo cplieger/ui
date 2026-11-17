@@ -2,14 +2,13 @@
  * chart.ts — `renderChart()` builds a chart inside an app's
  * `<figure class="cp-chart">`: its plot, legend row, summary and table
  * view, through one lifecycle of loading, empty, error and full states.
- * `durationEdges()` gives the duration ladder a histogram bins on.
  * @module
  */
 
 import { whenAborted } from "../../core/lifetime/lifetime.js";
 import { localeOf } from "../../core/locale/locale.js";
 import { skeletonTiming, type SkeletonTimingController } from "../../feedback/skeleton/skeleton.js";
-import { forgetMeasures } from "../scale/measure.js";
+import { afterFontsSettle } from "../scale/measure.js";
 
 import { colourKey, drawPlot, frameLegend, readMetrics, sizeKey } from "./draw.js";
 import { explore } from "./explore.js";
@@ -22,8 +21,7 @@ import { shortDescription, summaryOf } from "./summary.js";
 import { namedRows, syncTable, tableModel } from "./table.js";
 import { chartWords, type ChartWords, type Words } from "./words.js";
 
-export { durationEdges } from "../scale/ladder.js";
-export type { ChartSpec, Mark } from "./spec.js";
+export type { ChartFrame, ChartSpec, Mark } from "./spec.js";
 export type { ChartWords } from "./words.js";
 
 export interface ChartOptions {
@@ -362,7 +360,7 @@ export function renderChart(
       grid.clear();
     }
     if (tableOn && tableStale) {
-      syncTable(panel, tableModel(drawn, words), title.textContent, namedRows(drawn));
+      syncTable(panel, tableModel(drawn, words), title.id, namedRows(drawn));
       tableStale = false;
     }
     panel.hidden = !tableOn;
@@ -423,7 +421,7 @@ export function renderChart(
       arrange([legend, plot, panel]);
       plotStale = true;
       if (tableOn && !panel.hidden) {
-        syncTable(panel, tableModel(model, words), title.textContent, namedRows(model));
+        syncTable(panel, tableModel(model, words), title.id, namedRows(model));
         tableStale = false;
       } else {
         tableStale = true;
@@ -566,19 +564,13 @@ export function renderChart(
   // load the page starts while the chart lives measures it again once the
   // set settles. WebKit fires no loadingdone for such a load, only loading;
   // chart.test.ts "measures the chart again once the face has loaded" pins it.
-  let settling = false;
-  const onFonts = (): void => {
-    if (settling) {
-      return;
+  const remeasure = (): void => {
+    if (!life.signal.aborted) {
+      measureAfresh();
     }
-    settling = true;
-    void document.fonts.ready.then(() => {
-      settling = false;
-      if (!life.signal.aborted) {
-        forgetMeasures();
-        measureAfresh();
-      }
-    });
+  };
+  const onFonts = (): void => {
+    afterFontsSettle(remeasure);
   };
   document.fonts.addEventListener("loading", onFonts, { signal: life.signal });
   if (document.fonts.status === "loading") {

@@ -8,11 +8,8 @@
 import { installAnnouncer } from "@cplieger/ui/announce";
 import { enhanceSelectAll } from "@cplieger/ui/checkbox";
 import { enhanceChoiceFields } from "@cplieger/ui/choice";
-import { enhanceConnectionTest } from "@cplieger/ui/connection-test";
 import { enhanceCopy } from "@cplieger/ui/copy";
 import { enhanceDateRange } from "@cplieger/ui/date-range";
-import { enhanceFiles } from "@cplieger/ui/file";
-import { reportErrors } from "@cplieger/ui/form";
 import { enhanceRange } from "@cplieger/ui/range";
 import { enhanceSearch } from "@cplieger/ui/search";
 import { enhancePairs } from "@cplieger/ui/pairs";
@@ -42,6 +39,9 @@ import "./wire/lists.js";
 import "./wire/marks.js";
 import "./wire/nav-feedback.js";
 import "./wire/overlays.js";
+import "./wire/settings.js";
+import "./wire/templates.js";
+import "./wire/views.js";
 
 const all = <E extends Element>(selector: string): E[] => [
   ...document.querySelectorAll<E>(selector),
@@ -80,7 +80,7 @@ for (const button of all<HTMLButtonElement>(".cp-code > .cp-copy")) {
 }
 // A token field names its suggestions by data-suggest, its limit by
 // data-max, a limit it shares by data-limit and its note by data-note, and
-// data-free takes new words. The search page listens for "tokens".
+// data-free takes new words.
 const limits = new Map<string, TokenLimit>([["hidden-tags", createTokenLimit(4)]]);
 for (const box of all<HTMLElement>("[data-tokens]")) {
   const byId = (key: string): HTMLElement | undefined => {
@@ -96,7 +96,6 @@ for (const box of all<HTMLElement>("[data-tokens]")) {
     ...(note === undefined ? {} : { note }),
     ...(max === undefined ? {} : { max: Number(max) }),
     ...(limit === undefined ? {} : { limit }),
-    onChange: () => box.dispatchEvent(new CustomEvent("tokens", { bubbles: true })),
   });
 }
 for (const search of all<HTMLElement>(".cp-search")) {
@@ -140,39 +139,6 @@ for (const button of all<HTMLButtonElement>("[data-theme-toggle]")) {
   new MutationObserver(show).observe(root, { attributes: true, attributeFilter: ["data-theme"] });
   show();
 }
-// The setup card's test passes for an address with a port, after a second.
-for (const button of all<HTMLButtonElement>("button[data-test]")) {
-  const status = document.getElementById(button.dataset["test"] ?? "");
-  const url = document.getElementById(button.dataset["url"] ?? "");
-  const mark = document.getElementById(`${url?.id ?? ""}-error`);
-  const step = button.closest<HTMLElement>("[data-step]");
-  if (status === null || !(url instanceof HTMLInputElement) || mark === null || step === null) {
-    continue;
-  }
-  enhanceConnectionTest(button, status, {
-    root: step,
-    run: (signal) =>
-      new Promise((done, fail) => {
-        const timer = setTimeout(() => {
-          done(
-            /^https?:\/\/\S+:\d+/.test(url.value)
-              ? { ok: true, message: "Connected, Sonarr 4.0.9" }
-              : {
-                  ok: false,
-                  message: "Sonarr did not answer at this address and port.",
-                  field: "url",
-                  fix: "Check the address and its port, such as http://sonarr.lan:8989.",
-                },
-          );
-        }, 1100);
-        signal.addEventListener("abort", () => {
-          clearTimeout(timer);
-          fail(new DOMException("The check was ended.", "AbortError"));
-        });
-      }),
-    fields: { url: { input: url, mark } },
-  });
-}
 // A filter chip's state is the app's filter; here a press flips it. A share
 // bar's toggle and a chart's are their own, and a link chip has no state.
 for (const chip of all<HTMLButtonElement>(
@@ -184,29 +150,6 @@ for (const chip of all<HTMLButtonElement>(
 }
 for (const range of all<HTMLElement>("[data-range]")) {
   enhanceDateRange(range, { earliest: new Date(2024, 2, 1) });
-}
-// A file field names its list by data-files and its limit by data-max-size.
-// In a dialog, Upload with no file says so on the field.
-for (const input of all<HTMLInputElement>("input[type='file'][data-files]")) {
-  const list = document.getElementById(input.dataset["files"] ?? "");
-  const files = enhanceFiles(input, {
-    ...(list === null ? {} : { list }),
-    maxSize: Number(input.dataset["maxSize"] ?? Infinity),
-  });
-  const form = input.form;
-  const summary = form?.querySelector<HTMLElement>("[data-summary]");
-  if (form === null || summary === null || summary === undefined) {
-    continue;
-  }
-  form.addEventListener("submit", (e) => {
-    if (files.files.length === 0) {
-      e.preventDefault();
-      reportErrors(form, [{ field: input, message: "Choose a file to upload." }], {
-        summary,
-        heading: (n) => `${String(n)} fields need a fix`,
-      });
-    }
-  });
 }
 // The sentence editor's pickers: a language each, three to a rule.
 const LANGS = ["English", "English (signs and songs)", "French", "German", "Spanish", "Japanese"];

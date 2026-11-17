@@ -294,7 +294,14 @@ export type Grain = "minute" | "day" | "month" | "year";
  *  the 1st of a month for "month", 1 January for "year"; "minute" for none. */
 export function grainOf(times: Iterable<number>, timeZone: string | undefined): Grain {
   let grain: Grain | undefined;
+  // A wall-clock read is an Intl call, so an instant held many times, as a
+  // day's events dated at its midnight are, is read once.
+  const seen = new Set<number>();
   for (const t of times) {
+    if (seen.has(t)) {
+      continue;
+    }
+    seen.add(t);
     const w = wall(t, timeZone);
     const day = Math.floor(w / DAY);
     if (mod(w, DAY) !== 0 && t !== midnight(day, timeZone)) {

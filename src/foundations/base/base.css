@@ -55,9 +55,9 @@
   color: inherit;
 }
 
-/* A heading or caption that takes focus by script, so a screen reader
- * lands on a new step or page, is no control: it draws no ring. */
-:where(.cp) :where(h1, h2, h3, h4, caption)[tabindex="-1"]:focus {
+/* A heading that takes focus by script, so a screen reader lands on a new
+ * step or page, is no control: it draws no ring. */
+:where(.cp) :where(h1, h2, h3, h4)[tabindex="-1"]:focus {
   outline: none;
 }
 
@@ -171,6 +171,18 @@
 
 :where(.cp) :where(time, data, output) {
   font-variant-numeric: tabular-nums;
+}
+
+/* A matched word, such as a search result's. The wash keeps one lightness
+ * whatever the accent, so muted words on it keep 4.5:1 in both themes. */
+:where(.cp) :where(mark) {
+  padding-inline: 0.0625rem;
+  border-radius: 0.1875rem;
+  background: light-dark(
+    oklch(from var(--cp-harmony-3) 91.5% calc(c * 0.5) h),
+    oklch(from var(--cp-harmony-3) 34% calc(c * 0.4) h)
+  );
+  color: inherit;
 }
 
 :where(.cp) ::selection {

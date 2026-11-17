@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { userEvent } from "vitest/browser";
 
 import { createMarkdownStream, renderMarkdown } from "../markdown/markdown.js";
 
@@ -261,6 +262,58 @@ describe(".cp-code[data-variant=block]", () => {
     }
   });
 
+  /** A hand-written block with no bar, as a page with no script writes it. */
+  function bare(text: string): HTMLElement {
+    const el = document.createElement("div");
+    el.className = "cp-prose";
+    el.style.inlineSize = "320px";
+    const block = document.createElement("div");
+    block.className = "cp-code";
+    block.dataset["variant"] = "block";
+    const pre = document.createElement("pre");
+    pre.tabIndex = 0;
+    const code = document.createElement("code");
+    code.textContent = text;
+    pre.append(code);
+    block.append(pre);
+    el.append(block);
+    document.body.append(el);
+    hosts.push(el);
+    return block;
+  }
+
+  it("selects the whole command at one click when it has no bar", async () => {
+    const command = "docker exec release-tracker release-tracker accounts restore <archive>";
+    const code = q(bare(command), "code");
+    await userEvent.click(code);
+    expect(getSelection()?.toString()).toBe(command);
+  });
+
+  it("selects the whole command at a click in the pre's padding", async () => {
+    const command = "docker exec release-tracker release-tracker accounts reset";
+    const pre = q(bare(command), "pre");
+    getSelection()?.removeAllRanges();
+    await userEvent.click(pre, { position: { x: 4, y: 4 } });
+    expect(getSelection()?.toString()).toBe(command);
+  });
+
+  it("leaves a click on a block with its bar and Copy selecting nothing", async () => {
+    const el = prose("```sh\ndocker exec release-tracker release-tracker accounts reset\n```\n");
+    getSelection()?.removeAllRanges();
+    await userEvent.click(q(el, "pre > code"));
+    expect(getSelection()?.toString()).toBe("");
+  });
+
+  it("gives a bar-less pre's focus ring the block's inner corners", () => {
+    const block = bare("ls");
+    const pre = q(block, "pre");
+    const inner =
+      Number.parseFloat(css(block).borderTopLeftRadius) -
+      Number.parseFloat(css(block).borderTopWidth);
+    expect(Number.parseFloat(css(pre).borderTopLeftRadius)).toBeCloseTo(inner, 1);
+    expect(Number.parseFloat(css(pre).borderBottomRightRadius)).toBeCloseTo(inner, 1);
+  });
+
   it("leaves the one-line copy field one control tall", () => {
     const el = document.createElement("div");
     el.className = "cp-code";
@@ -298,6 +351,31 @@ describe(".cp-table-scroll", () => {
     const width = (c: Element | undefined) => c?.getBoundingClientRect().width ?? 0;
     expect(width(cells[5])).toBeGreaterThanOrEqual(12 * em - 0.5);
     expect(width(cells[1])).toBeLessThan(6 * em);
+  });
+
+  it("centres a one-line cell in a row another cell makes taller, and keeps a value with its unit", async () => {
+    const md =
+      "| Release | Size | Added | Notes |\n|:--|--:|:--|:--|\n" +
+      "| Frieren S01E04 | 1.4 GB | 2023-10-20 | a note long enough to wrap onto a second line here |\n";
+    const el = prose(md, 332);
+    await frame();
+    const [release, size, added, notes] = [...el.querySelectorAll("tbody td")] as HTMLElement[];
+    const line = (c: HTMLElement | undefined) => {
+      const words = document.createRange();
+      words.selectNodeContents(c as HTMLElement);
+      return new Set([...words.getClientRects()].map((r) => Math.round(r.bottom))).size;
+    };
+    expect(line(notes)).toBeGreaterThan(1);
+    const row = (notes as HTMLElement).getBoundingClientRect();
+    for (const cell of [release, size, added]) {
+      expect(line(cell)).toBe(1);
+      const words = document.createRange();
+      words.selectNodeContents(cell as HTMLElement);
+      const box = words.getBoundingClientRect();
+      expect(Math.abs(box.top + box.height / 2 - (row.top + row.height / 2))).toBeLessThanOrEqual(
+        1,
+      );
+    }
   });
 
   it("is as wide as a table that fits", () => {

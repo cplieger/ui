@@ -37,14 +37,13 @@ import {
   SCATTER_RADIUS,
   snap,
   type DayGrid,
-  type Frame,
+  type Projection,
   type Panel,
 } from "./geometry.js";
 import {
   barsApart,
   dayOf,
   sampleValue,
-  thinnestBin,
   type BarModel,
   type BoxModel,
   type CalendarModel,
@@ -55,9 +54,10 @@ import {
   type SlopeModel,
   type TreeModel,
 } from "./model.js";
+import { thinnestBin } from "./check.js";
 import { dayFormat, dayPlace, foldSize, monthFirst, weekCount, weekRow } from "./calendar.js";
-import { MARKER_RADIUS, NOTE_REM, notePoint, placeNote, wrapNote, type Box } from "./notes.js";
-import { rimPoint, sliceAngles, type PieFrame } from "./pie.js";
+import { NOTE_REM, notePoint, placeNote, wrapNote, type Box } from "./notes.js";
+import { rimPoint, sliceAngles, type Disc } from "./pie.js";
 import { lastSample, lastStack, partAmount, samplePart } from "./readout.js";
 import type { Continuous } from "./scales.js";
 import { resquarify, squarify, type Row } from "./treemap.js";
@@ -115,7 +115,7 @@ export interface TreeKept {
 }
 
 /** A treemap on the plot, in plot px, edges snapped to device px. */
-interface TreeFrame {
+interface TreeTiles {
   /** Each part's tile in part order; undefined for a 0 or no data, which
    *  draws none. */
   readonly tiles: readonly (Box | undefined)[];
@@ -141,7 +141,7 @@ export interface Layout {
   /** The plot's box in the SVG. */
   readonly left: number;
   readonly top: number;
-  readonly frame: Frame;
+  readonly projection: Projection;
   readonly xAxis: Axis;
   /** A continuous y's axis; absent on a band and on a slope, which draws none. */
   readonly yAxis: Axis | undefined;
@@ -155,12 +155,12 @@ export interface Layout {
   /** A calendar's days on the plot. */
   readonly days: DayGrid | undefined;
   /** A pie's circle on the plot. */
-  readonly pie: PieFrame | undefined;
+  readonly pie: Disc | undefined;
   /** A donut's total in its hole, in plot px: `words.total` over the value;
    *  absent when the value is wider than the hole less 16 px. */
   readonly hole: { readonly label: Text; readonly total: Text } | undefined;
   /** A treemap's tiles on the plot. */
-  readonly tree: TreeFrame | undefined;
+  readonly tree: TreeTiles | undefined;
   /** A whole bar's thickness, which a group's thinner bars derive from
    *  (`barBlock`); 0 without a bar mark. */
   readonly bar: number;
@@ -182,7 +182,7 @@ export interface Layout {
   /** A slope's end labels moved off their dots' heights, each joined to
    *  its dot, or a pie's outside labels, each joined to its slice's rim. */
   readonly leaders: readonly Leader[];
-  /** The notes drawn, in spec order: those whose point lies in the plot. */
+  /** The notes drawn, in frame order: those whose point lies in the plot. */
   readonly notes: readonly Note[];
   /** Every note is drawn as its numbered marker, its words listed below
    *  the plot: under 30rem, or when two notes overlap or one cannot fit. */
@@ -223,8 +223,6 @@ const MIRROR_SPACE = 2;
 const NAME_GAP = 2;
 /** The room between a bar's end and its value label. */
 const VALUE_GAP = 4;
-/** The room between a row's last bar, or its label, and a note's point there. */
-const END_GAP = 4;
 /** The room between panels: a split bar chart's, and small multiples' rows and columns. */
 export const PANEL_GAP = 16;
 /** The spine between a mirrored bar chart's two sides. */
@@ -291,33 +289,31 @@ function endTexts(
   return out;
 }
 
-// Each text mark `notePoint` places, wrapped and placed beside its point;
-// `rowEnd` gives the point of a note at its row's end.
+// Each text mark `notePoint` places, wrapped and placed beside its point on
+// the plot's top edge, or `dayPoint`'s on a calendar.
 function notesOf(
   model: Model,
   metrics: Metrics,
-  frame: Frame,
-  rows: Layout["rows"],
-  rowEnd: (row: number) => number,
+  projection: Projection,
   dayPoint?: (t: number) => { readonly x: number; readonly y: number } | undefined,
 ): Note[] {
   const out: Note[] = [];
-  const max = Math.min(NOTE_REM * metrics.rem, frame.width);
+  const max = Math.min(NOTE_REM * metrics.rem, projection.width);
   model.marks.forEach((m, mark) => {
     const at = m.kind === "text" ? notePoint(model, m) : undefined;
     if (m.kind !== "text" || at === undefined) {
       return;
     }
-    const day = dayPoint === undefined ? undefined : dayPoint(at.x ?? 0);
+    const day = dayPoint === undefined ? undefined : dayPoint(at);
     if (dayPoint !== undefined && day === undefined) {
       return;
     }
-    const x = day?.x ?? (at.x === undefined ? rowEnd(at.y) : frame.xAt(at.x));
-    const y = day?.y ?? (m.row ? (rows[at.y]?.y ?? 0) : frame.yAt(at.y));
+    const x = day?.x ?? projection.xAt(at);
+    const y = day?.y ?? 0;
     const texts = wrapNote(m.text, max, metrics.measure.text);
     const w = widestOf(texts, metrics.measure.text);
     const h = texts.length * metrics.lineHeight;
-    const placed = placeNote(x, y, m.side, w, h, frame.width, frame.height);
+    const placed = placeNote(x, y, m.side, w, h, projection.width, projection.height);
     const { box, side } = placed;
     const [tx, anchor] =
       side === "left"
@@ -625,15 +621,15 @@ function slopeLayout(
     y: lineHeight / 2,
     anchor: c === 0 ? "start" : "end",
   }));
-  const frame: Frame = { width: plotW, height, dpr, yAt, x: model.x, xAt };
-  const notes = notesOf(model, metrics, frame, [], () => 0);
+  const projection: Projection = { width: plotW, height, dpr, yAt, x: model.x, xAt };
+  const notes = notesOf(model, metrics, projection);
   return {
     width,
     // Half a label's line under the plot holds a label at its bottom edge.
     height: top + height + Math.ceil(lineHeight / 2),
     left: axisW,
     top,
-    frame,
+    projection,
     xAxis: { lo: 0, hi: 1, at: xAt, ticks: [] },
     yAxis: undefined,
     rows: [],
@@ -727,7 +723,7 @@ function calendarLayout(
       anchor: "end" as const,
     })),
   );
-  const frame: Frame = {
+  const projection: Projection = {
     width: plotW,
     height,
     dpr,
@@ -735,27 +731,20 @@ function calendarLayout(
     x: model.x,
     xAt: (v) => v,
   };
-  const notes = notesOf(
-    model,
-    metrics,
-    frame,
-    [],
-    () => 0,
-    (t) => {
-      const i = dayOf(model, m, t);
-      if (i === -1) {
-        return undefined;
-      }
-      const b = dayBox(grid, i, dpr);
-      return { x: (b.left + b.right) / 2, y: (b.top + b.bottom) / 2 };
-    },
-  );
+  const notes = notesOf(model, metrics, projection, (t) => {
+    const i = dayOf(model, m, t);
+    if (i === -1) {
+      return undefined;
+    }
+    const b = dayBox(grid, i, dpr);
+    return { x: (b.left + b.right) / 2, y: (b.top + b.bottom) / 2 };
+  });
   return {
     width,
     height,
     left: axisW,
     top: 0,
-    frame,
+    projection,
     xAxis: { lo: model.x.lo, hi: model.x.hi, at: (v) => v, ticks: [] },
     yAxis: undefined,
     rows: [],
@@ -821,7 +810,7 @@ function pieLayout(
     Math.max(right, slices.length - right) * step <= height;
   const column = labelled ? Math.min(PIE_COLUMN_REM * metrics.rem, PIE_COLUMN * chart) : 0;
   const r = Math.max(0, Math.min(height, width - 2 * column)) / 2;
-  const p: PieFrame = { cx: width / 2, cy: height / 2, r, inner: m.hole ? r / 2 : 0 };
+  const p: Disc = { cx: width / 2, cy: height / 2, r, inner: m.hole ? r / 2 : 0 };
   const endLabels: Text[] = [];
   const leaders: Leader[] = [];
   for (const side of labelled ? [1, -1] : []) {
@@ -874,13 +863,13 @@ function pieLayout(
       };
     }
   }
-  const frame: Frame = { width, height, dpr, yAt: (v) => v, x: model.x, xAt: (v) => v };
+  const projection: Projection = { width, height, dpr, yAt: (v) => v, x: model.x, xAt: (v) => v };
   return {
     width,
     height,
     left: 0,
     top: 0,
-    frame,
+    projection,
     xAxis: { lo: 0, hi: 1, at: (v) => v, ticks: [] },
     yAxis: undefined,
     rows: [],
@@ -1044,13 +1033,13 @@ function treeLayout(
       labels.push({ text: value, x, y: y + lineHeight, anchor: "start", series: i });
     }
   });
-  const frame: Frame = { width, height, dpr, yAt: (v) => v, x: model.x, xAt: (v) => v };
+  const projection: Projection = { width, height, dpr, yAt: (v) => v, x: model.x, xAt: (v) => v };
   return {
     width,
     height,
     left: 0,
     top: 0,
-    frame,
+    projection,
     xAxis: { lo: 0, hi: 1, at: (v) => v, ticks: [] },
     yAxis: undefined,
     rows: [],
@@ -1250,19 +1239,7 @@ export function layout(
     roomRight = Math.max(roomLeft, roomRight);
     roomLeft = 0;
   }
-  // A note at its row's end needs its point, and a numbered marker round it,
-  // on the plot: past each panel's outer end, a diverging row's right end,
-  // or the end the bars run to.
-  const endRoom = model.marks.some((m) => m.kind === "text" && m.x === undefined)
-    ? END_GAP + MARKER_RADIUS
-    : 0;
-  const endLeft = !panelled && bars?.arrange !== "diverge" && reverse;
-  if (endLeft) {
-    roomLeft += endRoom;
-  } else {
-    roomRight += endRoom;
-  }
-  const shift = valued ? 0 : inset + (endLeft ? endRoom : 0);
+  const shift = valued ? 0 : inset;
   const one: Axis =
     cells !== undefined && "names" in cells.x
       ? bandAxis(cells.x.names, plotW, reverse, measure)
@@ -1277,7 +1254,7 @@ export function layout(
           }
         : xAxis(
             flip === reverse ? model.x : { ...model.x, reverse: flip },
-            Math.max(1, panelW - 2 * inset - endRoom),
+            Math.max(1, panelW - 2 * inset),
             ctx,
           );
   const panels = panelled ? panelsOf(bars, panelW, reverse, one.at) : [];
@@ -1488,7 +1465,7 @@ export function layout(
     };
   });
 
-  const frame: Frame = {
+  const projection: Projection = {
     width: plotW,
     height,
     dpr,
@@ -1497,35 +1474,13 @@ export function layout(
     ...(bubble === undefined ? {} : { bubble }),
   };
 
-  // A note with no x points 4 px past the outer end of its row's last
-  // place: the last panel's bar, a mirror's or a diverging row's right
-  // side, or else its farthest bar; past that bar's value label if it has one.
-  const rowEnd = (row: number): number => {
-    if (bars === undefined) {
-      return 0;
-    }
-    const k = mirror ? panels.findIndex((p) => !p.leftward) : panels.length - 1;
-    const panel = panels[k];
-    if (panel !== undefined) {
-      const label = labelEnds.find((e) => e.row === row && e.series === k);
-      const dir = panel.leftward ? -1 : 1;
-      return (label?.edge ?? panel.at(held(bars.series[k]?.x[row] ?? 0))) + dir * END_GAP;
-    }
-    const reach = barReach(bars, row);
-    if (bars.arrange === "diverge") {
-      return Math.max(xAx.at(held(reach.lo)), xAx.at(held(reach.hi))) + END_GAP;
-    }
-    // Bars here are 0 or more, so the farthest reaches the row's highest.
-    const label = labelEnds.find((e) => e.row === row && e.value === reach.hi);
-    return (label?.edge ?? xAx.at(held(reach.hi))) + (reverse ? -END_GAP : END_GAP);
-  };
-  const notes = notesOf(model, metrics, frame, rows, rowEnd);
+  const notes = notesOf(model, metrics, projection);
   return {
     width,
     height: top + height + bottom,
     left,
     top,
-    frame,
+    projection,
     xAxis: xAx,
     yAxis: yAx,
     rows,

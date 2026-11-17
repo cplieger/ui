@@ -298,11 +298,13 @@ export const pointPart = (model: Model, s: PointSeriesModel, i: number, words: W
   return v === null ? words.noData : model.xText(v);
 };
 
-/** `pointLink`'s `v` in x's format, a duration on a time x, and an
- *  arrow's change with its sign on every value not written as 0. */
+/** `pointLink`'s `v` in x's format, a duration on a time x (whose `v` is
+ *  ms), and an arrow's change with its sign on every value not written as 0. */
 export function linkText(model: Model, m: PointModel, v: number): string {
-  const format = model.x.type === "time" ? "duration" : model.x.format;
-  return writer(format, model.locale, { signed: m.link === "arrow" })(v);
+  const signed = { signed: m.link === "arrow" };
+  return model.x.type === "time"
+    ? writer("duration", model.locale, signed)(v / 1_000)
+    : writer(model.x.format, model.locale, signed)(v);
 }
 
 /** The word a reading's `total` follows in the legend row and the table:

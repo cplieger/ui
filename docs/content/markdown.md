@@ -46,7 +46,7 @@ A `headingLevel` or `maxBytes` out of range throws a `RangeError`, and a `base` 
 | paragraph, heading, blockquote, rule, line break | `p`, `h1` to `h6`, `blockquote`, `hr`, `br` |
 | emphasis, strong, strike, inline code | `em`, `strong`, `del`, `code` |
 | list, task | `ul`, or `ol` with `start`. Once its numbers reach 10, an `ol` also gets `data-cp-digits`, the digit count of its widest number, which `.cp-prose` widens the marker gutter by. A hand-written `ol` can carry it too. A task's box is a disabled `input type="checkbox"` named "Task item" |
-| table | `div.cp-table-scroll > table`, each cell's alignment in `data-align="start"`, `"center"` or `"end"`. Every body row has the header's cell count, padded with empty cells or cut. A cell of running text carries `data-cp-wrap`, which keeps it at a readable width once the table is wider than its box and scrolls |
+| table | `div.cp-table-scroll > table`, each cell's alignment in `data-align="start"`, `"center"` or `"end"`. Every body row has the header's cell count, padded with empty cells or cut. A cell of running text carries `data-cp-wrap`, which keeps it at a readable width once the table is wider than its box and scrolls, and a short cell, under 24 characters such as a size or a date, carries `data-cp-line`, which keeps it on one line. Every cell sits in the middle of its row's height |
 | link, bare URL, email | `a` |
 | image | `a`, or `img` in `"load"` mode |
 | equation | `code` with `data-math="inline"` or `"block"`, the TeX as its text |
@@ -73,6 +73,7 @@ Raw HTML in the text is shown as text. A character reference is decoded once, HT
 - Copy is [copy](../forms/copy.md) on the block's code. Its hint is inside the block, so a hook that replaces the block takes it too.
 - Add an app's buttons to `[data-part="actions"]`, each a `.cp-button` with `data-variant="quiet"` and `data-size="sm"`, from the `code` hook.
 - Long lines scroll instead of wrapping, since a wrapped command reads as two. The `pre` takes a tab stop only while it overflows.
+- Written by hand with no bar, the block is its `pre` alone, as on a page that runs no script and so has no Copy: one click selects the whole code, so the platform's copy takes all of it. Give that `pre` `tabindex="0"`, since no script adds the tab stop when it overflows.
 
 ### The table region
 

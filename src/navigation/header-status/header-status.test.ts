@@ -102,6 +102,10 @@ const job = (id: string, extra: Partial<StatusWork> = {}): StatusWork => ({
 });
 const model = (m: Partial<StatusModel>): StatusModel => ({ conditions: [], work: [], ...m });
 
+/** A time's words as relative-time writes them by default, from Intl. */
+const ago = (n: number, unit: Intl.RelativeTimeFormatUnit, locale?: string): string =>
+  new Intl.RelativeTimeFormat(locale, { style: "narrow", numeric: "always" }).format(-n, unit);
+
 describe("the pill's words", () => {
   const rows: [string, Partial<StatusModel>, string, string, string | undefined][] = [
     ["nothing", {}, "ok", "All good", undefined],
@@ -537,7 +541,9 @@ describe("the panel's sections", () => {
     expect(
       [...linked.querySelectorAll(".cp-cell-stack > small")].map((s) => s.textContent),
     ).toEqual(["Port changed", "Base URL changed"]);
-    expect(linked.querySelector("[data-part='end'] time")?.textContent).toMatch(/^1 hour ago/);
+    expect(
+      linked.querySelector("[data-part='end'] time")?.textContent?.startsWith(ago(1, "hour")),
+    ).toBe(true);
     await expect
       .element(page.getByRole("link", { name: /^Problem Restart pending.*Details and fix$/ }))
       .toBeInTheDocument();
@@ -662,11 +668,11 @@ describe("a time that comes back", () => {
     const { panel, status } = mount({ locale: "en-GB" });
     const ended = model({ recent: [{ id: "r", words: "Scan ended", at: now - 60_000 }] });
     status.update(ended);
-    expect(words(rows(panel, "recent")[0])).toBe("1 minute ago");
+    expect(words(rows(panel, "recent")[0])).toBe(ago(1, "minute", "en-GB"));
     status.update(model({}));
     status.update(ended);
     vi.advanceTimersByTime(5 * 60_000);
-    expect(words(rows(panel, "recent")[0])).toBe("6 minutes ago");
+    expect(words(rows(panel, "recent")[0])).toBe(ago(6, "minute", "en-GB"));
   });
 
   it("keeps a condition's since moving after the conditions emptied", () => {
@@ -674,11 +680,11 @@ describe("a time that comes back", () => {
     const { panel, status } = mount({ locale: "en-GB" });
     const failing = model({ conditions: [problem("p", { since: now - 60_000 })] });
     status.update(failing);
-    expect(words(rows(panel, "conditions")[0])).toBe("1 minute ago");
+    expect(words(rows(panel, "conditions")[0])).toBe(ago(1, "minute", "en-GB"));
     status.update(model({}));
     status.update(failing);
     vi.advanceTimersByTime(5 * 60_000);
-    expect(words(rows(panel, "conditions")[0])).toBe("6 minutes ago");
+    expect(words(rows(panel, "conditions")[0])).toBe(ago(6, "minute", "en-GB"));
   });
 });
 
@@ -1329,15 +1335,20 @@ describe("the starts", () => {
       }),
     );
     expect(f.getAttribute("aria-busy")).toBe("true");
-    expect(glyph(f).getAnimations()).toHaveLength(1);
+    const turning = glyph(f).getAnimations();
+    expect(turning).toHaveLength(1);
+    // Held half a turn in, so a slow machine neither reaches a second turn
+    // nor lets the animation end and leave getAnimations() before the check.
+    const anim = turning[0] as Animation;
+    anim.pause();
+    anim.currentTime = 450;
     full.box.finish();
     await vi.waitFor(() => {
       expect(f.textContent).toBe("Full check");
     });
     expect(f.hasAttribute("aria-busy")).toBe(false);
     // The turn in progress finishes: the animation now ends.
-    const [anim] = glyph(f).getAnimations();
-    expect(anim?.effect?.getTiming().iterations).toBe(1);
+    expect(anim.effect?.getTiming().iterations).toBe(1);
   });
 
   it("describes a start by its tip, after its reason", async () => {
@@ -1616,7 +1627,8 @@ describe("the urgent banner", () => {
       "Sign-in by password is on.",
     ]);
     const foot = one.querySelector(":scope > small") as HTMLElement;
-    expect(foot.textContent).toMatch(/^Last seen 40 minutes ago.* How to limit access$/);
+    expect(foot.textContent.startsWith(`Last seen ${ago(40, "minute")}`)).toBe(true);
+    expect(foot.textContent).toMatch(/ How to limit access$/);
     expect([...foot.querySelectorAll("a")].map((a) => a.getAttribute("href"))).toEqual([
       "/docs/access",
     ]);
@@ -1664,7 +1676,8 @@ describe("the urgent banner", () => {
     expect(a.querySelector(":scope > span > strong")?.textContent).toBe("Store full");
     expect(a.querySelector("ul")).toBeNull();
     const foot = a.querySelector(":scope > span > small") as HTMLElement;
-    expect(foot.textContent).toMatch(/^Seen 40 minutes ago.* Details and fix$/);
+    expect(foot.textContent.startsWith(`Seen ${ago(40, "minute")}`)).toBe(true);
+    expect(foot.textContent).toMatch(/ Details and fix$/);
     expect(foot.querySelector("a")?.getAttribute("href")).toBe("/settings/access");
     expect(b.querySelector("small")).toBeNull();
     expect(b.textContent).toBe("Sign-in is off");

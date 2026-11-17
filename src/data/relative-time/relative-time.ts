@@ -1,6 +1,6 @@
 /**
  * relative-time.ts — a `<time>` that says how long ago, or how far ahead,
- * its moment is, "4 minutes ago" in the locale's words, and keeps itself
+ * its moment is, "4m ago" in the locale's words, and keeps itself
  * current. The exact time stays beside it for a screen reader and shows on
  * hover through the tooltip.
  * @module
@@ -13,14 +13,14 @@ export type RelativeStyle = "long" | "short" | "narrow";
 export interface FormatRelativeOptions {
   /** The moment to count from, in ms since the epoch. Default: now. */
   readonly now?: number;
-  /** Default "long". */
+  /** Default "narrow"; "long" for a time inside a sentence. */
   readonly style?: RelativeStyle;
   /** A BCP 47 language tag. Default: the browser's. */
   readonly locale?: string;
 }
 
 export interface RelativeTimeOptions {
-  /** Default "long". */
+  /** Default "narrow"; "long" for a time inside a sentence. */
   readonly style?: RelativeStyle;
   /** A BCP 47 language tag. Default: the browser's. */
   readonly locale?: string;
@@ -106,11 +106,11 @@ function toMs(date: Date | number): number {
   return ms;
 }
 
-/** How long ago or ahead `date` is in the locale's words: "4 minutes ago",
- *  "in 25 minutes", "yesterday", or "now" under a minute. Throws a
+/** How long ago or ahead `date` is in the locale's words: "4m ago",
+ *  "in 25m", "1d ago", or "now" under a minute. Throws a
  *  TypeError for an invalid date. */
 export function formatRelative(date: Date | number, options: FormatRelativeOptions = {}): string {
-  return words(toMs(date), options.now ?? Date.now(), options.style ?? "long", options.locale);
+  return words(toMs(date), options.now ?? Date.now(), options.style ?? "narrow", options.locale);
 }
 
 interface Entry {
@@ -184,7 +184,7 @@ export function enhanceRelativeTime(
   time: HTMLTimeElement,
   options: RelativeTimeOptions = {},
 ): void {
-  const { signal, style = "long", locale } = options;
+  const { signal, style = "narrow", locale } = options;
   const at = Date.parse(time.dateTime);
   if (Number.isNaN(at)) {
     throw new TypeError(`relative-time: datetime "${time.dateTime}" does not parse`);

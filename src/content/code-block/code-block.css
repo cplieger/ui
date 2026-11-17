@@ -75,6 +75,15 @@
   font-size: 1em;
 }
 
+/* A block with no bar is its pre alone, as on a page that runs no script:
+ * the pre's focus ring takes the block's inner corners, and with no Copy one
+ * click selects the whole command, so the platform's copy takes all of it. */
+.cp-code[data-variant="block"] > pre:first-child {
+  border-radius: calc(var(--cp-radius-surface) - var(--cp-line-w));
+  -webkit-user-select: all;
+  user-select: all;
+}
+
 .cp-code[data-variant="block"] > pre:focus-visible {
   outline-offset: calc(-1 * var(--cp-focus-w));
 }

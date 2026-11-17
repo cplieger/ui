@@ -6,22 +6,22 @@
 
 import type { Format } from "../scale/format.js";
 
+import { MAX_MAGNITUDE } from "../frame/limits.js";
 import { resolution } from "../scale/linear.js";
 import { grainOf, localDay, midnight, withinTime, type Grain } from "../scale/time.js";
 
 import type {
-  BarMark,
-  BoxMark,
-  CalendarMark,
-  CellMark,
-  ChartSpec,
-  Mark,
-  PointMark,
-  RectMark,
-  ScatterMark,
-} from "./spec.js";
-
-type Scale = NonNullable<ChartSpec["x"]>;
+  BarInput,
+  BoxInput,
+  CalendarInput,
+  CellInput,
+  Input,
+  Plot,
+  PointInput,
+  RectInput,
+  ScatterInput,
+  Scale,
+} from "./plot.js";
 
 /** A log x's one rect whose `x1` is 0 or below. */
 interface Underflow {
@@ -58,11 +58,6 @@ export interface Band {
   readonly rows: readonly string[];
   readonly mono: boolean;
 }
-
-/** The largest magnitude a chart places on a value or colour scale: past
- *  about 1e306 a span times a tick spacing overflows to Infinity, and the
- *  axis's search for a step never ends. */
-export const LIMIT = 1e300;
 
 const finite = (v: number | null | undefined): v is number =>
   typeof v === "number" && Number.isFinite(v);
@@ -113,8 +108,10 @@ class Extent {
   }
 
   add(v: number): void {
-    // The spec check holds every value within LIMIT, so only a stack's sum passes it here.
-    if (Math.abs(v) > LIMIT && Number.isFinite(v)) {
+    // The spec check holds every value within MAX_MAGNITUDE, so only a stack's
+    // sum passes it here. Past about 1e306 a span times a tick spacing
+    // overflows to Infinity, and the axis's search for a step never ends.
+    if (Math.abs(v) > MAX_MAGNITUDE && Number.isFinite(v)) {
       throw new RangeError("renderChart: a stack's total must lie within ±1e300");
     }
     if (Number.isFinite(v) && (!this.#log || v > 0)) {
@@ -144,11 +141,11 @@ function widen(lo: number, hi: number): readonly [number, number] {
   return [lo - bump, hi + bump];
 }
 
-function rectAt(mark: RectMark, i: number): readonly [number, number] {
+function rectAt(mark: RectInput, i: number): readonly [number, number] {
   return [mark.x1[i] ?? 0, mark.x2[i] ?? 0];
 }
 
-function underflow(spec: ChartSpec, lo: number): Underflow | undefined {
+function underflow(spec: Plot, lo: number): Underflow | undefined {
   let found: Underflow | undefined;
   spec.marks.forEach((m, mark) => {
     if (m.mark !== "rect") {
@@ -176,7 +173,7 @@ function underflow(spec: ChartSpec, lo: number): Underflow | undefined {
 // of its positive ones, through 0; a diverging row from its left series'
 // sum and half its centre series to the rest; grouped, split and mirrored
 // bars each reach their own value.
-function addBars(extent: Extent, m: BarMark): void {
+function addBars(extent: Extent, m: BarInput): void {
   const apart = m.arrange === "group" || m.arrange === "split" || m.arrange === "mirror";
   const left = m.arrange === "diverge" ? (m.left ?? 0) : -1;
   const centre = m.centre === true ? left : -1;
@@ -185,9 +182,6 @@ function addBars(extent: Extent, m: BarMark): void {
     let hi = 0;
     for (const [k, s] of m.series.entries()) {
       const v = s.x[i];
-      if (v === Number.POSITIVE_INFINITY || v === Number.NEGATIVE_INFINITY) {
-        throw new RangeError("renderChart: a bar's x cannot be infinite");
-      }
       if (m.arrange === "share" && finite(v) && v < 0) {
         throw new RangeError("renderChart: a 100% stack's x cannot be negative");
       }
@@ -223,12 +217,9 @@ function addBars(extent: Extent, m: BarMark): void {
 }
 
 // A point's dot is placed by its value, so a log x has no place for 0 or below.
-function addPoints(extent: Extent, m: PointMark, log: boolean): void {
+function addPoints(extent: Extent, m: PointInput, log: boolean): void {
   for (const s of m.series) {
     for (const v of s.x) {
-      if (v === Number.POSITIVE_INFINITY || v === Number.NEGATIVE_INFINITY) {
-        throw new RangeError("renderChart: a point's x cannot be infinite");
-      }
       if (finite(v)) {
         if (log && v <= 0) {
           throw new RangeError("renderChart: a point's x must be above 0 on a log x");
@@ -242,7 +233,7 @@ function addPoints(extent: Extent, m: PointMark, log: boolean): void {
 
 // A box's whiskers' ends and its outliers are its row's extremes, which a
 // log x has no place for at 0 or below.
-function addBoxes(extent: Extent, m: BoxMark, log: boolean): void {
+function addBoxes(extent: Extent, m: BoxInput, log: boolean): void {
   for (const s of m.series) {
     for (let i = 0; i < s.low.length; i++) {
       const low = s.low[i];
@@ -263,14 +254,11 @@ function addBoxes(extent: Extent, m: BoxMark, log: boolean): void {
 // A scatter's dot is placed by its value, so a log axis has no place for 0
 // or below; a dot without its other value, or a bubble without its size,
 // is not drawn, so it holds no extent.
-function addScatter(extent: Extent, m: ScatterMark, axis: "x" | "y", log: boolean): void {
+function addScatter(extent: Extent, m: ScatterInput, axis: "x" | "y", log: boolean): void {
   const other = axis === "x" ? "y" : "x";
   for (const s of m.series) {
     for (let i = 0; i < s[axis].length; i++) {
       const v = s[axis][i];
-      if (v === Number.POSITIVE_INFINITY || v === Number.NEGATIVE_INFINITY) {
-        throw new RangeError(`renderChart: a scatter's ${axis} cannot be infinite`);
-      }
       if (finite(v)) {
         if (log && v <= 0) {
           throw new RangeError(`renderChart: a scatter's ${axis} must be above 0 on a log ${axis}`);
@@ -294,8 +282,8 @@ export interface Size {
 /** The r scale of `spec`, undefined unless its scatters' series carry `r`:
  *  [0, the largest r of a dot with both positions], or the passed domain.
  *  Throws for an r scale beside no r, a domain whose low end is not 0, and
- *  an r infinite, below 0 or past a passed domain, which no area shows. */
-export function rScale(spec: ChartSpec): Size | undefined {
+ *  an r past a passed domain, which no area shows. */
+export function rScale(spec: Plot): Size | undefined {
   const series = spec.marks.flatMap((m) =>
     m.mark === "scatter" ? m.series.filter((s) => s.r !== undefined) : [],
   );
@@ -313,14 +301,8 @@ export function rScale(spec: ChartSpec): Size | undefined {
   for (const s of series) {
     for (let i = 0; i < (s.r?.length ?? 0); i++) {
       const v = s.r?.[i];
-      if (v === Number.POSITIVE_INFINITY || v === Number.NEGATIVE_INFINITY) {
-        throw new RangeError("renderChart: a scatter's r cannot be infinite");
-      }
       if (!finite(v)) {
         continue;
-      }
-      if (v < 0) {
-        throw new RangeError("renderChart: a scatter's r cannot be below 0, which has no area");
       }
       if (passed !== undefined && v > passed[1]) {
         throw new RangeError("renderChart: a scatter's r must lie inside r.domain");
@@ -388,7 +370,7 @@ function binned(edges: readonly number[], s: Scale, axis: "x" | "y"): Continuous
 
 // A cell chart's categories on x, column i spanning i to i + 1, as a
 // slope's columns sit at 0 and 1: every place on it is a column's index.
-function cellColumns(spec: ChartSpec, m: CellMark): Continuous {
+function cellColumns(spec: Plot, m: CellInput): Continuous {
   const x = spec.x ?? {};
   if ("edges" in m.x) {
     return binned(m.x.edges, x, "x");
@@ -404,30 +386,23 @@ function cellColumns(spec: ChartSpec, m: CellMark): Continuous {
   if (x.zero !== undefined) {
     throw new TypeError("renderChart: a band x has no zero to hold");
   }
-  if (spec.marks.some((r) => r.mark === "rule" && r.x !== undefined)) {
-    throw new TypeError("renderChart: a rule on a band x has no value to sit at");
-  }
   return { ...COLUMNS, hi: m.x.length, reverse: x.reverse === true };
 }
 
 /** Whether `m` is a calendar, decided as the spec's check decides it, so a
  *  cell mark written `days: undefined` is a grid. */
-export const isCalendar = (m: Mark): m is CalendarMark =>
-  m.mark === "cell" && (m as Partial<CalendarMark>).days !== undefined;
+export const isCalendar = (m: Input): m is CalendarInput =>
+  m.mark === "cell" && (m as Partial<CalendarInput>).days !== undefined;
 
-const calendarOf = (spec: ChartSpec): CalendarMark | undefined => spec.marks.find(isCalendar);
+const calendarOf = (spec: Plot): CalendarInput | undefined => spec.marks.find(isCalendar);
 
 // A calendar's x runs from its first day's midnight to the midnight after
 // its last on the chart's wall clock, so a note's instant finds its day.
 // Nothing writes those two ends; the model checks the days a calendar writes.
-function calendarDays(spec: ChartSpec, m: CalendarMark, timeZone: string | undefined): Continuous {
+function calendarDays(spec: Plot, m: CalendarInput, timeZone: string | undefined): Continuous {
   if (spec.x !== undefined) {
     throw new TypeError("renderChart: a calendar takes no x scale; its days are its x");
   }
-  if (spec.marks.some((r) => r.mark === "rule")) {
-    throw new TypeError("renderChart: a rule on a calendar has no value scale to sit on");
-  }
-  withinDate(m.days.start, "a calendar's days.start");
   const day = localDay(m.days.start, timeZone);
   const lo = midnight(day, timeZone);
   const hi = midnight(day + m.days.values.length, timeZone);
@@ -435,7 +410,7 @@ function calendarDays(spec: ChartSpec, m: CalendarMark, timeZone: string | undef
 }
 
 // A pie's or a tree's mark name: a whole of parts, drawn on no axis.
-function wholeOf(spec: ChartSpec): "pie" | "tree" | undefined {
+function wholeOf(spec: Plot): "pie" | "tree" | undefined {
   for (const m of spec.marks) {
     if (m.mark === "pie" || m.mark === "tree") {
       return m.mark;
@@ -450,9 +425,8 @@ function wholeOf(spec: ChartSpec): "pie" | "tree" | undefined {
  *  under a cell mark its columns from 0 to their count or its bins' edges,
  *  under a calendar its days in `timeZone`, under a pie or a tree an unread 0
  *  to 1. Throws for a band x, a type, domain, zero or underflow bin that breaks
- *  a rule, an x scale or x rule beside a slope, an x scale or rule beside a
- *  calendar, and an x scale beside a pie or a tree. */
-export function xScale(spec: ChartSpec, timeZone?: string): Continuous {
+ *  a rule, and an x scale beside a slope, a calendar, a pie or a tree. */
+export function xScale(spec: Plot, timeZone?: string): Continuous {
   const whole = wholeOf(spec);
   if (whole !== undefined) {
     if (spec.x !== undefined) {
@@ -468,12 +442,9 @@ export function xScale(spec: ChartSpec, timeZone?: string): Continuous {
     if (spec.x !== undefined) {
       throw new TypeError("renderChart: a slope takes no x scale; its mark names its two columns");
     }
-    if (spec.marks.some((m) => m.mark === "rule" && m.x !== undefined)) {
-      throw new TypeError("renderChart: a rule on a slope's x has no value to sit at");
-    }
     return COLUMNS;
   }
-  const cell = spec.marks.find((m): m is CellMark => m.mark === "cell" && !isCalendar(m));
+  const cell = spec.marks.find((m): m is CellInput => m.mark === "cell" && !isCalendar(m));
   if (cell !== undefined) {
     return cellColumns(spec, cell);
   }
@@ -555,8 +526,7 @@ export function xScale(spec: ChartSpec, timeZone?: string): Continuous {
     }
   }
   if (share) {
-    // Every row drawn reaches 1, so the axis is fixed as a passed domain is:
-    // a rule outside it is off the axis.
+    // Every row drawn reaches 1, so the axis is fixed as a passed domain is.
     return {
       type,
       lo: 0,
@@ -603,7 +573,7 @@ export function xScale(spec: ChartSpec, timeZone?: string): Continuous {
 
 // Every x value the spec sets on a time x: the domain's ends, the data's
 // instants, a time x's cell edges, and the rules' and notes' places.
-function* timeValues(spec: ChartSpec, x: Continuous): Generator<number> {
+function* timeValues(spec: Plot, x: Continuous): Generator<number> {
   yield x.lo;
   yield x.hi;
   for (const m of spec.marks) {
@@ -635,7 +605,7 @@ function* timeValues(spec: ChartSpec, x: Continuous): Generator<number> {
 /** The grain a time x's instants are written at, the coarsest every x
  *  value of `spec` starts in `timeZone`; "minute" off a time x and under a
  *  calendar, which writes its own days. */
-export function timeGrain(spec: ChartSpec, x: Continuous, timeZone?: string): Grain {
+export function timeGrain(spec: Plot, x: Continuous, timeZone?: string): Grain {
   return x.type === "time" && calendarOf(spec) === undefined
     ? grainOf(timeValues(spec, x), timeZone)
     : "minute";
@@ -661,9 +631,6 @@ export function ruleAt(
 // `filled` names a mark whose length or height from 0 is its value, which
 // has no place for a value below 0.
 function yValue(v: number | null | undefined, filled?: "rect" | "area"): number | null {
-  if (v === Number.POSITIVE_INFINITY || v === Number.NEGATIVE_INFINITY) {
-    throw new RangeError("renderChart: a y value cannot be infinite");
-  }
   if (!finite(v)) {
     return null;
   }
@@ -675,7 +642,7 @@ function yValue(v: number | null | undefined, filled?: "rect" | "area"): number 
   return v;
 }
 
-function yExtent(spec: ChartSpec, log: boolean): Extent {
+function yExtent(spec: Plot, log: boolean): Extent {
   const extent = new Extent(log);
   for (const m of spec.marks) {
     if (m.mark === "rect") {
@@ -740,7 +707,7 @@ function yExtent(spec: ChartSpec, log: boolean): Extent {
  *  says log, which a slope cannot; a linear y holds 0 unless `zero: false`,
  *  under a scatter only with `zero: true`. Throws for a y type its mark
  *  cannot take and for a domain or zero a rect, an area or bins cannot take. */
-export function yScale(spec: ChartSpec): Continuous | Band {
+export function yScale(spec: Plot): Continuous | Band {
   const whole = wholeOf(spec);
   if (whole !== undefined) {
     if (spec.y !== undefined) {
@@ -755,7 +722,7 @@ export function yScale(spec: ChartSpec): Continuous | Band {
     return { ...COLUMNS, hi: 7 };
   }
   const y = spec.y ?? {};
-  const cell = spec.marks.find((m): m is CellMark => m.mark === "cell" && !isCalendar(m));
+  const cell = spec.marks.find((m): m is CellInput => m.mark === "cell" && !isCalendar(m));
   if (cell !== undefined && "edges" in cell.y) {
     return binned(cell.y.edges, y, "y");
   }
@@ -766,9 +733,6 @@ export function yScale(spec: ChartSpec): Continuous | Band {
       throw new TypeError(
         `renderChart: a ${banded} mark's y is a band of its rows${banded === "cell" ? "; bins give their edges" : ""}`,
       );
-    }
-    if (spec.marks.some((m) => m.mark === "rule" && m.y !== undefined)) {
-      throw new TypeError("renderChart: a rule on a band y has no value to sit at");
     }
     if (y.domain !== undefined) {
       throw new TypeError("renderChart: a band scale takes no domain; its rows are its domain");
@@ -820,8 +784,7 @@ export function yScale(spec: ChartSpec): Continuous | Band {
   }
   const extent = yExtent(spec, log);
   if (share) {
-    // Every stack drawn reaches 1, so the axis is fixed as a passed domain
-    // is: a rule outside it is off the axis.
+    // Every stack drawn reaches 1, so the axis is fixed as a passed domain is.
     return {
       type,
       lo: 0,

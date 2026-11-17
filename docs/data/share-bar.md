@@ -11,8 +11,7 @@ The parts of a whole, such as a library's copies by verdict, as one bar of segme
     <button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button>
   </div>
   <div class="cp-share" id="verdicts">
-    <table class="cp-table">
-      <caption class="cp-visually-hidden">Copies by verdict</caption>
+    <table class="cp-table" aria-labelledby="verdicts-h">
       <thead><tr><th scope="col">Verdict</th><th scope="col" data-col="num">Copies</th></tr></thead>
       <tbody>
         <tr data-series="1"><th scope="row"><a href="/library?verdict=have_best"><span class="cp-icon" data-cp-icon="shield-check" aria-hidden="true"></span>On the best</a></th><td data-col="num"><data value="402">402</data></td></tr>

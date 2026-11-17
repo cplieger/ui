@@ -40,6 +40,7 @@ App CSS reads role names, and the component classes read a tone's steps. The rol
 
 - Surfaces: `--cp-surface-page`, `--cp-surface-raised`, `--cp-surface-sunken`, `--cp-surface-overlay`.
 - Fills and lines: `--cp-fill`, `--cp-fill-hover`, `--cp-fill-active`, `--cp-selected`, `--cp-selection-bg`, `--cp-line`, `--cp-border`, `--cp-border-strong`.
+- Washes: `--cp-wash-hover` and `--cp-wash-active`, the ink at 10% and 16% over whatever a quiet control sits on, its hover and its press. A fixed grey sits one step from the sunken surface, 1.07:1. The wash stays at least 1.23:1 for the hover and 1.38:1 for the press on the page, raised, sunken and overlay surfaces in both themes. The header keeps its own `--cp-shell-hover`.
 - Text: `--cp-ink`, `--cp-ink-muted`, `--cp-ink-disabled`.
 - Accent: `--cp-accent`, `--cp-accent-hover`, `--cp-on-accent`, `--cp-accent-ink`, `--cp-accent-wash`, `--cp-focus-ring`.
 - Brand and header: `--cp-brand`, `--cp-on-brand`, `--cp-shell-bg`, `--cp-shell-ink`, `--cp-shell-current`, `--cp-shell-hover`.

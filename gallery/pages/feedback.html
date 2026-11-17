@@ -22,7 +22,7 @@
         </div>
         <footer>Info and success are polite; warning and error interrupt a screen reader. Each has its glyph, so the tone is never the only signal.</footer>
       </div>
-      <div class="card" data-new>
+      <div class="card">
         <h2>With an action, held, or working</h2>
         <div class="g-buttons">
           <button class="cp-button" type="button" data-toast-undo>Remove with Undo</button>
@@ -37,7 +37,7 @@
   <section class="g-section" id="notices">
     <h2>Notices and banners</h2>
     <div class="g-grid">
-      <div class="card g-wide" data-new>
+      <div class="card g-wide">
         <h2>Notices in the page</h2>
         <div class="cp-stack">
           <div class="cp-notice" data-tone="neutral"><span class="cp-icon" data-cp-icon="info" aria-hidden="true"></span><span>Verdicts come from SeaDex and refresh every hour.</span></div>
@@ -48,7 +48,7 @@
         </div>
         <footer>A notice belongs to the screen it is on and stays while its fact holds. With reasons, it holds a head with its glyph, the list, and a foot with its one way to act, as the banner does.</footer>
       </div>
-      <div class="card g-wide" data-new>
+      <div class="card g-wide">
         <h2>Banner for the whole app</h2>
         <div class="cp-notice" data-variant="banner" data-tone="warning" role="status"><span class="cp-icon" data-cp-icon="wifi-off" aria-hidden="true"></span><span><strong>Connection lost.</strong> Reconnecting in 4 seconds…</span><button class="cp-button" data-size="sm" type="button">Retry now</button></div>
         <div class="cp-notice g-gap-top" data-variant="banner" data-tone="warning" role="status"><strong><span class="cp-icon" data-cp-icon="triangle-alert" aria-hidden="true"></span>This app can be reached from the internet</strong><ul><li>It answers on a public address, 203.0.113.7.</li><li>Sign-in by password is on, with no passkey required.</li></ul><small>Last seen from outside <time data-ago="2400"></time>. <a href="#announce">How to limit access</a></small></div>
@@ -60,7 +60,7 @@
   <section class="g-section" id="states">
     <h2>States and counts</h2>
     <div class="g-grid">
-      <div class="card" data-new>
+      <div class="card">
         <h2>Status chips</h2>
         <div class="g-row-inline">
           <span class="cp-chip" data-tone="success"><span class="cp-icon" data-cp-icon="circle-check" aria-hidden="true"></span>On the best</span>
@@ -72,7 +72,7 @@
         <div class="g-row-inline g-gap-top"><button class="cp-button" type="button" data-chip-next>Next state</button></div>
         <footer>A glyph and a word in a tone. A state that changes while you watch flashes its solid once, a little larger, and fades back to its wash; the change is announced, since the flash is only seen. Next state moves the last chip from Up to Slow to Down. A chip is a label that travels with its thing, such as a copy's state on its cover, never a control.</footer>
       </div>
-      <div class="card" data-new>
+      <div class="card">
         <h2>State words</h2>
         <div class="cp-form">
           <span class="g-row-inline"><span class="cp-state" data-tone="success"><span class="cp-icon" data-cp-icon="circle-check" aria-hidden="true"></span>Set</span><span class="cp-state" data-tone="neutral"><span class="cp-icon" data-cp-icon="circle-dashed" aria-hidden="true"></span>Not set</span><span class="cp-state" data-tone="danger"><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span>Rejected</span></span>
@@ -82,7 +82,7 @@
         </div>
         <footer>The state of a thing in its row or field: its tone's glyph and its word, here a setting's. A test or a task says the state of its own work with data-cp-state, and the stylesheet draws the glyph: the spinner while it runs, a check once it is done, a cross once it failed. Press Test connection twice to see both answers. A label that travels with the thing is a chip.</footer>
       </div>
-      <div class="card g-wide" data-new>
+      <div class="card g-wide">
         <h2>An item's own work</h2>
         <ul class="cp-list" aria-label="Subtitles to upload">
           <li><div class="cp-list-row"><span class="cp-icon" data-cp-icon="file-text" aria-hidden="true"></span><span class="cp-cell-stack"><span class="cp-truncate cp-mono">Frieren.S01E04.en.ass</span><small>41 KB</small></span><span data-part="end"><span class="cp-state" data-cp-state="done">Uploaded</span></span></div></li>
@@ -91,12 +91,12 @@
         </ul>
         <footer>An upload, a send or a check says where its own work is with data-cp-state, and the stylesheet draws the glyph: busy, done, or failed with the reason on the row's second line. A failed item has one small action, Retry, which turns busy while the work runs again; the reason stays until the answer, and Retry leaves once the work is done. A failure that would fail the same way again, such as a file over the limit, has no Retry. Press Retry twice: it fails once more, then the file uploads.</footer>
       </div>
-      <div class="card" data-new>
+      <div class="card">
         <h2>Live dot, badges, times</h2>
         <div class="cp-form">
           <span class="g-row-inline"><span class="cp-dot" data-tone="success" data-live data-dot-demo></span><span>Checking now</span><span class="cp-dot" data-tone="neutral"></span>Idle<button class="cp-button" data-variant="quiet" data-size="sm" type="button" data-dot-next>Next state</button></span>
           <span class="g-row-inline">Releases <span class="cp-badge">12<span class="cp-visually-hidden"> new</span></span> Activity <span class="cp-badge" data-variant="quiet">3<span class="cp-visually-hidden"> new</span></span></span>
-          <span>Last full check <time data-ago="420"></time>, the next one <time data-ago="-1500"></time></span>
+          <span>Last full check <time data-ago="420" data-style="long"></time>, the next one <time data-ago="-1500" data-style="long"></time></span>
         </div>
         <footer>A live state pulses twice as it turns live: press Next state twice. A relative time shows the exact one on hover and keeps its words current.</footer>
       </div>
@@ -106,7 +106,7 @@
   <section class="g-section" id="progress">
     <h2>Progress and loading</h2>
     <div class="g-grid">
-      <div class="card" data-new>
+      <div class="card">
         <h2>A known amount</h2>
         <div class="stage">
           <span class="variant"><span class="cp-progress" id="check-bar"><progress max="100" value="0" aria-label="Running a check"></progress></span>Run a check</span>
@@ -166,7 +166,7 @@
         <div class="cp-empty"><span class="cp-icon" data-tone="danger" data-cp-icon="circle-x" aria-hidden="true"></span><strong>The library did not load</strong><span>Sonarr took more than 10 seconds to answer.</span><button class="cp-button" type="button"><span class="cp-icon" data-cp-icon="refresh-cw" aria-hidden="true"></span>Try again</button></div>
         <footer>An error says what failed and offers the one next step.</footer>
       </div>
-      <div class="card" data-new>
+      <div class="card">
         <h2>First sync running</h2>
         <div class="cp-empty"><strong><span class="cp-loader" aria-hidden="true"><span></span></span>Reading your library from Sonarr</strong><span class="cp-progress" data-sync-demo><progress max="351" value="120" aria-label="Reading the library from Sonarr"></progress><span>Series 120 of 351</span></span><a class="cp-button" href="#empty">View activity</a></div>
         <footer>The first-run state between connecting and data: what is being read, how far, and a way to watch it. The bar is the one for a known amount, with the step in words beside it, or under it in a narrow box, and both move on as the sync does.</footer>
