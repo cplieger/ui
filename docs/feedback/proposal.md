@@ -63,7 +63,7 @@ enhanceProposal(unchecked, {
 ## Behaviour
 
 - One action runs at a time. Apply and Undo turn busy through [confirm](../buttons/confirm.md)'s cycle and stay focusable. Discard carries `aria-busy` while `discard` runs.
-- Apply that succeeds marks the card `data-cp-state="applied"` and `data-tone="success"`, which turns its edge solid on the success wash behind the success glyph, puts the `applied` words in the `<p>` and says them politely. Focus goes to Undo, or to the words when there is no Undo. Undo takes Apply's place and Discard goes, and nothing else in the card moves.
+- Apply that succeeds marks the card `data-cp-state="applied"` and `data-tone="success"`, which turns its edge solid on the success wash behind the success glyph, puts the `applied` words in the `<p>` and says them politely. Focus goes to Undo, or to the words when there is no Undo. Undo takes Apply's place and Discard goes. A checked proposal's words and buttons move over for the success glyph, and an unverified one's stay where they were.
 - Undo that succeeds puts the proposal's tone, words and buttons back where they were, focuses Apply and says `undone`.
 - Discard that succeeds removes the card, focuses `returnFocus` and says `discarded`.
 - Each of these focus moves happens only when focus was in the card, or would drop to the page. A person who moved on while the action ran keeps their place.

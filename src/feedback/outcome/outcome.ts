@@ -8,7 +8,7 @@
 import { enhanceConfirm } from "../../buttons/confirm/confirm.js";
 import { until, whenAborted } from "../../core/lifetime/lifetime.js";
 import { safely } from "../../core/safely/safely.js";
-import { glyph } from "../../foundations/icons/glyph.js";
+import { glyph, toneGlyph } from "../../foundations/icons/glyph.js";
 import { announce } from "../announce/announce.js";
 
 /** What the action made: a link to it and its words, such as
@@ -76,7 +76,7 @@ export function enhanceOutcome(button: HTMLButtonElement, options: OutcomeOption
   const succeed = (from: Element, result: OutcomeResult): void => {
     const link = document.createElement("a");
     link.href = result.href;
-    link.append(glyph("circle-check"), result.words);
+    link.append(glyph(toneGlyph("success")), result.words);
     const outcome = document.createElement("span");
     outcome.className = "cp-outcome";
     outcome.append(link);

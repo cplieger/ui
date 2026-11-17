@@ -9,11 +9,11 @@ import { until, whenAborted } from "../../core/lifetime/lifetime.js";
 import { localeOf } from "../../core/locale/locale.js";
 import { safely } from "../../core/safely/safely.js";
 import { focusOn, landing, rowOf } from "../../data/list-row/row.js";
-import { glyph, toneGlyph } from "../../foundations/icons/glyph.js";
+import { glyph, toneGlyph, type Tone } from "../../foundations/icons/glyph.js";
 import { announce } from "../announce/announce.js";
 
 /** The outcome's tone, which picks its glyph. */
-export type JobTone = "success" | "warning" | "danger" | "neutral";
+export type JobTone = Tone;
 
 /** How a job ended. */
 export interface JobEnd {

@@ -79,8 +79,7 @@ type Action = keyof typeof DEFAULT_FAILED;
  * optional `data-part="discard"` button. Throws a TypeError when a part is
  * missing, or when `confirm` and the card's `data-variant="unverified"` do
  * not come together. It writes the card's `data-tone` and leads the card
- * with that tone's glyph: warning while unverified, success once applied,
- * neither on a checked proposal before it applies.
+ * with that tone's glyph.
  */
 export function enhanceProposal(card: HTMLElement, options: ProposalOptions): void {
   const { signal, words } = options;
@@ -98,7 +97,6 @@ export function enhanceProposal(card: HTMLElement, options: ProposalOptions): vo
   }
   /** The proposal's words as Apply found them, which Undo puts back. */
   let proposed: Node[] = [];
-  /** Writes the card's tone and the glyph it leads with, or neither. */
   const setTone = (tone: Tone | null): void => {
     card.querySelector(':scope > [data-part="tone"]')?.remove();
     if (tone === null) {
