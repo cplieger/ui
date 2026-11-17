@@ -1,7 +1,7 @@
 import { chromium, firefox, webkit, type Browser, type BrowserType } from "playwright";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { frameNames, pageNames } from "./build.js";
+import { frameNames, pageNames, templateNames } from "./build.js";
 import { serveGallery, type Served } from "./serve.js";
 
 const ENGINES: Record<string, BrowserType> = { chromium, firefox, webkit };
@@ -34,7 +34,7 @@ describe.each(browsers)("the gallery in %s", (name) => {
     await browser?.close();
   });
 
-  it.each([...pageNames, ...frameNames])(
+  it.each([...pageNames, ...frameNames, ...templateNames])(
     "loads %s with no error, every icon painted and nothing wider than a phone",
     async (page) => {
       const report: Record<string, unknown> = {};
@@ -151,6 +151,113 @@ describe.each(browsers)("the gallery in %s", (name) => {
 
   it("finds every file the pages ask for", () => {
     expect([...(served?.missing ?? [])]).toEqual([]);
+  });
+
+  // docs/design-colour.md "Contrast": secondary text 4.5:1, and 7:1 with more contrast.
+  it("draws the layouts page's frame notes at 4.5:1, 7:1 with more contrast", async () => {
+    const low: string[] = [];
+    let seen = 0;
+    for (const contrast of ["no-preference", "more"] as const) {
+      for (const theme of ["light", "dark"]) {
+        for (const width of [1440, 390]) {
+          const tab = await (browser as Browser).newPage({
+            viewport: { width, height: 900 },
+            contrast,
+          });
+          await tab.goto(`${origin}/layouts.html`);
+          await tab.evaluate(async (t) => {
+            document.documentElement.dataset["theme"] = t;
+            await new Promise(requestAnimationFrame);
+            await Promise.all(
+              document
+                .getAnimations()
+                .filter((a) => a instanceof CSSTransition)
+                .map((a) => a.finished.catch(() => undefined)),
+            );
+          }, theme);
+          const ratios = await tab.evaluate(() => {
+            const ctx = new OffscreenCanvas(1, 1).getContext("2d", { willReadFrequently: true });
+            if (ctx === null) {
+              throw new Error("no 2d context");
+            }
+            const lum = (): number => {
+              const [r = 0, g = 0, b = 0] = ctx.getImageData(0, 0, 1, 1).data;
+              const lin = (v: number) =>
+                v / 255 <= 0.04045 ? v / 255 / 12.92 : ((v / 255 + 0.055) / 1.055) ** 2.4;
+              return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+            };
+            const paint = (colour: string): void => {
+              ctx.fillStyle = colour;
+              ctx.fillRect(0, 0, 1, 1);
+            };
+            return [...document.querySelectorAll<HTMLElement>(".f-box > small")]
+              .filter((s) => s.checkVisibility())
+              .map((small) => {
+                const chain: Element[] = [];
+                for (let e = small.parentElement; e; e = e.parentElement) {
+                  chain.unshift(e);
+                }
+                paint("#fff");
+                for (const e of chain) {
+                  paint(getComputedStyle(e).backgroundColor);
+                }
+                const bg = lum();
+                paint(getComputedStyle(small).color);
+                const [hi, lo] = [bg, lum()].sort((x, y) => y - x) as [number, number];
+                return { text: small.textContent, ratio: (hi + 0.05) / (lo + 0.05) };
+              });
+          });
+          await tab.close();
+          seen += ratios.length;
+          const floor = contrast === "more" ? 7 : 4.5;
+          for (const { text, ratio } of ratios) {
+            if (ratio < floor) {
+              low.push(
+                `${contrast} ${theme} ${String(width)}: ${String(text)} ${ratio.toFixed(2)}`,
+              );
+            }
+          }
+        }
+      }
+    }
+    expect(seen).toBeGreaterThan(0);
+    expect(low).toEqual([]);
+  }, 60_000);
+
+  // WAI-ARIA 1.2 prohibits aria-label on a label, which has no role, so only the label's own text
+  // names its radio in every engine.
+  it("names the settings page's accent swatches by their labels' own words", async () => {
+    const tab = await (browser as Browser).newPage();
+    await tab.goto(`${origin}/settings.html`);
+    const swatches = await tab.evaluate(() =>
+      [...document.querySelectorAll<HTMLInputElement>("input[name='g-accent']")].map((radio) => ({
+        words: radio.labels?.[0]?.textContent.trim(),
+        labelNamed: radio.labels?.[0]?.hasAttribute("aria-label"),
+      })),
+    );
+    await tab.close();
+    expect(swatches).toEqual(
+      ["Blue", "Green", "Terracotta", "Violet", "Pink", "Teal"].map((words) => ({
+        words,
+        labelNamed: false,
+      })),
+    );
+  });
+
+  it("shows a template's destination as a route change, focus on its h1", async () => {
+    const tab = await (browser as Browser).newPage({ viewport: { width: 1440, height: 900 } });
+    await tab.goto(`${origin}/templates/app.html`);
+    const item = tab.locator(".cp-header .cp-nav-item:not([aria-current])").first();
+    const label = await item.locator(".cp-nav-label").textContent();
+    await item.click();
+    const state = await tab.evaluate(() => ({
+      heading: document.querySelector("main h1")?.textContent,
+      current: document.querySelector(".cp-nav-item[aria-current='page'] .cp-nav-label")
+        ?.textContent,
+      focused: document.activeElement === document.querySelector("main h1"),
+    }));
+    await tab.close();
+    expect(state).toEqual({ heading: label, current: label, focused: true });
   });
 
   it.each(pageNames)(

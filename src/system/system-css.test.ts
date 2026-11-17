@@ -1405,6 +1405,23 @@ describe("css/system.css", () => {
     }
   });
 
+  it("gives a range in a setting row room to drag, and wraps it under the words when narrow", () => {
+    theme("light");
+    const markup =
+      '<div class="cp-setting"><div><label class="cp-label" for="s">Minimum seeders</label></div><div class="cp-range-row"><input class="cp-range" id="s" type="range" min="0" max="50" value="5"><output for="s">5</output></div></div>';
+    const wide = build(`<div style="inline-size: 640px">${markup}</div>`);
+    const words = wide.querySelector(".cp-setting > div") as HTMLElement;
+    const row = (wide.querySelector(".cp-range-row") as HTMLElement).getBoundingClientRect();
+    expect(row.width).toBe(224);
+    expect(row.left).toBeGreaterThan(words.getBoundingClientRect().right);
+    const narrow = build(`<div style="inline-size: 320px">${markup}</div>`);
+    const under = (narrow.querySelector(".cp-range-row") as HTMLElement).getBoundingClientRect();
+    expect(under.width).toBe(224);
+    expect(under.top).toBeGreaterThanOrEqual(
+      (narrow.querySelector(".cp-setting > div") as HTMLElement).getBoundingClientRect().bottom,
+    );
+  });
+
   it("fills a chosen radio with the accent", () => {
     theme("light");
     const el = build(
@@ -1915,6 +1932,58 @@ describe("css/system.css", () => {
       expect(getComputedStyle(k).paddingInlineStart).toBe("0px");
     }
     expect(el.querySelectorAll(".cp-menu kbd").length).toBe(4);
+  });
+
+  it.each([
+    ["light", 255],
+    ["dark", 255],
+    ["light", 0],
+    ["light", 120],
+    ["light", 180],
+    ["dark", 0],
+    ["dark", 120],
+    ["dark", 180],
+  ] as const)(
+    "marks a matched word in a wash of the third harmony colour, a row's inks at 4.5:1 on it (%s, accent hue %i)",
+    (t, hue) => {
+      theme(t);
+      root.style.setProperty("--cp-accent-h", String(hue));
+      const el = build(
+        '<ul class="cp-list"><li><div class="cp-list-row"><span class="cp-cell-stack"><span>Frieren <mark>Bey</mark>ond</span><small>Series, <mark>2023</mark></small></span></div></li></ul>',
+      );
+      const surface = getComputedStyle(el.querySelector(".cp-list") ?? el).backgroundColor;
+      const [title, line] = [...el.querySelectorAll("mark")].map((m) => getComputedStyle(m));
+      const wash = title?.backgroundColor ?? "";
+      expect(title?.color).toBe(
+        getComputedStyle(el.querySelector(".cp-cell-stack > span") ?? el).color,
+      );
+      expect(line?.color).toBe(getComputedStyle(el.querySelector("small") ?? el).color);
+      expect(line?.backgroundColor).toBe(wash);
+      expect(title?.borderTopLeftRadius).toBe("3px");
+      expect(title?.paddingInlineStart).toBe("1px");
+      expect(rgb(wash)).not.toEqual(rgb(surface));
+      expect(contrast(title?.color ?? "", wash)).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(line?.color ?? "", wash)).toBeGreaterThanOrEqual(4.5);
+    },
+  );
+
+  it("puts a loader in a token field's glass place at the glass's size, so the words stay put", () => {
+    theme("light");
+    const el = build(
+      '<div class="cp-tokens"><span class="cp-icon" data-cp-icon="search" aria-hidden="true"></span><input aria-label="Glass"></div>' +
+        '<div class="cp-tokens"><span class="cp-loader" aria-hidden="true"><span></span></span><input aria-label="Loader"></div>',
+    );
+    const [glass, loading] = [...el.querySelectorAll(".cp-tokens")];
+    const loader = loading?.querySelector(".cp-loader")?.getBoundingClientRect();
+    const shape = loading?.querySelector(".cp-loader > span")?.getBoundingClientRect();
+    expect(loader?.width).toBe(18);
+    expect(loader?.height).toBe(18);
+    expect(shape?.width).toBe(14);
+    const left = (box: Element | undefined): number =>
+      (box?.querySelector("input")?.getBoundingClientRect().left ?? 0) -
+      (box?.getBoundingClientRect().left ?? 0);
+    expect(left(loading)).toBeCloseTo(left(glass), 1);
+    expect(loading?.getBoundingClientRect().height).toBe(glass?.getBoundingClientRect().height);
   });
 
   it("ends a palette's action with its keys as muted words, and fills the active action", () => {
@@ -2577,6 +2646,22 @@ describe("css/system.css", () => {
     expect(box(narrow, ".cp-settings-nav").bottom).toBeLessThanOrEqual(
       box(narrow, ".cp-setting").top,
     );
+  });
+
+  it("keeps the save bar and the toasts clear of the bottom bar on a phone", async () => {
+    theme("light");
+    await page.viewport(390, 700);
+    const el = build(
+      '<div class="cp-app"><header class="cp-header"><nav class="cp-nav" aria-label="Main"><a class="cp-nav-item" href="#"><span class="cp-nav-label">Library</span></a></nav></header>' +
+        '<main class="cp-main"><form><div style="block-size: 2000px"></div><div class="cp-savebar"><span>1 unsaved change</span></div></form></main></div>' +
+        '<section class="cp-toaster"><div style="block-size: 40px"></div></section>',
+    );
+    const nav = (el.querySelector(".cp-nav") as HTMLElement).getBoundingClientRect();
+    expect(nav.bottom).toBeCloseTo(700, 2);
+    const bar = (el.querySelector(".cp-savebar") as HTMLElement).getBoundingClientRect();
+    expect(nav.top - bar.bottom).toBeCloseTo(12, 2);
+    const toaster = (el.querySelector(".cp-toaster") as HTMLElement).getBoundingClientRect();
+    expect(nav.top - toaster.bottom).toBeCloseTo(12, 2);
   });
 
   it("turns the categories into the made select on a narrow screen, and pops in only a dot added later", async () => {

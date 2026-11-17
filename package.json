@@ -76,7 +76,8 @@
     "./icons/svg/*": "./icons/svg/*",
     "./icons/marks/*": "./icons/marks/*",
     "./fonts/*": "./fonts/*",
-    "./css/system": "./css/system.css"
+    "./css/system": "./css/system.css",
+    "./templates/*": "./templates/*"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json && tsc -p gallery/tsconfig.json",
@@ -107,7 +108,7 @@
     "@vitest/coverage-v8": "5.1.0",
     "axe-core": "4.13.0",
     "esbuild": "0.28.2",
-    "eslint": "10.14.0",
+    "eslint": "10.15.0",
     "fast-check": "4.10.2",
     "knip": "6.45.1",
     "lucide-static": "1.72.0",
@@ -129,6 +130,7 @@
     "css/",
     "icons/",
     "fonts/",
+    "templates/",
     "jsr.json",
     "LICENSE",
     "NOTICE",

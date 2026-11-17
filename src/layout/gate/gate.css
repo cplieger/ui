@@ -23,6 +23,13 @@
   font-size: var(--cp-text-md);
 }
 
+/* Off the shell, a logo in currentcolor takes the name's ink beside it: the
+ * shell's ink would vanish on the page's surface in light. */
+.cp-gate .cp-mark:has(> img, > svg) {
+  background: none;
+  color: inherit;
+}
+
 .cp-gate > .cp-panel {
   --cp-chart-surface: var(--cp-surface-raised);
 
@@ -34,6 +41,10 @@
 .cp-gate > :not(.cp-wordmark, .cp-panel) {
   justify-self: stretch;
   text-align: center;
+}
+
+.cp-gate > [data-part="about"] {
+  justify-content: center;
 }
 
 /* A setup of several steps: a wider column whose panel is the steps'

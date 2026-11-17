@@ -8,7 +8,7 @@ Signals, DOM rendering, requests and server actions are in [`@cplieger/reactive`
 
 ## Rules
 
-- A subpath added, renamed or removed changes `exports` in both `package.json` and `jsr.json`, its `docs/` page, the README module list, and `PURE` in `src/side-effects.node.test.ts`. `./css/system`, `./fonts/*` and the icon file subpaths stay npm only.
+- A subpath added, renamed or removed changes `exports` in both `package.json` and `jsr.json`, its `docs/` page, the README module list, and `PURE` in `src/side-effects.node.test.ts`. `./css/system`, `./fonts/*`, `./templates/*` and the icon file subpaths stay npm only.
 - A change keeps to the [principles](docs/principles.md) and meets the [accessibility bar](docs/accessibility.md). Nothing runs at load: `src/side-effects.node.test.ts` fails a subpath whose effect-only import leaves code. A page-wide install uses `shared()` from `src/core/lifetime/lifetime.ts`.
 - Relative imports end in `.js`. Consumers type-check this source under `nodenext`, which rejects an extensionless import that the local `bundler` setting accepts.
 - A module writes and looks up only classes `css/system.css` draws, since an app may allow no other class. An element a script finds by a hook carries a `data-cp-*` attribute. `src/system/system-css.node.test.ts` fails a `cp-` class named in a module that the stylesheet lacks.

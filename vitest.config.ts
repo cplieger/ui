@@ -1,8 +1,11 @@
 // The element folders, the design language's computed-style checks, and the
 // Node tests. A root-level `expect.requireAssertions` would reach every
 // project, `extends` or not, so the strict options are spread into each.
+import { readFile } from "node:fs/promises";
+import { extname, join, normalize } from "node:path";
+
 import { playwright } from "@vitest/browser-playwright";
-import { defineConfig } from "vitest/config";
+import { defineConfig, type Plugin } from "vitest/config";
 
 function chromium() {
   return {
@@ -85,6 +88,39 @@ const strict = {
   },
 } as const;
 
+const SHIPPED_TYPES = new Map([
+  [".css", "text/css"],
+  [".svg", "image/svg+xml"],
+  [".woff2", "font/woff2"],
+]);
+
+// The package's css/, icons/ and fonts/ under /shipped/, byte for byte: the
+// dev server rewrites a stylesheet's url()s and inlines its SVG glyphs as
+// data URLs, so a page on it never loads a glyph the way an app's page does.
+function shippedFiles(): Plugin {
+  return {
+    name: "shipped-files",
+    configureServer(server) {
+      server.middlewares.use("/shipped", (req, res, next) => {
+        const path = normalize(decodeURIComponent(new URL(req.url ?? "/", "http://x").pathname));
+        const type = SHIPPED_TYPES.get(extname(path));
+        if (type === undefined || !/^\/(css|icons|fonts)\//.test(path)) {
+          next();
+          return;
+        }
+        readFile(join(import.meta.dirname, path)).then(
+          (body) => {
+            res.writeHead(200, { "content-type": type }).end(body);
+          },
+          () => {
+            next();
+          },
+        );
+      });
+    },
+  };
+}
+
 export default defineConfig({
   test: {
     projects: [
@@ -100,6 +136,7 @@ export default defineConfig({
         },
       },
       {
+        plugins: [shippedFiles()],
         test: {
           ...strict,
           name: "system",

@@ -36,6 +36,7 @@ for (const picker of pickers) enhanceTokens(picker, { limit: tags, signal: page.
 - `name` gives each chip a hidden input of that name, so a form sends the values. The form's reset puts back the chips the field started with, quietly, and [form](form.md#unsaved-changes)'s `guardChanges` counts the field as one change against them.
 - `suggestions` is a listbox that [combobox](combobox.md) drives. The field hides the options that are chosen, that do not match the typed text or that a limit leaves no room for, and opens the list as it takes focus. An option's value is its `data-value`, or else its text before any element, such as the words before a `<small>`.
 - `allowNew` lets typed words become a value of their own. It is on without suggestions and off with them. With both, the last option offers to add the typed words, such as `Add “winter”`, whenever they match no option exactly.
+- A search field's glass is a `.cp-icon` first in the field. While results load, a `.cp-loader` takes its place at its size, so the chips and the words do not move.
 - `words` gives other words for `remove`, `added`, `removed`, `addNew`, `full` and `limited`.
 - `add(value)` adds a value as a press would, and returns false when it is empty, already there or past a limit. `remove(value)` removes one.
 - `signal` removes the listeners and a note the field made.

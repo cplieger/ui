@@ -62,6 +62,36 @@
   color: var(--cp-ink-muted);
 }
 
+/* The product's own line: its version and its source, licence and docs
+ * links. The links keep the line's muted ink until pointed at or focused,
+ * so they never compete with the screen. */
+.cp-meta[data-part="about"] {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--cp-space-3);
+}
+
+.cp-meta[data-part="about"] a {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--cp-hit-min);
+  color: inherit;
+}
+
+.cp-meta[data-part="about"] a:focus-visible {
+  color: var(--cp-accent-ink);
+  text-decoration-color: currentcolor;
+}
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    .cp-meta[data-part="about"] a:hover {
+      color: var(--cp-accent-ink);
+    }
+  }
+}
+
 /* A link that is a row's title names a thing, not a sentence: it reads as
  * the row's name, in ink at a medium weight, and takes the accent and its
  * underline under a mouse or the keyboard. A link inside a sentence keeps

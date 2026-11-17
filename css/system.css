@@ -2786,6 +2786,18 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* A matched word, such as a search result's. The wash keeps one lightness
+ * whatever the accent, so muted words on it keep 4.5:1 in both themes. */
+:where(.cp) :where(mark) {
+  padding-inline: 0.0625rem;
+  border-radius: 0.1875rem;
+  background: light-dark(
+    oklch(from var(--cp-harmony-3) 91.5% calc(c * 0.5) h),
+    oklch(from var(--cp-harmony-3) 34% calc(c * 0.4) h)
+  );
+  color: inherit;
+}
+
 :where(.cp) ::selection {
   background: var(--cp-selection-bg);
   color: var(--cp-ink);
@@ -2937,6 +2949,11 @@
   mask: url("../icons/svg/clock.svg") center / contain no-repeat;
 }
 
+/* The product's line ends the status line, on the line it wraps to too. */
+.cp-status > [data-part="about"] {
+  margin-inline-start: auto;
+}
+
 /* Width tiers: compact under 40rem (a phone), medium to 60rem (a tablet
  * held upright), expanded above. The rail leaves at medium. */
 @media (width < 60rem) {
@@ -2983,6 +3000,13 @@
   font-size: var(--cp-text-md);
 }
 
+/* Off the shell, a logo in currentcolor takes the name's ink beside it: the
+ * shell's ink would vanish on the page's surface in light. */
+.cp-gate .cp-mark:has(> img, > svg) {
+  background: none;
+  color: inherit;
+}
+
 .cp-gate > .cp-panel {
   --cp-chart-surface: var(--cp-surface-raised);
 
@@ -2994,6 +3018,10 @@
 .cp-gate > :not(.cp-wordmark, .cp-panel) {
   justify-self: stretch;
   text-align: center;
+}
+
+.cp-gate > [data-part="about"] {
+  justify-content: center;
 }
 
 /* A setup of several steps: a wider column whose panel is the steps'
@@ -3252,7 +3280,7 @@
   --cp-chart-surface: var(--cp-surface-overlay);
 
   position: sticky;
-  inset-block-end: var(--cp-space-3);
+  inset-block-end: calc(var(--cp-nav-inset, 0px) + var(--cp-space-3));
   z-index: 1;
   display: flex;
   flex-wrap: wrap;
@@ -3453,6 +3481,57 @@ a.cp-wordmark {
   font-weight: 700;
 }
 
+/* A logo in place of the letter: an <img> or an inline <svg> fills the box
+ * at its own aspect ratio, and an svg drawn in currentcolor takes the colour
+ * the fill had, so it reads on the header in both themes. */
+.cp-mark:has(> img, > svg) {
+  background: none;
+  color: var(--cp-shell-ink);
+}
+
+.cp-mark > :is(img, svg) {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: contain;
+}
+
+/* A fixed-colour logo comes as a light and a dark image. The one shown
+ * follows the nearest data-theme pin, else the system: scope proximity
+ * lets the innermost pin win at any depth. */
+.cp-mark > [data-cp-scheme="dark"] {
+  display: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  .cp-mark > [data-cp-scheme="light"] {
+    display: none;
+  }
+
+  .cp-mark > [data-cp-scheme="dark"] {
+    display: block;
+  }
+}
+
+@scope (.cp[data-theme="light"]) {
+  .cp-mark > [data-cp-scheme="light"] {
+    display: block;
+  }
+
+  .cp-mark > [data-cp-scheme="dark"] {
+    display: none;
+  }
+}
+
+@scope (.cp[data-theme="dark"]) {
+  .cp-mark > [data-cp-scheme="dark"] {
+    display: block;
+  }
+
+  .cp-mark > [data-cp-scheme="light"] {
+    display: none;
+  }
+}
+
 /* Visually hidden, still named: a label that a narrow screen drops. */
 .cp-hidden-narrow {
   white-space: nowrap;
@@ -3542,9 +3621,14 @@ a.cp-wordmark {
 }
 
 /* Compact: the header's destinations become the bottom bar, fixed at the
- * window's foot, each an icon over its word, and the frame leaves room for
- * it. */
+ * window's foot, each an icon over its word. --cp-nav-inset is the height
+ * it covers there, which the frame, the save bar and the toasts keep clear
+ * of; it is unset while no bottom bar shows. */
 @media (width < 40rem) {
+  :root:has(.cp-header > .cp-nav) {
+    --cp-nav-inset: calc(3.5rem + var(--cp-line-w) + env(safe-area-inset-bottom));
+  }
+
   .cp-header > .cp-nav {
     --cp-chart-surface: var(--cp-surface-raised);
 
@@ -3562,7 +3646,7 @@ a.cp-wordmark {
   }
 
   .cp-app:has(> .cp-header > .cp-nav) {
-    padding-block-end: calc(3.5rem + env(safe-area-inset-bottom));
+    padding-block-end: var(--cp-nav-inset);
   }
 
   .cp-header > .cp-nav > .cp-nav-item {
@@ -4948,6 +5032,12 @@ textarea.cp-input {
   text-align: end;
 }
 
+/* In a setting row, which sizes its control to its content, the slider
+ * keeps room to drag, and wraps under the words when the row is narrower. */
+.cp-setting > .cp-range-row {
+  min-inline-size: 14rem;
+}
+
 .cp-range-tip {
   position: absolute;
   inset-block-end: calc(100% + 0.25rem);
@@ -5031,6 +5121,19 @@ textarea.cp-input {
 .cp-tokens > .cp-icon {
   margin-inline: 0.25rem 0.125rem;
   color: var(--cp-ink-muted);
+}
+
+/* A loader stands in for the glass while results load, at the glass's
+ * size, so the words beside it do not move. */
+.cp-tokens > .cp-loader {
+  inline-size: var(--cp-icon-ui);
+  block-size: var(--cp-icon-ui);
+  margin-inline: 0.25rem 0.125rem;
+}
+
+.cp-tokens > .cp-loader > span {
+  inline-size: 0.875rem;
+  block-size: 0.875rem;
 }
 
 .cp-tokens > input {
@@ -6054,6 +6157,15 @@ th[aria-sort="descending"] > .cp-sort::after {
   min-inline-size: 100%;
   overflow-wrap: normal;
   font-size: 1em;
+}
+
+/* A block with no bar is its pre alone, as on a page that runs no script:
+ * the pre's focus ring takes the block's inner corners, and with no Copy one
+ * click selects the whole command, so the platform's copy takes all of it. */
+.cp-code[data-variant="block"] > pre:first-child {
+  border-radius: calc(var(--cp-radius-surface) - var(--cp-line-w));
+  -webkit-user-select: all;
+  user-select: all;
 }
 
 .cp-code[data-variant="block"] > pre:focus-visible {
@@ -7110,6 +7222,36 @@ th[aria-sort="descending"] > .cp-sort::after {
 
 .cp-meta {
   color: var(--cp-ink-muted);
+}
+
+/* The product's own line: its version and its source, licence and docs
+ * links. The links keep the line's muted ink until pointed at or focused,
+ * so they never compete with the screen. */
+.cp-meta[data-part="about"] {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--cp-space-3);
+}
+
+.cp-meta[data-part="about"] a {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--cp-hit-min);
+  color: inherit;
+}
+
+.cp-meta[data-part="about"] a:focus-visible {
+  color: var(--cp-accent-ink);
+  text-decoration-color: currentcolor;
+}
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    .cp-meta[data-part="about"] a:hover {
+      color: var(--cp-accent-ink);
+    }
+  }
 }
 
 /* A link that is a row's title names a thing, not a sentence: it reads as
@@ -10440,7 +10582,8 @@ button.cp-figure[aria-expanded="true"]::after {
  * toast is its dismiss under a pointer. */
 .cp-toaster {
   position: fixed;
-  inset: auto var(--cp-space-4) calc(var(--cp-space-3) + 3.25rem) auto;
+  inset: auto var(--cp-space-4) calc(var(--cp-space-3) + max(3.25rem, var(--cp-nav-inset, 0px)))
+    auto;
   display: grid;
   inline-size: min(24rem, calc(100vw - 2rem));
   margin: 0;
