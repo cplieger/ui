@@ -1527,7 +1527,7 @@ describe("css/system.css", () => {
   it("rings the account button's round avatar in the bar's ink, wider while its menu is open", () => {
     theme("light");
     const el = build(
-      '<header class="cp-header"><a class="cp-wordmark" href="/"><span class="cp-mark">G</span>grelot</a><button class="cp-button cp-account" data-variant="quiet" type="button" aria-label="Account" aria-expanded="false"><span class="cp-avatar" data-size="sm" aria-hidden="true">CP</span></button><button class="cp-button" data-variant="quiet" type="button" aria-label="Settings"><span class="cp-icon"></span></button></header>',
+      '<header class="cp-header"><a class="cp-wordmark" href="/"><span class="cp-mark">G</span>grelot</a><button class="cp-button cp-account" data-variant="quiet" type="button" aria-label="CP, account" aria-expanded="false"><span class="cp-avatar" data-size="sm">CP</span></button><button class="cp-button" data-variant="quiet" type="button" aria-label="Settings"><span class="cp-icon"></span></button></header>',
     );
     const [button, settings] = [...el.querySelectorAll<HTMLElement>("button")] as [
       HTMLElement,

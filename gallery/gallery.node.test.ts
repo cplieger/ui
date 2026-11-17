@@ -101,18 +101,12 @@ describe.each(browsers)("the gallery in %s", (name) => {
             (i) =>
               getComputedStyle(i).getPropertyValue("--cp-icon-image") === "" && i.checkVisibility(),
           ).length,
-          // WCAG 2.5.3 Label in Name: the text a voice user reads off the
-          // button must be part of its name.
+          // WCAG 2.5.3 Label in Name: the name starts with the text the button
+          // shows, which aria-hidden does not take off the screen.
           misnamed: [...document.querySelectorAll<HTMLElement>(".cp-account")].flatMap((b) => {
-            const shown = b.cloneNode(true) as HTMLElement;
-            shown.querySelectorAll('[aria-hidden="true"]').forEach((n) => {
-              n.remove();
-            });
-            const text = (shown.textContent ?? "").trim();
+            const text = b.innerText.trim();
             const name = b.getAttribute("aria-label") ?? "";
-            return text === "" || name.toLowerCase().includes(text.toLowerCase())
-              ? []
-              : [`${name} / ${text}`];
+            return name.toLowerCase().startsWith(text.toLowerCase()) ? [] : [`${name} / ${text}`];
           }),
         }));
         if (
