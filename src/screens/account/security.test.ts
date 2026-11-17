@@ -508,7 +508,9 @@ describe("mountSecurity: passkeys", () => {
       );
       // WebKit's order: the composition ends, then its confirming key.
       input.dispatchEvent(new CompositionEvent("compositionend", { data: "ラ" }));
-      input.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
+      input.dispatchEvent(
+        new KeyboardEvent("keydown", { key, keyCode: 229, bubbles: true, cancelable: true }),
+      );
     }
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(region.querySelector("tbody input.cp-input")).toBe(input);

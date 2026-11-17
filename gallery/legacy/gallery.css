@@ -892,43 +892,6 @@ input.cp-input::-webkit-calendar-picker-indicator {
 
 /* Layouts */
 
-.g-gate-note {
-  color: var(--cp-ink-muted);
-  font-size: var(--cp-text-sm);
-  text-align: center;
-}
-
-.g-divider {
-  display: flex;
-  align-items: center;
-  gap: var(--cp-space-3);
-  color: var(--cp-ink-muted);
-  font-size: var(--cp-text-xs);
-}
-
-.g-divider::before,
-.g-divider::after {
-  content: "";
-  flex: 1;
-  border-block-start: var(--cp-line-w) solid var(--cp-line);
-}
-
-.g-wide-button {
-  inline-size: 100%;
-}
-
-/* A shake for a refused sign-in: the panel says no. */
-.g-refused {
-  animation: refuse 420ms var(--cp-ease-out);
-}
-
-@keyframes refuse {
-  20% { translate: -6px 0; }
-  40% { translate: 5px 0; }
-  60% { translate: -3px 0; }
-  80% { translate: 2px 0; }
-}
-
 /* Theme choice as three pictures of a screen. */
 .g-themes {
   display: grid;

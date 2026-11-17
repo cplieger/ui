@@ -60,16 +60,14 @@ export function renameInPlace(spec: RenameSpec): void {
   input.addEventListener("input", () => {
     clearError(input);
   });
-  // An IME's own Enter and Escape confirm or drop its candidate. WebKit can
-  // deliver compositionend before that keydown, with isComposing already
-  // false, so a keydown within 50 ms of it, either side, is the IME's too:
-  // https://bugs.webkit.org/show_bug.cgi?id=165004
-  let composedAt = Number.NEGATIVE_INFINITY;
-  input.addEventListener("compositionend", (e) => {
-    composedAt = e.timeStamp;
-  });
+  // An IME's own Enter and Escape confirm or drop its candidate. WebKit
+  // delivers compositionend before that keydown, with isComposing already
+  // false; its keyCode 229 still marks it as the IME's:
+  // https://bugs.webkit.org/show_bug.cgi?id=165004 and
+  // https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/isComposing
   input.addEventListener("keydown", (e) => {
-    if (e.isComposing || Math.abs(e.timeStamp - composedAt) < 50) {
+    // eslint-disable-next-line @typescript-eslint/no-deprecated -- WebKit's only IME mark.
+    if (e.isComposing || e.keyCode === 229) {
       return;
     }
     if (e.key === "Escape") {

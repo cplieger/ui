@@ -149,6 +149,24 @@ describe.each(browsers)("the gallery in %s", (name) => {
     expect(misnamed).toEqual(["Account / CP", "CP, account / "]);
   });
 
+  it("fills the sign-in page's gate panel with the account screen, refusing a wrong password in its words", async () => {
+    const tab = await (browser as Browser).newPage();
+    await tab.goto(`${origin}/sign-in.html`);
+    const panel = tab.locator("main.cp-gate > .cp-panel");
+    await expect.poll(() => panel.locator("form").count()).toBeGreaterThan(0);
+    expect(await tab.locator("h1").allInnerTexts()).toEqual(["Sign in"]);
+    expect(await tab.locator("main [class*='g-']").count()).toBe(0);
+    await panel.getByLabel("Username").fill("mika");
+    await panel.getByLabel("Password", { exact: true }).fill("wrong");
+    await panel.locator("button[type='submit']").first().click();
+    await expect
+      .poll(() => panel.locator(".cp-notice[data-tone='danger']:not([hidden])").innerText(), {
+        timeout: 10_000,
+      })
+      .toContain("username or password");
+    await tab.close();
+  }, 60_000);
+
   it("clears every row of a choices set whose legend has a button under the floats, and no other set's", async () => {
     const wrong: string[] = [];
     let floated = 0;

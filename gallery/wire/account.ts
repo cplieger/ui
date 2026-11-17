@@ -344,6 +344,17 @@ const CARDS: Readonly<Record<string, Card>> = {
       ],
     },
   },
+  screen: {
+    provider: "Authelia",
+    script: {
+      passkeys: [
+        { kind: "timeout" },
+        { kind: "unknown-credential" },
+        { kind: "cancelled" },
+        { kind: "signed-in", result: SIGNED_IN },
+      ],
+    },
+  },
   owner: {
     provider: "Authelia",
     place: "Settings → Account",
