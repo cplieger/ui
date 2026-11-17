@@ -25,7 +25,9 @@ export interface ListDetailOptions {
 
 export interface ShowOptions {
   /** Shows the detail without its entrance, as for a page that loads with
-   *  an entry open, since nothing animates on load. Default false. */
+   *  an entry open, since nothing animates on load. Docked, it also moves no
+   *  focus and no scroll, since a load is not the reader's act; the sheet
+   *  still focuses its heading. Default false. */
   readonly still?: boolean;
 }
 
@@ -33,7 +35,8 @@ export interface ListDetail {
   /** The entry the detail shows, or null while it is hidden. */
   readonly key: string | null;
   /** With a key, shows the detail, docked or in its sheet, and focuses its
-   *  heading; the same key again only focuses the heading, without scrolling.
+   *  heading; the same key again only focuses the heading, scrolling only as
+   *  far as it takes to show the heading when it is entirely out of view.
    *  With null, hides it and, when focus is inside it, returns focus to what
    *  had it before it showed, or before a later `show()` made from outside
    *  the shown detail. The sheet keeps the detail until its exit has played. */
@@ -47,8 +50,10 @@ export type DetailOpenEvent = CustomEvent<{
   readonly previous: string | null;
 }>;
 
-/** On the root once per hide of `key`, after its sheet has closed, so a
- *  listener can move focus out of it. */
+/** On the root once per hide of `key`: after its sheet has closed, so a
+ *  listener can move focus out of it, or, when a `show()` keeps the leaving
+ *  sheet open, just before that show's `detailopen`, while the sheet is
+ *  still open. */
 export type DetailCloseEvent = CustomEvent<{ readonly key: string }>;
 
 const DOCKED = "data-cp-docked";
@@ -59,6 +64,21 @@ const LEAVING = "data-cp-leaving";
 
 function remPx(): number {
   return Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+}
+
+/** Focuses `heading` where it is, then scrolls it in only when none of it is
+ *  in the viewport, so a focus ring never lands where nobody sees it. */
+function refocus(heading: HTMLElement | null): void {
+  if (heading === null) {
+    return;
+  }
+  heading.focus({ preventScroll: true });
+  const r = heading.getBoundingClientRect();
+  const vh = document.documentElement.clientHeight;
+  const vw = document.documentElement.clientWidth;
+  if (r.bottom <= 0 || r.top >= vh || r.right <= 0 || r.left >= vw) {
+    heading.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }
 }
 
 function restore(to: Element | null): void {
@@ -143,7 +163,7 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
 
   /** Puts the shown detail where the box's width says. A move between the
    *  dock and the sheet is not an open, so it plays no motion. */
-  const place = (opening: boolean): void => {
+  const place = (opening: boolean, still = false): void => {
     if (!opening && at === "dialog" && !dialog.open) {
       // Closed outside the module, its close event still queued: that
       // event dismisses, and reopening here would strand the route.
@@ -162,9 +182,10 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
       return;
     }
     const want = root.getBoundingClientRect().width >= dockAt * remPx() ? "dock" : "dialog";
+    const focusing = opening && !(still && want === "dock");
     if (want === at && (want === "dock" || dialog.open)) {
-      if (opening) {
-        heading()?.focus({ preventScroll: true });
+      if (focusing) {
+        refocus(heading());
       }
       return;
     }
@@ -199,7 +220,7 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
     }
     // showModal() focuses the dialog's first focusable, often Close; the
     // heading names what opened.
-    if (opening || hadFocus || want === "dialog") {
+    if (focusing || hadFocus || want === "dialog") {
       heading()?.focus();
     }
   };
@@ -292,7 +313,7 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
       if (key !== previous) {
         root.dispatchEvent(new CustomEvent("detailopen", { detail: { key, previous } }));
       }
-      place(true);
+      place(true, opts.still === true);
     },
   };
 

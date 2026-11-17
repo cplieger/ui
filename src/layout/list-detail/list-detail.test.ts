@@ -386,7 +386,28 @@ describe("enhanceListDetail", () => {
     expect(document.activeElement, "on the page").toBe(document.body);
   });
 
-  it("refocuses the shown heading without scrolling the page", async () => {
+  it("refocuses a shown heading still partly in view without scrolling the page", async () => {
+    const { root, opener, heading, api } = mount(1000);
+    const tall = document.createElement("div");
+    tall.style.blockSize = "300vh";
+    root.after(tall);
+    api.show("entry");
+    const box = heading.getBoundingClientRect();
+    scrollTo(0, scrollY + box.top + box.height / 2);
+    await frames();
+    const y = scrollY;
+    expect(heading.getBoundingClientRect().top, "the heading's top is above the view").toBeLessThan(
+      0,
+    );
+    expect(heading.getBoundingClientRect().bottom, "its bottom is in it").toBeGreaterThan(0);
+    opener.focus({ preventScroll: true });
+    api.show("entry");
+    await frames();
+    expect(document.activeElement).toBe(heading);
+    expect(scrollY).toBe(y);
+  });
+
+  it("brings back a shown heading entirely out of view, scrolling only as far as its distance out", async () => {
     const { root, opener, heading, api } = mount(1000);
     const tall = document.createElement("div");
     tall.style.blockSize = "300vh";
@@ -395,12 +416,35 @@ describe("enhanceListDetail", () => {
     scrollTo(0, innerHeight);
     await frames();
     const y = scrollY;
-    expect(y, "the heading is above the view").toBeGreaterThan(0);
+    const out = heading.getBoundingClientRect();
+    expect(out.bottom, "the heading is above the view").toBeLessThanOrEqual(0);
     opener.focus({ preventScroll: true });
     api.show("entry");
     await frames();
     expect(document.activeElement).toBe(heading);
-    expect(scrollY).toBe(y);
+    const back = heading.getBoundingClientRect();
+    expect(back.top, "the heading's top at the view's top").toBeCloseTo(0, 0);
+    expect(y - scrollY, "scrolled by its distance out").toBeCloseTo(-out.top, 0);
+  });
+
+  it("docks a still show without moving focus or the page, and still focuses the sheet's heading", async () => {
+    const { root, api } = mount(1000);
+    const above = document.createElement("div");
+    above.style.blockSize = "200vh";
+    root.before(above);
+    (document.activeElement as HTMLElement).blur();
+    scrollTo(0, 0);
+    await frames();
+    api.show("entry", { still: true });
+    await frames();
+    expect(document.activeElement, "focus at the page's start").toBe(document.body);
+    expect(scrollY, "the page stays at its top").toBe(0);
+    life.abort();
+    life = new AbortController();
+    document.body.replaceChildren();
+    const narrow = mount(400);
+    narrow.api.show("entry", { still: true });
+    expect(document.activeElement, "the sheet's heading").toBe(narrow.heading);
   });
 
   it("returns focus to the link of the entry opened last while the detail stayed docked", () => {
