@@ -40,7 +40,9 @@ export interface ListDetail {
    *  under the page's scroll padding.
    *  With null, hides it and, when focus is inside it, returns focus to what
    *  had it before it showed, or before a later `show()` made from outside
-   *  the shown detail. The sheet keeps the detail until its exit has played. */
+   *  the shown detail. When the hide follows a link pressed to another part
+   *  of the page, focus ends on that part instead, in the sheet and docked
+   *  alike. The sheet keeps the detail until its exit has played. */
   show(key: string | null, options?: ShowOptions): void;
 }
 
@@ -97,8 +99,58 @@ function refocus(heading: HTMLElement | null): void {
   }
 }
 
-function restore(to: Element | null): void {
-  if (to instanceof HTMLElement && to.isConnected) {
+/** Focuses `target` as a fragment navigation outside a modal dialog leaves
+ *  it: on it, or, when it takes no focus, on it with `tabindex="-1"` until
+ *  it loses focus, so the next Tab starts there; its top scrolled clear of
+ *  the scroll padding when it is not in view
+ *  (https://html.spec.whatwg.org/multipage/browsing-the-web.html#scroll-to-the-fragment-identifier). */
+function reach(target: HTMLElement): void {
+  target.focus({ preventScroll: true });
+  if (document.activeElement !== target && !target.hasAttribute("tabindex")) {
+    target.tabIndex = -1;
+    target.addEventListener(
+      "blur",
+      () => {
+        target.removeAttribute("tabindex");
+      },
+      { once: true },
+    );
+    target.focus({ preventScroll: true });
+  }
+  const top = target.getBoundingClientRect().top;
+  const [clear, foot] = padding();
+  if (top < clear - 1 || top >= document.documentElement.clientHeight - foot) {
+    target.scrollIntoView();
+  }
+}
+
+/** The element of this document a press on `link` scrolls to, by its
+ *  fragment, or null when it goes to another document, another browsing
+ *  context or no element
+ *  (https://html.spec.whatwg.org/multipage/browsing-the-web.html#find-a-potential-indicated-element). */
+function indicated(link: HTMLAnchorElement | HTMLAreaElement): HTMLElement | null {
+  const self = (link.target === "" || link.target === "_self") && !link.hasAttribute("download");
+  if (!self || link.hash.length <= 1 || link.href.split("#")[0] !== document.URL.split("#")[0]) {
+    return null;
+  }
+  const raw = link.hash.slice(1);
+  let decoded = raw;
+  try {
+    decoded = decodeURIComponent(raw);
+  } catch {
+    // A malformed escape names only the raw id.
+  }
+  const el = document.getElementById(raw) ?? document.getElementById(decoded);
+  return el instanceof HTMLElement ? el : null;
+}
+
+function restore(to: Element | null, away: boolean): void {
+  if (!(to instanceof HTMLElement) || !to.isConnected) {
+    return;
+  }
+  if (away) {
+    reach(to);
+  } else {
     to.focus();
   }
 }
@@ -136,6 +188,11 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
   /** The opener while the sheet's exit plays in script: the page stays
    *  inert until the dialog closes. */
   let returnTo: Element | null = null;
+  /** Whether `returnTo` is the part of the page a pressed link went to. */
+  let returnAway = false;
+  /** The last press on the page when it was on a link, with the part of
+   *  the page that link names; null after any other press. */
+  let pressed: { readonly event: MouseEvent; readonly part: HTMLElement | null } | null = null;
   /** The hidden key whose `detailclose` waits for that exit to end. */
   let closing: string | null = null;
   /** Counts opens and closes, so an exit that ends after the next open
@@ -253,6 +310,26 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
     }
   };
 
+  /** The part of the page a link pressed last went to, when that navigation
+   *  is why the detail hides: a modal sheet keeps focus from it, and docked,
+   *  the opener or an app's fallback to the row would take focus from it. */
+  const away = (): HTMLElement | null => {
+    const press = pressed;
+    pressed = null;
+    if (press === null) {
+      return null;
+    }
+    const target = press.part;
+    return target !== null &&
+      !press.event.defaultPrevented &&
+      target.isConnected &&
+      !target.contains(root) &&
+      !detail.contains(target) &&
+      target.checkVisibility()
+      ? target
+      : null;
+  };
+
   const hide = (animate: boolean): void => {
     if (shown === null) {
       return;
@@ -263,11 +340,13 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
     const was = at;
     at = null;
     root.removeAttribute(DOCKED);
+    const target = away();
     // Focus the reader moved out of the detail stays where they put it.
     const to =
-      detail.contains(document.activeElement) || dialog.contains(document.activeElement)
+      target ??
+      (detail.contains(document.activeElement) || dialog.contains(document.activeElement)
         ? opener
-        : null;
+        : null);
     opener = null;
     if (was === "dialog" && animate) {
       closeDialog(dialog);
@@ -277,9 +356,10 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
     if (dialog.open) {
       // The modal sheet refuses focus outside it until it closes.
       returnTo = to;
+      returnAway = target !== null;
       closing = key;
     } else {
-      restore(to);
+      restore(to, target !== null);
       fireClose(key);
     }
     // getAnimations() flushes style, so it holds the exit Chromium has
@@ -307,10 +387,14 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
         return;
       }
       const previous = shown;
+      if (key !== previous) {
+        pressed = null;
+      }
       if (previous === null) {
         turn += 1;
-        opener = closing === null ? document.activeElement : returnTo;
+        opener = closing === null ? document.activeElement : returnAway ? null : returnTo;
         returnTo = null;
+        returnAway = false;
         firePendingClose();
         detail.hidden = false;
         detail.toggleAttribute(STILL, opts.still === true);
@@ -372,8 +456,9 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
     "close",
     () => {
       if (shown === null) {
-        restore(returnTo);
+        restore(returnTo, returnAway);
         returnTo = null;
+        returnAway = false;
         firePendingClose();
       } else if (at === "dialog" && !dialog.open) {
         // The engine closed it itself, as Chromium does on a second Escape
@@ -422,6 +507,17 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
     },
     listen,
   );
+  document.addEventListener(
+    "click",
+    (e) => {
+      const link = e.target instanceof Element ? e.target.closest("a[href], area[href]") : null;
+      pressed =
+        link instanceof HTMLAnchorElement || link instanceof HTMLAreaElement
+          ? { event: e, part: indicated(link) }
+          : null;
+    },
+    until(signal, true),
+  );
 
   const teardown = (): void => {
     resize.disconnect();
@@ -432,8 +528,9 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
     if (dialog.open) {
       dialog.close();
     }
-    restore(returnTo);
+    restore(returnTo, returnAway);
     returnTo = null;
+    returnAway = false;
     firePendingClose();
     turn += 1;
     stow();

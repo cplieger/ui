@@ -34,6 +34,7 @@ afterEach(() => {
   document.documentElement.classList.remove("cp");
   document.documentElement.style.removeProperty("scroll-padding-top");
   document.body.replaceChildren();
+  history.replaceState(history.state, "", location.pathname + location.search);
 });
 
 function frames(n = 2): Promise<void> {
@@ -385,6 +386,113 @@ describe("enhanceListDetail", () => {
     elsewhere.blur();
     api.show(null);
     expect(document.activeElement, "on the page").toBe(document.body);
+  });
+
+  /** A part of the page far below the list, and a link to it in the detail. */
+  function farPart(m: { root: HTMLElement; detail: HTMLElement }) {
+    const tall = document.createElement("div");
+    tall.style.blockSize = "300vh";
+    const part = document.createElement("h2");
+    part.id = "far-part";
+    part.textContent = "Far";
+    m.root.after(tall, part);
+    const link = document.createElement("a");
+    link.href = "#far-part";
+    link.textContent = "To the far part";
+    m.detail.querySelector(".cp-detail-body")!.append(link);
+    return { part, link };
+  }
+
+  /** Hides the detail on a fragment naming no entry, as a route does. */
+  function hideOn(api: { show(key: string | null): void }, keys: Record<string, string> = {}) {
+    addEventListener(
+      "hashchange",
+      () => {
+        const key = keys[location.hash];
+        api.show(key ?? null);
+      },
+      { signal: life.signal },
+    );
+  }
+
+  function closed(root: HTMLElement): Promise<unknown> {
+    return new Promise((r) => {
+      root.addEventListener("detailclose", r, { once: true });
+    });
+  }
+
+  it.each([
+    ["in the sheet, from a link in the detail", 400, false],
+    ["docked, from a link in the detail", 1000, false],
+    ["docked, from a link beside the list", 1000, true],
+  ])(
+    "ends focus %s on the part of the page it went to, its top in view",
+    async (_, width, beside) => {
+      const m = mount(width);
+      const { part, link } = farPart(m);
+      if (beside) {
+        m.root.before(link);
+      }
+      hideOn(m.api);
+      m.api.show("entry");
+      await played(m.dialog);
+      const done = closed(m.root);
+      await userEvent.click(link);
+      await done;
+      await exited(m.dialog);
+      expect(document.activeElement, "on the part").toBe(part);
+      expect(part.getAttribute("tabindex"), "focusable until it loses focus").toBe("-1");
+      const top = part.getBoundingClientRect().top;
+      expect(top, "its top in the view").toBeGreaterThanOrEqual(0);
+      expect(top).toBeLessThan(innerHeight);
+      m.opener.focus();
+      expect(part.hasAttribute("tabindex"), "no tab stop left behind").toBe(false);
+    },
+  );
+
+  it("returns focus to the opener after a link press the page took over", async () => {
+    const m = mount(400);
+    const { link } = farPart(m);
+    link.addEventListener("click", (e) => {
+      e.preventDefault();
+    });
+    m.api.show("entry");
+    await played(m.dialog);
+    await userEvent.click(link);
+    m.api.show(null);
+    await exited(m.dialog);
+    expect(document.activeElement).toBe(m.opener);
+  });
+
+  it("returns focus to the opener on a Close pressed after a link in the sheet the route kept open", async () => {
+    const m = mount(400);
+    const { link } = farPart(m);
+    m.api.show("entry");
+    await played(m.dialog);
+    await userEvent.click(link);
+    expect(m.dialog.open, "the route kept the sheet").toBe(true);
+    await userEvent.click(m.close);
+    await exited(m.dialog);
+    expect(document.activeElement).toBe(m.opener);
+  });
+
+  it("returns focus to the opener when a link in the detail showed another entry before the hide", async () => {
+    const m = mount(400);
+    const { link } = farPart(m);
+    // The part the link names is an entry's own row, as a list's row can be.
+    hideOn(m.api, { "#far-part": "other" });
+    m.api.show("entry");
+    await played(m.dialog);
+    const shown = new Promise((r) => {
+      m.root.addEventListener("detailopen", r, { once: true });
+    });
+    await userEvent.click(link);
+    await shown;
+    const done = closed(m.root);
+    location.hash = "#gone";
+    await done;
+    await exited(m.dialog);
+    expect(document.activeElement).toBe(m.opener);
   });
 
   it("refocuses a shown heading still partly in view without scrolling the page", async () => {
