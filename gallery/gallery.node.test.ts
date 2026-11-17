@@ -85,6 +85,30 @@ describe.each(browsers)("the gallery in %s", (name) => {
     await browser?.close();
   });
 
+  /** Presses Tab once: whether it reached the page's first tabbable element,
+   *  what it reached, and the page's scroll after it. */
+  const tabFromStart = async (tab: Page) => {
+    await tab.keyboard.press("Tab");
+    return tab.evaluate(() => {
+      const first = [
+        ...document.querySelectorAll<HTMLElement>(
+          "a[href], button, input, select, textarea, summary, [tabindex]",
+        ),
+      ].find(
+        (el) =>
+          el.tabIndex >= 0 &&
+          !el.matches(":disabled") &&
+          el.checkVisibility() &&
+          el.closest("[inert], [hidden], dialog:not([open])") === null,
+      );
+      return {
+        first: first !== undefined && document.activeElement === first,
+        at: document.activeElement?.outerHTML.slice(0, 60) ?? "",
+        y: scrollY,
+      };
+    });
+  };
+
   it.each([...pageNames, ...frameNames])(
     "loads %s with no error, every icon painted and nothing wider than a phone",
     async (page) => {
@@ -225,6 +249,8 @@ describe.each(browsers)("the gallery in %s", (name) => {
       | `load ${string}`
       | `press #${string}`
       | `chip #${string}`
+      | `unseen #${string}`
+      | `unseen-chip #${string}`
       | `filter ${string}`
       | `focus #${string}`
       | `resize ${number}`
@@ -245,6 +271,12 @@ describe.each(browsers)("the gallery in %s", (name) => {
       readonly focus?: string;
       readonly top?: number;
       readonly scrollY?: number;
+      /** An element whose top must sit in the viewport. */
+      readonly inView?: string;
+      /** The page's scroll before a press on what is shown, and how far the
+       *  heading lay outside the viewport: it must be wholly in view, the
+       *  page moved by no more than that. */
+      readonly reveal?: { readonly y: number; readonly most: number };
     }
 
     // In every document of the tab: the feed's scroller, and a record of
@@ -333,6 +365,28 @@ describe.each(browsers)("the gallery in %s", (name) => {
           if (w.scrollY !== undefined && Math.abs(scrollY - w.scrollY) > 1) {
             out.push(`page scrolled to ${String(scrollY)}, was ${String(w.scrollY)}`);
           }
+          const vh = document.documentElement.clientHeight;
+          if (w.inView !== undefined) {
+            const top = document.querySelector(w.inView)?.getBoundingClientRect().top;
+            if (top === undefined || top < 0 || top >= vh) {
+              out.push(`${w.inView}'s top at ${String(top)}`);
+            }
+          }
+          if (w.reveal !== undefined) {
+            const r = title?.getBoundingClientRect();
+            const pad =
+              Number.parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop) || 0;
+            if (r === undefined || r.top < pad - 1 || r.bottom > vh + 1) {
+              out.push(`heading at ${String(r?.top)} to ${String(r?.bottom)}`);
+            }
+            if (w.reveal.most < 0) {
+              out.push("the heading was in view before the press");
+            } else if (Math.abs(scrollY - w.reveal.y) > w.reveal.most + 1) {
+              out.push(
+                `page scrolled ${String(scrollY - w.reveal.y)}, past ${String(w.reveal.most)}`,
+              );
+            }
+          }
           return out;
         },
         { w: want, known: KNOWN },
@@ -396,14 +450,18 @@ describe.each(browsers)("the gallery in %s", (name) => {
                 : `#agent-history a.cp-filter-chip[href="${arg}"]`;
             if (before?.hidden === false && new URL(before.href).hash === arg) {
               // Invariant 4: a press on what is shown keeps history and both
-              // scrolls, and focuses its heading. The page puts the heading out
-              // of view with the reader's focus on what they press.
-              const y = await tab.evaluate((sel) => {
+              // scrolls, and focuses its heading. The page leaves 10px of the
+              // heading in view below the sticky bar's scroll padding, with the
+              // reader's focus on what they press.
+              const y = await tab.evaluate(() => {
                 (window as unknown as Helpers).cpScroller().scrollTop = 120;
-                const top = document.querySelector(sel)?.getBoundingClientRect().top ?? 0;
-                scrollTo(0, top + scrollY - 10);
+                const bottom = document.getElementById("msg-title")?.getBoundingClientRect().bottom;
+                const pad =
+                  Number.parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop) ||
+                  0;
+                scrollTo(0, (bottom ?? 0) + scrollY - pad - 10);
                 return scrollY;
-              }, selector);
+              });
               await tab.waitForFunction(
                 (at) =>
                   Math.abs((window as unknown as Helpers).cpScroller().scrollTop - 120) <= 1 &&
@@ -420,8 +478,40 @@ describe.each(browsers)("the gallery in %s", (name) => {
             await enter(tab, selector);
             break;
           }
+          case "unseen":
+          case "unseen-chip": {
+            const selector =
+              verb === "unseen"
+                ? `#msg-list a.cp-list-row[href="${arg}"]`
+                : `#agent-history a.cp-filter-chip[href="${arg}"]`;
+            // The heading lies 200px above the viewport when the reader presses.
+            const out = await tab.evaluate(() => {
+              const bottom = document.getElementById("msg-title")?.getBoundingClientRect().bottom;
+              scrollTo(0, (bottom ?? 0) + scrollY + 200);
+              return { y: scrollY };
+            });
+            await tab.waitForFunction((y) => Math.abs(scrollY - y) <= 1, out.y);
+            const most = await tab.evaluate((sel) => {
+              document.querySelector<HTMLElement>(sel)?.focus({ preventScroll: true });
+              const r = document.getElementById("msg-title")?.getBoundingClientRect();
+              // How far the heading lies above the band the sticky bar's scroll padding keeps clear.
+              return r === undefined || r.bottom > 0
+                ? -1
+                : (Number.parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop) ||
+                    0) - r.top;
+            }, selector);
+            want = {
+              ...want,
+              ...(before === undefined ? {} : { length: before.length }),
+              focus: "#msg-title",
+              reveal: { y: out.y, most },
+            };
+            await tab.keyboard.press("Enter");
+            break;
+          }
           case "author":
-            await enter(tab, '#msg-feed header > a[href="#agent-kiro"]');
+            await enter(tab, '#msg-feed header > a[href="#agent-codex"]');
+            want = { ...want, focus: focus ?? "#agent-codex", inView: "#agent-codex" };
             break;
           case "filter":
             await enter(tab, `#msg-filters a[data-show="${arg}"]`);
@@ -466,6 +556,21 @@ describe.each(browsers)("the gallery in %s", (name) => {
             break;
         }
         const left = await settle(tab, want);
+        if ((verb === "load" || verb === "reload") && want.focus === "body") {
+          // Invariant 3: a load moves no focus and no scroll, so Tab starts at the page's start.
+          const y = await tab.evaluate(() => scrollY);
+          if (verb === "load" && y > 1) {
+            left.push(`load scrolled the page to ${String(y)}`);
+          }
+          const tabbed = await tabFromStart(tab);
+          if (!tabbed.first || (verb === "load" && tabbed.y > 1)) {
+            left.push(`Tab reached ${tabbed.at} at ${String(tabbed.y)}`);
+          }
+          // The next step starts from the load's focus again.
+          await tab.evaluate(() => {
+            (document.activeElement as HTMLElement | null)?.blur();
+          });
+        }
         if (verb === "close" || verb === "escape") {
           // Invariant 2: at most one Back, so no entry on the way shows its row.
           const made = await tab
@@ -581,7 +686,7 @@ describe.each(browsers)("the gallery in %s", (name) => {
         [
           ["load messages.html", `${M}#c-internal`],
           ["press #c-marotte", `${M}#c-marotte`],
-          ["author", `${M}#agent-kiro`],
+          ["author", `${M}#agent-codex`],
           ["back", `${M}#c-marotte`],
           ["close", M],
           ["back", `${M}#c-marotte`],
@@ -593,7 +698,7 @@ describe.each(browsers)("the gallery in %s", (name) => {
         AFTER,
         [
           ["load messages.html", `${M}#c-internal`],
-          ["author", `${M}#agent-kiro`],
+          ["author", `${M}#agent-codex`],
           ["back", `${M}#c-internal`],
           ["close", M],
           ["back", `${M}#c-internal`],
@@ -610,6 +715,18 @@ describe.each(browsers)("the gallery in %s", (name) => {
           ["close", M, '#agent-history a[href="#c-internal"]'],
           ["back", `${M}#c-internal`],
           ["back", "/index.html"],
+        ],
+      ],
+      [
+        "a press on the open row and on its chip with its heading out of view, then Close",
+        W,
+        AFTER,
+        [
+          ["load messages.html#c-internal", `${M}#c-internal`],
+          ["unseen #c-internal", `${M}#c-internal`],
+          ["unseen-chip #c-internal", `${M}#c-internal`],
+          ["close", M, '#agent-history a[href="#c-internal"]'],
+          ["back", `${M}#c-internal`],
         ],
       ],
       [
@@ -744,6 +861,19 @@ describe.each(browsers)("the gallery in %s", (name) => {
           ["load messages.html", M],
           ["press #c-marotte", `${M}#c-marotte`],
           ["reload", `${M}#c-marotte`],
+          ["close", M],
+          ["back", "/index.html"],
+        ],
+      ],
+      [
+        "a phone's press, an author link, Back, Close",
+        P,
+        AFTER,
+        [
+          ["load messages.html", M],
+          ["press #c-marotte", `${M}#c-marotte`],
+          ["author", `${M}#agent-codex`],
+          ["back", `${M}#c-marotte`],
           ["close", M],
           ["back", "/index.html"],
         ],
@@ -895,6 +1025,8 @@ describe.each(browsers)("the gallery in %s", (name) => {
         history.replaceState({ ...(history.state as object), app: "loaded" }, "");
       });
       const loaded = await read(tab);
+      const loadY = await tab.evaluate(() => scrollY);
+      const tabbed = await tabFromStart(tab);
       await closeDetail(tab);
       const closed = await at(tab, `${N}#detail`).catch(() => read(tab));
       await tab.goBack();
@@ -905,13 +1037,15 @@ describe.each(browsers)("the gallery in %s", (name) => {
       const forward = await at(tab, `${N}#md/mushishi`).catch(() => read(tab));
       await tab.close();
       expect({
-        loaded: loaded.focus,
+        loaded: [loaded.focus, loadY],
+        tabbed: [tabbed.first, tabbed.y],
         closed: [closed.address, closed.shows, closed.focus],
         back: [back.address, back.shows, back.app],
         left: left.address,
         forward: [forward.address, forward.shows, forward.app],
       }).toEqual({
-        loaded: "BODY",
+        loaded: ["BODY", 0],
+        tabbed: [true, 0],
         closed: [`${N}#detail`, "nothing", "#md/mushishi"],
         back: [`${N}#md/mushishi`, "Mushishi", "loaded"],
         left: "/index.html",
@@ -971,7 +1105,7 @@ describe.each(browsers)("the gallery in %s", (name) => {
       });
     }, 60_000);
 
-    it("leaves focus and scroll where the page index's link took them when the detail closes", async () => {
+    it("ends on the page index's link target, its top in view, when the detail closes", async () => {
       const tab = await (browser as Browser).newPage({ viewport: { width: 1280, height: 800 } });
       await tab.goto(`${origin}/index.html`);
       await tab.goto(`${origin}${N}`);
@@ -980,48 +1114,92 @@ describe.each(browsers)("the gallery in %s", (name) => {
       await at(tab, `${N}#md/mushishi`);
       await tab.locator('nav.g-index a[href="#tabs"]').focus();
       await tab.keyboard.press("Enter");
-      const after = await at(tab, `${N}#tabs`).catch(() => read(tab));
-      const where = await tab.evaluate(() => {
+      const after = await at(tab, `${N}#tabs`, "tabs").catch(() => read(tab));
+      const top = await tab.evaluate(() => {
         const r = document.getElementById("tabs")?.getBoundingClientRect();
-        return {
-          top: r !== undefined && r.top >= 0 && r.top < innerHeight,
-          inList: document.getElementById("md")?.contains(document.activeElement) === true,
-        };
+        return r !== undefined && r.top >= 0 && r.top < innerHeight;
       });
       await tab.close();
-      expect({ shows: after.shows, ...where }).toEqual({
+      expect({ shows: after.shows, focus: after.focus, top }).toEqual({
         shows: "nothing",
+        focus: "tabs",
         top: true,
-        inList: false,
       });
     }, 60_000);
 
-    it("keeps history and the page's scroll on a press on the open row, focusing its heading", async () => {
+    /** Loads Mushishi docked, scrolls the page so the heading's bottom sits
+     *  `bottom` px below the band the sticky bar's scroll padding keeps clear,
+     *  and presses its open row there. */
+    const pressShown = async (bottom: number) => {
       const tab = await (browser as Browser).newPage({ viewport: { width: 1280, height: 800 } });
       await tab.goto(`${origin}/index.html`);
       await tab.goto(`${origin}${N}#md/mushishi`);
       await wired(tab);
       await at(tab, `${N}#md/mushishi`);
-      // The row near the viewport's top puts the heading above it, out of view;
-      // the reader's focus is on the row there.
-      const before = await tab.evaluate(() => {
-        const row = document.querySelector('#md a.cp-list-row[href="#md/mushishi"]');
-        scrollTo(0, (row?.getBoundingClientRect().top ?? 0) + scrollY - 10);
+      const before = await tab.evaluate((b) => {
+        const r = document.getElementById("md-title")?.getBoundingClientRect();
+        scrollTo(
+          0,
+          (r?.bottom ?? 0) +
+            scrollY -
+            (Number.parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop) || 0) -
+            b,
+        );
         return { length: history.length, y: scrollY };
-      });
+      }, bottom);
       await tab.waitForFunction((y) => Math.abs(scrollY - y) <= 1, before.y);
-      await tab.evaluate(() => {
+      const out = await tab.evaluate(() => {
         document
           .querySelector<HTMLElement>('#md a.cp-list-row[href="#md/mushishi"]')
           ?.focus({ preventScroll: true });
+        const pad =
+          Number.parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop) || 0;
+        return pad - (document.getElementById("md-title")?.getBoundingClientRect().top ?? 0);
       });
       await tab.keyboard.press("Enter");
       await tab.waitForFunction(() => document.activeElement?.id === "md-title");
-      const after = await tab.evaluate(() => ({ length: history.length, y: scrollY }));
+      const after = await tab.evaluate(() => {
+        const r = document.getElementById("md-title")?.getBoundingClientRect();
+        const vh = document.documentElement.clientHeight;
+        return {
+          length: history.length,
+          y: scrollY,
+          seen:
+            r !== undefined &&
+            r.top >=
+              (Number.parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop) ||
+                0) -
+                1 &&
+            r.bottom <= vh + 1,
+        };
+      });
       const state = await read(tab);
       await tab.close();
-      expect({ ...after, address: state.address, shows: state.shows }).toEqual({
+      return { before, out, after, address: state.address, shows: state.shows };
+    };
+
+    it("keeps history and the page's scroll on a press on the open row, focusing its heading", async () => {
+      // 10px of the heading stays in view.
+      const { before, after, address, shows } = await pressShown(10);
+      expect({ length: after.length, y: after.y, address, shows }).toEqual({
         ...before,
+        address: `${N}#md/mushishi`,
+        shows: "Mushishi",
+      });
+    }, 60_000);
+
+    it("brings the heading into view on a press on the open row when none of it is in view", async () => {
+      const { before, out, after, address, shows } = await pressShown(-200);
+      expect({
+        length: after.length,
+        seen: after.seen,
+        within: out > 0 && Math.abs(after.y - before.y) <= out + 1,
+        address,
+        shows,
+      }).toEqual({
+        length: before.length,
+        seen: true,
+        within: true,
         address: `${N}#md/mushishi`,
         shows: "Mushishi",
       });

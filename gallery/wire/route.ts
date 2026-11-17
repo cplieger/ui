@@ -21,6 +21,29 @@ const stamp = (from: boolean, url?: string): void => {
   );
 };
 
+/** Ends focus on a fragment's `target` as its link would on an open page,
+ *  where a modal sheet kept the browser from moving it: on the target, made
+ *  focusable until it loses focus when it is not, so the next Tab starts
+ *  there, and its top in view below the page's scroll padding. False when the
+ *  target cannot take focus. */
+const reach = (target: HTMLElement): boolean => {
+  if (!target.checkVisibility()) {
+    return false;
+  }
+  target.focus({ preventScroll: true });
+  if (document.activeElement !== target && !target.hasAttribute("tabindex")) {
+    target.tabIndex = -1;
+    target.addEventListener("blur", () => target.removeAttribute("tabindex"), { once: true });
+    target.focus({ preventScroll: true });
+  }
+  const top = target.getBoundingClientRect().top;
+  const clear = Number.parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop) || 0;
+  if (top < clear - 1 || top >= document.documentElement.clientHeight) {
+    target.scrollIntoView();
+  }
+  return document.activeElement === target;
+};
+
 export interface ListRouteOptions {
   /** The `.cp-list-detail`, before `enhanceListDetail` runs on it. */
   readonly root: HTMLElement;
@@ -41,7 +64,7 @@ export interface ListRoute {
   readonly close: () => void;
   /** Stamps the entry the page loaded on, rewriting its address to `url` when
    *  given, renders it, and follows Back, Forward, a fragment's change and a
-   *  restore. A docked detail on load leaves focus at the page's start. */
+   *  restore. */
   start(detail: ListDetail, url?: string): void;
 }
 
@@ -61,11 +84,14 @@ export function routeListDetail(options: ListRouteOptions): ListRoute {
   };
 
   root.addEventListener("detailclose", (e) => {
+    const target =
+      location.hash.length > 1 ? document.getElementById(location.hash.slice(1)) : null;
+    // A fragment naming a part outside the list ends there; focus on the page or in the detail goes to the row.
+    if (target instanceof HTMLElement && !target.contains(root) && reach(target)) {
+      return;
+    }
     const active = document.activeElement;
-    const lost = active === document.body || shown?.contains(active) === true;
-    // Focus outside the detail stays, and so does a fragment naming what does not hold the list.
-    const target = document.getElementById(location.hash.slice(1));
-    if (lost && (target === null || target.contains(root))) {
+    if (active === document.body || shown?.contains(active) === true) {
       rowOrStop((e as DetailCloseEvent).detail.key)?.focus({ preventScroll: true });
     }
   });
@@ -117,14 +143,6 @@ export function routeListDetail(options: ListRouteOptions): ListRoute {
         }
       });
       sync(true);
-      const active = document.activeElement;
-      if (
-        root.hasAttribute("data-cp-docked") &&
-        active instanceof HTMLElement &&
-        shown?.contains(active) === true
-      ) {
-        active.blur();
-      }
     },
   };
 }

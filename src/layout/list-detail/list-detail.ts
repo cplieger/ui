@@ -36,7 +36,8 @@ export interface ListDetail {
   readonly key: string | null;
   /** With a key, shows the detail, docked or in its sheet, and focuses its
    *  heading; the same key again only focuses the heading, scrolling only as
-   *  far as it takes to show the heading when it is entirely out of view.
+   *  far as it takes to show the heading when it is entirely out of view or
+   *  under the page's scroll padding.
    *  With null, hides it and, when focus is inside it, returns focus to what
    *  had it before it showed, or before a later `show()` made from outside
    *  the shown detail. The sheet keeps the detail until its exit has played. */
@@ -66,8 +67,22 @@ function remPx(): number {
   return Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
 }
 
+/** The root scroller's `scroll-padding` at the block start and end, in px:
+ *  the bands a sticky bar covers, which `scrollIntoView` keeps clear
+ *  (https://drafts.csswg.org/css-scroll-snap-1/#scroll-padding). */
+function padding(): readonly [number, number] {
+  const style = getComputedStyle(document.documentElement);
+  const vh = document.documentElement.clientHeight;
+  const px = (v: string): number => {
+    const n = Number.parseFloat(v);
+    return Number.isNaN(n) ? 0 : v.endsWith("%") ? (n * vh) / 100 : n;
+  };
+  return [px(style.scrollPaddingTop), px(style.scrollPaddingBottom)];
+}
+
 /** Focuses `heading` where it is, then scrolls it in only when none of it is
- *  in the viewport, so a focus ring never lands where nobody sees it. */
+ *  in the viewport clear of its scroll padding, so a focus ring never lands
+ *  where nobody sees it. */
 function refocus(heading: HTMLElement | null): void {
   if (heading === null) {
     return;
@@ -76,7 +91,8 @@ function refocus(heading: HTMLElement | null): void {
   const r = heading.getBoundingClientRect();
   const vh = document.documentElement.clientHeight;
   const vw = document.documentElement.clientWidth;
-  if (r.bottom <= 0 || r.top >= vh || r.right <= 0 || r.left >= vw) {
+  const [top, bottom] = padding();
+  if (r.bottom <= top || r.top >= vh - bottom || r.right <= 0 || r.left >= vw) {
     heading.scrollIntoView({ block: "nearest", inline: "nearest" });
   }
 }

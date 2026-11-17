@@ -32,6 +32,7 @@ afterEach(() => {
   life = new AbortController();
   sheet.remove();
   document.documentElement.classList.remove("cp");
+  document.documentElement.style.removeProperty("scroll-padding-top");
   document.body.replaceChildren();
 });
 
@@ -425,6 +426,32 @@ describe("enhanceListDetail", () => {
     const back = heading.getBoundingClientRect();
     expect(back.top, "the heading's top at the view's top").toBeCloseTo(0, 0);
     expect(y - scrollY, "scrolled by its distance out").toBeCloseTo(-out.top, 0);
+  });
+
+  it("counts a heading under the page's scroll padding as out of view, and brings it out from under it", async () => {
+    const { root, opener, heading, api } = mount(1000);
+    const above = document.createElement("div");
+    above.style.blockSize = "100vh";
+    root.before(above);
+    const tall = document.createElement("div");
+    tall.style.blockSize = "300vh";
+    root.after(tall);
+    // The band a sticky bar covers, which the page keeps clear when it scrolls.
+    document.documentElement.style.setProperty("scroll-padding-top", "120px");
+    api.show("entry");
+    const box = heading.getBoundingClientRect();
+    scrollTo(0, scrollY + box.bottom - 60);
+    await frames();
+    const y = scrollY;
+    const under = heading.getBoundingClientRect();
+    expect(under.bottom, "the heading is in the view").toBeGreaterThan(0);
+    expect(under.bottom, "all of it under the band").toBeLessThanOrEqual(120);
+    opener.focus({ preventScroll: true });
+    api.show("entry");
+    await frames();
+    expect(document.activeElement).toBe(heading);
+    expect(heading.getBoundingClientRect().top, "its top at the band's edge").toBeCloseTo(120, 0);
+    expect(y - scrollY, "scrolled by its distance under the band").toBeCloseTo(120 - under.top, 0);
   });
 
   it("docks a still show without moving focus or the page, and still focuses the sheet's heading", async () => {
