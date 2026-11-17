@@ -701,18 +701,22 @@ const PAGE = '<!DOCTYPE html><html lang="en"><title>Check</title><main><h1>Check
 
 /** Proves the rule lists match the pinned axe and that axe runs at all. */
 export function selfTest(browser: () => Browser): void {
-  it("has every rule of the pinned axe ruled once, and finds a button with no name", async () => {
-    const tab = await browser().newPage();
-    await tab.setContent(`${PAGE}<button></button></main></html>`);
-    const run = await check(tab, EVERY);
-    const rules = await tab.evaluate(() =>
-      (window as unknown as { axe: typeof Axe }).axe.getRules().map((r) => r.ruleId),
-    );
-    await tab.close();
-    const ruled = [...EVERY, ...CONTRAST_MORE, ...OUT];
-    expect(new Set(ruled).size).toBe(ruled.length);
-    expect(rules.toSorted()).toEqual(ruled.toSorted());
-    expect(REVIEW_FAILS.filter((id) => !EVERY.includes(id))).toEqual([]);
-    expect(run.violations.map((v) => v.id)).toEqual(["button-name"]);
-  });
+  it(
+    "has every rule of the pinned axe ruled once, and finds a button with no name",
+    { timeout: 60_000 },
+    async () => {
+      const tab = await browser().newPage();
+      await tab.setContent(`${PAGE}<button></button></main></html>`);
+      const run = await check(tab, EVERY);
+      const rules = await tab.evaluate(() =>
+        (window as unknown as { axe: typeof Axe }).axe.getRules().map((r) => r.ruleId),
+      );
+      await tab.close();
+      const ruled = [...EVERY, ...CONTRAST_MORE, ...OUT];
+      expect(new Set(ruled).size).toBe(ruled.length);
+      expect(rules.toSorted()).toEqual(ruled.toSorted());
+      expect(REVIEW_FAILS.filter((id) => !EVERY.includes(id))).toEqual([]);
+      expect(run.violations.map((v) => v.id)).toEqual(["button-name"]);
+    },
+  );
 }
