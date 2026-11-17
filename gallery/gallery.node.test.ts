@@ -225,6 +225,7 @@ describe.each(browsers)("the gallery in %s", (name) => {
       | `load ${string}`
       | `press #${string}`
       | `chip #${string}`
+      | `filter ${string}`
       | "author"
       | "older"
       | "close"
@@ -232,7 +233,9 @@ describe.each(browsers)("the gallery in %s", (name) => {
       | "back"
       | "forward"
       | "reload";
-    /** An action, the address it ends on, and where focus ends when that is the point. */
+    /** An action, the address it ends on, and where focus ends when that is the point.
+     *  Close and Escape default to the closed row, or the list's tab stop; a chip
+     *  that opened the entry takes focus back, as list-detail returns it to its opener. */
     type Step = readonly [Action, string, string?];
     interface Want {
       readonly address: string;
@@ -363,6 +366,11 @@ describe.each(browsers)("the gallery in %s", (name) => {
             href: location.href,
             hidden: document.querySelector("#msg-title")?.closest<HTMLElement>(".cp-detail")
               ?.hidden,
+            // Invariant 2's focus: the closed row, or the list's tab stop when it is not drawn.
+            closes:
+              document.querySelector(`#msg-list a.cp-list-row[href="${location.hash}"]`) === null
+                ? '#msg-list a.cp-list-row[tabindex="0"]'
+                : `#msg-list a.cp-list-row[href="${location.hash}"]`,
           }))
           .catch(() => undefined);
         switch (verb) {
@@ -383,15 +391,21 @@ describe.each(browsers)("the gallery in %s", (name) => {
             if (before?.hidden === false && new URL(before.href).hash === arg) {
               // Invariant 4: a press on what is shown keeps history and scroll, and focuses its heading.
               await tab.evaluate(() => {
-                (window as unknown as Helpers).cpScroller().scrollTop = 0;
+                (window as unknown as Helpers).cpScroller().scrollTop = 120;
               });
-              want = { ...want, length: before.length, focus: "#msg-title", top: 0 };
+              await tab.waitForFunction(
+                () => Math.abs((window as unknown as Helpers).cpScroller().scrollTop - 120) <= 1,
+              );
+              want = { ...want, length: before.length, focus: "#msg-title", top: 120 };
             }
             await enter(tab, selector);
             break;
           }
           case "author":
             await enter(tab, '#msg-feed header > a[href="#agent-kiro"]');
+            break;
+          case "filter":
+            await enter(tab, `#msg-filters a[data-show="${arg}"]`);
             break;
           case "older": {
             const rows = () => document.querySelectorAll("#msg-list a.cp-list-row").length;
@@ -411,6 +425,7 @@ describe.each(browsers)("the gallery in %s", (name) => {
           }
           case "close":
           case "escape":
+            want = { ...want, focus: focus ?? before?.closes ?? "body" };
             await tab.evaluate(() => {
               (window as unknown as Helpers).cpWatch();
             });
@@ -471,7 +486,7 @@ describe.each(browsers)("the gallery in %s", (name) => {
           ["press #c-marotte", `${M}#c-marotte`],
           ["back", `${M}#c-internal`],
           ["forward", `${M}#c-marotte`],
-          ["close", M, '#msg-list a[href="#c-marotte"]'],
+          ["close", M],
           ["back", `${M}#c-marotte`],
         ],
       ],
@@ -483,7 +498,7 @@ describe.each(browsers)("the gallery in %s", (name) => {
           ["load messages.html", `${M}#c-internal`],
           ["close", M],
           ["press #c-marotte", `${M}#c-marotte`],
-          ["close", M, '#msg-list a[href="#c-marotte"]'],
+          ["close", M],
           ["back", `${M}#c-internal`],
           ["back", "/index.html"],
         ],
@@ -544,9 +559,22 @@ describe.each(browsers)("the gallery in %s", (name) => {
           ["load messages.html#c-internal", `${M}#c-internal`],
           ["press #c-internal", `${M}#c-internal`],
           ["chip #c-internal", `${M}#c-internal`],
-          ["close", M],
+          ["close", M, '#agent-history a[href="#c-internal"]'],
           ["back", `${M}#c-internal`],
           ["back", "/index.html"],
+        ],
+      ],
+      [
+        "Close, a press, a filter that leaves its row out, Close",
+        W,
+        AFTER,
+        [
+          ["load messages.html", `${M}#c-internal`],
+          ["close", M],
+          ["press #c-marotte", `${M}#c-marotte`],
+          ["filter Direct", `${M}#c-marotte`],
+          ["close", M],
+          ["back", `${M}#c-internal`],
         ],
       ],
       [
@@ -569,7 +597,7 @@ describe.each(browsers)("the gallery in %s", (name) => {
           ["press #c-marotte", `${M}#c-marotte`],
           ["press #c-marotte", `${M}#c-marotte`],
           ["chip #c-kiro-codex", `${M}#c-kiro-codex`],
-          ["close", M],
+          ["close", M, '#agent-history a[href="#c-kiro-codex"]'],
           ["back", `${M}#c-kiro-codex`],
         ],
       ],
@@ -630,7 +658,7 @@ describe.each(browsers)("the gallery in %s", (name) => {
         AFTER,
         [
           ["load messages.html#c-ui-data", `${M}#c-ui-data`],
-          ["close", M, '#msg-list a[href="#c-ui-data"]'],
+          ["close", M],
           ["back", `${M}#c-ui-data`],
           ["back", "/index.html"],
         ],
@@ -644,7 +672,7 @@ describe.each(browsers)("the gallery in %s", (name) => {
           ["press #c-marotte", `${M}#c-marotte`],
           ["back", M, '#msg-list a[href="#c-marotte"]'],
           ["press #c-marotte", `${M}#c-marotte`],
-          ["escape", M, '#msg-list a[href="#c-marotte"]'],
+          ["escape", M],
           ["back", "/index.html"],
         ],
       ],
@@ -657,7 +685,7 @@ describe.each(browsers)("the gallery in %s", (name) => {
           ["close", M],
           ["older", M],
           ["press #c-ci", `${M}#c-ci`],
-          ["close", M, '#msg-list a[href="#c-ci"]'],
+          ["close", M],
         ],
       ],
       [
@@ -668,7 +696,7 @@ describe.each(browsers)("the gallery in %s", (name) => {
           ["load messages.html", M],
           ["press #c-marotte", `${M}#c-marotte`],
           ["reload", `${M}#c-marotte`],
-          ["close", M, '#msg-list a[href="#c-marotte"]'],
+          ["close", M],
           ["back", "/index.html"],
         ],
       ],
@@ -679,7 +707,7 @@ describe.each(browsers)("the gallery in %s", (name) => {
         [
           ["load messages.html", M],
           ["chip #c-announce", `${M}#c-announce`],
-          ["close", M],
+          ["close", M, '#agent-history a[href="#c-announce"]'],
           ["back", "/index.html"],
         ],
       ],

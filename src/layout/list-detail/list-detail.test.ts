@@ -320,7 +320,8 @@ describe("enhanceListDetail", () => {
     api.show("a");
     api.show("a");
     api.show("b");
-    expect([api.key, document.activeElement]).toEqual(["b", heading]);
+    expect(api.key).toBe("b");
+    expect(document.activeElement).toBe(heading);
     api.show(null);
     api.show(null);
     expect(api.key).toBe(null);

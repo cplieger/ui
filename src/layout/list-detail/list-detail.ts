@@ -2,8 +2,8 @@
  * list-detail.ts — `enhanceListDetail()` docks a list's detail beside the
  * list once the box holding both is wide enough, and shows the same detail
  * in a full-height sheet below that width. The app's router owns the URL and
- * calls `show(key)` with the entry it names, or `show(null)`, so Back closes
- * the detail.
+ * calls `show(key)` with the entry it names, or `show(null)` when it names
+ * none, so Back shows whatever the previous entry names.
  * @module
  */
 
