@@ -2325,7 +2325,11 @@ function readinessOf(from: SSOMode, to: SSOMode, blocked: boolean): Readiness {
     : none;
 }
 
-function settingsFake(o: { readonly plain: boolean; readonly blocked: boolean }): {
+function settingsFake(o: {
+  readonly plain: boolean;
+  readonly blocked: boolean;
+  readonly owner: boolean;
+}): {
   readonly client: AccessSettingsClient;
   readonly access: StepUpAccess<AccessSettingsClient>;
 } {
@@ -2352,7 +2356,7 @@ function settingsFake(o: { readonly plain: boolean; readonly blocked: boolean })
           user: { id: 1, username: "mika", role: "admin" },
           methods: HOLDS,
           can_link_oidc: false,
-          owner: true,
+          owner: o.owner,
           single_user: false,
           session: {
             id: "s1",
@@ -2390,7 +2394,11 @@ function settingsFake(o: { readonly plain: boolean; readonly blocked: boolean })
 
 for (const region of document.querySelectorAll<HTMLElement>("[data-access-settings-demo]")) {
   const name = region.dataset["accessSettingsDemo"] ?? "";
-  const { client, access } = settingsFake({ plain: name === "plain", blocked: name === "blocked" });
+  const { client, access } = settingsFake({
+    plain: name === "plain",
+    blocked: name === "blocked",
+    owner: name !== "admin",
+  });
   mountAccessSettings(region, {
     client,
     access,

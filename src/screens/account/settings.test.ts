@@ -85,7 +85,10 @@ describe("mountAccessSettings", () => {
   });
 
   it.each([
-    ["a person who is not an owner", meWith({}, { owner: false })],
+    [
+      "a person who is neither an owner nor an admin",
+      meWith({}, { owner: false, user: { id: 1, username: "mika", role: "user" } }),
+    ],
     ["an owner of a single-user app", meWith({}, { owner: true, single_user: true })],
   ])("shows nothing to %s", async (_who, me) => {
     const fake = owned().always("me", ok(me));
@@ -205,11 +208,49 @@ describe("mountAccessSettings", () => {
     expect(applyOf(region).hidden).toBe(true);
   });
 
-  it("asks to confirm it is you before the readiness read, naming the change", async () => {
+  it("previews a mode to an admin who is not an owner, with no Apply", async () => {
+    const fake = owned()
+      .always("me", ok(meWith({}, { owner: false, single_user: false })))
+      .answer("adminSSOReadiness", ok({ ...NONE, locked_out: 3 }));
+    const { region, ran } = mount(fake);
+    await radios(region);
+    const set = region.querySelector("fieldset")!;
+    expect(document.getElementById(set.getAttribute("aria-describedby") ?? "")?.textContent).toBe(
+      "Only an owner can change this.",
+    );
+    await choose(region, "Single sign-on only");
+    await vi.waitFor(() => {
+      expect(region.querySelector("[data-part='readiness'] li")?.textContent).toBe(
+        "3 accounts are not linked yet and could not sign in",
+      );
+    });
+    expect(applyOf(region).hidden).toBe(true);
+    expect(ran).toEqual([]);
+  });
+
+  it("reads a mode's changes with no step-up, whatever the read answers", async () => {
     const fake = owned().answer("adminSSOReadiness", refuse(401, "auth_recent_auth_required"));
+    const { region, ran } = mount(fake);
+    await radios(region);
+    await choose(region, "For linked accounts");
+    await vi.waitFor(() => {
+      expect(readinessOf(region)).not.toBe("");
+    });
+    expect(document.querySelector("dialog[open]")).toBeNull();
+    expect(fake.named("adminSSOReadiness")).toHaveLength(1);
+    expect(applyOf(region).hidden).toBe(true);
+    expect(ran).toEqual([]);
+  });
+
+  it("asks to confirm it is you before Apply, naming the change", async () => {
+    const fake = owned().answer("adminApplySSO", refuse(401, "auth_recent_auth_required"));
     const { region } = mount(fake);
     await radios(region);
     await choose(region, "Single sign-on only");
+    await vi.waitFor(() => {
+      expect(applyOf(region).hidden).toBe(false);
+    });
+    await userEvent.click(applyOf(region));
     const up = await dialogOf("Confirm it is you");
     expect(document.getElementById(up.getAttribute("aria-describedby") ?? "")?.textContent).toBe(
       "Changing how people sign in needs a recent sign-in.",
@@ -217,22 +258,27 @@ describe("mountAccessSettings", () => {
     await userEvent.fill(up.querySelector<HTMLInputElement>("input[name='password']")!, "words");
     await userEvent.click(button(up, "Confirm"));
     await vi.waitFor(() => {
-      expect(applyOf(region).hidden).toBe(false);
+      expect(noticeOf(region)).toBe("Single sign-on only is on.");
     });
-    expect(fake.named("adminSSOReadiness")).toHaveLength(2);
+    expect(fake.named("adminApplySSO")).toHaveLength(2);
   });
 
-  it("puts the stored mode back when the step-up is cancelled", async () => {
-    const fake = owned().answer("adminSSOReadiness", refuse(401, "auth_recent_auth_required"));
+  it("keeps the choice and Apply when the step-up is cancelled", async () => {
+    const fake = owned().answer("adminApplySSO", refuse(401, "auth_recent_auth_required"));
     const { region } = mount(fake);
-    const [alongside, , only] = await radios(region);
+    const [, , only] = await radios(region);
     await choose(region, "Single sign-on only");
+    await vi.waitFor(() => {
+      expect(applyOf(region).hidden).toBe(false);
+    });
+    await userEvent.click(applyOf(region));
     await userEvent.click(button(await dialogOf("Confirm it is you"), "Cancel"));
     await vi.waitFor(() => {
-      expect(alongside?.checked).toBe(true);
+      expect(document.querySelector("dialog[open]")).toBeNull();
     });
-    expect(only?.checked).toBe(false);
-    expect(applyOf(region).hidden).toBe(true);
+    expect(only?.checked).toBe(true);
+    expect(applyOf(region).hidden).toBe(false);
+    expect(fake.named("adminApplySSO")).toHaveLength(1);
   });
 
   it("offers Retry when the server is unavailable for the readiness read", async () => {

@@ -5,7 +5,8 @@
  * @module
  */
 
-import type { Tone } from "./answer.js";
+import type { IconName } from "../../foundations/icons/icons.js";
+import { glyph, toneGlyph, type Tone } from "../../foundations/icons/glyph.js";
 
 let seq = 0;
 
@@ -30,24 +31,6 @@ export function el<K extends keyof HTMLElementTagNameMap>(
   return node;
 }
 
-/** A glyph the system stylesheet draws by its name. */
-export function glyph(name: string, part?: string): HTMLSpanElement {
-  const span = el("span", "cp-icon");
-  span.dataset["cpIcon"] = name;
-  span.setAttribute("aria-hidden", "true");
-  if (part !== undefined) {
-    span.dataset["part"] = part;
-  }
-  return span;
-}
-
-const TONE_GLYPH: Readonly<Record<Tone, string>> = {
-  danger: "circle-x",
-  warning: "triangle-alert",
-  neutral: "info",
-  success: "circle-check",
-};
-
 /** A `.cp-notice` in `tone`, with `action` at its end. */
 export function notice(tone: Tone, body: string | Node, action?: HTMLElement): HTMLDivElement {
   const box = el("div", "cp-notice");
@@ -55,7 +38,7 @@ export function notice(tone: Tone, body: string | Node, action?: HTMLElement): H
   const text = el("div");
   text.dataset["part"] = "body";
   text.append(body);
-  box.append(glyph(TONE_GLYPH[tone]), text);
+  box.append(glyph(toneGlyph(tone)), text);
   if (action !== undefined) {
     box.append(action);
   }
@@ -134,7 +117,7 @@ export function passwordField(spec: Omit<FieldSpec, "type">, show: string): Pass
 }
 
 export interface ButtonSpec {
-  readonly icon?: string;
+  readonly icon?: IconName;
   readonly primary?: boolean;
   readonly type?: "submit" | "button";
 }
@@ -156,7 +139,7 @@ export function actionButton(text: string, spec: ButtonSpec = {}): HTMLButtonEle
 
 /** A `.cp-button` of `icon` and `text`, for a press with no busy state of
  *  its own, such as one opening a dialog. */
-export function plainButton(text: string, icon?: string): HTMLButtonElement {
+export function plainButton(text: string, icon?: IconName): HTMLButtonElement {
   const button = el("button", "cp-button");
   button.type = "button";
   if (icon !== undefined) {
@@ -189,7 +172,7 @@ export function sketch(): HTMLElement {
 
 /** A `.cp-state`: the state of a thing in its row, its tone's glyph then
  *  its word. */
-export function stateMark(tone: Tone, icon: string, text: string): HTMLSpanElement {
+export function stateMark(tone: Tone, icon: IconName, text: string): HTMLSpanElement {
   const span = el("span", "cp-state");
   span.dataset["tone"] = tone;
   span.append(glyph(icon), text);

@@ -5,11 +5,10 @@
  * @module
  */
 
+import type { Tone } from "../../foundations/icons/glyph.js";
 import { showError } from "../../forms/form/form.js";
 import type { PasskeyMiss, PasswordLength, Refusal, StateResponse } from "./client.js";
 import type { AccountWords } from "./words.js";
-
-export type Tone = "danger" | "warning" | "neutral" | "success";
 
 /** What a screen shows for an answer: a notice's tone and words. */
 export interface Said {

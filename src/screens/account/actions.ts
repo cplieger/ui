@@ -7,7 +7,9 @@
 
 import { enhanceConfirm, type Confirm } from "../../buttons/confirm/confirm.js";
 import { enhanceMenu } from "../../overlays/menu/menu.js";
-import { cell, el, glyph, rowButton, uid } from "./dom.js";
+import { glyph } from "../../foundations/icons/glyph.js";
+import type { IconName } from "../../foundations/icons/icons.js";
+import { cell, el, rowButton, uid } from "./dom.js";
 import { holdBy, holdForHttps, isHeld } from "./screen.js";
 import type { AccountWords } from "./words.js";
 
@@ -22,7 +24,7 @@ export interface Action {
   readonly key: string;
   /** Its busy words, when it runs a request in place. */
   readonly busy?: string;
-  readonly icon?: string;
+  readonly icon?: IconName;
   readonly danger?: boolean;
   /** The row's name added to its accessible name, as "Rename Phone". */
   readonly label?: string;

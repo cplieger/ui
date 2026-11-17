@@ -239,7 +239,7 @@ Refusals say whose action it is, and what to do instead:
 | `auth_sso_only` `linked` | "This person signs in with single sign-on. Use Unlink and issue a temporary password instead." |
 | `auth_forbidden`, any other | "This is not allowed." |
 
-**Access settings**, for owners: how people sign in with the provider, one of "Alongside", "For linked accounts" and "Single sign-on only", each with its line, and "Owners keep their own password and passkeys under every choice." Choosing one checks first, after a recent sign-in, and says who it changes ("2 accounts are not linked yet and could not sign in") or "Nobody's sign-in changes.", before "Apply". "Authenticator app" and "Require a second factor" are switches on the app's own settings page, saved by its own form.
+**Access settings**, for admins: how people sign in with the provider, one of "Alongside", "For linked accounts" and "Single sign-on only", each with its line, and "Owners keep their own password and passkeys under every choice." Choosing one checks first and says who it changes ("2 accounts are not linked yet and could not sign in") or "Nobody's sign-in changes.". Only an owner gets "Apply", after a recent sign-in; any other admin sees the same check with "Only an owner can change this." "Authenticator app" and "Require a second factor" are switches on the app's own settings page, saved by its own form.
 
 ## Security log
 

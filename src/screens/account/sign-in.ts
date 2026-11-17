@@ -36,11 +36,11 @@ import type {
   SignedIn,
   StateResponse,
 } from "./client.js";
+import { glyph } from "../../foundations/icons/glyph.js";
 import {
   actionButton,
   el,
   field,
-  glyph,
   heading,
   line,
   notice,

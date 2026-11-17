@@ -8,9 +8,10 @@
 import type { Confirm } from "../../buttons/confirm/confirm.js";
 import { announce } from "../../feedback/announce/announce.js";
 import { ask } from "../../overlays/ask/ask.js";
-import { clock, codeOf, reasonOf, type Tone } from "./answer.js";
+import { glyph, type Tone } from "../../foundations/icons/glyph.js";
+import { clock, codeOf, reasonOf } from "./answer.js";
 import type { Refusal, Result, StateResponse } from "./client.js";
-import { el, glyph, line, notice, uid } from "./dom.js";
+import { el, line, notice, uid } from "./dom.js";
 import type { Runner } from "./run.js";
 import type { AccountWords } from "./words.js";
 

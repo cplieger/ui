@@ -445,7 +445,7 @@
   </section>
   <section class="g-section" id="access-settings">
     <h2>Access settings</h2>
-    <p><code>mountAccessSettings(region, options)</code> is the owner's choice of how single sign-on sits beside local sign-in. Choosing a mode asks the server, after a recent sign-in, what it would change, and shows that before Apply; a state the owner must fix first shows in its place, with no Apply. It draws nothing for an admin who is not an owner, or in an app with one account.</p>
+    <p><code>mountAccessSettings(region, options)</code> is the owner's choice of how single sign-on sits beside local sign-in. Choosing a mode asks the server what it would change and shows that; a state the owner must fix first shows in its place, with no Apply. Only an owner applies a mode, after a recent sign-in; an admin who is not an owner sees the same check with "Only an owner can change this." and no Apply. It draws nothing for anyone else, or in an app with one account.</p>
     <div class="g-grid">
       <div class="card" data-new>
         <h2>Choosing a mode</h2>
@@ -461,6 +461,11 @@
         <h2>Over plain HTTP</h2>
         <div data-access-settings-demo="plain"></div>
         <footer>The server checks and changes the mode only over HTTPS, so the choice is held with "Needs HTTPS." and the way to the HTTPS address.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>An admin who is not an owner</h2>
+        <div data-access-settings-demo="admin"></div>
+        <footer>Any admin may see what a mode would change, with no recent sign-in asked. Only an owner changes it, so the line says "Only an owner can change this." and no Apply comes.</footer>
       </div>
       <div class="card" data-new>
         <h2>The app's own second-factor settings</h2>

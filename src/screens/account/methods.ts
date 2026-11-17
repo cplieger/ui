@@ -26,13 +26,14 @@ import type {
   SecondFactorProof,
   SecurityClient,
 } from "./client.js";
+import { glyph } from "../../foundations/icons/glyph.js";
+import type { IconName } from "../../foundations/icons/icons.js";
 import { rowActions, rowHead, type Action } from "./actions.js";
 import { formDialog, type FormDialog } from "./dialogs.js";
 import {
   cell,
   cellStack,
   el,
-  glyph,
   heading,
   line,
   passwordField,
@@ -404,7 +405,7 @@ export function drawMethods<C extends SecurityClient>(
     return [h, p.root];
   }
 
-  function chip(tone: "neutral" | "warning", text: string, icon?: string): HTMLSpanElement {
+  function chip(tone: "neutral" | "warning", text: string, icon?: IconName): HTMLSpanElement {
     const c = el("span", "cp-chip");
     c.dataset["tone"] = tone;
     if (icon !== undefined) {

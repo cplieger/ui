@@ -31,17 +31,8 @@ import type {
   Result,
   SignedIn,
 } from "./client.js";
-import {
-  actionButton,
-  el,
-  field,
-  glyph,
-  heading,
-  line,
-  notice,
-  passwordField,
-  sketch,
-} from "./dom.js";
+import { glyph } from "../../foundations/icons/glyph.js";
+import { actionButton, el, field, heading, line, notice, passwordField, sketch } from "./dom.js";
 import { continueSignIn, stepOf } from "./pending.js";
 import { runDirect, type AccountAction } from "./run.js";
 import {

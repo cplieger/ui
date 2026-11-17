@@ -9,6 +9,7 @@
 
 import { enhanceRowDetail } from "../../data/table/table.js";
 import { clearError, showError } from "../../forms/form/form.js";
+import { glyph } from "../../foundations/icons/glyph.js";
 import { focusAction, rowActions, rowHead, type Action } from "./actions.js";
 import { codeOf, reasonOf, retryAfter, runes } from "./answer.js";
 import type { KeyCreated, KeyView, Refusal, Result, SecurityClient, TokenView } from "./client.js";
@@ -19,7 +20,6 @@ import {
   clockAt,
   el,
   field,
-  glyph,
   plainButton,
   stateMark,
   table,

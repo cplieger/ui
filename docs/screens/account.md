@@ -35,7 +35,7 @@ The screens take the app's access client and module by shape, so this package de
 | `mountSecurity(region, options)` | Account and security: who is signed in, the profile, the sign-in methods, the sessions, the API keys and, for an admin, the security log | `{ refresh(), refreshLog() }` |
 | `mountSecurityLog(region, options)` | the security log on its own, such as an admin's log page | `{ refresh(), show(search) }` |
 | `mountUsers(region, options)` | the admin's users, waiting invites and every API key | `{ refresh(), show(search) }` |
-| `mountAccessSettings(region, options)` | the owners' single sign-on mode | `{ refresh() }` |
+| `mountAccessSettings(region, options)` | the single sign-on mode, checked by any admin, set by an owner | `{ refresh() }` |
 | `stepUp(action, options)` | runs `action`, asking "Confirm it is you" when the server wants a recent sign-in, then runs it once more | `{ kind: "done", result }`, `"cancelled"`, `"redirecting"` or `"failed"` with its `words` |
 
 A gate screen fills the panel of the [gate page](../design-account.md#the-gate-page), and the line under the panel is the app's own markup. Each screen installs the dialogs, the announcer and the tooltips it uses.
@@ -92,7 +92,7 @@ Rotate… calls `client.rotateKey(id)`. A client without it rotates by creating 
 
 `mountUsers` takes `level` (the invites and keys sections take the next), `redirect`, `invitePath`, the app's invite page, which reads the link's `#token=` (default "/invite"), and `onQuery(params, replace)` for the key filter `?key=<id>`, as the log does. It draws nothing that needs a second person in an app with one account.
 
-`mountAccessSettings` draws for an owner only: the single sign-on mode, checked through `adminSSOReadiness` before `adminApplySSO`. "Authenticator app" and "Require a second factor" are the app's own settings, saved by its own form. Their words and the two refusals are in `defaultAccountWords`:
+`mountAccessSettings` draws for an admin: the single sign-on mode, checked through `adminSSOReadiness` with no step-up. Only an owner applies it, through `adminApplySSO` behind a recent sign-in; another admin sees the check with no Apply. "Authenticator app" and "Require a second factor" are the app's own settings, saved by its own form. Their words and the two refusals are in `defaultAccountWords`:
 
 ```html
 <div class="cp-setting">

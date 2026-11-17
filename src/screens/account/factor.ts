@@ -9,11 +9,12 @@
 import { enhanceCopy } from "../../forms/copy/copy.js";
 import { clearError, showError } from "../../forms/form/form.js";
 import { qrCode } from "../../media/qr/qr.js";
+import { glyph } from "../../foundations/icons/glyph.js";
 import { codeOf, generic, reasonOf, retryAfter } from "./answer.js";
 import type { Refusal, TotpBegin } from "./client.js";
 import { codeField, inFours, sixDigits } from "./code.js";
 import { formDialog } from "./dialogs.js";
-import { el, glyph, uid } from "./dom.js";
+import { el, uid } from "./dom.js";
 import { holdFor, type Hold } from "./screen.js";
 import { showSecret } from "./shown.js";
 import type { StepUpAnswer } from "./step-up.js";

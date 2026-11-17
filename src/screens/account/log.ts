@@ -10,6 +10,7 @@
 import { enhancePill } from "../../core/pill/pill.js";
 import { announce, installAnnouncer } from "../../feedback/announce/announce.js";
 import { skeletonTiming } from "../../feedback/skeleton/skeleton.js";
+import { glyph } from "../../foundations/icons/glyph.js";
 import { rowHead } from "./actions.js";
 import { codeOf, generic, reasonOf } from "./answer.js";
 import type {
@@ -21,7 +22,7 @@ import type {
   SecurityLogView,
 } from "./client.js";
 import { deviceName } from "./device.js";
-import { cell, cellStack, el, glyph, heading, notice, sketch, table, time, uid } from "./dom.js";
+import { cell, cellStack, el, heading, notice, sketch, table, time, uid } from "./dom.js";
 import {
   endsSession,
   leaver,

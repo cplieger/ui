@@ -7,10 +7,11 @@
  */
 
 import { enhanceConfirm } from "../../buttons/confirm/confirm.js";
+import type { Tone } from "../../foundations/icons/glyph.js";
 import { installAnnouncer } from "../../feedback/announce/announce.js";
 import { skeletonTiming } from "../../feedback/skeleton/skeleton.js";
 import { installDialogs } from "../../overlays/dialog/dialog.js";
-import { codeOf, generic, reasonOf, type Said, type Tone } from "./answer.js";
+import { codeOf, generic, reasonOf, type Said } from "./answer.js";
 import type {
   AccessSettingsClient,
   AccountView,
@@ -92,9 +93,10 @@ const passing = (r: Refusal): boolean => {
 };
 
 /**
- * Fills `region` with the SSO mode's three choices, for an owner of a
- * multi-user app; it stays empty for anyone else, and on a client before
- * access Part 5.
+ * Fills `region` with the SSO mode's three choices for an admin of a
+ * multi-user app, each previewed by the server; only an owner applies
+ * one. It stays empty for anyone else, and on a client before access
+ * Part 5.
  */
 export function mountAccessSettings<C extends AccessSettingsClient>(
   region: HTMLElement,
@@ -130,13 +132,10 @@ export function mountAccessSettings<C extends AccessSettingsClient>(
 
   const guarded = <T>(
     work: () => Promise<Result<T>>,
-    name?: AccountAction,
+    name: AccountAction,
   ): Promise<StepUpAnswer<T>> =>
     stepUp(
       async () => {
-        if (name === undefined) {
-          return read(work);
-        }
         try {
           return await run(name, work);
         } catch {
@@ -167,11 +166,14 @@ export function mountAccessSettings<C extends AccessSettingsClient>(
     return said === undefined ? generic(r, w) : { tone: "danger", text: said };
   };
 
-  const applies = (me: AccountView): boolean =>
-    me.owner === true &&
+  // access answers the readiness read to any admin, and the change only
+  // to an owner (access design 4.55).
+  const shows = (me: AccountView): boolean =>
     me.single_user !== true &&
-    client.adminSSOReadiness !== undefined &&
-    client.adminApplySSO !== undefined;
+    (me.owner === true || me.user.role === "admin") &&
+    client.adminSSOReadiness !== undefined;
+  const changes = (me: AccountView): boolean =>
+    me.owner === true && client.adminApplySSO !== undefined;
 
   const failed = (r: Refusal): void => {
     if (endsSession(r, leave)) {
@@ -197,7 +199,7 @@ export function mountAccessSettings<C extends AccessSettingsClient>(
     }
     skeleton.commit(() => {
       region.removeAttribute("aria-busy");
-      if (me.ok && !applies(me.data)) {
+      if (me.ok && !shows(me.data)) {
         region.replaceChildren();
         return;
       }
@@ -234,7 +236,8 @@ export function mountAccessSettings<C extends AccessSettingsClient>(
       set.append(choice);
       return input;
     });
-    const help = line("cp-help", w["settings.help"]);
+    const owns = changes(me);
+    const help = line("cp-help", owns ? w["settings.help"] : w["auth_forbidden.not_owner"]);
     help.id = uid("sso-help");
     const described = [help.id];
     const parts: HTMLElement[] = [set, help];
@@ -261,13 +264,6 @@ export function mountAccessSettings<C extends AccessSettingsClient>(
     let chosen = current;
     const label = (mode: SSOMode): string => w["settings.modeOf"](mode);
 
-    const settleOn = (mode: SSOMode): void => {
-      chosen = mode;
-      for (const r of radios) {
-        r.checked = r.value === mode;
-      }
-    };
-
     const retry = (mode: SSOMode): HTMLButtonElement => {
       const b = el("button", "cp-button", w["generic.retry"]);
       b.type = "button";
@@ -275,7 +271,7 @@ export function mountAccessSettings<C extends AccessSettingsClient>(
       return b;
     };
 
-    const changes = (mode: SSOMode, r: Readiness): { readonly tone: Tone; readonly node: Node } => {
+    const outcome = (mode: SSOMode, r: Readiness): { readonly tone: Tone; readonly node: Node } => {
       const lines = [
         ...(r.locked_out > 0 ? [w["settings.lockedOut"](r.locked_out)] : []),
         ...(r.methods_made_dormant > 0 ? [w["settings.dormant"](r.methods_made_dormant)] : []),
@@ -313,27 +309,11 @@ export function mountAccessSettings<C extends AccessSettingsClient>(
       }
       readiness.root.setAttribute("aria-busy", "true");
       readiness.root.replaceChildren(line("cp-help", w["settings.checking"]));
-      const answer = await guarded(() => ask(mode));
+      const r = await read(() => ask(mode));
       if (n !== asked || signal?.aborted === true) {
         return;
       }
       readiness.root.removeAttribute("aria-busy");
-      switch (answer.kind) {
-        case "cancelled":
-          readiness.clear();
-          settleOn(current);
-          return;
-        case "redirecting":
-          return;
-        case "failed":
-          if (answer.refusal === undefined || !endsSession(answer.refusal, leave)) {
-            readiness.show("danger", answer.words);
-          }
-          return;
-        case "done":
-          break;
-      }
-      const r = answer.result;
       if (!r.ok) {
         if (!endsSession(r, leave)) {
           const said = wordsFor(r);
@@ -346,9 +326,9 @@ export function mountAccessSettings<C extends AccessSettingsClient>(
         readiness.show("danger", blocker(refusal.code, refusal.reason, w) ?? w["generic.server"]);
         return;
       }
-      const said = changes(mode, r.data);
+      const said = outcome(mode, r.data);
       readiness.show(said.tone, said.node);
-      apply.hidden = false;
+      apply.hidden = !owns;
     }
 
     set.addEventListener("change", (e) => {

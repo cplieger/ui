@@ -10,7 +10,8 @@ import { announce } from "../../feedback/announce/announce.js";
 import { enhanceCopy } from "../../forms/copy/copy.js";
 import { shownOnce } from "../../forms/secret/secret.js";
 import { closeDialog, holdDialog, installDialogs } from "../../overlays/dialog/dialog.js";
-import { el, glyph, heading, notice, uid } from "./dom.js";
+import { glyph } from "../../foundations/icons/glyph.js";
+import { el, heading, notice, uid } from "./dom.js";
 import { isHeld } from "./screen.js";
 import type { AccountWords } from "./words.js";
 
