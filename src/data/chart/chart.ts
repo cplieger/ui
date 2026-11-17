@@ -8,7 +8,7 @@
 import { whenAborted } from "../../core/lifetime/lifetime.js";
 import { localeOf } from "../../core/locale/locale.js";
 import { skeletonTiming, type SkeletonTimingController } from "../../feedback/skeleton/skeleton.js";
-import { forgetMeasures } from "../scale/measure.js";
+import { afterFontsSettle } from "../scale/measure.js";
 
 import { colourKey, drawPlot, frameLegend, readMetrics, sizeKey } from "./draw.js";
 import { explore } from "./explore.js";
@@ -564,19 +564,13 @@ export function renderChart(
   // load the page starts while the chart lives measures it again once the
   // set settles. WebKit fires no loadingdone for such a load, only loading;
   // chart.test.ts "measures the chart again once the face has loaded" pins it.
-  let settling = false;
-  const onFonts = (): void => {
-    if (settling) {
-      return;
+  const remeasure = (): void => {
+    if (!life.signal.aborted) {
+      measureAfresh();
     }
-    settling = true;
-    void document.fonts.ready.then(() => {
-      settling = false;
-      if (!life.signal.aborted) {
-        forgetMeasures();
-        measureAfresh();
-      }
-    });
+  };
+  const onFonts = (): void => {
+    afterFontsSettle(remeasure);
   };
   document.fonts.addEventListener("loading", onFonts, { signal: life.signal });
   if (document.fonts.status === "loading") {
