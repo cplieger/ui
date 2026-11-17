@@ -2,7 +2,7 @@
 
 A list with the chosen entry's detail beside it. Once the box holding both is 52rem wide, the detail docks beside the list. Below that width, the same detail opens as a full-height sheet at the inline end, across the whole window on a phone. The rest of the page is inert while the sheet is open.
 
-The app's route decides when the detail shows. A link on each entry changes the route, and the route calls `open()` or `close()`. Back then closes the detail. Close goes back to the entry the page loaded on, past every entry pressed since, and so do Escape and a press outside while the detail is in its sheet. [Navigation and the URL](../design-patterns.md#navigation-and-the-url) has the route's rules.
+The app's router owns the URL and decides when the detail shows. A link on each entry changes the address, and the router calls `show(key)` with the entry the address names, or `show(null)` when it names none. Back then closes the detail. Close, and Escape or a press outside while the detail is in its sheet, ask the router to leave the entry: one Back when the entry before it showed the list, otherwise a navigation to the list's address, never a jump over several entries. [Navigation and the URL](../design-patterns.md#navigation-and-the-url) has the router's rules.
 
 ## Markup
 
@@ -42,20 +42,19 @@ The heading takes focus when the detail opens, so it needs `tabindex="-1"`. The 
 ## Script
 
 ```ts
-import { enhanceListDetail } from "@cplieger/ui/list-detail";
+import { type DetailOpenEvent, enhanceListDetail } from "@cplieger/ui/list-detail";
 
 const detail = enhanceListDetail(document.getElementById("sources")!, {
   signal: page.signal,
   onDismiss: backToList,
 });
 
+root.addEventListener("detailopen", (e) => {
+  fillDetail((e as DetailOpenEvent).detail.key);
+});
+
 function route(entry: string | null): void {
-  if (entry === null) {
-    detail.close();
-  } else {
-    fillDetail(entry);
-    detail.open();
-  }
+  detail.show(entry);
 }
 ```
 
@@ -63,10 +62,11 @@ function route(entry: string | null): void {
 | --- | --- | --- |
 | `signal` | none | Aborting it closes the detail and removes the sheet and the listeners. |
 | `dockAt` | `52` | The box's width, in rem, from which the detail docks. |
-| `onDismiss` | `close()` | Runs on Close, and on Escape, a press outside, or the browser closing the sheet itself while the detail is in its sheet. Go back to the entry the page loaded on here, and let the route close the detail. Until it does, Close, Escape and a press outside leave the sheet open, so a route that refuses, such as an unsaved-changes "Keep editing", is asked again on the next one. |
+| `onDismiss` | `show(null)` | Runs on Close, and on Escape, a press outside, or the browser closing the sheet itself while the detail is in its sheet. Leave the entry here, by one Back when the entry before it showed the list or else a navigation to the list's address, and let the route call `show(null)`. Until it does, Close, Escape and a press outside leave the sheet open, so a route that refuses, such as an unsaved-changes "Keep editing", is asked again on the next one. |
 
-- `open()` shows the detail and focuses its heading. Calling it again while the detail shows moves focus back to the heading. `open({ still: true })` shows it without its entrance, for a page that loads with an entry open.
-- `close()` hides the detail and returns focus to the element that had it before `open()`, usually the entry's link. When another entry's link opens the docked detail, focus returns to that link. The sheet slides out with the detail still in it, and calling `open()` during that exit keeps it open.
+- `show(key)` shows the detail for `key` and focuses its heading. The same key again only moves focus back to the heading, so a press on the open entry changes nothing else. `show(key, { still: true })` shows it without its entrance, for a page that loads with an entry open. `key` reads the entry shown, or null.
+- `show(null)` hides the detail and returns focus to the element that had it before the detail showed, usually the entry's link. When another entry's link shows the docked detail, focus returns to that link. The sheet slides out with the detail still in it, and a `show(key)` during that exit keeps it open.
+- The root gets a `detailopen` event, a `DetailOpenEvent` whose `detail` holds the new `key` and the `previous` one or null, each time the shown entry changes, before the heading takes focus, so its listener fills the detail. It gets a `detailclose` event, a `DetailCloseEvent` with the `key`, when the detail hides.
 - An open detail moves between the dock and the sheet when the box crosses the docking width, without its entrance, and keeps focus inside it.
 - While the box is hidden, such as in a closed tab panel, the detail stays in it and opens no sheet. An open sheet shuts without asking `onDismiss`, and the detail docks or opens its sheet again once the box shows.
 

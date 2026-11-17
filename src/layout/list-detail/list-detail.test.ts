@@ -2,7 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 
 import { installDialogs } from "../../overlays/dialog/dialog.js";
-import { enhanceListDetail, type ListDetailOptions } from "./list-detail.js";
+import {
+  type DetailCloseEvent,
+  type DetailOpenEvent,
+  enhanceListDetail,
+  type ListDetailOptions,
+} from "./list-detail.js";
 
 let life = new AbortController();
 let sheet: HTMLLinkElement;
@@ -106,12 +111,12 @@ async function routed(width: number) {
   addEventListener(
     "popstate",
     () => {
-      m.api.close();
+      m.api.show(null);
     },
     { signal: life.signal },
   );
   history.pushState({ entry: "entry" }, "");
-  m.api.open();
+  m.api.show("entry");
   await played(m.dialog);
   return { ...m, onDismiss };
 }
@@ -124,7 +129,7 @@ const popped = (): Promise<unknown> =>
 describe("enhanceListDetail", () => {
   it("docks the detail beside the list in a wide box and focuses its heading", () => {
     const { root, detail, heading, dialog, api } = mount(1000);
-    api.open();
+    api.show("entry");
     expect(detail.hidden).toBe(false);
     expect(detail.parentElement).toBe(root);
     expect(root.hasAttribute("data-cp-docked")).toBe(true);
@@ -134,21 +139,21 @@ describe("enhanceListDetail", () => {
 
   it("docks from a 52rem box and opens the sheet in a box a pixel narrower", () => {
     const at = mount(832);
-    at.api.open();
+    at.api.show("entry");
     expect(at.root.hasAttribute("data-cp-docked"), "52rem").toBe(true);
     expect(at.dialog.open, "52rem").toBe(false);
     life.abort();
     life = new AbortController();
     document.body.replaceChildren();
     const under = mount(831);
-    under.api.open();
+    under.api.show("entry");
     expect(under.root.hasAttribute("data-cp-docked"), "a pixel under").toBe(false);
     expect(under.dialog.open, "a pixel under").toBe(true);
   });
 
   it("shows the detail in a labelled, modal, full-height sheet at the inline end in a narrow box", () => {
     const { root, detail, heading, dialog, api } = mount(400);
-    api.open({ still: true });
+    api.show("entry", { still: true });
     expect(dialog.matches(":modal")).toBe(true);
     expect(dialog.getAttribute("aria-labelledby")).toBe("detail-title");
     expect(dialog.hasAttribute("data-cp-own-close"), "its close requests are its own").toBe(true);
@@ -168,7 +173,7 @@ describe("enhanceListDetail", () => {
 
   it("spaces the detail in the sheet as a form dialog spaces its header and body", () => {
     const { detail, heading, api } = mount(400);
-    api.open({ still: true });
+    api.show("entry", { still: true });
     const form = document.createElement("dialog");
     form.className = "cp-dialog";
     const inner = document.createElement("form");
@@ -192,7 +197,7 @@ describe("enhanceListDetail", () => {
 
   it("starts a context's content in the sheet where a body's starts", () => {
     const { detail, heading, api } = mount(400);
-    api.open({ still: true });
+    api.show("entry", { still: true });
     const body = detail.querySelector(".cp-detail-body");
     const line = document.createElement("p");
     line.textContent = "First";
@@ -206,7 +211,7 @@ describe("enhanceListDetail", () => {
 
   it("moves an open detail when the box crosses the docking width, keeping focus in it and playing no motion", async () => {
     const { root, detail, close, dialog, api } = mount(1000);
-    api.open();
+    api.show("entry");
     await played(detail);
     close.focus();
     root.style.inlineSize = "400px";
@@ -226,13 +231,13 @@ describe("enhanceListDetail", () => {
 
   it("docks from the width dockAt names", () => {
     const { root, api } = mount(700, { dockAt: 40 });
-    api.open();
+    api.show("entry");
     expect(root.hasAttribute("data-cp-docked")).toBe(true);
   });
 
   it("opens still in the sheet, then lets its motion return after it paints", async () => {
     const { dialog, api } = mount(400);
-    api.open({ still: true });
+    api.show("entry", { still: true });
     expect(dialog.getAnimations(), "no entrance").toHaveLength(0);
     await frames(3);
     expect(dialog.hasAttribute("data-cp-still")).toBe(false);
@@ -240,20 +245,20 @@ describe("enhanceListDetail", () => {
 
   it("opens still docked and keeps still after it paints; the next open plays the entrance", async () => {
     const { detail, api } = mount(1000);
-    api.open({ still: true });
+    api.show("entry", { still: true });
     await frames(3);
     expect(detail.getAnimations(), "no entrance after the still open").toHaveLength(0);
-    api.close();
-    api.open();
+    api.show(null);
+    api.show("entry");
     const names = detail.getAnimations().map((a) => (a as CSSAnimation).animationName);
     expect(names).toEqual(["cp-detail-in"]);
   });
 
   it("closes back into the box and returns focus to the opener", async () => {
     const { root, opener, detail, dialog, api } = mount(400);
-    api.open();
+    api.show("entry");
     await played(dialog);
-    api.close();
+    api.show(null);
     await exited(dialog);
     expect(detail.hidden).toBe(true);
     expect(detail.parentElement).toBe(root);
@@ -263,9 +268,9 @@ describe("enhanceListDetail", () => {
 
   it("keeps the detail in the sheet until the sheet's exit has played", async () => {
     const { root, detail, dialog, api } = mount(400);
-    api.open();
+    api.show("entry");
     await played(dialog);
-    api.close();
+    api.show(null);
     expect(detail.parentElement, "in the leaving sheet").toBe(dialog);
     expect(detail.hidden, "shown while it leaves").toBe(false);
     await exited(dialog);
@@ -275,28 +280,51 @@ describe("enhanceListDetail", () => {
 
   it("stays open when opened again while the sheet leaves", async () => {
     const { opener, detail, heading, dialog, api } = mount(400);
-    api.open();
+    api.show("entry");
     await played(dialog);
-    api.close();
-    api.open();
+    api.show(null);
+    api.show("entry");
     await played(dialog);
     expect(dialog.open).toBe(true);
     expect(detail.parentElement).toBe(dialog);
     expect(detail.hidden).toBe(false);
     expect(document.activeElement).toBe(heading);
-    api.close();
+    api.show(null);
     await exited(dialog);
     expect(document.activeElement, "focus back on the first opener").toBe(opener);
   });
 
-  it("leaves a second open() where it is and refocuses the heading", () => {
+  it("leaves a second show() of the same entry where it is and refocuses the heading", () => {
     const { opener, heading, close, api } = mount(1000);
-    api.open();
+    api.show("entry");
     close.focus();
-    api.open();
+    api.show("entry");
     expect(document.activeElement).toBe(heading);
-    api.close();
+    api.show(null);
     expect(document.activeElement).toBe(opener);
+  });
+
+  it("names the entry it shows, and says so on its root when it opens, changes and closes", () => {
+    const { root, heading, api } = mount(1000);
+    const said: string[] = [];
+    root.addEventListener("detailopen", (e) => {
+      const { key, previous } = (e as DetailOpenEvent).detail;
+      said.push(
+        `open ${key} from ${String(previous)}, focus ${document.activeElement?.tagName ?? ""}`,
+      );
+    });
+    root.addEventListener("detailclose", (e) => {
+      said.push(`close ${(e as DetailCloseEvent).detail.key}`);
+    });
+    expect(api.key).toBe(null);
+    api.show("a");
+    api.show("a");
+    api.show("b");
+    expect([api.key, document.activeElement]).toEqual(["b", heading]);
+    api.show(null);
+    api.show(null);
+    expect(api.key).toBe(null);
+    expect(said).toEqual(["open a from null, focus A", "open b from a, focus H2", "close b"]);
   });
 
   it("returns focus to the link of the entry opened last while the detail stayed docked", () => {
@@ -305,12 +333,12 @@ describe("enhanceListDetail", () => {
     other.href = "#other";
     other.textContent = "Other";
     opener.after(other);
-    api.open();
+    api.show("entry");
     other.focus();
-    api.open();
+    api.show("entry");
     close.focus();
-    api.open();
-    api.close();
+    api.show("entry");
+    api.show(null);
     expect(document.activeElement).toBe(other);
   });
 
@@ -356,7 +384,7 @@ describe("enhanceListDetail", () => {
   it("hands Escape and Close to onDismiss, keeping the dialog open for the route", () => {
     const onDismiss = vi.fn();
     const { close, dialog, api } = mount(400, { onDismiss });
-    api.open();
+    api.show("entry");
     const cancel = new Event("cancel", { cancelable: true });
     dialog.dispatchEvent(cancel);
     expect(cancel.defaultPrevented).toBe(true);
@@ -375,8 +403,10 @@ describe("enhanceListDetail", () => {
       }, 400);
     });
     const m = mount(400, { onDismiss });
-    route.close = m.api.close;
-    m.api.open();
+    route.close = () => {
+      m.api.show(null);
+    };
+    m.api.show("entry");
     await played(m.dialog);
     expect(document.activeElement).toBe(m.heading);
     await userEvent.keyboard("{Escape}");
@@ -391,7 +421,7 @@ describe("enhanceListDetail", () => {
     installDialogs({ signal: life.signal });
     const onDismiss = vi.fn();
     const m = mount(400, { onDismiss });
-    m.api.open();
+    m.api.show("entry");
     await played(m.dialog);
     await userEvent.keyboard("{Escape}");
     // Longer than the sheet's 280ms exit in script.
@@ -411,8 +441,10 @@ describe("enhanceListDetail", () => {
       route.close();
     });
     const m = mount(400, { onDismiss });
-    route.close = m.api.close;
-    m.api.open();
+    route.close = () => {
+      m.api.show(null);
+    };
+    m.api.show("entry");
     await played(m.dialog);
     await userEvent.keyboard("{Escape}");
     await exited(m.dialog);
@@ -429,8 +461,10 @@ describe("enhanceListDetail", () => {
       route.close();
     });
     const m = mount(400, { onDismiss });
-    route.close = m.api.close;
-    m.api.open();
+    route.close = () => {
+      m.api.show(null);
+    };
+    m.api.show("entry");
     await played(m.dialog);
     await userEvent.keyboard("{Escape}");
     await new Promise((r) => setTimeout(r, 0));
@@ -446,7 +480,7 @@ describe("enhanceListDetail", () => {
     await userEvent.keyboard("{Escape}");
     await new Promise((r) => setTimeout(r, 0));
     m.opener.focus();
-    m.api.open();
+    m.api.show("entry");
     for (const a of exit.filter((e) => e.playState === "paused")) {
       a.play();
     }
@@ -460,11 +494,11 @@ describe("enhanceListDetail", () => {
 
   it("closes the sheet when it is opened and closed again in one task while it leaves", async () => {
     const { root, opener, detail, dialog, api } = mount(400);
-    api.open();
+    api.show("entry");
     await played(dialog);
-    api.close();
-    api.open();
-    api.close();
+    api.show(null);
+    api.show("entry");
+    api.show(null);
     await exited(dialog);
     expect([dialog.open, detail.hidden]).toEqual([false, true]);
     expect(detail.parentElement).toBe(root);
@@ -474,7 +508,7 @@ describe("enhanceListDetail", () => {
   it("opens no sheet while the list is hidden, and opens it once the list shows", async () => {
     const { root, detail, heading, dialog, api } = mount(400);
     root.hidden = true;
-    api.open({ still: true });
+    api.show("entry", { still: true });
     expect(dialog.open, "no sheet over the page").toBe(false);
     expect(detail.parentElement).toBe(root);
     root.hidden = false;
@@ -487,7 +521,7 @@ describe("enhanceListDetail", () => {
   it("shuts an open sheet without dismissing while the list is hidden, and opens it again once it shows", async () => {
     const onDismiss = vi.fn();
     const { root, detail, dialog, api } = mount(400, { onDismiss });
-    api.open({ still: true });
+    api.show("entry", { still: true });
     root.hidden = true;
     await frames(3);
     expect(dialog.open, "shut while hidden").toBe(false);
@@ -503,7 +537,7 @@ describe("enhanceListDetail", () => {
   it("closes nothing on a press inside the sheet or one that starts inside and ends outside", async () => {
     const onDismiss = vi.fn();
     const { heading, dialog, api } = mount(400, { onDismiss });
-    api.open();
+    api.show("entry");
     await played(dialog);
     await userEvent.click(heading);
     const box = dialog.getBoundingClientRect();
@@ -520,21 +554,21 @@ describe("enhanceListDetail", () => {
   it("hands a close the engine makes on its own to onDismiss, and opens the sheet again", async () => {
     const onDismiss = vi.fn();
     const { dialog, api } = mount(400, { onDismiss });
-    api.open();
+    api.show("entry");
     const closed = new Promise((r) => {
       dialog.addEventListener("close", r, { once: true });
     });
     dialog.close();
     await closed;
     expect(onDismiss).toHaveBeenCalledTimes(1);
-    api.open();
+    api.show("entry");
     expect(dialog.open).toBe(true);
   });
 
   it("leaves a sheet the engine closed shut when the box resizes before its close event", async () => {
     const onDismiss = vi.fn();
     const { root, dialog, api } = mount(400, { onDismiss });
-    api.open();
+    api.show("entry");
     await frames();
     // The close event is a queued task, so a resize frame can run first.
     const held = (e: Event): void => {
@@ -554,16 +588,16 @@ describe("enhanceListDetail", () => {
 
   it("closes on Escape, Close and an engine close without onDismiss", async () => {
     const { detail, close, dialog, api } = mount(400);
-    api.open();
+    api.show("entry");
     dialog.dispatchEvent(new Event("cancel", { cancelable: true }));
     await exited(dialog);
     expect(detail.hidden, "Escape").toBe(true);
-    api.open();
+    api.show("entry");
     close.click();
     await exited(dialog);
     expect(dialog.open, "Close").toBe(false);
     expect(detail.hidden, "Close").toBe(true);
-    api.open();
+    api.show("entry");
     const closed = new Promise((r) => {
       dialog.addEventListener("close", r, { once: true });
     });
@@ -575,7 +609,7 @@ describe("enhanceListDetail", () => {
 
   it("closes and removes its dialog when the signal aborts", () => {
     const { root, opener, detail, api } = mount(400);
-    api.open();
+    api.show("entry");
     life.abort();
     expect(detail.hidden).toBe(true);
     expect(detail.parentElement).toBe(root);
@@ -585,9 +619,9 @@ describe("enhanceListDetail", () => {
 
   it("puts the detail back at once when the signal aborts while the sheet leaves", async () => {
     const { root, opener, detail, dialog, api } = mount(400);
-    api.open();
+    api.show("entry");
     await played(dialog);
-    api.close();
+    api.show(null);
     life.abort();
     expect(detail.hidden).toBe(true);
     expect(detail.parentElement).toBe(root);

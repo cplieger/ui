@@ -1,9 +1,9 @@
 /**
  * list-detail.ts — `enhanceListDetail()` docks a list's detail beside the
  * list once the box holding both is wide enough, and shows the same detail
- * in a full-height sheet below that width. The app's route decides when the
- * detail shows: it calls `open()` when the route names an entry and
- * `close()` when it does not, so Back closes the detail.
+ * in a full-height sheet below that width. The app's router owns the URL and
+ * calls `show(key)` with the entry it names, or `show(null)`, so Back closes
+ * the detail.
  * @module
  */
 
@@ -17,26 +17,38 @@ export interface ListDetailOptions {
   /** The box's width, in rem, from which the detail docks. Default 52. */
   readonly dockAt?: number;
   /** Close, Escape, a press outside the sheet, or the engine closing the
-   *  sheet itself. The app goes back, and its route then calls `close()`;
-   *  until then Close, Escape and a press outside leave the sheet open.
-   *  Default: `close()`. */
+   *  sheet itself. The app's router leaves the entry, and then calls
+   *  `show(null)`; until then Close, Escape and a press outside leave the
+   *  sheet open. Default: `show(null)`. */
   readonly onDismiss?: () => void;
 }
 
-export interface OpenOptions {
+export interface ShowOptions {
   /** Shows the detail without its entrance, as for a page that loads with
    *  an entry open, since nothing animates on load. Default false. */
   readonly still?: boolean;
 }
 
 export interface ListDetail {
-  /** Shows the detail, docked or in its sheet, and focuses its heading. */
-  open(options?: OpenOptions): void;
-  /** Hides the detail and returns focus to what had it before `open()`,
-   *  or before a later `open()` made from outside the shown detail. The
-   *  sheet keeps the detail until its exit has played. */
-  close(): void;
+  /** The entry the detail shows, or null while it is hidden. */
+  readonly key: string | null;
+  /** With a key, shows the detail, docked or in its sheet, and focuses its
+   *  heading; the same key again only focuses the heading. With null, hides
+   *  it and returns focus to what had it before it showed, or before a later
+   *  `show()` made from outside the shown detail. The sheet keeps the detail
+   *  until its exit has played. */
+  show(key: string | null, options?: ShowOptions): void;
 }
+
+/** On the root when the detail starts showing `key`, before its heading
+ *  takes focus, so a listener fills the detail first. */
+export type DetailOpenEvent = CustomEvent<{
+  readonly key: string;
+  readonly previous: string | null;
+}>;
+
+/** On the root when the detail stops showing `key`. */
+export type DetailCloseEvent = CustomEvent<{ readonly key: string }>;
 
 const DOCKED = "data-cp-docked";
 const CLOSE = "[data-detail-close]";
@@ -80,7 +92,7 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
   }
   root.after(dialog);
 
-  let shown = false;
+  let shown: string | null = null;
   /** Where the shown detail sits; null while it is hidden. */
   let at: "dock" | "dialog" | null = null;
   let opener: Element | null = null;
@@ -190,10 +202,11 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
   };
 
   const hide = (animate: boolean): void => {
-    if (!shown) {
+    if (shown === null) {
       return;
     }
-    shown = false;
+    const key = shown;
+    shown = null;
     turn += 1;
     const was = at;
     at = null;
@@ -210,6 +223,7 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
     } else {
       restore(to);
     }
+    root.dispatchEvent(new CustomEvent("detailclose", { detail: { key } }));
     // getAnimations() flushes style, so it holds the exit Chromium has
     // just started in CSS.
     const exit = was === "dialog" && animate ? dialog.getAnimations() : [];
@@ -226,9 +240,16 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
   };
 
   const api: ListDetail = {
-    open(opts = {}) {
-      if (!shown) {
-        shown = true;
+    get key() {
+      return shown;
+    },
+    show(key, opts = {}) {
+      if (key === null) {
+        hide(true);
+        return;
+      }
+      const previous = shown;
+      if (previous === null) {
         turn += 1;
         opener = returnTo ?? document.activeElement;
         returnTo = null;
@@ -245,19 +266,20 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
         // Another entry's link opened the docked detail: Close returns there.
         opener = document.activeElement;
       }
+      shown = key;
+      if (key !== previous) {
+        root.dispatchEvent(new CustomEvent("detailopen", { detail: { key, previous } }));
+      }
       place(true);
-    },
-    close() {
-      hide(true);
     },
   };
 
   const dismiss = (): void => {
-    if (!shown) {
+    if (shown === null) {
       return;
     }
     if (onDismiss === undefined) {
-      api.close();
+      api.show(null);
     } else {
       // installDialogs' cancel handler starts closing the sheet in engines
       // with no CSS exit; the route decides whether it closes.
@@ -272,7 +294,7 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
   const resize = new ResizeObserver(() => {
     cancelAnimationFrame(frame);
     frame = requestAnimationFrame(() => {
-      if (shown) {
+      if (shown !== null) {
         place(false);
       }
     });
@@ -290,7 +312,7 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
   dialog.addEventListener(
     "close",
     () => {
-      if (!shown) {
+      if (shown === null) {
         restore(returnTo);
         returnTo = null;
       } else if (at === "dialog" && !dialog.open) {

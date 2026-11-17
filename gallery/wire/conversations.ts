@@ -1,6 +1,6 @@
 import { announce } from "@cplieger/ui/announce";
 import { enhanceKeyedList } from "@cplieger/ui/keyed-list";
-import { enhanceListDetail } from "@cplieger/ui/list-detail";
+import { type DetailOpenEvent, enhanceListDetail } from "@cplieger/ui/list-detail";
 import { enhanceLoadMore } from "@cplieger/ui/load-more";
 import { enhanceRelativeTime } from "@cplieger/ui/relative-time";
 import { enhanceRovingFocus } from "@cplieger/ui/roving-focus";
@@ -170,62 +170,46 @@ if (root !== null && list instanceof HTMLUListElement && filters !== null) {
   }
 
   // The address is the state: its fragment names the open conversation, and
-  // each entry's DEPTH counts the entries since the one the page loaded on.
-  // sync() renders the address; Close is one traversal back by DEPTH to the
-  // entry the page loaded on, rewritten to the list's address. CLOSING
-  // carries that rewrite across a traversal that loads the page again.
-  const DEPTH = "cp-gallery-depth";
-  const CLOSING = "cp-gallery-closing";
-  const depthOf = (state: unknown): number | undefined => {
-    const d: unknown =
-      typeof state === "object" && state !== null ? Reflect.get(state, DEPTH) : undefined;
-    return typeof d === "number" ? d : undefined;
+  // sync() renders it. Each entry records whether the one before it showed
+  // the list, so Close is one Back to that list, or else a push of the
+  // list's address: never a jump over several entries.
+  const FROM_LIST = "cp-gallery-from-list";
+  const fromList = (state: unknown): boolean | undefined => {
+    const v: unknown =
+      typeof state === "object" && state !== null ? Reflect.get(state, FROM_LIST) : undefined;
+    return typeof v === "boolean" ? v : undefined;
   };
-  // Storage throws in an opaque-origin frame, where a reload then opens what its address names.
-  const intend = (on: boolean): boolean => {
-    try {
-      const had = sessionStorage.getItem(CLOSING) !== null;
-      if (on) {
-        sessionStorage.setItem(CLOSING, "");
-      } else {
-        sessionStorage.removeItem(CLOSING);
-      }
-      return had;
-    } catch {
-      return false;
-    }
-  };
-  // The app's own keys in an entry's state, such as its router's scroll, stay beside the depth.
-  const stamp = (depth: number, url?: string): void => {
+  // The app's own keys in an entry's state, such as its router's scroll, stay beside this one.
+  const stamp = (from: boolean, url?: string): void => {
     const own: unknown = history.state;
     history.replaceState(
-      { ...(typeof own === "object" && own !== null ? own : {}), [DEPTH]: depth },
+      { ...(typeof own === "object" && own !== null ? own : {}), [FROM_LIST]: from },
       "",
       url,
     );
   };
-  const toList = () => {
-    stamp(0, location.pathname + location.search);
-  };
-  let here = 0;
-  let closing = false;
-  let showing: string | null = null;
+  /** Set from a Close's Back until the page arrives, so a second Close leaves no further. */
+  let leaving = false;
 
   const detail = enhanceListDetail(root, {
     onDismiss: () => {
-      if (closing) {
+      if (leaving) {
         return;
       }
-      const depth = depthOf(history.state) ?? 0;
-      if (depth > 0) {
-        closing = true;
-        intend(true);
-        history.go(-depth);
+      if (fromList(history.state) === true) {
+        leaving = true;
+        history.back();
         return;
       }
-      toList();
+      history.pushState({ [FROM_LIST]: false }, "", location.pathname + location.search);
       sync();
     },
+  });
+  root.addEventListener("detailopen", (e) => {
+    const view = named((e as DetailOpenEvent).detail.key);
+    if (view !== undefined) {
+      render(view);
+    }
   });
   function sync(still = false): void {
     const id = location.hash.slice(1);
@@ -240,42 +224,27 @@ if (root !== null && list instanceof HTMLUListElement && filters !== null) {
       }
     }
     if (view === undefined) {
-      showing = null;
-      detail.close();
-      return;
+      detail.show(null);
+    } else if (detail.key !== id) {
+      detail.show(id, { still });
+      messageFeed?.toNewest();
     }
-    if (id === showing) {
-      return;
-    }
-    showing = id;
-    render(view);
-    detail.open({ still });
-    messageFeed?.toNewest();
   }
-  /** Settles the entry the page arrived on: a Close's landing, or the new entry of a press. */
-  const arrive = (): void => {
-    const intent = intend(false);
-    const depth = depthOf(history.state);
-    if ((closing || intent) && depth === 0) {
-      toList();
-    } else if (depth === undefined) {
-      stamp(here + 1);
+  const arrive = (e: Event): void => {
+    leaving = false;
+    if (e instanceof HashChangeEvent && fromList(history.state) === undefined) {
+      stamp(named(new URL(e.oldURL).hash.slice(1)) === undefined);
     }
-    closing = false;
-    here = depthOf(history.state) ?? 0;
     sync();
   };
 
   const rem = Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
   const wide = root.getBoundingClientRect().width >= 52 * rem;
-  if (intend(false) && depthOf(history.state) === 0) {
-    toList();
-  } else if (depthOf(history.state) === undefined) {
+  if (fromList(history.state) === undefined) {
     // A wide page docks the markup's open conversation, so the address names it.
     const open = location.hash === "" && wide ? current()?.hash : undefined;
-    stamp(0, open ?? location.href);
+    stamp(false, open ?? location.href);
   }
-  here = depthOf(history.state) ?? 0;
   // On a phone the addressed row takes focus first, so Close returns it there.
   if (!wide) {
     linkOf(items.get(location.hash.slice(1)))?.focus({ preventScroll: true });
@@ -289,7 +258,7 @@ if (root !== null && list instanceof HTMLUListElement && filters !== null) {
   addEventListener("hashchange", arrive);
   addEventListener("pageshow", (e) => {
     if (e.persisted) {
-      arrive();
+      arrive(e);
     }
   });
   // A press on a link to the address itself would replace its entry, which
@@ -308,10 +277,10 @@ if (root !== null && list instanceof HTMLUListElement && filters !== null) {
       return;
     }
     e.preventDefault();
-    if (showing === null) {
+    if (detail.key === null) {
       document.getElementById(location.hash.slice(1))?.scrollIntoView();
     } else {
-      detail.open();
+      detail.show(detail.key);
     }
   });
 

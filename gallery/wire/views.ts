@@ -53,7 +53,7 @@ if (md !== null && mdTabs !== null) {
       }
     }
     if (row === undefined) {
-      detail.close();
+      detail.show(null);
       return;
     }
     for (const [key, el] of Object.entries(fill)) {
@@ -61,7 +61,7 @@ if (md !== null && mdTabs !== null) {
         el.textContent = row.dataset[key] ?? "";
       }
     }
-    detail.open({ still });
+    detail.show(row.hash, { still });
   }
   for (const row of rows) {
     row.addEventListener("click", (e) => {

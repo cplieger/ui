@@ -339,7 +339,7 @@ describe.each(browsers)("the gallery in %s", (name) => {
         }
         const left = await settle(tab, want);
         if (verb === "close" || verb === "escape") {
-          // Invariant 2: one traversal, so no entry on the way shows its row.
+          // Invariant 2: at most one Back, so no entry on the way shows its row.
           const made = await tab
             .evaluate(() => (window as unknown as Helpers).cpMade ?? [])
             .catch(() => []);
@@ -361,7 +361,7 @@ describe.each(browsers)("the gallery in %s", (name) => {
     const FRESH = true;
     it.each<readonly [string, number, boolean, readonly Step[]]>([
       [
-        "two presses, then Close and a press after Back and Forward",
+        "two presses, then Close, Back and Forward, and a press",
         W,
         AFTER,
         [
@@ -369,7 +369,7 @@ describe.each(browsers)("the gallery in %s", (name) => {
           ["press #c-announce", `${M}#c-announce`],
           ["press #c-kiro-codex", `${M}#c-kiro-codex`],
           ["close", M],
-          ["back", "/index.html"],
+          ["back", `${M}#c-kiro-codex`],
           ["forward", M],
           ["press #c-announce", `${M}#c-announce`],
         ],
@@ -384,18 +384,19 @@ describe.each(browsers)("the gallery in %s", (name) => {
           ["back", `${M}#c-internal`],
           ["forward", `${M}#c-marotte`],
           ["close", M, '#msg-list a[href="#c-marotte"]'],
-          ["back", "/index.html"],
+          ["back", `${M}#c-marotte`],
         ],
       ],
       [
-        "Close, a press, then Back to the list",
+        "Close, a press, Close, then Back out of the page",
         W,
         AFTER,
         [
           ["load messages.html", `${M}#c-internal`],
           ["close", M],
           ["press #c-marotte", `${M}#c-marotte`],
-          ["back", M],
+          ["close", M, '#msg-list a[href="#c-marotte"]'],
+          ["back", `${M}#c-internal`],
           ["back", "/index.html"],
         ],
       ],
@@ -407,6 +408,7 @@ describe.each(browsers)("the gallery in %s", (name) => {
           ["load messages.html#c-ci", `${M}#c-ci`],
           ["older", `${M}#c-ci`],
           ["close", M],
+          ["back", `${M}#c-ci`],
           ["back", "/index.html"],
         ],
       ],
@@ -431,7 +433,7 @@ describe.each(browsers)("the gallery in %s", (name) => {
           ["author", `${M}#agent-kiro`],
           ["back", `${M}#c-marotte`],
           ["close", M],
-          ["back", "/index.html"],
+          ["back", `${M}#c-marotte`],
         ],
       ],
       [
@@ -443,7 +445,7 @@ describe.each(browsers)("the gallery in %s", (name) => {
           ["author", `${M}#agent-kiro`],
           ["back", `${M}#c-internal`],
           ["close", M],
-          ["back", "/index.html"],
+          ["back", `${M}#c-internal`],
         ],
       ],
       [
@@ -455,6 +457,7 @@ describe.each(browsers)("the gallery in %s", (name) => {
           ["press #c-internal", `${M}#c-internal`],
           ["chip #c-internal", `${M}#c-internal`],
           ["close", M],
+          ["back", `${M}#c-internal`],
           ["back", "/index.html"],
         ],
       ],
@@ -479,7 +482,7 @@ describe.each(browsers)("the gallery in %s", (name) => {
           ["press #c-marotte", `${M}#c-marotte`],
           ["chip #c-kiro-codex", `${M}#c-kiro-codex`],
           ["close", M],
-          ["back", "/index.html"],
+          ["back", `${M}#c-kiro-codex`],
         ],
       ],
       [
@@ -491,11 +494,11 @@ describe.each(browsers)("the gallery in %s", (name) => {
           ["press #c-marotte", `${M}#c-marotte`],
           ["reload", `${M}#c-marotte`],
           ["close", M],
-          ["back", "/index.html"],
+          ["back", `${M}#c-marotte`],
         ],
       ],
       [
-        "two presses on a page that loaded on one, Close, then a press after Forward",
+        "two presses on a page that loaded on one, Close, Back and Forward, then a press",
         W,
         AFTER,
         [
@@ -503,7 +506,7 @@ describe.each(browsers)("the gallery in %s", (name) => {
           ["press #c-marotte", `${M}#c-marotte`],
           ["press #c-announce", `${M}#c-announce`],
           ["close", M],
-          ["back", "/index.html"],
+          ["back", `${M}#c-announce`],
           ["forward", M],
           ["press #c-ui-data", `${M}#c-ui-data`],
         ],
@@ -519,7 +522,7 @@ describe.each(browsers)("the gallery in %s", (name) => {
           ["back", "/index.html"],
           ["forward", `${M}#c-ui-data`],
           ["close", M],
-          ["back", "/index.html"],
+          ["back", `${M}#c-ui-data`],
         ],
       ],
       [
@@ -529,7 +532,7 @@ describe.each(browsers)("the gallery in %s", (name) => {
         [
           ["load messages.html#agent-kiro", `${M}#agent-kiro`],
           ["press #c-marotte", `${M}#c-marotte`],
-          ["close", M],
+          ["close", `${M}#agent-kiro`],
           ["back", "/index.html"],
         ],
       ],
@@ -540,6 +543,7 @@ describe.each(browsers)("the gallery in %s", (name) => {
         [
           ["load messages.html#c-ui-data", `${M}#c-ui-data`],
           ["close", M, '#msg-list a[href="#c-ui-data"]'],
+          ["back", `${M}#c-ui-data`],
           ["back", "/index.html"],
         ],
       ],
@@ -610,6 +614,9 @@ describe.each(browsers)("the gallery in %s", (name) => {
         }, key);
       const read = () =>
         tab.evaluate(() => (history.state as Record<string, unknown> | null)?.["app"]);
+      // Close on the docked conversation the page loaded with pushes the list's address.
+      await tab.locator(".cp-detail [data-detail-close]").click();
+      await tab.waitForFunction(() => location.hash === "");
       await own("list");
       await enter(tab, '#msg-list a.cp-list-row[href="#c-marotte"]');
       await tab.waitForFunction(() => location.hash === "#c-marotte" && history.state !== null);
@@ -622,7 +629,7 @@ describe.each(browsers)("the gallery in %s", (name) => {
       const forward = await read();
       await tab.close();
       expect({ listed, forward }).toEqual({ listed: "list", forward: "marotte" });
-    });
+    }, 60_000);
   });
 
   it.each(pageNames)(
