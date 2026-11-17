@@ -262,12 +262,19 @@ describe("enhanceLoadMore", () => {
     // font that lands later can't re-measure it between the two readings.
     await document.fonts.ready;
     enhance(button, { load: () => wait.promise });
+    // The busy spinner turns about its centre, and a turned box's bounding
+    // rect grows up to √2 wide, so each part's laid-out box is its rect's
+    // centre plus or minus half its computed width.
     const content = () => {
       const parts = [
         ...button.querySelectorAll<HTMLElement>(":scope > .cp-icon, :scope > .cp-roll"),
       ]
-        .map((p) => p.getBoundingClientRect())
-        .filter((r) => r.width > 0);
+        .filter((p) => p.getBoundingClientRect().width > 0)
+        .map((p) => {
+          const r = p.getBoundingClientRect();
+          const half = Number.parseFloat(getComputedStyle(p).inlineSize) / 2;
+          return { left: r.left + r.width / 2 - half, right: r.left + r.width / 2 + half };
+        });
       return (Math.min(...parts.map((r) => r.left)) + Math.max(...parts.map((r) => r.right))) / 2;
     };
     const rest = button.getBoundingClientRect();

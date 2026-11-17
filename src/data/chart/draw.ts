@@ -86,8 +86,20 @@ const px = (style: CSSStyleDeclaration, name: string, fallback: number): number 
  * layout read, so it runs on a render or a resize, never inside a draw.
  */
 export function readMetrics(plot: HTMLElement, locale: string | undefined): Metrics {
-  // Every read of the plot's style comes before the probe changes the tree,
-  // which would make each later read restyle the page.
+  // The face probes stay in the plot, out of its layout, so a repeat read
+  // changes no tree: a page of charts would otherwise restyle per chart.
+  let probe = plot.querySelector<HTMLElement>(":scope > span[data-mono]");
+  let holeProbe = plot.querySelector<HTMLElement>(":scope > span[data-hole]");
+  if (probe === null || holeProbe === null) {
+    probe = document.createElement("span");
+    probe.dataset["mono"] = "";
+    holeProbe = document.createElement("span");
+    holeProbe.dataset["hole"] = "";
+    for (const p of [probe, holeProbe]) {
+      Object.assign(p.style, { position: "absolute", visibility: "hidden" });
+    }
+    plot.append(probe, holeProbe);
+  }
   const style = getComputedStyle(plot);
   const size = Number.parseFloat(style.fontSize) || 13;
   const read = {
@@ -99,16 +111,9 @@ export function readMetrics(plot: HTMLElement, locale: string | undefined): Metr
     rem: Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16,
   };
   const measure = fontMeasure(plot, locale);
-  const probe = document.createElement("span");
-  probe.dataset["mono"] = "";
-  const holeProbe = document.createElement("span");
-  holeProbe.dataset["hole"] = "";
-  plot.append(probe, holeProbe);
   const mono = fontMeasure(probe, locale);
   const hole = fontMeasure(holeProbe, locale);
   const holeSize = Number.parseFloat(getComputedStyle(holeProbe).fontSize) || 16;
-  probe.remove();
-  holeProbe.remove();
   return {
     measure,
     mono,

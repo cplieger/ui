@@ -61,6 +61,94 @@ describe.each(browsers)("the gallery in %s", (name) => {
     60_000,
   );
 
+  it("clears every row of a choices set whose legend has a button under the floats, and no other set's", async () => {
+    const wrong: string[] = [];
+    let floated = 0;
+    for (const page of ["forms", "settings", "overlays"]) {
+      const tab = await (browser as Browser).newPage();
+      await tab.goto(`${origin}/${page}.html`);
+      const seen = await tab.evaluate(() => {
+        const out = { floated: 0, wrong: [] as string[] };
+        for (const set of document.querySelectorAll(".cp-choices")) {
+          const legend = set.firstElementChild;
+          const button = legend?.nextElementSibling;
+          const has = legend?.localName === "legend" && button?.matches(".cp-button") === true;
+          out.floated += has ? 1 : 0;
+          for (const row of set.children) {
+            const want = has && row !== legend && row !== button ? "both" : "none";
+            if (getComputedStyle(row).clear !== want) {
+              out.wrong.push(`${row.outerHTML.slice(0, 80)}: not ${want}`);
+            }
+          }
+        }
+        return out;
+      });
+      floated += seen.floated;
+      wrong.push(...seen.wrong.map((w) => `${page}: ${w}`));
+      await tab.close();
+    }
+    expect(floated).toBeGreaterThan(0);
+    expect(wrong).toEqual([]);
+  }, 60_000);
+
+  // A `:has()` left of a combinator whose last compound names no class, type
+  // or attribute makes Chromium restyle the whole page on every insertion,
+  // about 9,800 elements here; Chromium's trace counts the elements each
+  // restyle visits. How Blink's `:has()` invalidation works:
+  // https://blogs.igalia.com/blee/posts/2023/05/31/how-blink-invalidates-styles-when-has-in-use.html
+  it.runIf(name === "chromium")(
+    "restyles under a tenth of the page, not all of it, once a node is added to a chart",
+    async () => {
+      const tab = await (browser as Browser).newPage({ viewport: { width: 1440, height: 900 } });
+      await tab.goto(`${origin}/charts.html`);
+      // A font load restyles the whole tree in Blink, so the page settles and
+      // flushes before the bracketed insertion.
+      await tab.evaluate(async () => {
+        await document.fonts.ready;
+        await new Promise(requestAnimationFrame);
+        void getComputedStyle(document.body).color;
+      });
+      const cdp = await tab.context().newCDPSession(tab);
+      const events: Record<string, unknown>[] = [];
+      cdp.on("Tracing.dataCollected", (e) => events.push(...e.value));
+      const done = new Promise((ok) => cdp.once("Tracing.tracingComplete", ok));
+      await cdp.send("Tracing.start", { categories: "devtools.timeline" });
+      const page = await tab.evaluate(() => {
+        const plot = document.querySelector('.cp-chart > [data-part="plot"]') as Element;
+        void getComputedStyle(plot).color;
+        console.timeStamp("insert:start");
+        plot.append(document.createElement("span"));
+        void getComputedStyle(plot).color;
+        console.timeStamp("insert:end");
+        return document.getElementsByTagName("*").length;
+      });
+      await cdp.send("Tracing.end");
+      await done;
+      await tab.close();
+      const mark = (message: string): number | undefined =>
+        events.find(
+          (e) =>
+            e["name"] === "TimeStamp" &&
+            (e["args"] as { data?: { message?: unknown } } | undefined)?.data?.message === message,
+        )?.["ts"] as number | undefined;
+      const start = mark("insert:start") ?? Infinity;
+      const end = mark("insert:end") ?? -Infinity;
+      const counts = events.flatMap((e) => {
+        const count = (e["args"] as { elementCount?: unknown } | undefined)?.elementCount;
+        const ts = e["ts"] as number;
+        return e["name"] === "UpdateLayoutTree" &&
+          typeof count === "number" &&
+          ts > start &&
+          ts < end
+          ? [count]
+          : [];
+      });
+      expect(counts).toHaveLength(1);
+      expect(counts[0]).toBeLessThan(page / 10);
+    },
+    60_000,
+  );
+
   it("finds every file the pages ask for", () => {
     expect([...(served?.missing ?? [])]).toEqual([]);
   });
