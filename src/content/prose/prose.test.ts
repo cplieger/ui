@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { userEvent } from "vitest/browser";
 
 import { createMarkdownStream, renderMarkdown } from "../markdown/markdown.js";
 
@@ -259,6 +260,58 @@ describe(".cp-code[data-variant=block]", () => {
       expect(box.height, tier).toBeGreaterThanOrEqual(min);
       expect(box.width, tier).toBeGreaterThanOrEqual(min);
     }
+  });
+
+  /** A hand-written block with no bar, as a page with no script writes it. */
+  function bare(text: string): HTMLElement {
+    const el = document.createElement("div");
+    el.className = "cp-prose";
+    el.style.inlineSize = "320px";
+    const block = document.createElement("div");
+    block.className = "cp-code";
+    block.dataset["variant"] = "block";
+    const pre = document.createElement("pre");
+    pre.tabIndex = 0;
+    const code = document.createElement("code");
+    code.textContent = text;
+    pre.append(code);
+    block.append(pre);
+    el.append(block);
+    document.body.append(el);
+    hosts.push(el);
+    return block;
+  }
+
+  it("selects the whole command at one click when it has no bar", async () => {
+    const command = "docker exec release-tracker release-tracker accounts restore <archive>";
+    const code = q(bare(command), "code");
+    await userEvent.click(code);
+    expect(getSelection()?.toString()).toBe(command);
+  });
+
+  it("selects the whole command at a click in the pre's padding", async () => {
+    const command = "docker exec release-tracker release-tracker accounts reset";
+    const pre = q(bare(command), "pre");
+    getSelection()?.removeAllRanges();
+    await userEvent.click(pre, { position: { x: 4, y: 4 } });
+    expect(getSelection()?.toString()).toBe(command);
+  });
+
+  it("leaves a click on a block with its bar and Copy selecting nothing", async () => {
+    const el = prose("```sh\ndocker exec release-tracker release-tracker accounts reset\n```\n");
+    getSelection()?.removeAllRanges();
+    await userEvent.click(q(el, "pre > code"));
+    expect(getSelection()?.toString()).toBe("");
+  });
+
+  it("gives a bar-less pre's focus ring the block's inner corners", () => {
+    const block = bare("ls");
+    const pre = q(block, "pre");
+    const inner =
+      Number.parseFloat(css(block).borderTopLeftRadius) -
+      Number.parseFloat(css(block).borderTopWidth);
+    expect(Number.parseFloat(css(pre).borderTopLeftRadius)).toBeCloseTo(inner, 1);
+    expect(Number.parseFloat(css(pre).borderBottomRightRadius)).toBeCloseTo(inner, 1);
   });
 
   it("leaves the one-line copy field one control tall", () => {

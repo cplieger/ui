@@ -109,7 +109,7 @@
   --cp-chart-surface: var(--cp-surface-overlay);
 
   position: sticky;
-  inset-block-end: var(--cp-space-3);
+  inset-block-end: calc(var(--cp-nav-inset, 0px) + var(--cp-space-3));
   z-index: 1;
   display: flex;
   flex-wrap: wrap;

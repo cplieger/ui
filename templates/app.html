@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en" class="cp">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Library · Release tracker</title>
+    <link rel="stylesheet" href="../css/system.css">
+  </head>
+  <body>
+    <!-- region: skip: the first focusable element, shown only while focused -->
+    <a class="cp-skip" href="#main">Skip to content</a>
+    <div class="cp-app">
+      <!-- region: header -->
+      <header class="cp-header">
+        <!-- slot: brand: the mark and the app's name, a link home -->
+        <a class="cp-wordmark" href="#">
+          <span class="cp-mark" aria-hidden="true">R</span>
+          <span class="cp-hidden-narrow">Release tracker</span>
+        </a>
+        <!-- slot: destinations: the current one aria-current="page" -->
+        <nav class="cp-nav" aria-label="Main">
+          <a class="cp-nav-item" href="#">
+            <span class="cp-icon" data-cp-icon="layout-dashboard" aria-hidden="true"></span>
+            <span class="cp-nav-label">Overview</span>
+          </a>
+          <a class="cp-nav-item" href="#" aria-current="page">
+            <span class="cp-icon" data-cp-icon="library" aria-hidden="true"></span>
+            <span class="cp-nav-label">Library</span>
+          </a>
+          <a class="cp-nav-item" href="#">
+            <span class="cp-icon" data-cp-icon="radio-tower" aria-hidden="true"></span>
+            <span class="cp-nav-label">Releases</span>
+          </a>
+        </nav>
+        <!-- slot: toolbar: the header status and its panel, the theme toggle, the global actions, the account button and its menu last -->
+        <div class="cp-toolbar">
+          <!-- slot: header status: the button and its empty panel, which createHeaderStatus fills; the run controls are its starts -->
+          <button class="cp-header-status" type="button" data-state="ok" popovertarget="status">
+            <span>All good</span>
+          </button>
+          <div class="cp-popover cp-status-panel" data-variant="panel" popover id="status"></div>
+          <button class="cp-button cp-toggle" data-variant="quiet" data-kind="theme" type="button" aria-label="Dark theme" aria-pressed="false">
+            <span class="cp-icon" data-cp-icon="sun" aria-hidden="true"></span>
+            <span class="cp-icon" data-cp-icon="moon" data-part="on" aria-hidden="true"></span>
+          </button>
+          <a class="cp-button" data-variant="quiet" href="#" aria-label="Settings">
+            <span class="cp-icon" data-cp-icon="settings" aria-hidden="true"></span>
+          </a>
+          <!-- slot: account: the button and its menu: who is signed in, the account's page, Sign out -->
+          <button class="cp-button cp-account" data-variant="quiet" type="button" aria-label="CP, account" popovertarget="account" aria-haspopup="menu">
+            <span class="cp-avatar" data-size="sm">CP</span>
+          </button>
+          <div class="cp-popover cp-menu" id="account" popover role="menu" aria-label="Account">
+            <div class="cp-menu-label">Signed in as cplieger</div>
+            <a role="menuitem" href="#"><span class="cp-icon" data-cp-icon="user" aria-hidden="true"></span>Account and security</a>
+            <hr>
+            <button role="menuitem" type="button"><span class="cp-icon" data-cp-icon="log-out" aria-hidden="true"></span>Sign out</button>
+          </div>
+        </div>
+      </header>
+      <!-- region: rail: the screen's filters; under 60rem it leaves, and the heading's Filters button opens them in a sheet -->
+      <aside class="cp-rail" aria-label="Filters">
+        <!-- slot: filters: a list heading over a plain compact list per group -->
+        <div role="group" aria-labelledby="filter-verdict">
+          <div class="cp-list-heading" id="filter-verdict">Verdict</div>
+          <ul class="cp-list" data-surface="plain" data-divider="none" data-density="compact">
+            <li>
+              <button class="cp-list-row" type="button" aria-pressed="true">
+                <span class="cp-cell-stack">All entries</span>
+                <span data-part="end"><span class="cp-badge" data-variant="quiet">412</span></span>
+              </button>
+            </li>
+            <li>
+              <button class="cp-list-row" type="button" aria-pressed="false">
+                <span class="cp-cell-stack">Missing</span>
+                <span data-part="end"><span class="cp-badge" data-variant="quiet">9</span></span>
+              </button>
+            </li>
+          </ul>
+        </div>
+      </aside>
+      <!-- region: main: at most 90rem wide and centred; data-width="full" for a screen that needs the window -->
+      <main class="cp-main" id="main" tabindex="-1">
+        <div class="cp-stack">
+          <!-- slot: banner: the header status's urgent part first, then a .cp-notice data-variant="banner" per condition of the app's own that stops work on every screen -->
+          <div class="cp-stack" data-gap="tight" id="urgent" hidden></div>
+          <!-- slot: heading: the h1 and its facts line, then the page's actions -->
+          <div class="cp-heading-row">
+            <div>
+              <h1 tabindex="-1">Library</h1>
+              <p class="cp-meta">412 series and films.</p>
+            </div>
+            <div class="cp-toolbar">
+              <button class="cp-button cp-rail-toggle" type="button">
+                <span class="cp-icon" data-cp-icon="funnel" aria-hidden="true"></span>Filters
+              </button>
+              <button class="cp-button" data-variant="primary" type="button">
+                <span class="cp-icon" data-cp-icon="refresh-cw" aria-hidden="true"></span>Quick check
+              </button>
+            </div>
+          </div>
+          <!-- slot: notices: a .cp-notice per condition of the whole screen; a region's own notice goes in that region -->
+          <div class="cp-notice" data-tone="warning" role="status">
+            <span class="cp-icon" data-cp-icon="triangle-alert" aria-hidden="true"></span>
+            <div>AniList answered with too many requests. The refresh resumes at 14:10.</div>
+          </div>
+          <!-- slot: content -->
+          <ul class="cp-list" aria-label="Library">
+            <li>
+              <a class="cp-list-row" href="#">
+                <span class="cp-cell-stack">Frieren: Beyond Journey's End<small>TV, 2023, 28 episodes</small></span>
+                <span data-part="end"><span class="cp-state" data-tone="success"><span class="cp-icon" data-cp-icon="circle-check" aria-hidden="true"></span>On the best</span></span>
+              </a>
+            </li>
+            <li>
+              <a class="cp-list-row" href="#">
+                <span class="cp-cell-stack">Dungeon Meshi<small>TV, 2024, 24 episodes</small></span>
+                <span data-part="end"><span class="cp-state" data-tone="warning"><span class="cp-icon" data-cp-icon="triangle-alert" aria-hidden="true"></span>Not the best</span></span>
+              </a>
+            </li>
+          </ul>
+        </div>
+      </main>
+      <!-- region: status: facts about the whole screen, freshness first; a part data-state="late" for work that has not run when it should have -->
+      <footer class="cp-status">
+        <span>Data as of <time datetime="2026-11-14T14:02">14:02</time></span>
+        <span>All sources reachable</span>
+        <span data-state="late">The quick check is 10 minutes late</span>
+        <!-- slot: about: the product's version, then its source, licence or docs links, the status line's last part -->
+        <span class="cp-meta" data-part="about">
+          <span>Version 3.0.0</span>
+          <a href="https://github.com/example/release-tracker" rel="external">Source<span class="cp-visually-hidden">, opens GitHub</span></a>
+          <a href="https://github.com/example/release-tracker/blob/main/LICENSE" rel="external">Licence<span class="cp-visually-hidden">, opens GitHub</span></a>
+        </span>
+      </footer>
+    </div>
+  </body>
+</html>

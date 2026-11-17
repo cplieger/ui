@@ -553,7 +553,7 @@ for (const form of $$("form[data-settings]")) {
   const update = () => {
     const n = count();
     bar.hidden = n === 0;
-    $(".g-dirty", bar).textContent = `${n} unsaved change${n === 1 ? "" : "s"}`;
+    $("[data-part=count]", bar).textContent = `${n} unsaved change${n === 1 ? "" : "s"}`;
   };
   form.addEventListener("input", update);
   form.addEventListener("change", update);
@@ -632,131 +632,6 @@ for (const form of $$("form[data-sign-in]")) {
   });
 }
 
-// -------------------------------------------------------------- stepper
-// First-run setup, its steps on one page where an app gives each its own
-// address. The host says which step is current (data-current); the page's
-// h1 names it, "Step 2 of 3: Connect Sonarr"; a done step is a link back to
-// it; the current one is ringed and named current. main.ts wires Test
-// connection.
-for (const flow of $$("[data-steps]")) {
-  const steps = $$("[data-step]", flow);
-  const marks = $$(".cp-steps > li", flow);
-  const title = $("[data-step-title]", flow);
-  const compact = $(".cp-steps-compact", flow);
-  // Focus follows a change of step, so a screen reader lands on the new
-  // one; the first step on load takes none.
-  const show = (i, moved = true) => {
-    flow.dataset.current = String(i);
-    steps.forEach((s, k) => (s.hidden = k !== i));
-    marks.forEach((m, k) => {
-      const name = m.dataset.name;
-      m.dataset.state = k < i ? "done" : k === i ? "current" : "todo";
-      if (k < i) m.replaceChildren(el("a", { href: "#setup", "data-go": String(k), text: name }), el("span", { class: "cp-visually-hidden", text: ", done" }));
-      else m.replaceChildren(name, ...(k === i ? [el("span", { class: "cp-visually-hidden", text: " (current step)" })] : []));
-      if (k === i) m.setAttribute("aria-current", "step");
-      else m.removeAttribute("aria-current");
-    });
-    title.textContent = `Step ${i + 1} of ${steps.length}: ${steps[i].dataset.title}`;
-    compact.textContent = `Step ${i + 1} of ${steps.length}`;
-    if (moved) title.focus();
-  };
-  flow.addEventListener("click", (e) => {
-    const go = e.target.closest("[data-go]");
-    if (go) {
-      e.preventDefault();
-      return show(Number(go.dataset.go));
-    }
-    const at = Number(flow.dataset.current);
-    if (e.target.closest("[data-next]")) {
-      if (at === steps.length - 1) {
-        sparkle(e.target.closest("button"), 8);
-        $(".label", e.target.closest("button")).textContent = "All set";
-        return;
-      }
-      show(at + 1);
-    }
-    if (e.target.closest("[data-back]")) show(Math.max(0, at - 1));
-  });
-  show(Number(flow.dataset.current ?? 0), false);
-}
-
-// --------------------------------------------------------------- search
-// Results narrow as you type, after a short pause that shows the loader;
-// the matched words are marked; facets and tokens narrow further.
-const results = $("#results");
-if (results) {
-  const all = $$(".g-result", results);
-  const box = $("[data-tokens='search']");
-  const input = $("input", box);
-  const glass = $(".cp-icon", box);
-  const loader = el("span", { class: "loader load-twirl", "aria-hidden": "true" }, el("span"));
-  const busy = {
-    set hidden(h) {
-      if (h) loader.replaceWith(glass);
-      else if (glass.isConnected) glass.replaceWith(loader);
-    },
-  };
-  const none = $("#no-results");
-  const meta = $("#result-count");
-  const facets = $$("[data-facet]");
-  const plain = new Map(all.map((r) => [r, [...r.childNodes].map((n) => n.cloneNode(true))]));
-  let timer = 0;
-  const words = () => [...$$(".cp-token", box).map((t) => t.dataset.value), input.value].map((w) => w.trim().toLowerCase()).filter(Boolean);
-  const run = () => {
-    const ws = words();
-    const on = facets.filter((f) => f.getAttribute("aria-pressed") === "true").map((f) => f.dataset.facet);
-    let shown = 0;
-    all.forEach((r) => {
-      r.replaceChildren(...plain.get(r).map((n) => n.cloneNode(true)));
-      const text = r.textContent.toLowerCase();
-      const hit = ws.every((w) => text.includes(w)) && (on.length === 0 || on.includes(r.dataset.kind));
-      r.hidden = !hit;
-      if (hit) {
-        r.style.setProperty("--i", String(shown++));
-        if (ws.length) markWords(r, ws);
-      }
-    });
-    busy.hidden = true;
-    results.removeAttribute("aria-busy");
-    none.hidden = shown > 0;
-    meta.textContent = `${shown} result${shown === 1 ? "" : "s"}`;
-  };
-  const later = () => {
-    clearTimeout(timer);
-    busy.hidden = false;
-    results.setAttribute("aria-busy", "true");
-    timer = setTimeout(run, 350);
-  };
-  input.addEventListener("input", later);
-  box.addEventListener("tokens", later);
-  for (const f of facets) f.addEventListener("click", () => setTimeout(later));
-  $("#clear-search")?.addEventListener("click", () => {
-    for (const t of $$(".cp-token", box)) t.remove();
-    input.value = "";
-    for (const f of facets) f.setAttribute("aria-pressed", "false");
-    later();
-  });
-  run();
-}
-function markWords(node, words) {
-  const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
-  const texts = [];
-  while (walker.nextNode()) texts.push(walker.currentNode);
-  const re = new RegExp(`(${words.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})`, "gi");
-  for (const t of texts) {
-    if (!re.test(t.data)) continue;
-    re.lastIndex = 0;
-    const frag = document.createDocumentFragment();
-    let last = 0;
-    for (const m of t.data.matchAll(re)) {
-      frag.append(t.data.slice(last, m.index), el("mark", { text: m[0] }));
-      last = m.index + m[0].length;
-    }
-    frag.append(t.data.slice(last));
-    t.replaceWith(frag);
-  }
-}
-
 // ---------------------------------------------------------- foundations
 for (const host of $$("[data-ladder]")) {
   for (const fam of host.dataset.ladder.split(" ")) {
@@ -805,7 +680,8 @@ for (const form of $$("form[data-settings]")) {
     const set = new Set();
     for (const f of $$("input, select, textarea", form)) {
       if (!f.name || f.name.startsWith("g-")) continue;
-      const was = f.type === "checkbox" || f.type === "radio" ? f.defaultChecked : f.defaultValue;
+      // A select has no defaultValue: its saved choice is the option marked selected.
+      const was = f.type === "checkbox" || f.type === "radio" ? f.defaultChecked : f.tagName === "SELECT" ? ([...f.options].find((o) => o.defaultSelected) ?? f.options[0])?.value : f.defaultValue;
       const now = f.type === "checkbox" || f.type === "radio" ? f.checked : f.value;
       if (was !== now) set.add(f.closest("section")?.id);
     }
@@ -847,6 +723,7 @@ for (const form of $$("form[data-settings]")) {
       summary.hidden = true;
       for (const f of $$("input, select, textarea", form)) {
         if (f.type === "checkbox" || f.type === "radio") f.defaultChecked = f.checked;
+        else if (f.tagName === "SELECT") for (const o of f.options) o.defaultSelected = o.selected;
         else f.defaultValue = f.value;
       }
       setTimeout(mark, 0);

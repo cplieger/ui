@@ -98,6 +98,12 @@
   text-align: end;
 }
 
+/* In a setting row, which sizes its control to its content, the slider
+ * keeps room to drag, and wraps under the words when the row is narrower. */
+.cp-setting > .cp-range-row {
+  min-inline-size: 14rem;
+}
+
 .cp-range-tip {
   position: absolute;
   inset-block-end: calc(100% + 0.25rem);

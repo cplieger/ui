@@ -1,25 +1,27 @@
-<main class="play">
-  <div class="g-search-head">
-    <h1>Search</h1>
-    <div class="cp-tokens" data-tokens="search"><span class="cp-icon" data-cp-icon="search" aria-hidden="true"></span><input aria-label="Search the library and releases" placeholder="Search titles, groups and files" autofocus></div>
-    <div class="g-search-meta">
-      <div class="cp-cluster" data-gap="tight" role="group" aria-label="Show only">
-        <button class="cp-filter-chip" type="button" aria-pressed="false" data-facet="tv"><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Series</button>
-        <button class="cp-filter-chip" type="button" aria-pressed="false" data-facet="film"><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Films</button>
-        <button class="cp-filter-chip" type="button" aria-pressed="false" data-facet="release"><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Releases</button>
+<main class="cp-main" id="main" tabindex="-1" data-new>
+  <div class="cp-stack">
+    <div class="cp-heading-row">
+      <div>
+        <h1 tabindex="-1">Search</h1>
+        <p class="cp-meta" role="status" id="result-count"></p>
       </div>
-      <span role="status"><span id="result-count"></span></span>
     </div>
+    <div class="cp-tokens" id="search-terms"><span class="cp-icon" data-cp-icon="search" aria-hidden="true"></span><input aria-label="Search the library and releases" placeholder="Search titles, groups and files" autofocus></div>
+    <div class="cp-cluster" data-gap="tight" role="group" aria-label="Show only">
+      <button class="cp-filter-chip" type="button" aria-pressed="false" data-facet="tv"><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Series</button>
+      <button class="cp-filter-chip" type="button" aria-pressed="false" data-facet="film"><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Films</button>
+      <button class="cp-filter-chip" type="button" aria-pressed="false" data-facet="release"><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Releases</button>
+    </div>
+    <ul class="cp-list" id="results" aria-label="Results">
+      <li data-kind="tv"><a class="cp-list-row" href="#"><span class="cp-icon" data-cp-icon="tv" aria-hidden="true"></span><span class="cp-cell-stack"><span>Frieren: Beyond Journey's End</span><small>Series, 2023, 28 episodes. On the best release, Arid's BD remux with dual audio.</small></span></a></li>
+      <li data-kind="tv"><a class="cp-list-row" href="#"><span class="cp-icon" data-cp-icon="tv" aria-hidden="true"></span><span class="cp-cell-stack"><span>Delicious in Dungeon</span><small>Series, 2024, 24 episodes. Not the best: Okay-Subs has a better encode.</small></span></a></li>
+      <li data-kind="tv"><a class="cp-list-row" href="#"><span class="cp-icon" data-cp-icon="tv" aria-hidden="true"></span><span class="cp-cell-stack"><span>Mushishi</span><small>Series, 2005, 26 episodes. On an alt release by Beatrice-Raws.</small></span></a></li>
+      <li data-kind="film"><a class="cp-list-row" href="#"><span class="cp-icon" data-cp-icon="film" aria-hidden="true"></span><span class="cp-cell-stack"><span>The Boy and the Heron</span><small>Film, 2023. On the best release, the BD remux.</small></span></a></li>
+      <li data-kind="film"><a class="cp-list-row" href="#"><span class="cp-icon" data-cp-icon="film" aria-hidden="true"></span><span class="cp-cell-stack"><span>Spirited Away</span><small>Film, 2001. Missing from the library folder.</small></span></a></li>
+      <li data-kind="release"><a class="cp-list-row" href="#"><span class="cp-icon" data-cp-icon="package-open" aria-hidden="true"></span><span class="cp-cell-stack"><span>[Arid] Frieren S01 (BD 1080p, dual audio)</span><small>Release, 31.4 GB, 412 seeders. SeaDex's best for Frieren.</small></span></a></li>
+      <li data-kind="release"><a class="cp-list-row" href="#"><span class="cp-icon" data-cp-icon="package-open" aria-hidden="true"></span><span class="cp-cell-stack"><span>[Okay-Subs] Dungeon Meshi (BD 1080p)</span><small>Release, 33.0 GB, 96 seeders. Better than the copy in the library.</small></span></a></li>
+      <li data-kind="release"><a class="cp-list-row" href="#"><span class="cp-icon" data-cp-icon="package-open" aria-hidden="true"></span><span class="cp-cell-stack"><span>[Kametsu] Mushishi (BD 1080p, dual audio)</span><small>Release, 44.8 GB, 31 seeders. An alt for Mushishi.</small></span></a></li>
+    </ul>
+    <div class="cp-empty" id="no-results" hidden><span class="cp-icon" data-cp-icon="telescope" aria-hidden="true"></span><strong>Nothing matches</strong><span>Try fewer words, or clear the filters.</span><button class="cp-button" type="button" id="clear-search">Clear the search</button></div>
   </div>
-  <div class="g-results" id="results" aria-live="polite">
-    <article class="g-result" data-kind="tv"><h3>Frieren: Beyond Journey's End</h3><p>Series, 2023, 28 episodes. On the best release, Arid's BD remux with dual audio.</p></article>
-    <article class="g-result" data-kind="tv"><h3>Delicious in Dungeon</h3><p>Series, 2024, 24 episodes. Not the best: Okay-Subs has a better encode.</p></article>
-    <article class="g-result" data-kind="tv"><h3>Mushishi</h3><p>Series, 2005, 26 episodes. On an alt release by Beatrice-Raws.</p></article>
-    <article class="g-result" data-kind="film"><h3>The Boy and the Heron</h3><p>Film, 2023. On the best release, the BD remux.</p></article>
-    <article class="g-result" data-kind="film"><h3>Spirited Away</h3><p>Film, 2001. Missing from the library folder.</p></article>
-    <article class="g-result" data-kind="release"><h3>[Arid] Frieren S01 (BD 1080p, dual audio)</h3><p>Release, 31.4 GB, 412 seeders. SeaDex's best for Frieren.</p></article>
-    <article class="g-result" data-kind="release"><h3>[Okay-Subs] Dungeon Meshi (BD 1080p)</h3><p>Release, 33.0 GB, 96 seeders. Better than the copy in the library.</p></article>
-    <article class="g-result" data-kind="release"><h3>[Kametsu] Mushishi (BD 1080p, dual audio)</h3><p>Release, 44.8 GB, 31 seeders. An alt for Mushishi.</p></article>
-  </div>
-  <div class="cp-empty" id="no-results" hidden><span class="cp-icon" data-cp-icon="telescope" aria-hidden="true"></span><strong>Nothing matches</strong><span>Try fewer words, or clear the filters.</span><button class="cp-button" type="button" id="clear-search">Clear the search</button></div>
 </main>

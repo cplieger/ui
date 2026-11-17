@@ -81,7 +81,8 @@
     "./icons/svg/*": "./icons/svg/*",
     "./icons/marks/*": "./icons/marks/*",
     "./fonts/*": "./fonts/*",
-    "./css/system": "./css/system.css"
+    "./css/system": "./css/system.css",
+    "./templates/*": "./templates/*"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json && tsc -p gallery/tsconfig.json",
@@ -133,6 +134,7 @@
     "css/",
     "icons/",
     "fonts/",
+    "templates/",
     "jsr.json",
     "LICENSE",
     "NOTICE",

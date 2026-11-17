@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en" class="cp">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Accounts unavailable · Release tracker</title>
+    <link rel="stylesheet" href="../css/system.css">
+  </head>
+  <body>
+    <main class="cp-gate">
+      <!-- region: brand: the app's mark and name; a logo goes in the mark as one img with alt="" -->
+      <div class="cp-wordmark">
+        <span class="cp-mark" aria-hidden="true">R</span>Release tracker
+      </div>
+      <!-- region: panel: the page served on every path while the accounts file cannot open, filled by the server (the file's path or setting name, the error's sentence, the command lines); no script and no control, so it passes default-src 'none'; style-src 'self'; img-src 'self' data:; font-src 'self' -->
+      <section class="cp-panel" aria-labelledby="message-title">
+        <div class="cp-stack">
+          <!-- slot: heading: what happened, in the app's words -->
+          <h1 id="message-title">Release tracker cannot open its accounts</h1>
+          <!-- slot: notices: a danger .cp-notice saying who is stopped and what keeps running -->
+          <div class="cp-notice" data-tone="danger">
+            <span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span>
+            <div>Nobody can sign in until the accounts file is restored or reset. Everything else keeps running.</div>
+          </div>
+          <!-- slot: facts: each file that cannot open, by its path or its setting's name, with its error in words; where the backups are, when the app has a restore -->
+          <dl class="cp-facts">
+            <dt>Accounts file</dt>
+            <dd><code class="cp-mono">/config/accounts.db</code></dd>
+            <dt>Error</dt>
+            <dd>The file cannot be read.</dd>
+            <dt>Backups</dt>
+            <dd><code class="cp-mono">/config/backups/</code></dd>
+          </dl>
+          <!-- slot: remedies: an ol in .cp-prose, in the order to try them; each command a .cp-code[data-variant="block"] holding its pre alone, which one click selects whole; a warning .cp-notice leads the reset -->
+          <div class="cp-prose">
+            <ol>
+              <li>
+                <div class="cp-stack" data-gap="tight">
+                  <p>Restore the accounts from one of the backups, with its file name in place of <code class="cp-mono">&lt;archive&gt;</code>:</p>
+                  <div class="cp-code" data-variant="block">
+                    <pre tabindex="0"><code>docker exec release-tracker release-tracker accounts restore &lt;archive&gt;</code></pre>
+                  </div>
+                </div>
+              </li>
+              <li>
+                <div class="cp-stack" data-gap="tight">
+                  <div class="cp-notice" data-tone="warning">
+                    <span class="cp-icon" data-cp-icon="triangle-alert" aria-hidden="true"></span>
+                    <div>A reset deletes every account with its passkeys, sessions and API keys, the sign-in settings and the security log. The library and the settings stay.</div>
+                  </div>
+                  <p>Or start the accounts again, which opens the first-run setup with a new setup token:</p>
+                  <div class="cp-code" data-variant="block">
+                    <pre tabindex="0"><code>docker exec release-tracker release-tracker accounts reset</code></pre>
+                  </div>
+                </div>
+              </li>
+            </ol>
+            <p>Reload this page once the command has finished.</p>
+          </div>
+        </div>
+      </section>
+      <!-- region: foot: the about line, the one line under the panel: the product's version, then its source, licence or docs links -->
+      <p class="cp-meta" data-part="about">
+        <span>Version 3.0.0</span>
+        <a href="https://github.com/example/release-tracker" rel="external">Source<span class="cp-visually-hidden">, opens GitHub</span></a>
+        <a href="https://github.com/example/release-tracker/blob/main/LICENSE" rel="external">Licence<span class="cp-visually-hidden">, opens GitHub</span></a>
+      </p>
+    </main>
+  </body>
+</html>
