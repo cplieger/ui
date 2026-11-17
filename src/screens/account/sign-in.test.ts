@@ -55,6 +55,27 @@ describe("mountSignIn: the panel", () => {
     expect(panel.querySelectorAll("[style]")).toHaveLength(0);
   });
 
+  it("draws single sign-on from the server's offer alone: none with no provider named, a plain name with one", async () => {
+    const passkeyOnly = { setup_required: false, password_login: true, passkeys: true };
+    const off = mount(new Fake(), { state: { ...passkeyOnly, oidc: false } });
+    await drawn(off.panel);
+    expect(off.panel.querySelector("a[href*='/oidc/']")).toBeNull();
+    expect(off.panel.textContent).not.toContain("Continue with");
+    expect(off.panel.querySelectorAll("hr")).toHaveLength(1);
+    off.panel.remove();
+    const passwordOnly = mount(new Fake(), {
+      state: { ...passkeyOnly, passkeys: false, oidc: false },
+    });
+    await drawn(passwordOnly.panel);
+    expect(passwordOnly.panel.querySelector("hr")).toBeNull();
+    passwordOnly.panel.remove();
+    const unnamed = mount(new Fake(), { state: { ...passkeyOnly, oidc: true } });
+    await drawn(unnamed.panel);
+    expect(button(unnamed.panel, "Continue with").textContent.trim()).toBe(
+      "Continue with single sign-on",
+    );
+  });
+
   it("draws its glyphs from the system's icon list, with no rule of its own", async () => {
     const { panel } = mount();
     await drawn(panel);

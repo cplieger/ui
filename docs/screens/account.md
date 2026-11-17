@@ -43,7 +43,7 @@ A gate screen fills the panel of the [gate page](../design-account.md#the-gate-p
 ## Options every screen takes
 
 - `client` and `access`, as above, and `app`, the app's name, for words such as "Set up Release tracker" and "Open Release tracker over HTTPS".
-- `provider`, the single sign-on provider's name for "Continue with Authelia". Default "single sign-on".
+- `provider`, the single sign-on provider's name for "Continue with Authelia". Default "single sign-on". It only names the button: the server's `oidc` decides whether there is one.
 - `words`, any of the screen's words, the words for each answer's code and reason included (below).
 - `run`, the runner each write goes through. Default: the call runs as it is.
 - `parts`, the route groups the app mounts. Default: every part. A part left out is absent from every screen, never a disabled control: `"password"`, `"passkeys"`, `"single-sign-on"`, `"pending-link"`, `"setup-passkey"`, `"second-factor"`, `"temporary-password"`, `"profile"`, `"sessions"`, `"session-rename"`, `"keys"`, `"key-rotate"`, `"security-log"`, `"invites"` and `"admin-keys"`. The answers of `state()` and `me()` turn a mounted part off at run time.
