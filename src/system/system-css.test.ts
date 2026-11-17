@@ -49,7 +49,7 @@ afterEach(async () => {
   root.classList.remove("cp");
   root.removeAttribute("data-theme");
   root.removeAttribute("data-pointer");
-  for (const p of ["--cp-accent-h", "--cp-accent-c"]) {
+  for (const p of ["--cp-accent-h", "--cp-accent-c", "--cp-success-h"]) {
     root.style.removeProperty(p);
   }
 });
@@ -228,6 +228,38 @@ describe("css/system.css harmony colours", () => {
             ).toBeGreaterThanOrEqual(7);
           }
         }
+      },
+    );
+  }
+});
+
+describe("done fill", () => {
+  // The success seed's hue is the app's to set.
+  const inks = (): number[] => {
+    const out: number[] = [];
+    for (let hue = 0; hue < 360; hue += 15) {
+      root.style.setProperty("--cp-success-h", String(hue));
+      const el = host("");
+      el.style.color = "oklch(100% 0 0deg)";
+      el.style.backgroundColor = "var(--cp-done-fill)";
+      const cs = getComputedStyle(el);
+      out.push(contrast(cs.color, cs.backgroundColor));
+    }
+    return out;
+  };
+
+  for (const t of ["light", "dark"] as const) {
+    it(`inks white words on the done fill at 4.5:1 or more in ${t}, at every success hue`, () => {
+      theme(t);
+      expect(Math.min(...inks())).toBeGreaterThanOrEqual(4.5);
+    });
+
+    it.skipIf(!emulates)(
+      `inks white words on the done fill at 7:1 or more with more contrast in ${t}, at every success hue`,
+      async () => {
+        theme(t);
+        await media("prefers-contrast", "more");
+        expect(Math.min(...inks())).toBeGreaterThanOrEqual(7);
       },
     );
   }

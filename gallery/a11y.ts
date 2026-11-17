@@ -1,4 +1,4 @@
-import { readFile, readdir } from "node:fs/promises";
+import { readdir } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { join, resolve } from "node:path";
 
@@ -174,15 +174,10 @@ type How = "click" | "keys" | "hover" | "script" | "none";
 /** Whether an overlay opened, stayed shut, or has nothing on its page to open it. */
 type Shown = "open" | "shut" | "absent";
 
-interface Node {
-  readonly target: string;
-  /** Which of the selectors `check` was given match this node. */
-  readonly matches: readonly number[];
-}
-
 interface Found {
   readonly id: string;
-  readonly nodes: readonly Node[];
+  /** Each failing node's target, frames joined by ` >> `. */
+  readonly nodes: readonly string[];
 }
 
 interface Run {
@@ -198,130 +193,35 @@ function label(state: State): string {
 
 type Engine = "chromium" | "firefox" | "webkit";
 
-/** One entry of gallery/a11y-pending.json: a violation already present when
- *  the check was added, on an element being rebuilt. */
-interface Pending {
-  readonly rule: string;
-  readonly pages: readonly string[];
-  readonly selector: string;
-  readonly engines: readonly Engine[];
-  readonly states: readonly string[];
-  readonly element: string;
-}
-
-const strings = (v: unknown): v is string[] =>
-  Array.isArray(v) && v.length > 0 && v.every((x) => typeof x === "string" && x !== "");
-
-/** Reads the pending list, refusing any entry that is not whole. */
-function parsePending(text: string): Pending[] {
-  const data: unknown = JSON.parse(text);
-  if (!Array.isArray(data)) {
-    throw new Error("a11y-pending.json is not a list");
-  }
-  return data.map((entry: unknown, i): Pending => {
-    const e = (typeof entry === "object" && entry !== null ? entry : {}) as Record<string, unknown>;
-    const { rule, pages, selector, engines, states, element } = e;
-    if (
-      typeof rule !== "string" ||
-      ![...EVERY, ...CONTRAST_MORE].includes(rule) ||
-      !strings(pages) ||
-      typeof selector !== "string" ||
-      selector === "" ||
-      !strings(engines) ||
-      !engines.every((x) => x in ENGINES) ||
-      !strings(states) ||
-      typeof element !== "string" ||
-      element === "" ||
-      Object.keys(e).length !== 6
-    ) {
-      throw new Error(`a11y-pending.json entry ${String(i)} is not a whole entry`);
-    }
-    return { rule, pages, selector, engines: engines as Engine[], states, element };
-  });
-}
-
-const PENDING = parsePending(
-  await readFile(join(import.meta.dirname, "a11y-pending.json"), "utf8"),
-);
-
-/** Every failure, keyed by rule and state, and what goes to the annotations.
- *  A node the pending list names is no failure, and an entry that matched
- *  nothing in a state the pass owns fails at `finish`. */
+/** Every failure, keyed by rule and state, and what goes to the annotations. */
 class Report {
   readonly failed: Record<string, string[]> = {};
   private readonly review = new Map<string, Set<string>>();
   private readonly scripted: string[] = [];
   private readonly notes: string[] = [];
-  private readonly hit = new Set<string>();
-  private readonly ran = new Set<string>();
-  /** The pending entries for this page and engine. */
-  private readonly entries: readonly Pending[];
-  /** The selectors `check` matches each node against, one per entry. */
-  readonly selectors: readonly string[];
-
-  constructor(page: string, engine: Engine, pending: readonly Pending[]) {
-    this.entries = pending.filter((p) => p.pages.includes(page) && p.engines.includes(engine));
-    this.selectors = this.entries.map((p) => p.selector);
-  }
 
   fail(key: string, nodes: readonly string[] = []): void {
     (this.failed[key] ??= []).push(...nodes);
   }
 
-  /** The nodes of `found` no pending entry names at `at`. */
-  private unlisted(found: Found, at: string): string[] {
-    return found.nodes
-      .filter((node) => {
-        const listed = node.matches.filter((i) => {
-          const p = this.entries[i];
-          return p?.rule === found.id && p.states.includes(at);
-        });
-        for (const i of listed) {
-          this.hit.add(`${String(i)} ${at}`);
-        }
-        return listed.length === 0;
-      })
-      .map((node) => node.target);
-  }
-
   add(run: Run, at: string): void {
-    this.ran.add(at);
     if (run.passes === 0) {
       this.fail(`no rule passed, ${at}`);
     }
     for (const v of run.violations) {
-      const nodes = this.unlisted(v, at);
-      if (nodes.length > 0) {
-        this.fail(`${v.id}, ${at}`, nodes);
-      }
+      this.fail(`${v.id}, ${at}`, v.nodes);
     }
     for (const i of run.incomplete) {
       if (REVIEW_FAILS.includes(i.id)) {
-        const nodes = this.unlisted(i, at);
-        if (nodes.length > 0) {
-          this.fail(`${i.id} needs review, ${at}`, nodes);
-        }
+        this.fail(`${i.id} needs review, ${at}`, i.nodes);
         continue;
       }
       const nodes = this.review.get(i.id) ?? new Set();
       this.review.set(i.id, nodes);
       for (const node of i.nodes) {
-        nodes.add(`${at}: ${node.target}`);
+        nodes.add(`${at}: ${node}`);
       }
     }
-  }
-
-  /** Fails each entry state `owns` claims that matched nothing, fixed or
-   *  never reached, so the list only shrinks. */
-  finish(owns: (state: string) => boolean): void {
-    this.entries.forEach((p, i) => {
-      for (const at of p.states.filter(owns)) {
-        if (!this.hit.has(`${String(i)} ${at}`)) {
-          const why = this.ran.has(at) ? "fixed" : "never reached";
-          this.fail(`${why}, so delete it from a11y-pending.json: ${p.rule} ${p.selector}, ${at}`);
-        }
-      }
-    });
   }
 
   /** Records an overlay opened by script, which has no control to open it by. */
@@ -401,12 +301,10 @@ async function open(browser: Browser, url: string, state: State): Promise<Page> 
   return tab;
 }
 
-/** Runs `rules` over the page and every frame in it, or over `scope` alone,
- *  and tells which of `selectors` each failing node matches. */
+/** Runs `rules` over the page and every frame in it, or over `scope` alone. */
 async function check(
   tab: Page,
   rules: readonly string[],
-  selectors: readonly string[],
   scope?: JSHandle<Element[]>,
 ): Promise<Run> {
   for (const frame of tab.frames()) {
@@ -415,7 +313,7 @@ async function check(
     }
   }
   return tab.evaluate(
-    async ([values, sels, within]) => {
+    async ([values, within]) => {
       const { axe } = window as unknown as { axe: typeof Axe };
       // A frame axe cannot reach would otherwise pass as needs review.
       axe.configure({ checks: [{ id: "frame-tested", options: { isViolation: true } }] });
@@ -423,26 +321,10 @@ async function check(
         runOnly: { type: "rule", values: [...values] },
         resultTypes: ["violations", "incomplete"],
       });
-      // A target lists the frames down to the node, each by its selector.
-      const resolve = (target: Axe.UnlabelledFrameSelector): Element | null => {
-        let doc: Document | null = document;
-        let el: Element | null = null;
-        for (const sel of target) {
-          el = doc?.querySelector(String(sel)) ?? null;
-          doc = el instanceof HTMLIFrameElement ? el.contentDocument : null;
-        }
-        return el;
-      };
       const found = (list: Axe.Result[]): Found[] =>
         list.map((r) => ({
           id: r.id,
-          nodes: r.nodes.map((n) => {
-            const el = resolve(n.target);
-            return {
-              target: n.target.map(String).join(" >> "),
-              matches: sels.flatMap((sel, i) => (el?.matches(sel) === true ? [i] : [])),
-            };
-          }),
+          nodes: r.nodes.map((n) => n.target.map(String).join(" >> ")),
         }));
       return {
         passes: result.passes.length,
@@ -450,25 +332,22 @@ async function check(
         incomplete: found(result.incomplete),
       };
     },
-    [rules, selectors, scope] as const,
+    [rules, scope] as const,
   );
 }
 
-/** One test's work on a page: the states it checks, each labelled as
- *  `owns` recognises, so the pending list's entries for them are judged. */
+/** One test's work on a page. */
 interface Pass {
   readonly name: string;
-  readonly owns: (state: string) => boolean;
   readonly run: (browser: Browser, url: string, report: Report) => Promise<void>;
 }
 
 const statePass = (state: State): Pass => ({
   name: label(state),
-  owns: (at) => at === label(state),
   run: async (browser, url, report) => {
     const tab = await open(browser, url, state);
     report.add(
-      await check(tab, state.contrast === undefined ? EVERY : CONTRAST_MORE, report.selectors),
+      await check(tab, state.contrast === undefined ? EVERY : CONTRAST_MORE),
       label(state),
     );
     await tab.close();
@@ -480,7 +359,6 @@ const DETAILS = `${label(LIGHT_WIDE)} details open`;
 /** Each round of the page's closed `details` opened. */
 const detailsPass: Pass = {
   name: DETAILS,
-  owns: (at) => at === DETAILS,
   run: async (browser, url, report) => {
     const tab = await open(browser, url, LIGHT_WIDE);
     // Opening one `details` of a name group closes the others, so the n-th
@@ -505,7 +383,7 @@ const detailsPass: Pass = {
         return round.filter((d) => !round.some((o) => o !== d && o.contains(d)));
       }, n);
       await settle(tab);
-      report.add(await check(tab, EVERY, report.selectors, opened), DETAILS);
+      report.add(await check(tab, EVERY, opened), DETAILS);
     }
     await tab.close();
   },
@@ -648,7 +526,7 @@ async function overlayStates(
     if (await overlay.evaluate(isOpen)) {
       opened++;
       report.add(
-        await check(tab, EVERY, report.selectors, await overlay.evaluateHandle((o) => [o])),
+        await check(tab, EVERY, await overlay.evaluateHandle((o) => [o])),
         `${at} ${name} open at rest`,
       );
       continue;
@@ -660,7 +538,7 @@ async function overlayStates(
       opened++;
       await settle(tab);
       report.add(
-        await check(tab, EVERY, report.selectors, await overlay.evaluateHandle((o) => [o])),
+        await check(tab, EVERY, await overlay.evaluateHandle((o) => [o])),
         `${at} ${name} open`,
       );
     } else {
@@ -698,10 +576,7 @@ async function overlayStates(
       report.fail(`${name} opened nothing, ${at}`);
     } else {
       await settle(page);
-      report.add(
-        await check(page, EVERY, report.selectors, made as JSHandle<Element[]>),
-        `${at} after ${name}`,
-      );
+      report.add(await check(page, EVERY, made as JSHandle<Element[]>), `${at} after ${name}`);
     }
     await page.close();
   }
@@ -709,7 +584,6 @@ async function overlayStates(
 
 const overlayPass = (state: State): Pass => ({
   name: `${label(state)} overlays`,
-  owns: (at) => at.startsWith(`${label(state)} overlay `),
   run: (browser, url, report) => overlayStates(browser, url, report, state),
 });
 
@@ -777,10 +651,8 @@ export function describeAxe(
         if (work === undefined) {
           throw new Error(`no pass ${pass}`);
         }
-        const path = `${group.path}/${page}`;
-        const report = new Report(path.slice(1), engine, PENDING);
-        await work.run(launched(), `${served?.origin ?? ""}${path}.html`, report);
-        report.finish(work.owns);
+        const report = new Report();
+        await work.run(launched(), `${served?.origin ?? ""}${group.path}/${page}.html`, report);
         await report.annotate(annotate);
         expect(report.failed).toEqual({});
       });
@@ -826,15 +698,13 @@ export const OVERLAYS: readonly Pages[] = [
 ];
 
 const PAGE = '<!DOCTYPE html><html lang="en"><title>Check</title><main><h1>Check</h1>';
-const STATE = /^(light|dark) (1440|390)( .+)?$/;
 
-/** Proves the rule lists match the pinned axe, that axe runs at all, and
- *  that the pending list holds its rules. */
+/** Proves the rule lists match the pinned axe and that axe runs at all. */
 export function selfTest(browser: () => Browser): void {
   it("has every rule of the pinned axe ruled once, and finds a button with no name", async () => {
     const tab = await browser().newPage();
     await tab.setContent(`${PAGE}<button></button></main></html>`);
-    const run = await check(tab, EVERY, []);
+    const run = await check(tab, EVERY);
     const rules = await tab.evaluate(() =>
       (window as unknown as { axe: typeof Axe }).axe.getRules().map((r) => r.ruleId),
     );
@@ -844,54 +714,5 @@ export function selfTest(browser: () => Browser): void {
     expect(rules.toSorted()).toEqual(ruled.toSorted());
     expect(REVIEW_FAILS.filter((id) => !EVERY.includes(id))).toEqual([]);
     expect(run.violations.map((v) => v.id)).toEqual(["button-name"]);
-  });
-
-  it("names only real pages, states and selectors in the pending list, each entry once", async () => {
-    const pages = [...GALLERY, ...REFERENCE.map((r) => `docs/system/${r}`)];
-    const tab = await browser().newPage();
-    const bad = await tab.evaluate(
-      (sels) =>
-        sels.filter((sel) => {
-          try {
-            document.querySelector(sel);
-            return false;
-          } catch {
-            return true;
-          }
-        }),
-      PENDING.map((p) => p.selector),
-    );
-    await tab.close();
-    expect(bad).toEqual([]);
-    expect(PENDING.flatMap((p) => p.pages).filter((page) => !pages.includes(page))).toEqual([]);
-    expect(PENDING.flatMap((p) => p.states).filter((at) => !STATE.test(at))).toEqual([]);
-    const keys = PENDING.map((p) => `${p.rule} ${p.selector} ${p.element}`);
-    expect(new Set(keys).size).toBe(keys.length);
-  });
-
-  it("passes a listed violation, fails an unlisted one, and fails an entry that no longer fails", async () => {
-    const entry = (selector: string, states: string[]): Pending => ({
-      rule: "button-name",
-      pages: ["check"],
-      selector,
-      engines: ["chromium", "firefox", "webkit"],
-      states,
-      element: "check",
-    });
-    const engine = browser().browserType().name() as Engine;
-    const tab = await browser().newPage();
-    await tab.setContent(`${PAGE}<button id="a"></button><button id="b"></button></main></html>`);
-    const report = new Report("check", engine, [
-      entry("#a", ["light 1440"]),
-      entry("#gone", ["light 1440", "dark 1440", "light 1440 overlay #menu open"]),
-    ]);
-    report.add(await check(tab, ["button-name", "document-title"], report.selectors), "light 1440");
-    await tab.close();
-    report.finish((at) => !at.includes(" overlay "));
-    expect(report.failed).toEqual({
-      "button-name, light 1440": ["#b"],
-      "fixed, so delete it from a11y-pending.json: button-name #gone, light 1440": [],
-      "never reached, so delete it from a11y-pending.json: button-name #gone, dark 1440": [],
-    });
   });
 }

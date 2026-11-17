@@ -57,6 +57,14 @@ describe("notice", () => {
     expect(box.color).toBe(resolved("var(--cp-warning-12)"));
   });
 
+  it("gives each link of an error summary a 24px row, so lines of links keep their spacing", () => {
+    const el = build(
+      `<div class="cp-notice" data-tone="danger" role="alert"><span><strong>Two fields need a fix.</strong><ul><li><a href="#a">API key</a></li><li><a href="#b">Check every</a></li></ul></span></div>`,
+    );
+    const [first, second] = [...el.querySelectorAll("a")].map((a) => a.getBoundingClientRect());
+    expect(first && second && second.top - first.top).toBeGreaterThanOrEqual(24);
+  });
+
   it("keeps a notice's own drawing apart from the banner's", () => {
     const el = build(
       `<div class="cp-notice" data-tone="warning"><span class="cp-icon"></span><span>Rate limited.</span></div>` +

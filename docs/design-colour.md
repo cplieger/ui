@@ -45,7 +45,7 @@ App CSS reads role names, and the component classes read a tone's steps. The rol
 - Accent: `--cp-accent`, `--cp-accent-hover`, `--cp-on-accent`, `--cp-accent-ink`, `--cp-accent-wash`, `--cp-focus-ring`.
 - Brand and header: `--cp-brand`, `--cp-on-brand`, `--cp-shell-bg`, `--cp-shell-ink`, `--cp-shell-current`, `--cp-shell-hover`.
 - Overlays: `--cp-backdrop`, `--cp-shadow-overlay`.
-- Confirmation: `--cp-done-fill`, the green a button fills with as it confirms, dark enough for white words in both themes.
+- Confirmation: `--cp-done-fill`, the green a button fills with as it confirms, dark enough for white words in both themes, and darker under `prefers-contrast: more`, where they clear 7:1.
 
 Ink on a solid fill is `contrast-color()` of that fill, so it is black or white, whichever has more contrast. In the light theme every solid is dark enough for white ink: step 9 sits at 54.8%, and greens and teals, the brightest hues at a given lightness, sit up to 2.4% lower. The three engines choose by the WCAG 2 ratio today, which the CSS specification leaves to the browser. A hover on a solid moves away from its ink, so the contrast rises when the pointer arrives.
 
@@ -68,6 +68,7 @@ The stylesheet owns lightness, and a test checks every hue at every chroma in th
 | a boundary on steps 1 to 3 | 3:1 | 4.5:1 |
 | ink on a solid fill, at rest and on hover | 4.5:1 | 7:1 |
 | ink on a harmony colour | 4.5:1 | 7:1 |
+| white words on the done fill | 4.5:1 | 7:1 |
 | header text on the header | 4.5:1 | 7:1 |
 
 WCAG 2.2 is the floor. APCA scores can help compare two candidate seeds, but they never replace it.

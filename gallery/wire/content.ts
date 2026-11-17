@@ -123,7 +123,7 @@ const TEXTS = new Map<string, string>([
   ]),
 ]);
 
-const LIVE = `## Paste an answer here
+const LIVE = `# Paste an answer here
 
 It renders **as you type**, with \`inline code\`, [links](https://example.com) and:
 

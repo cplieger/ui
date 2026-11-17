@@ -1915,18 +1915,9 @@ Contrast uses the WCAG 2 ratios: 4.5:1 for text, 3:1 for large text, boundaries 
 
 Of axe 4.13.0's 105 rules, 100 run in every state, 1 runs only under `prefers-contrast: more`, and 4 do not run: `aria-roledescription`, `audio-caption`, `hidden-content` and `landmark-complementary-is-top-level`. The [table of rules](#axe-rules) gives the reason for each.
 
-### The pending list
+### No tolerated violations
 
-`gallery/a11y-pending.json` lists the violations that were already present on elements that are being rebuilt when the check was added. The check holds the list to four rules:
-
-1. Each entry names the rule, the page, a selector for the failing node, the engines and states where it fails, and the element it belongs to.
-2. An entry that no longer fails in a state it lists fails the check, and so does one naming a state the check never reaches, so the fix and the entry's removal land together.
-3. A violation the list does not name fails the check, so a new card or change must be clean.
-4. A pull request that adds an entry is refused in review.
-
-The check's own tests prove these rules on a test page: a listed violation passes, an unlisted one fails, and an entry that matches nothing fails.
-
-When the list is empty, the file and the code that reads it are deleted.
+The check has no list of tolerated violations, for any element or page. It lands with none, and a change that brings one fails until it is fixed. A rule leaves the check only by a ruling in the [table of rules](#axe-rules), which applies to every page.
 
 ### Checks by hand
 

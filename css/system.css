@@ -2348,7 +2348,8 @@
   --cp-accent-ink: var(--cp-accent-11);
   --cp-accent-wash: var(--cp-accent-3);
   --cp-selected: var(--cp-accent-4);
-  /* A done fill: a green dark enough for white words in both themes, about 5:1. */
+  /* A done fill: a green dark enough for white words in both themes, about
+   * 5:1. */
   --cp-done-fill: oklch(from var(--cp-success-9) min(l, 0.52) c h);
   --cp-focus-ring: var(--cp-accent-9);
   --cp-selection-bg: var(--cp-accent-5);
@@ -2388,6 +2389,14 @@
     var(--cp-shell-bg),
     contrast-color(var(--cp-shell-ink)) 12%
   );
+}
+
+/* At the more ladder's step 9 lightness, white words on the done fill clear
+ * 7:1 in both themes. */
+@media (prefers-contrast: more) {
+  :root {
+    --cp-done-fill: oklch(from var(--cp-success-9) min(l, 0.43) c h);
+  }
 }
 
 /* Type: one family for text, its mono for machine text (file and release
@@ -8491,10 +8500,16 @@ div.cp-list-foot {
   }
 }
 
-/* A list inside a notice, such as an error summary's links to its fields. */
+/* A list inside a notice, such as an error summary's links to its fields.
+ * Each item is at least 24px tall, so links on consecutive lines keep the
+ * spacing WCAG 2.5.8 asks of targets under 24px. */
 .cp-notice :where(ul, ol) {
   margin: var(--cp-space-1) 0 0;
   padding-inline-start: 1.25em;
+}
+
+.cp-notice :where(ul, ol) > li {
+  min-block-size: 1.5rem;
 }
 
 /* A banner's links keep the accent, so its one way to act reads as a link
