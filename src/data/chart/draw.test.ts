@@ -563,6 +563,18 @@ describe("the page's measures", () => {
     expect(readMetrics(d.plot, "en").row).toBeCloseTo(45.5, 6);
   });
 
+  it("reads them again without changing the tree, so a page of charts restyles once per draw", () => {
+    const d = draw(strip(["a", "b"]));
+    const changes = new MutationObserver(() => undefined);
+    changes.observe(d.figure, { subtree: true, childList: true, attributes: true });
+    const again = readMetrics(d.plot, "en");
+    expect(changes.takeRecords()).toEqual([]);
+    expect(again.row).toBe(24);
+    const height = d.plot.getBoundingClientRect().height;
+    d.plot.replaceChildren(d.svg);
+    expect(d.plot.getBoundingClientRect().height).toBe(height);
+  });
+
   it("reads the group gutters, set in rem, back in px", () => {
     const parent = place(800);
     parent.style.setProperty("--cp-chart-axis-gutter", "8rem");
