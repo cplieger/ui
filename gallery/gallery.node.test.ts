@@ -86,7 +86,7 @@ describe.each(browsers)("the gallery in %s", (name) => {
   });
 
   it.each([...pageNames, ...frameNames])(
-    "loads %s with no error, every icon painted and nothing wider than a phone",
+    "loads %s with no error, every icon painted, nothing wider than a phone and each account button named by its text",
     async (page) => {
       const report: Record<string, unknown> = {};
       for (const width of [1440, 390]) {
@@ -101,8 +101,26 @@ describe.each(browsers)("the gallery in %s", (name) => {
             (i) =>
               getComputedStyle(i).getPropertyValue("--cp-icon-image") === "" && i.checkVisibility(),
           ).length,
+          // WCAG 2.5.3 Label in Name: the text a voice user reads off the
+          // button must be part of its name.
+          misnamed: [...document.querySelectorAll<HTMLElement>(".cp-account")].flatMap((b) => {
+            const shown = b.cloneNode(true) as HTMLElement;
+            shown.querySelectorAll('[aria-hidden="true"]').forEach((n) => {
+              n.remove();
+            });
+            const text = (shown.textContent ?? "").trim();
+            const name = b.getAttribute("aria-label") ?? "";
+            return text === "" || name.toLowerCase().includes(text.toLowerCase())
+              ? []
+              : [`${name} / ${text}`];
+          }),
         }));
-        if (errors.length > 0 || (width === 390 && state.wide) || state.unpainted > 0) {
+        if (
+          errors.length > 0 ||
+          (width === 390 && state.wide) ||
+          state.unpainted > 0 ||
+          state.misnamed.length > 0
+        ) {
           report[String(width)] = { errors, ...state };
         }
         await tab.close();
