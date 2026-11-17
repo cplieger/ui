@@ -5,7 +5,8 @@
  * toast is its dismiss under a pointer. */
 .cp-toaster {
   position: fixed;
-  inset: auto var(--cp-space-4) calc(var(--cp-space-3) + 3.25rem) auto;
+  inset: auto var(--cp-space-4) calc(var(--cp-space-3) + max(3.25rem, var(--cp-nav-inset, 0px)))
+    auto;
   display: grid;
   inline-size: min(24rem, calc(100vw - 2rem));
   margin: 0;

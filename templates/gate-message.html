@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en" class="cp">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Store unavailable · Release tracker</title>
+    <link rel="stylesheet" href="../css/system.css">
+  </head>
+  <body>
+    <main class="cp-gate">
+      <!-- region: brand: the app's mark and name -->
+      <div class="cp-wordmark">
+        <span class="cp-mark" aria-hidden="true">R</span>Release tracker
+      </div>
+      <!-- region: panel: what happened and how to fix it; the page runs no script and holds no control, so it passes default-src 'none'; style-src 'self'; img-src 'self' data:; font-src 'self' -->
+      <section class="cp-panel" aria-labelledby="message-title">
+        <div class="cp-stack">
+          <!-- slot: heading: what happened, in the app's words -->
+          <h1 id="message-title">Release tracker cannot open its store</h1>
+          <!-- slot: notices: a danger .cp-notice naming the class of the error in words -->
+          <div class="cp-notice" data-tone="danger">
+            <span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span>
+            <div>The store file cannot be read.</div>
+          </div>
+          <!-- slot: facts: what the person needs to choose a remedy -->
+          <dl class="cp-facts">
+            <dt>Free space on <code class="cp-mono">/config</code></dt>
+            <dd>1.2 GB</dd>
+            <dt>Store file</dt>
+            <dd>2.4 GB</dd>
+            <dt>Newest backup</dt>
+            <dd><code class="cp-mono">store-2026-11-13.db</code>, <time datetime="2026-11-13T03:00">13 Nov, 03:00</time></dd>
+          </dl>
+          <!-- slot: remedies: an ol in .cp-prose, in the order to try them; each command a .cp-code[data-variant="block"] holding its pre alone, which one click selects whole; a warning .cp-notice leads the remedy that needs it -->
+          <div class="cp-prose">
+            <ol>
+              <li>
+                <div class="cp-stack" data-gap="tight">
+                  <div class="cp-notice" data-tone="warning">
+                    <span class="cp-icon" data-cp-icon="triangle-alert" aria-hidden="true"></span>
+                    <div>Free space is under twice the store's size.</div>
+                  </div>
+                  <p>Free space on <code class="cp-mono">/config</code>, then restart the container.</p>
+                </div>
+              </li>
+              <li>
+                <div class="cp-stack" data-gap="tight">
+                  <p>Restore the newest backup, then restart the container:</p>
+                  <div class="cp-code" data-variant="block">
+                    <pre tabindex="0"><code>docker exec release-tracker release-tracker store restore /config/backups/store-2026-11-13.db</code></pre>
+                  </div>
+                </div>
+              </li>
+              <li>
+                <div class="cp-stack" data-gap="tight">
+                  <p>Or start again with an empty store, then restart the container:</p>
+                  <div class="cp-code" data-variant="block">
+                    <pre tabindex="0"><code>docker exec release-tracker release-tracker store reset</code></pre>
+                  </div>
+                </div>
+              </li>
+            </ol>
+          </div>
+        </div>
+      </section>
+      <!-- region: foot: the about line, the one line under the panel: the product's version, then its source, licence or docs links -->
+      <p class="cp-meta" data-part="about">
+        <span>Version 3.0.0</span>
+        <a href="https://github.com/example/release-tracker" rel="external">Source<span class="cp-visually-hidden">, opens GitHub</span></a>
+        <a href="https://github.com/example/release-tracker/blob/main/LICENSE" rel="external">Licence<span class="cp-visually-hidden">, opens GitHub</span></a>
+      </p>
+    </main>
+  </body>
+</html>

@@ -173,6 +173,18 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* A matched word, such as a search result's. The wash keeps one lightness
+ * whatever the accent, so muted words on it keep 4.5:1 in both themes. */
+:where(.cp) :where(mark) {
+  padding-inline: 0.0625rem;
+  border-radius: 0.1875rem;
+  background: light-dark(
+    oklch(from var(--cp-harmony-3) 91.5% calc(c * 0.5) h),
+    oklch(from var(--cp-harmony-3) 34% calc(c * 0.4) h)
+  );
+  color: inherit;
+}
+
 :where(.cp) ::selection {
   background: var(--cp-selection-bg);
   color: var(--cp-ink);

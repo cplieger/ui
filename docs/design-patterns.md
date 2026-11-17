@@ -265,6 +265,19 @@ First sync running is a `.cp-empty` whose heading starts with a `.cp-loader`, th
 - The current destination carries `aria-current="page"`, or `"true"` when the screen sits inside it, as an item sits inside its library.
 - A screen opens with its `.cp-crumbs`, then a `.cp-heading-row` holding the `<h1>` with its `.cp-meta` line of facts under it, and the screen's `.cp-toolbar` at its end.
 
+**The product's own links.** What the product is, rather than what the screen shows, has one place on every screen: the about line, a `.cp-meta` marked `data-part="about"`. In the app frame it is the status line's last part, which the stylesheet sets at the line's end, and on a gate page it is the one line under the panel, centred. It holds the version first, then the links to the source repository, the licence and the docs, each a link that leaves the app as above. The links keep the line's muted ink until a pointer or the keyboard reaches them, then take the accent, and each keeps the hit area's height.
+
+```html
+<footer class="cp-status">
+  <span>Data as of <time datetime="2026-11-14T14:02">14:02</time></span>
+  <span class="cp-meta" data-part="about">
+    <span>Version 3.0.0</span>
+    <a href="https://github.com/example/release-tracker" rel="external">Source<span class="cp-visually-hidden">, opens GitHub</span></a>
+    <a href="https://github.com/example/release-tracker/blob/main/LICENSE" rel="external">Licence<span class="cp-visually-hidden">, opens GitHub</span></a>
+  </span>
+</footer>
+```
+
 **A page that does not exist.** An address that matches no route opens the not-found page: the app's frame with a `.cp-empty` marked `data-variant="page"` in `.cp-main`. It holds the `telescope` glyph, an `<h1>` that says the page does not exist, one sentence on why the address may be wrong, and a link to the app's start page. The stylesheet draws the glyph with no script. An address that matches a route but names an item the app does not hold, such as an entry the server answers it does not know, is not this page: it stays that item's screen, with its breadcrumbs, and shows a plain `.cp-empty` where the item would be, which says the item is not there, such as "This entry is not in your library", and links to the list it belongs to.
 
 ```html
