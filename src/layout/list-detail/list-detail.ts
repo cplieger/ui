@@ -104,14 +104,19 @@ function land(target: HTMLElement): void {
   }
 }
 
-/** Focuses `el` where it is, then scrolls it in only when none of it is in
- *  the viewport clear of its scroll padding, so a focus ring never lands
+/** Focuses `el` where it is, then reveals it, so a focus ring never lands
  *  where nobody sees it and a ring in view never jumps the page. */
 function refocus(el: HTMLElement | null): void {
   if (el === null) {
     return;
   }
   land(el);
+  reveal(el);
+}
+
+/** Scrolls `el` in only when none of it is in the viewport clear of its
+ *  scroll padding. */
+function reveal(el: HTMLElement): void {
   const r = el.getBoundingClientRect();
   const vh = document.documentElement.clientHeight;
   const vw = document.documentElement.clientWidth;
@@ -434,7 +439,19 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
     } else if (to?.how === "part") {
       reach(to.el);
     } else if (to !== null) {
-      refocus(to.el);
+      const { el } = to;
+      refocus(el);
+      if (current?.hashChange === true) {
+        // WebKit can run the fragment's scroll it queued before the hide
+        // after it, so the page jumps back to the fragment; reveal again
+        // after that task
+        // (https://github.com/WebKit/WebKit/blob/9fea36ebc8f5d9bd116ccdbc2e7130eeb02217b3/Source/WebCore/page/LocalFrameView.cpp#L4757-L4783).
+        setTimeout(() => {
+          if (document.activeElement === el) {
+            reveal(el);
+          }
+        }, 0);
+      }
     }
     fireClose(h.key);
   };
