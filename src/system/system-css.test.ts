@@ -209,6 +209,27 @@ describe("css/system.css harmony colours", () => {
         }
       }
     });
+
+    it.skipIf(!emulates)(
+      `inks every harmony colour at 7:1 or more with more contrast in ${t}`,
+      async () => {
+        theme(t);
+        await media("prefers-contrast", "more");
+        for (let hue = 0; hue < 360; hue += 15) {
+          root.style.setProperty("--cp-accent-h", String(hue));
+          for (const n of [1, 2, 3, 4]) {
+            const el = host("");
+            el.style.color = `var(--cp-harmony-${String(n)}-on)`;
+            el.style.backgroundColor = `var(--cp-harmony-${String(n)})`;
+            const cs = getComputedStyle(el);
+            expect(
+              contrast(cs.color, cs.backgroundColor),
+              `hue ${String(hue)} harmony ${String(n)}`,
+            ).toBeGreaterThanOrEqual(7);
+          }
+        }
+      },
+    );
   }
 });
 

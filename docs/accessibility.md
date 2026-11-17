@@ -1903,7 +1903,7 @@ Contrast uses the WCAG 2 ratios: 4.5:1 for text, 3:1 for large text, boundaries 
 
 ### The axe check
 
-`gallery/a11y.ts` runs axe-core over every gallery page and frame and every reference page in `docs/system/`, in Chromium, Firefox and WebKit. Each engine has two tests: `gallery/a11y-<engine>.node.test.ts` checks the pages and `gallery/a11y-overlays-<engine>.node.test.ts` their overlays. CI runs them with the other tests, split over three jobs (`cplieger.vitestShards` in `package.json`), and any violation fails the pull request.
+`gallery/a11y.ts` runs axe-core over every gallery page and frame and every reference page in `docs/system/`, in Chromium, Firefox and WebKit. Each engine has two test files: `gallery/a11y-<engine>.node.test.ts` checks the pages and `gallery/a11y-overlays-<engine>.node.test.ts` their overlays, one test per page and state. CI runs them with the other tests, split over three jobs (`cplieger.vitestShards` in `package.json`), and any violation fails the pull request.
 
 - axe-core is pinned to 4.13.0 as an exact dev dependency. A bump comes as a dependency update, and the check fails until each rule the new version adds is ruled in the table below.
 - The check selects rules by id, never by tag, so a rule that tests an adopted criterion runs even when axe marks it experimental. It also asserts that the rules it runs and the rules it leaves out together equal `axe.getRules()`.
@@ -1920,9 +1920,11 @@ Of axe 4.13.0's 105 rules, 100 run in every state, 1 runs only under `prefers-co
 `gallery/a11y-pending.json` lists the violations that were already present on elements that are being rebuilt when the check was added. The check holds the list to four rules:
 
 1. Each entry names the rule, the page, a selector for the failing node, the engines and states where it fails, and the element it belongs to.
-2. An entry that no longer fails anywhere it lists fails the check, so the fix and the entry's removal land together.
+2. An entry that no longer fails in a state it lists fails the check, and so does one naming a state the check never reaches, so the fix and the entry's removal land together.
 3. A violation the list does not name fails the check, so a new card or change must be clean.
 4. A pull request that adds an entry is refused in review.
+
+The check's own tests prove these rules on a test page: a listed violation passes, an unlisted one fails, and an entry that matches nothing fails.
 
 When the list is empty, the file and the code that reads it are deleted.
 

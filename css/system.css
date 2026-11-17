@@ -847,6 +847,95 @@
   --cp-harmony-4-on: contrast-color(var(--cp-harmony-4));
 }
 
+@media (prefers-contrast: more) {
+  :root {
+    --cp-harmony-2: light-dark(
+      oklch(
+        calc(
+            0.43 +
+              clamp(
+                0,
+                (
+                    calc(0.5 + 0.32 * pow(max(0, cos((var(--cp-harmony-2-h) - 95) * 1deg)), 4)) -
+                      0.62
+                  ) *
+                  100000,
+                1
+              ) *
+              (
+                max(
+                    calc(0.5 + 0.32 * pow(max(0, cos((var(--cp-harmony-2-h) - 95) * 1deg)), 4)),
+                    0.8
+                  ) -
+                  0.43
+              )
+          )
+          calc(
+            min(
+                calc(var(--cp-accent-c) * 1.2),
+                calc(0.166 - 0.066 * pow(max(0, cos((var(--cp-harmony-2-h) - 200) * 1deg)), 3))
+              ) *
+              0.8
+          )
+          var(--cp-harmony-2-h)
+      ),
+      oklch(
+        max(0.72, calc(0.5 + 0.32 * pow(max(0, cos((var(--cp-harmony-2-h) - 95) * 1deg)), 4)))
+          calc(
+            min(
+                calc(var(--cp-accent-c) * 1.2),
+                calc(0.166 - 0.056 * pow(max(0, cos((var(--cp-harmony-2-h) - 200) * 1deg)), 4))
+              ) *
+              0.8
+          )
+          var(--cp-harmony-2-h)
+      )
+    );
+    --cp-harmony-3: light-dark(
+      oklch(
+        calc(
+            0.43 +
+              clamp(
+                0,
+                (
+                    calc(0.5 + 0.32 * pow(max(0, cos((var(--cp-harmony-3-h) - 95) * 1deg)), 4)) -
+                      0.62
+                  ) *
+                  100000,
+                1
+              ) *
+              (
+                max(
+                    calc(0.5 + 0.32 * pow(max(0, cos((var(--cp-harmony-3-h) - 95) * 1deg)), 4)),
+                    0.8
+                  ) -
+                  0.43
+              )
+          )
+          calc(
+            min(
+                calc(var(--cp-accent-c) * 1.2),
+                calc(0.166 - 0.066 * pow(max(0, cos((var(--cp-harmony-3-h) - 200) * 1deg)), 3))
+              ) *
+              0.8
+          )
+          var(--cp-harmony-3-h)
+      ),
+      oklch(
+        max(0.72, calc(0.5 + 0.32 * pow(max(0, cos((var(--cp-harmony-3-h) - 95) * 1deg)), 4)))
+          calc(
+            min(
+                calc(var(--cp-accent-c) * 1.2),
+                calc(0.166 - 0.056 * pow(max(0, cos((var(--cp-harmony-3-h) - 200) * 1deg)), 4))
+              ) *
+              0.8
+          )
+          var(--cp-harmony-3-h)
+      )
+    );
+  }
+}
+
 @property --cp-series-1-h {
   syntax: "<number>";
   inherits: true;
