@@ -9,10 +9,10 @@
   <section class="g-section" id="text">
     <h2>Text</h2>
     <div class="g-grid">
-      <div class="card">
+      <div class="card" data-new>
         <h2>Field</h2>
         <div class="cp-form">
-          <div class="cp-field"><label class="cp-label" for="f-name">Display name</label><input class="cp-input" id="f-name" value="Christophe" aria-describedby="f-name-help"><span class="cp-help" id="f-name-help">Shown on your sessions and in the security log.</span></div>
+          <div class="cp-field"><label class="cp-label" for="f-name">Display name</label><input class="cp-input" id="f-name" value="Christophe" autocomplete="nickname" aria-describedby="f-name-help"><span class="cp-help" id="f-name-help">Shown on your sessions and in the security log.</span></div>
           <div class="cp-field"><label class="cp-label" for="f-url">Sonarr address</label><input class="cp-input" id="f-url" type="url" value="sonarr.lan" aria-invalid="true" aria-describedby="f-url-error"><span class="cp-field-error" id="f-url-error"><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span>Start with http:// or https://, then the host and port.</span></div>
           <div class="cp-field"><label class="cp-label" for="f-ro">Instance ID</label><input class="cp-input" id="f-ro" value="7f3c-2a91" readonly></div>
           <div class="cp-field"><label class="cp-label" for="f-dis">Base path</label><input class="cp-input" id="f-dis" value="/library" disabled></div>
@@ -34,11 +34,11 @@
         </div>
         <footer>The clear button appears only while there is text, and gives focus back to the field.</footer>
       </div>
-      <div class="card">
+      <div class="card" data-new>
         <h2>Prefix and unit</h2>
         <div class="cp-form">
-          <div class="cp-field"><label class="cp-label" for="f-host">Address</label><div class="cp-affix"><span>https://</span><input class="cp-input" id="f-host" value="sonarr.lan:8989"></div></div>
-          <div class="cp-field"><label class="cp-label" for="f-cap">Size limit</label><div class="cp-affix"><input class="cp-input" id="f-cap" type="number" value="40"><span>GB</span></div></div>
+          <div class="cp-field"><label class="cp-label" for="f-host">Address</label><div class="cp-affix"><span id="f-host-prefix">https://</span><input class="cp-input" id="f-host" value="sonarr.lan:8989" aria-describedby="f-host-prefix"></div></div>
+          <div class="cp-field"><label class="cp-label" for="f-cap">Size limit</label><div class="cp-affix"><input class="cp-input" id="f-cap" type="number" value="40" aria-describedby="f-cap-unit"><span id="f-cap-unit">GB</span></div></div>
         </div>
         <footer>A fixed part of the value sits beside the field, outside what you type.</footer>
       </div>
@@ -51,7 +51,7 @@
         </div>
         <footer>A key that comes from the environment is a value set elsewhere: its name, its state in place of its value, and a chip naming where it is set.</footer>
       </div>
-      <div class="card">
+      <div class="card" data-new>
         <h2>Saved secret</h2>
         <div class="cp-field cp-secret" data-cp-state="saved"><span class="cp-label" id="sec-label">OpenSubtitles API key</span>
           <div data-part="saved"><span class="cp-icon" data-cp-icon="lock" aria-hidden="true"></span><span>Saved</span><button class="cp-button" data-size="sm" type="button" aria-describedby="sec-label">Replace</button></div>

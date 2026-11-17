@@ -3452,6 +3452,12 @@ form:has(.cp-savebar:not([hidden])) {
   padding: 0;
 }
 
+/* The ring stays in the room inside the field's border: where it crossed
+ * the border, those pixels would change to the ring under 3:1. */
+.cp-input-wrap > .cp-button:focus-visible {
+  outline-offset: 0;
+}
+
 /* Under a finger, the control's target reaches the tier's minimum. */
 :root[data-pointer="coarse"] .cp-input-wrap > .cp-button::after {
   content: "";
@@ -4680,6 +4686,9 @@ input.cp-input:is([type^="date"], [type="time"]) {
   align-items: center;
   gap: var(--cp-space-2);
   min-block-size: var(--cp-control-h);
+  /* Replace sits 0.1875rem inside the box's edge, as a field's quiet control
+   * does (input-wrap.css), so its ring has the room inside the border. */
+  padding-block: calc(0.1875rem - var(--cp-line-w));
   padding-inline: var(--cp-space-3) 0.25rem;
   border: var(--cp-line-w) dashed var(--cp-border-strong);
   border-radius: var(--cp-radius-control);
@@ -4687,7 +4696,22 @@ input.cp-input:is([type^="date"], [type="time"]) {
 }
 
 .cp-secret > [data-part="saved"] > .cp-button {
+  position: relative;
+  align-self: stretch;
+  min-block-size: 0;
   margin-inline-start: auto;
+}
+
+.cp-secret > [data-part="saved"] > .cp-button:focus-visible {
+  outline-offset: 0;
+}
+
+/* Under a finger, Replace's target reaches the tier's minimum. */
+:where(:root[data-pointer="coarse"]) .cp-secret > [data-part="saved"] > .cp-button::after {
+  content: "";
+  position: absolute;
+  inset-block: calc((100% - var(--cp-hit-min)) / 2);
+  inset-inline: 0;
 }
 
 .cp-secret > [data-part="edit"] {
@@ -4784,16 +4808,27 @@ button.cp-button.cp-copy[data-cp-state="done"]:not(:disabled) {
  * unit: one box, one control tall, the fixed part outside what is typed. */
 .cp-affix {
   --cp-chart-surface: var(--cp-surface-raised);
+  --cp-affix-edge: var(--cp-border-strong);
 
+  position: relative;
   display: flex;
   align-items: stretch;
-  /* Border-box: the border sits inside the control height, and stays
-   * visible beside the fixed part's fill, which an inset shadow would not. */
   block-size: var(--cp-control-h);
-  border: var(--cp-line-w) solid var(--cp-border-strong);
   border-radius: var(--cp-radius-control);
   background: var(--cp-surface-raised);
   overflow: hidden;
+}
+
+/* The edge is drawn over the parts, not as the box's border: a border would
+ * take the field below the control height, short of a finger's target, and
+ * the fixed part's fill would cover an inset shadow. */
+.cp-affix::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: var(--cp-line-w) solid var(--cp-affix-edge);
+  border-radius: inherit;
+  pointer-events: none;
 }
 
 .cp-affix > .cp-input {
@@ -4816,13 +4851,14 @@ button.cp-button.cp-copy[data-cp-state="done"]:not(:disabled) {
 
 /* Focus on its field rings the whole box, as a focused field is ringed. */
 .cp-affix:has(> .cp-input:focus-visible) {
-  border-color: var(--cp-focus-ring);
+  --cp-affix-edge: var(--cp-focus-ring);
+
   outline: var(--cp-focus-w) solid var(--cp-focus-ring);
   outline-offset: var(--cp-focus-offset);
 }
 
 .cp-affix:has(> .cp-input:is(:user-invalid, [aria-invalid="true"])) {
-  border-color: var(--cp-danger-8);
+  --cp-affix-edge: var(--cp-danger-8);
 }
 
 @media (forced-colors: active) {

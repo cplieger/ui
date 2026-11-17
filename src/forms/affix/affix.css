@@ -2,16 +2,27 @@
  * unit: one box, one control tall, the fixed part outside what is typed. */
 .cp-affix {
   --cp-chart-surface: var(--cp-surface-raised);
+  --cp-affix-edge: var(--cp-border-strong);
 
+  position: relative;
   display: flex;
   align-items: stretch;
-  /* Border-box: the border sits inside the control height, and stays
-   * visible beside the fixed part's fill, which an inset shadow would not. */
   block-size: var(--cp-control-h);
-  border: var(--cp-line-w) solid var(--cp-border-strong);
   border-radius: var(--cp-radius-control);
   background: var(--cp-surface-raised);
   overflow: hidden;
+}
+
+/* The edge is drawn over the parts, not as the box's border: a border would
+ * take the field below the control height, short of a finger's target, and
+ * the fixed part's fill would cover an inset shadow. */
+.cp-affix::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: var(--cp-line-w) solid var(--cp-affix-edge);
+  border-radius: inherit;
+  pointer-events: none;
 }
 
 .cp-affix > .cp-input {
@@ -34,13 +45,14 @@
 
 /* Focus on its field rings the whole box, as a focused field is ringed. */
 .cp-affix:has(> .cp-input:focus-visible) {
-  border-color: var(--cp-focus-ring);
+  --cp-affix-edge: var(--cp-focus-ring);
+
   outline: var(--cp-focus-w) solid var(--cp-focus-ring);
   outline-offset: var(--cp-focus-offset);
 }
 
 .cp-affix:has(> .cp-input:is(:user-invalid, [aria-invalid="true"])) {
-  border-color: var(--cp-danger-8);
+  --cp-affix-edge: var(--cp-danger-8);
 }
 
 @media (forced-colors: active) {

@@ -126,10 +126,13 @@ export function enhanceConfirm(button: HTMLButtonElement, options: ConfirmOption
     return Math.max(...states.map(([text, icon]) => measureRoll(words, text) + lead(icon)));
   };
 
-  /** Holds the footprint or the width the mode asks for, around `text`. */
-  const fit = (text: string): void => {
+  /** Reads the footprint or the width the mode asks for around `text`, and
+   *  returns its write. A caller reads before it rolls: in WebKit a layout
+   *  read after a roll starts the window's width transition a frame before
+   *  the slack's, and the buttons after it move for that frame. */
+  const fit = (text: string): (() => void) => {
     if (width === "glide") {
-      return;
+      return () => undefined;
     }
     if (width === "fixed") {
       const cs = getComputedStyle(button);
@@ -139,26 +142,31 @@ export function enhanceConfirm(button: HTMLButtonElement, options: ConfirmOption
         cs.borderInlineStartWidth,
         cs.borderInlineEndWidth,
       ].reduce((sum, v) => sum + (Number.parseFloat(v) || 0), 0);
-      button.style.minInlineSize = `${String(Math.ceil(widestState() + frame))}px`;
-      return;
+      const least = `${String(Math.ceil(widestState() + frame))}px`;
+      return () => {
+        button.style.minInlineSize = least;
+      };
     }
-    const most = widest();
-    const slack = `${String(most - measureRoll(words, text))}px`;
+    const slack = `${String(widest() - measureRoll(words, text))}px`;
     // The slack sits away from the edge its container aligns to, so an
     // end-aligned button, as in a table's actions cell, stays flush there.
-    if (endAligned(button)) {
-      button.style.marginInlineStart = slack;
-    } else {
-      button.style.marginInlineEnd = slack;
-    }
+    const start = endAligned(button);
+    return () => {
+      if (start) {
+        button.style.marginInlineStart = slack;
+      } else {
+        button.style.marginInlineEnd = slack;
+      }
+    };
   };
 
   /** Fits at once, where no roll runs for the slack to keep pace with: as
    *  the button is enhanced and after a web font loads. */
   const settle = (text: string): void => {
     const was = button.style.transitionProperty;
+    const write = fit(text);
     button.style.transitionProperty = "none";
-    fit(text);
+    write();
     button.getBoundingClientRect();
     button.style.transitionProperty = was;
   };
@@ -166,8 +174,9 @@ export function enhanceConfirm(button: HTMLButtonElement, options: ConfirmOption
   const toRest = (): void => {
     button.removeAttribute(STATE);
     button.removeAttribute("aria-busy");
+    const write = fit(rest);
     roll(words, rest, { down: true });
-    fit(rest);
+    write();
     onRest?.();
   };
 
@@ -178,8 +187,9 @@ export function enhanceConfirm(button: HTMLButtonElement, options: ConfirmOption
     } else {
       button.removeAttribute("aria-busy");
     }
+    const write = fit(text);
     roll(words, text);
-    fit(text);
+    write();
   };
 
   settle(rest);
@@ -258,8 +268,9 @@ export function enhanceConfirm(button: HTMLButtonElement, options: ConfirmOption
     setRest(text) {
       rest = text;
       if (!button.hasAttribute(STATE)) {
+        const write = fit(text);
         roll(words, text);
-        fit(text);
+        write();
       }
     },
   };

@@ -1386,6 +1386,7 @@ describe("css/system.css", () => {
     const el = build(
       '<div style="padding: 40px; inline-size: 20rem"><div class="cp-search"><input class="cp-input" type="search" placeholder="Search" value="x"><button class="cp-button" aria-label="Clear"></button></div></div>' +
         '<div style="padding: 40px; inline-size: 20rem"><div class="cp-input-wrap"><input class="cp-input" type="password"><button class="cp-button" aria-label="Show"></button></div></div>' +
+        '<div style="padding: 40px; inline-size: 20rem"><div class="cp-secret" data-cp-state="saved"><div data-part="saved"><span>Saved</span><button class="cp-button" data-size="sm" aria-label="Replace">Replace</button></div><div data-part="edit"></div></div></div>' +
         '<div style="padding: 40px"><div class="cp-stepper"><button class="cp-button" aria-label="Fewer">-</button><input type="number" value="3"><button class="cp-button" aria-label="More">+</button></div></div>',
     );
     for (const b of el.querySelectorAll("button")) {
@@ -1654,6 +1655,88 @@ describe("css/system.css", () => {
       expect(getComputedStyle(el.querySelector(".cp-affix") as Element).outlineStyle).toBe("solid");
     }
   });
+
+  // WCAG 1.4.4, 1.4.10 and 2.5.5: the box clips what overflows it, and its
+  // field is the target, so the field fills the box's whole height.
+  it("fills a fixed part's box with its field, so the box cuts none of it and a press anywhere lands", () => {
+    theme("light");
+    for (const tier of ["fine", "coarse"]) {
+      root.dataset["pointer"] = tier;
+      const el = build(
+        '<div class="cp-affix"><span>https://</span><input class="cp-input" id="host"></div>',
+      );
+      const affix = el.querySelector(".cp-affix") as HTMLElement;
+      const field = el.querySelector("#host") as HTMLElement;
+      expect(affix.scrollHeight, tier).toBe(affix.clientHeight);
+      expect(field.getBoundingClientRect().height, tier).toBe(affix.getBoundingClientRect().height);
+    }
+  });
+
+  it("edges a fixed part's box in the field's state: at rest, in error and focused", () => {
+    theme("light");
+    const el = build(
+      '<div class="cp-affix"><span>https://</span><input class="cp-input" id="host"></div>',
+    );
+    const affix = el.querySelector(".cp-affix") as HTMLElement;
+    const field = el.querySelector("#host") as HTMLInputElement;
+    const ink = host("");
+    const edge = (token: string) => {
+      ink.style.color = `var(${token})`;
+      expect(getComputedStyle(affix, "::after").borderTopColor, token).toBe(
+        getComputedStyle(ink).color,
+      );
+    };
+    edge("--cp-border-strong");
+    field.setAttribute("aria-invalid", "true");
+    edge("--cp-danger-8");
+    field.removeAttribute("aria-invalid");
+    field.focus({ focusVisible: true });
+    edge("--cp-focus-ring");
+  });
+
+  // WCAG 2.4.13: where a ring crosses its box's border, those pixels change
+  // from the border's colour to the ring's, under 3:1, so the control rings
+  // in the room inside the border.
+  for (const [what, markup, box] of [
+    [
+      "a field's quiet control",
+      '<div class="cp-input-wrap"><input class="cp-input" type="password"><button class="cp-button" data-variant="quiet" type="button" aria-label="Show password"></button></div>',
+      ".cp-input",
+    ],
+    [
+      "a saved secret's Replace",
+      '<div class="cp-secret" data-cp-state="saved"><span class="cp-label">Key</span><div data-part="saved"><span>Saved</span><button class="cp-button" data-size="sm" type="button">Replace</button></div><div data-part="edit"></div></div>',
+      "[data-part='saved']",
+    ],
+  ] as const) {
+    it(`rings ${what} inside its box's border on every tier`, () => {
+      theme("light");
+      for (const tier of ["fine", "coarse"]) {
+        root.dataset["pointer"] = tier;
+        const el = build(`<div style="padding: 40px; inline-size: 20rem">${markup}</div>`);
+        const button = el.querySelector("button") as HTMLElement;
+        const frame = el.querySelector(box) as HTMLElement;
+        button.focus({ focusVisible: true });
+        const ring = getComputedStyle(button);
+        expect([ring.outlineStyle, ring.outlineWidth], tier).toEqual(["solid", "2px"]);
+        const reach = Number.parseFloat(ring.outlineOffset) + Number.parseFloat(ring.outlineWidth);
+        expect(Number.parseFloat(ring.outlineOffset), tier).toBeGreaterThanOrEqual(0);
+        const b = button.getBoundingClientRect();
+        const f = frame.getBoundingClientRect();
+        const edge = getComputedStyle(frame);
+        const inside = {
+          top: f.top + Number.parseFloat(edge.borderTopWidth),
+          right: f.right - Number.parseFloat(edge.borderRightWidth),
+          bottom: f.bottom - Number.parseFloat(edge.borderBottomWidth),
+          left: f.left + Number.parseFloat(edge.borderLeftWidth),
+        };
+        expect(b.top - reach, tier).toBeGreaterThanOrEqual(inside.top - 0.5);
+        expect(b.right + reach, tier).toBeLessThanOrEqual(inside.right + 0.5);
+        expect(b.bottom + reach, tier).toBeLessThanOrEqual(inside.bottom + 0.5);
+        expect(b.left - reach, tier).toBeGreaterThanOrEqual(inside.left - 0.5);
+      }
+    });
+  }
 
   it("shows a search field's clear button only while it holds text, and draws its glass", () => {
     theme("light");
