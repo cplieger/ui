@@ -1,0 +1,51 @@
+/* A change shown before it applies (@cplieger/ui/proposal): its words, then
+ * Apply and Discard. The dashed edge says it has not happened yet; a toned
+ * one (warning unverified, success applied) takes its tone's wash and edge
+ * and leads with its tone's glyph, as a notice does, and an applied one
+ * turns solid. In forced colours the dashed and solid edges still tell them
+ * apart. */
+.cp-proposal {
+  display: grid;
+  gap: var(--cp-space-3);
+  padding: var(--cp-space-4);
+  border: var(--cp-line-w) dashed var(--cp-accent-8);
+  border-radius: var(--cp-radius-surface);
+  background: var(--cp-selected);
+}
+
+.cp-proposal[data-cp-state="applied"] {
+  border-style: solid;
+}
+
+/* enhanceProposal writes data-tone and its glyph together. The glyph takes
+ * the first column and every other part the second, so the words and the
+ * buttons line up after it. Keyed on the attribute, not a :has() left of
+ * the combinator, which makes Chromium restyle the whole page on every
+ * insertion. */
+.cp-proposal[data-tone] {
+  border-color: var(--cp-tone-8);
+  grid-template-columns: auto minmax(0, 1fr);
+  background: var(--cp-tone-3);
+}
+
+.cp-proposal[data-tone] > :not([data-part="tone"]) {
+  grid-column: 2;
+}
+
+/* Centred on the words' first line. */
+.cp-proposal > [data-part="tone"] {
+  grid-row: 1;
+  margin-block-start: calc((1lh - var(--cp-icon-size, var(--cp-icon-ui))) / 2);
+  color: var(--cp-tone-11);
+  line-height: var(--cp-leading-body);
+}
+
+.cp-proposal > p {
+  margin: 0;
+  line-height: var(--cp-leading-body);
+}
+
+/* An indented cluster keeps its whitespace once Apply and Discard went. */
+.cp-proposal > .cp-cluster:not(:has(> *)) {
+  display: none;
+}

@@ -1,3 +1,4 @@
+import { announce } from "@cplieger/ui/announce";
 import { toast } from "@cplieger/ui/toast";
 
 // The gallery's own behaviour for the cards that do not run on src/ yet, in plain DOM.
@@ -400,11 +401,6 @@ const el = (tag, attrs = {}, ...kids) => {
   n.append(...kids);
   return n;
 };
-const icon = (name, extra = "") => {
-  const s = el("span", { class: `cp-icon ${extra}`.trim(), "data-cp-icon": name, "aria-hidden": "true" });
-  paintIcon(s);
-  return s;
-};
 // Icons added after load get their drawing too.
 new MutationObserver((records) => {
   for (const r of records) {
@@ -623,90 +619,6 @@ if (snav) {
 }
 
 // ===================================================== pieces for app screens
-
-// ------------------------------------------------------- the announcer
-// One polite and one assertive region at the root, and a pair inside each
-// modal dialog, made before it opens: showModal() makes everything outside
-// the dialog inert, including the root's regions. announce() writes to the
-// topmost open modal's pair, else the root's.
-function regionsIn(host) {
-  let pair = host.querySelector(":scope > .g-announce");
-  if (!pair) {
-    pair = el("div", { class: "g-announce g-sr" }, el("div", { "aria-live": "polite" }), el("div", { "aria-live": "assertive" }));
-    host.append(pair);
-  }
-  return pair;
-}
-for (const d of $$("dialog")) regionsIn(d);
-regionsIn(document.body);
-function announce(text, assertive = false) {
-  const open = $$("dialog[open]").filter((d) => d.matches(":modal")).at(-1);
-  const pair = regionsIn(open ?? document.body);
-  const region = pair.children[assertive ? 1 : 0];
-  region.textContent = "";
-  requestAnimationFrame(() => (region.textContent = text));
-  return open ? open.id : "page";
-}
-$$("[data-announce]").forEach((b) => b.addEventListener("click", () => {
-  const where = announce(b.dataset.announce, b.hasAttribute("data-assertive"));
-  const log = document.getElementById(b.dataset.log);
-  if (log) log.append(el("li", {}, el("q", { text: b.dataset.announce }), where === "page" ? ", from the page's live region" : ", from the dialog's own live region, while the page is inert"));
-}));
-
-// A refresh that waits turns its own icon: Motion's one turn, repeated
-// while busy. When the work ends, the turn in progress finishes, so
-// the icon always comes to rest upright. Reduced motion pulses it instead.
-const TURN = { duration: 900, easing: "cubic-bezier(0.55, 0, 0.3, 1)" };
-function turnWhileBusy(ic) {
-  const a = reduced()
-    ? ic.animate([{ opacity: 1 }, { opacity: 0.45 }, { opacity: 1 }], { duration: 2000, iterations: Infinity })
-    : ic.animate([{ rotate: "0turn" }, { rotate: "1turn" }], { ...TURN, iterations: Infinity });
-  const length = Number(a.effect.getTiming().duration);
-  return () => a.effect.updateTiming({ iterations: Math.max(1, Math.ceil(Number(a.currentTime ?? 0) / length)) });
-}
-
-// ------------------------------------------------------ stale content
-for (const b of $$("[data-refresh]")) {
-  const region = document.getElementById(b.dataset.refresh);
-  const ic = $(".cp-icon", b);
-  b.addEventListener("click", () => {
-    if (b.getAttribute("aria-busy") === "true") return;
-    $(".cp-notice", region)?.remove();
-    region.setAttribute("aria-busy", "true");
-    b.setAttribute("aria-busy", "true");
-    const settle = ic ? turnWhileBusy(ic) : () => {};
-    setTimeout(() => {
-      region.removeAttribute("aria-busy");
-      b.removeAttribute("aria-busy");
-      settle();
-      if (b.hasAttribute("data-fail")) {
-        const retry = el("button", { class: "cp-button", "data-size": "sm", type: "button", text: "Retry" });
-        retry.addEventListener("click", () => $(`[data-refresh="${region.id}"]:not([data-fail])`)?.click());
-        region.prepend(el("div", { class: "cp-notice", "data-tone": "danger", role: "status" }, icon("circle-x"), el("span", { text: "The refresh failed: Sonarr did not answer. What you see is from 14:02." }), retry));
-      }
-    }, 1500);
-  });
-}
-
-// ------------------------------------------------------------- proposal
-for (const card of $$(".g-proposal")) {
-  const apply = () => {
-    card.dataset.state = "applied";
-    $("p", card).textContent = card.dataset.applied;
-    $(".g-row-inline", card).replaceChildren(el("button", { class: "cp-button", "data-size": "sm", type: "button", text: "Undo", onclick: () => location.reload() }));
-    announce(card.dataset.applied);
-  };
-  $("[data-apply]", card)?.addEventListener("click", () => {
-    if (card.hasAttribute("data-unverified")) document.getElementById(card.dataset.confirm).showModal();
-    else apply();
-  });
-  $("[data-discard-proposal]", card)?.addEventListener("click", () => {
-    card.remove();
-    announce("Proposal discarded");
-  });
-  const confirmD = card.dataset.confirm && document.getElementById(card.dataset.confirm);
-  confirmD?.addEventListener("close", () => confirmD.returnValue === "apply" && apply());
-}
 
 // --------------------------------------------- settings across sections
 // A dot on each category with unsaved changes, in the nav and the select; a

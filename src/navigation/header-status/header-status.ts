@@ -38,8 +38,12 @@ export interface StatusCondition {
   readonly docs?: { readonly href: string; readonly label: string };
 }
 
-/** The yes or no question a Stop asks first, through `ask()`. */
-export interface StopQuestion extends Omit<AskOptions, "input" | "choices" | "confirmLabel"> {
+/** The yes or no question a Stop asks first, through `ask()`; destroy()
+ *  answers it as declined. */
+export interface StopQuestion extends Omit<
+  AskOptions,
+  "input" | "choices" | "confirmLabel" | "signal"
+> {
   readonly message: string;
   readonly confirmLabel?: string;
 }
@@ -991,7 +995,7 @@ export function createHeaderStatus(
     const question = work.stop.ask;
     if (question !== undefined) {
       const { message, ...rest } = question;
-      if (!(await ask(message, rest)) || ended()) {
+      if (!(await ask(message, { ...rest, signal: life.signal })) || ended()) {
         return;
       }
     }

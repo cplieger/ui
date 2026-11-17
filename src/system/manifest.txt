@@ -44,6 +44,7 @@ forms/rules/rules.css
 forms/pairs/pairs.css
 feedback/state/state.css
 data/table/table.css
+feedback/outcome/outcome.css
 content/prose/prose.css
 content/table-scroll/table-scroll.css
 content/code-block/code-block.css
@@ -70,7 +71,9 @@ feedback/chip/chip.css
 feedback/badge/badge.css
 feedback/dot/dot.css
 feedback/notice/notice.css
+feedback/proposal/proposal.css
 layout/panel/panel.css
+feedback/loading-region/loading-region.css
 layout/heading-row/heading-row.css
 layout/stack/stack.css
 layout/cluster/cluster.css

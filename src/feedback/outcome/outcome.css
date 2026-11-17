@@ -1,0 +1,16 @@
+/* A row action that turned into its result (@cplieger/ui/outcome): a link
+ * to it in the success tone, or its failed state beside Retry. */
+.cp-outcome {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cp-space-2);
+  font-size: var(--cp-text-sm);
+}
+
+.cp-outcome > a {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cp-space-1);
+  color: var(--cp-success-11);
+  font-weight: var(--cp-weight-medium);
+}

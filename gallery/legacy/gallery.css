@@ -1209,60 +1209,6 @@ html:has(.g-header) {
   border-radius: var(--cp-radius-surface);
 }
 
-/* The refreshing region is a panel, and its line runs along the panel's
- * top edge, inside the border, so it belongs to what it refreshes. */
-.g-refreshing {
-  position: relative;
-  overflow: hidden;
-}
-
-.g-refreshing[aria-busy="true"]::before {
-  content: "";
-  position: absolute;
-  inset-block-start: 0;
-  inset-inline: 0;
-  block-size: 3px;
-  border-radius: var(--cp-radius-round);
-  background: linear-gradient(90deg, transparent, var(--cp-accent-9) 30%, var(--cp-accent-9) 70%, transparent) 0 0 / 40% 100% no-repeat;
-  animation: refresh-line 1.2s cubic-bezier(0.3, 0.25, 0.7, 0.75) infinite;
-}
-
-@keyframes refresh-line {
-  from {
-    background-position: -40% 0;
-  }
-
-  to {
-    background-position: 140% 0;
-  }
-}
-
-/* A proposal: a change shown before it applies. */
-.g-proposal {
-  display: grid;
-  gap: var(--cp-space-3);
-  padding: var(--cp-space-4);
-  border: var(--cp-line-w) dashed var(--cp-accent-8);
-  border-radius: var(--cp-radius-surface);
-  background: var(--cp-selected);
-}
-
-.g-proposal[data-unverified] {
-  border-color: var(--cp-warning-8);
-  background: var(--cp-warning-3);
-}
-
-.g-proposal > p {
-  margin: 0;
-  line-height: var(--cp-leading-body);
-}
-
-.g-proposal[data-state="applied"] {
-  border-style: solid;
-  border-color: var(--cp-success-8);
-  background: var(--cp-success-3);
-}
-
 /* Settings at compact width: the categories become a select; a category
  * with unsaved changes carries a dot in both forms. */
 .g-cat-select {
