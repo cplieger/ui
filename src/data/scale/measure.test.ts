@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 
-import { fontMeasure, forgetMeasures } from "./measure.js";
+import { afterFontsSettle, fontMeasure, forgetMeasures } from "./measure.js";
 
 let host: HTMLElement | undefined;
 
@@ -45,5 +45,54 @@ describe("fontMeasure", () => {
   it("measures in the element's own font", () => {
     const narrow = fontMeasure(make({ font: "13px monospace" }), "en");
     expect(narrow.text("iiii")).toBe(narrow.text("MMMM"));
+  });
+});
+
+describe("afterFontsSettle", () => {
+  it("forgets the measures once for every run of one settle, each run done by the next wait on the set", async () => {
+    const el = make({ font: "13px sans-serif" });
+    const before = fontMeasure(el, "en");
+    const seen: unknown[] = [];
+    afterFontsSettle(() => seen.push(fontMeasure(el, "en")));
+    afterFontsSettle(() => seen.push(fontMeasure(el, "en")));
+    await document.fonts.ready;
+    expect(seen).toHaveLength(2);
+    expect(seen[0]).not.toBe(before);
+    expect(seen[1]).toBe(seen[0]);
+  });
+
+  it("runs a function registered twice before one settle once", async () => {
+    let runs = 0;
+    const run = (): void => {
+      runs += 1;
+    };
+    afterFontsSettle(run);
+    afterFontsSettle(run);
+    await document.fonts.ready;
+    expect(runs).toBe(1);
+  });
+
+  it("reports a run that throws and still runs the later ones", async () => {
+    const boom = new Error("boom");
+    const reported: unknown[] = [];
+    const onError = (event: ErrorEvent): void => {
+      reported.push(event.error);
+      event.preventDefault();
+    };
+    window.addEventListener("error", onError);
+    let ran = false;
+    try {
+      afterFontsSettle(() => {
+        throw boom;
+      });
+      afterFontsSettle(() => {
+        ran = true;
+      });
+      await document.fonts.ready;
+    } finally {
+      window.removeEventListener("error", onError);
+    }
+    expect(reported).toEqual([boom]);
+    expect(ran).toBe(true);
   });
 });
