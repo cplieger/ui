@@ -64,6 +64,9 @@ const OLDER: readonly (readonly Conversation[])[] = [
   ],
 ];
 
+/** The list-detail's docking width, in rem, which the landing address reads too. */
+const DOCK_AT = 52;
+
 const pause = (ms: number) =>
   new Promise<void>((resolve) => {
     setTimeout(resolve, ms);
@@ -185,14 +188,14 @@ if (root !== null && list instanceof HTMLUListElement && filters !== null) {
     sync,
     rowOrStop,
   });
-  const detail = enhanceListDetail(root, { onDismiss: route.close });
+  const detail = enhanceListDetail(root, { onDismiss: route.close, dockAt: DOCK_AT });
   root.addEventListener("detailopen", (e) => {
     const view = named((e as DetailOpenEvent).detail.key);
     if (view !== undefined) {
       render(view);
     }
   });
-  function sync(still = false): void {
+  function sync(still: boolean): void {
     const id = location.hash.slice(1);
     const view = id === "" ? undefined : named(id);
     for (const link of links()) {
@@ -212,18 +215,9 @@ if (root !== null && list instanceof HTMLUListElement && filters !== null) {
     }
   }
   const rem = Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
-  const wide = root.getBoundingClientRect().width >= 52 * rem;
+  const wide = root.getBoundingClientRect().width >= DOCK_AT * rem;
   // A wide page docks the markup's open conversation, so the address names it.
   route.start(detail, location.hash === "" && wide ? current()?.hash : undefined);
-  // On a phone the addressed row takes focus first, so Close returns it there.
-  const loaded = location.hash.slice(1);
-  if (!wide && named(loaded) !== undefined) {
-    rowOrStop(loaded)?.focus({ preventScroll: true });
-  }
-  sync(true);
-  if (wide) {
-    title?.blur();
-  }
 
   // A filter replaces the rows; the open conversation stays open, and its
   // row is current again wherever the filter shows it.
@@ -302,7 +296,7 @@ if (root !== null && list instanceof HTMLUListElement && filters !== null) {
         }
         order = [...order, ...rows.map((c) => c.id)];
         keyed.update(shown());
-        sync();
+        sync(false);
         return {
           items: rows.flatMap((c) => keyed.rowOf(c.id) ?? []),
           more: page < OLDER.length,

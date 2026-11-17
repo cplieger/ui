@@ -28,8 +28,9 @@ export interface ListRouteOptions {
   readonly names: (hash: string) => boolean;
   /** The list's own address, which Close pushes when the entry before it showed no list. */
   readonly list: string;
-  /** Renders what the address names; called again for the same address, it changes nothing. */
-  readonly sync: () => void;
+  /** Renders what the address names, `still` on the page's load; called again
+   *  for the same address, it changes nothing. */
+  readonly sync: (still: boolean) => void;
   /** Where focus goes when the detail closes with focus in it or on the page:
    *  the closed entry's row, or the list's tab stop when that row is gone. */
   readonly rowOrStop: (key: string) => HTMLElement | null;
@@ -39,7 +40,8 @@ export interface ListRoute {
   /** The list-detail's `onDismiss`. */
   readonly close: () => void;
   /** Stamps the entry the page loaded on, rewriting its address to `url` when
-   *  given, and follows Back, Forward, a fragment's change and a restore. */
+   *  given, renders it, and follows Back, Forward, a fragment's change and a
+   *  restore. A docked detail on load leaves focus at the page's start. */
   start(detail: ListDetail, url?: string): void;
 }
 
@@ -55,16 +57,13 @@ export function routeListDetail(options: ListRouteOptions): ListRoute {
     if (e instanceof HashChangeEvent && fromList(history.state) === undefined) {
       stamp(!names(new URL(e.oldURL).hash));
     }
-    sync();
+    sync(false);
   };
 
   root.addEventListener("detailclose", (e) => {
     const active = document.activeElement;
-    const lost =
-      active === document.body ||
-      shown?.contains(active) === true ||
-      (active instanceof HTMLDialogElement && shown !== null && active.contains(shown));
-    // A link to another part of the page took the reader there, so focus stays with it.
+    const lost = active === document.body || shown?.contains(active) === true;
+    // Focus outside the detail stays, and so does a fragment naming what does not hold the list.
     const target = document.getElementById(location.hash.slice(1));
     if (lost && (target === null || target.contains(root))) {
       rowOrStop((e as DetailCloseEvent).detail.key)?.focus({ preventScroll: true });
@@ -82,7 +81,7 @@ export function routeListDetail(options: ListRouteOptions): ListRoute {
         return;
       }
       history.pushState({ [FROM_LIST]: false }, "", list);
-      sync();
+      sync(false);
     },
     start(detail, url) {
       if (fromList(history.state) === undefined) {
@@ -117,6 +116,15 @@ export function routeListDetail(options: ListRouteOptions): ListRoute {
           detail.show(detail.key);
         }
       });
+      sync(true);
+      const active = document.activeElement;
+      if (
+        root.hasAttribute("data-cp-docked") &&
+        active instanceof HTMLElement &&
+        shown?.contains(active) === true
+      ) {
+        active.blur();
+      }
     },
   };
 }

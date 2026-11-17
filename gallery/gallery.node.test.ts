@@ -226,6 +226,8 @@ describe.each(browsers)("the gallery in %s", (name) => {
       | `press #${string}`
       | `chip #${string}`
       | `filter ${string}`
+      | `focus #${string}`
+      | `resize ${number}`
       | "author"
       | "older"
       | "close"
@@ -242,6 +244,7 @@ describe.each(browsers)("the gallery in %s", (name) => {
       readonly length?: number;
       readonly focus?: string;
       readonly top?: number;
+      readonly scrollY?: number;
     }
 
     // In every document of the tab: the feed's scroller, and a record of
@@ -281,7 +284,7 @@ describe.each(browsers)("the gallery in %s", (name) => {
     }
 
     /** Invariant 1 on the page now, and `want`'s address, history length,
-     *  focus and feed scroll: each one that does not hold. */
+     *  focus, feed scroll and page scroll: each one that does not hold. */
     const broken = (tab: Page, want: Want) =>
       tab.evaluate(
         ({ w, known }) => {
@@ -326,6 +329,9 @@ describe.each(browsers)("the gallery in %s", (name) => {
             if (Math.abs(top - w.top) > 1) {
               out.push(`feed scrolled to ${String(top)}`);
             }
+          }
+          if (w.scrollY !== undefined && Math.abs(scrollY - w.scrollY) > 1) {
+            out.push(`page scrolled to ${String(scrollY)}, was ${String(w.scrollY)}`);
           }
           return out;
         },
@@ -389,14 +395,27 @@ describe.each(browsers)("the gallery in %s", (name) => {
                 ? `#msg-list a.cp-list-row[href="${arg}"]`
                 : `#agent-history a.cp-filter-chip[href="${arg}"]`;
             if (before?.hidden === false && new URL(before.href).hash === arg) {
-              // Invariant 4: a press on what is shown keeps history and scroll, and focuses its heading.
-              await tab.evaluate(() => {
+              // Invariant 4: a press on what is shown keeps history and both
+              // scrolls, and focuses its heading. The page puts the heading out
+              // of view with the reader's focus on what they press.
+              const y = await tab.evaluate((sel) => {
                 (window as unknown as Helpers).cpScroller().scrollTop = 120;
-              });
+                const top = document.querySelector(sel)?.getBoundingClientRect().top ?? 0;
+                scrollTo(0, top + scrollY - 10);
+                return scrollY;
+              }, selector);
               await tab.waitForFunction(
-                () => Math.abs((window as unknown as Helpers).cpScroller().scrollTop - 120) <= 1,
+                (at) =>
+                  Math.abs((window as unknown as Helpers).cpScroller().scrollTop - 120) <= 1 &&
+                  Math.abs(scrollY - at) <= 1,
+                y,
               );
-              want = { ...want, length: before.length, focus: "#msg-title", top: 120 };
+              want = { ...want, length: before.length, focus: "#msg-title", top: 120, scrollY: y };
+              await tab.evaluate((sel) => {
+                document.querySelector<HTMLElement>(sel)?.focus({ preventScroll: true });
+              }, selector);
+              await tab.keyboard.press("Enter");
+              break;
             }
             await enter(tab, selector);
             break;
@@ -406,6 +425,12 @@ describe.each(browsers)("the gallery in %s", (name) => {
             break;
           case "filter":
             await enter(tab, `#msg-filters a[data-show="${arg}"]`);
+            break;
+          case "focus":
+            await tab.locator(`#msg-list a.cp-list-row[href="${arg}"]`).focus();
+            break;
+          case "resize":
+            await tab.setViewportSize({ width: Number(arg), height: 800 });
             break;
           case "older": {
             const rows = () => document.querySelectorAll("#msg-list a.cp-list-row").length;
@@ -524,6 +549,29 @@ describe.each(browsers)("the gallery in %s", (name) => {
           ["older", `${M}#c-ci`],
           ["close", M],
           ["press #c-marotte", `${M}#c-marotte`],
+        ],
+      ],
+      [
+        "a wide load on a conversation, a resize to a phone, Close",
+        W,
+        AFTER,
+        [
+          ["load messages.html#c-marotte", `${M}#c-marotte`],
+          ["resize 390", `${M}#c-marotte`, "#msg-title"],
+          ["close", M],
+          ["back", `${M}#c-marotte`],
+        ],
+      ],
+      [
+        "Close, a press, focus moved to another row, Back",
+        W,
+        AFTER,
+        [
+          ["load messages.html", `${M}#c-internal`],
+          ["close", M],
+          ["press #c-marotte", `${M}#c-marotte`],
+          ["focus #c-announce", `${M}#c-marotte`, '#msg-list a[href="#c-announce"]'],
+          ["back", M, '#msg-list a[href="#c-announce"]'],
         ],
       ],
       [
@@ -770,12 +818,32 @@ describe.each(browsers)("the gallery in %s", (name) => {
           app: (history.state as Record<string, unknown> | null)?.["app"],
         };
       });
-    const at = async (tab: Page, address: string) => {
-      await tab.waitForFunction((a) => location.pathname + location.hash === a, address, {
-        timeout: 5000,
-      });
-      // The detail's exit and the router's focus settle within a few frames.
-      await tab.waitForTimeout(400);
+    /** Waits for `address`, a detail at rest (docked, in its open sheet, or
+     *  back in the box once the sheet's exit has ended) and, when given, focus
+     *  as `read` names it, which the sheet's close event can move last. */
+    const at = async (tab: Page, address: string, focus?: string) => {
+      await tab.waitForFunction(
+        ({ a, f }) => {
+          const root = document.getElementById("md");
+          const dialog = document.querySelector<HTMLDialogElement>("#md + dialog");
+          const detail = document.getElementById("md-title")?.closest<HTMLElement>(".cp-detail");
+          if (location.pathname + location.hash !== a || !root || !dialog || !detail) {
+            return false;
+          }
+          if (dialog.getAnimations().length > 0 || dialog.hasAttribute("data-cp-leaving")) {
+            return false;
+          }
+          const home = !detail.hidden && !root.hasAttribute("data-cp-docked") ? dialog : root;
+          const el = document.activeElement;
+          return (
+            detail.parentElement === home &&
+            (home === root || dialog.open) &&
+            (f === undefined || (el?.getAttribute("href") ?? (el?.id || el?.tagName)) === f)
+          );
+        },
+        { a: address, f: focus },
+        { timeout: 5000 },
+      );
       return read(tab);
     };
     const press = async (tab: Page, href: string) => {
@@ -848,6 +916,114 @@ describe.each(browsers)("the gallery in %s", (name) => {
         back: [`${N}#md/mushishi`, "Mushishi", "loaded"],
         left: "/index.html",
         forward: [`${N}#md/mushishi`, "Mushishi", "loaded"],
+      });
+    }, 60_000);
+
+    it("closes onto the list from a phone's load, focusing the row, and Back reopens it", async () => {
+      const tab = await (browser as Browser).newPage({ viewport: { width: 390, height: 800 } });
+      await tab.goto(`${origin}/index.html`);
+      await tab.goto(`${origin}${N}#md/mushishi`);
+      await wired(tab);
+      const loaded = await at(tab, `${N}#md/mushishi`, "md-title").catch(() => read(tab));
+      await closeDetail(tab);
+      const closed = await at(tab, `${N}#detail`, "#md/mushishi").catch(() => read(tab));
+      await tab.goBack();
+      const back = await at(tab, `${N}#md/mushishi`, "md-title").catch(() => read(tab));
+      await tab.goBack();
+      const left = await at(tab, "/index.html").catch(() => read(tab));
+      await tab.close();
+      expect({
+        loaded: [loaded.shows, loaded.focus],
+        closed: [closed.shows, closed.focus],
+        back: [back.shows, back.focus],
+        left: left.address,
+      }).toEqual({
+        loaded: ["Mushishi", "md-title"],
+        closed: ["nothing", "#md/mushishi"],
+        back: ["Mushishi", "md-title"],
+        left: "/index.html",
+      });
+    }, 60_000);
+
+    it("closes onto the list after a wide load moves into the phone's sheet, focusing the row", async () => {
+      const tab = await (browser as Browser).newPage({ viewport: { width: 1280, height: 800 } });
+      await tab.goto(`${origin}/index.html`);
+      await tab.goto(`${origin}${N}#md/mushishi`);
+      await wired(tab);
+      await tab.setViewportSize({ width: 390, height: 800 });
+      await tab.waitForFunction(
+        () => document.querySelector<HTMLDialogElement>("#md + dialog")?.open === true,
+      );
+      const moved = await at(tab, `${N}#md/mushishi`, "md-title").catch(() => read(tab));
+      await closeDetail(tab);
+      const closed = await at(tab, `${N}#detail`, "#md/mushishi").catch(() => read(tab));
+      await tab.goBack();
+      const back = await at(tab, `${N}#md/mushishi`).catch(() => read(tab));
+      await tab.close();
+      expect({
+        moved: [moved.shows, moved.focus],
+        closed: [closed.shows, closed.focus],
+        back: back.shows,
+      }).toEqual({
+        moved: ["Mushishi", "md-title"],
+        closed: ["nothing", "#md/mushishi"],
+        back: "Mushishi",
+      });
+    }, 60_000);
+
+    it("leaves focus and scroll where the page index's link took them when the detail closes", async () => {
+      const tab = await (browser as Browser).newPage({ viewport: { width: 1280, height: 800 } });
+      await tab.goto(`${origin}/index.html`);
+      await tab.goto(`${origin}${N}`);
+      await wired(tab);
+      await press(tab, "#md/mushishi");
+      await at(tab, `${N}#md/mushishi`);
+      await tab.locator('nav.g-index a[href="#tabs"]').focus();
+      await tab.keyboard.press("Enter");
+      const after = await at(tab, `${N}#tabs`).catch(() => read(tab));
+      const where = await tab.evaluate(() => {
+        const r = document.getElementById("tabs")?.getBoundingClientRect();
+        return {
+          top: r !== undefined && r.top >= 0 && r.top < innerHeight,
+          inList: document.getElementById("md")?.contains(document.activeElement) === true,
+        };
+      });
+      await tab.close();
+      expect({ shows: after.shows, ...where }).toEqual({
+        shows: "nothing",
+        top: true,
+        inList: false,
+      });
+    }, 60_000);
+
+    it("keeps history and the page's scroll on a press on the open row, focusing its heading", async () => {
+      const tab = await (browser as Browser).newPage({ viewport: { width: 1280, height: 800 } });
+      await tab.goto(`${origin}/index.html`);
+      await tab.goto(`${origin}${N}#md/mushishi`);
+      await wired(tab);
+      await at(tab, `${N}#md/mushishi`);
+      // The row near the viewport's top puts the heading above it, out of view;
+      // the reader's focus is on the row there.
+      const before = await tab.evaluate(() => {
+        const row = document.querySelector('#md a.cp-list-row[href="#md/mushishi"]');
+        scrollTo(0, (row?.getBoundingClientRect().top ?? 0) + scrollY - 10);
+        return { length: history.length, y: scrollY };
+      });
+      await tab.waitForFunction((y) => Math.abs(scrollY - y) <= 1, before.y);
+      await tab.evaluate(() => {
+        document
+          .querySelector<HTMLElement>('#md a.cp-list-row[href="#md/mushishi"]')
+          ?.focus({ preventScroll: true });
+      });
+      await tab.keyboard.press("Enter");
+      await tab.waitForFunction(() => document.activeElement?.id === "md-title");
+      const after = await tab.evaluate(() => ({ length: history.length, y: scrollY }));
+      const state = await read(tab);
+      await tab.close();
+      expect({ ...after, address: state.address, shows: state.shows }).toEqual({
+        ...before,
+        address: `${N}#md/mushishi`,
+        shows: "Mushishi",
       });
     }, 60_000);
   });

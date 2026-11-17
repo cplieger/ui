@@ -31,15 +31,12 @@ if (md !== null && mdTabs !== null) {
     subtitles: document.getElementById("md-p2"),
   };
   enhanceTabs(mdTabs);
-  const current = (): HTMLAnchorElement | undefined =>
-    rows.find((r) => location.hash !== "" && r.hash === location.hash);
+  const current = (): HTMLAnchorElement | undefined => rows.find((r) => r.hash === location.hash);
   const route = routeListDetail({
     root: md,
-    names: (hash) => rows.some((r) => hash !== "" && r.hash === hash),
+    names: (hash) => rows.some((r) => r.hash === hash),
     list: "#detail",
-    sync: () => {
-      render(false);
-    },
+    sync: render,
     rowOrStop: (key) => rows.find((r) => r.hash === key) ?? null,
   });
   const detail = enhanceListDetail(md, { onDismiss: route.close });
@@ -67,16 +64,4 @@ if (md !== null && mdTabs !== null) {
     detail.show(row.hash, { still });
   }
   route.start(detail);
-  const wide =
-    md.getBoundingClientRect().width >=
-    52 * (Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16);
-  // On a phone the addressed row takes focus first, so Close returns it there.
-  if (!wide) {
-    current()?.focus({ preventScroll: true });
-  }
-  render(true);
-  // A wide load leaves focus at the page's start.
-  if (wide && detail.key !== null) {
-    fill["title"]?.blur();
-  }
 }
