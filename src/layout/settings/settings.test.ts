@@ -1046,6 +1046,20 @@ describe("enhanceSettings", () => {
     });
   });
 
+  it("keeps a pressed category through its own jump when update shortens the page under it", async () => {
+    const { form, nav, links } = page(true);
+    const s = enhanceSettings(form, { signal: life.signal });
+    // Display's jump ends at the page's end. Before its scroll event, the
+    // app drops a row above the form, so the page ends higher than planned.
+    links[2]?.click();
+    const ul = nav.querySelector("ul") as HTMLElement;
+    ul.innerHTML = row("Checks", "#s-chk") + row("Display", "#s-dis");
+    s.update();
+    await still();
+    const fresh = [...nav.querySelectorAll<HTMLAnchorElement>("a.cp-list-row")];
+    expect(fresh.map((l) => l.getAttribute("aria-current"))).toEqual([null, "location"]);
+  });
+
   it("ends the hold when update removes the pressed category, and marks the section in view", async () => {
     const { form, nav, links } = page(true);
     const s = enhanceSettings(form, { signal: life.signal });

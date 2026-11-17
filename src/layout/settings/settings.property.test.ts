@@ -337,6 +337,19 @@ describe("enhanceSettings' pressed-category hold, for any order of events", () =
               { kind: "press", at: 1 },
             ],
           ],
+          // A re-render that shortens the page before the jump's scroll
+          // event (seed 38212237 in WebKit).
+          [
+            { ...flat, short: true },
+            [
+              { kind: "wait", for: "task" },
+              { kind: "press", at: 1 },
+              { kind: "wait", for: "task" },
+              { kind: "input", type: "wheel" },
+              { kind: "render", drop: 2 },
+              { kind: "glide", frames: 9 },
+            ],
+          ],
         ],
       },
     );

@@ -517,12 +517,17 @@ export function enhanceSettings(form: HTMLFormElement, options: SettingsOptions 
       return;
     }
     const y = leg.box.scrollTop;
+    // A page that shrinks under the jump, such as an app's re-render, stops
+    // it at the range's new end, as the browser clamps a scroll.
+    const end = leg.box.scrollHeight - leg.box.clientHeight;
+    const from = Math.min(leg.from, end);
+    const to = Math.min(leg.to, end);
+    const reach = Math.min(leg.reach, end);
     // On its way a scroller stays between its offsets, within the 1px a
     // planned offset may differ from the browser's; once still, on its own.
     const onCourse = hold.left.has(at)
-      ? y >= Math.min(leg.from, leg.to, leg.reach) - 1 &&
-        y <= Math.max(leg.from, leg.to, leg.reach) + 1
-      : y === leg.to;
+      ? y >= Math.min(from, to, reach) - 1 && y <= Math.max(from, to, reach) + 1
+      : y === to;
     if (!onCourse) {
       release();
     } else if (e.type === "scroll") {
@@ -530,7 +535,7 @@ export function enhanceSettings(form: HTMLFormElement, options: SettingsOptions 
         hold = { ...hold, moved: new Set([...hold.moved, at]) };
       }
     } else if (hold.moved.has(at) && hold.left.has(at)) {
-      if (Math.abs(y - leg.to) > 1) {
+      if (Math.abs(y - to) > 1) {
         release();
         return;
       }
