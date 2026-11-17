@@ -2877,6 +2877,14 @@
   padding-inline: var(--cp-page-gutter);
   background: var(--cp-shell-bg);
   color: var(--cp-shell-ink);
+  /* The accent ring is the shell's own fill in light (1:1); its ink clears 3:1. */
+  --cp-focus-ring: var(--cp-shell-ink);
+}
+
+/* An overlay the header opens sits on its own surface, where the page's ring
+ * (roles.css) shows. */
+.cp-header :is([popover], dialog) {
+  --cp-focus-ring: var(--cp-accent-9);
 }
 
 .cp-rail {

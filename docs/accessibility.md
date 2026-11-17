@@ -529,8 +529,9 @@ As 2.4.11 with no part hidden: the page scrolls a focused control clear of every
 
 Level AAA. Adopted. Met by ui. [Understanding 2.4.13](https://www.w3.org/WAI/WCAG22/Understanding/focus-appearance.html)
 
-The ring is a solid 2px outline at a 2px offset, so its area exceeds a 2px perimeter of the control, in the accent's step 9, which holds 3:1 against the surfaces around it.
+The ring is a solid 2px outline at a 2px offset, so its area exceeds a 2px perimeter of the control, in the accent's step 9, which holds 3:1 against every surface at every hue and chroma. On the header the ring takes the shell's ink, because the light shell is the accent's own fill.
 
+- Unit: the ring's 3:1 on every surface and on the header, src/system/system-css.test.ts.
 - Manual: ring width and its contrast against adjacent colours from a clipped screenshot per focus stop.
 
 ### 2.5.1 Pointer gestures

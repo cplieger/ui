@@ -1709,6 +1709,55 @@ describe("css/system.css", () => {
     });
   }
 
+  for (const t of ["light", "dark"] as const) {
+    it(`rings focus at 3:1 on every surface at every hue and chroma in ${t}`, () => {
+      theme(t);
+      const el = build("<span></span>");
+      const paint = (v: string): string => {
+        el.style.color = v;
+        return getComputedStyle(el).color;
+      };
+      for (const chroma of ["0.05", "0.137", "0.25"]) {
+        root.style.setProperty("--cp-accent-c", chroma);
+        for (let hue = 0; hue < 360; hue += 15) {
+          root.style.setProperty("--cp-accent-h", String(hue));
+          for (const surface of ["page", "raised", "sunken", "overlay"]) {
+            expect(
+              contrast(paint("var(--cp-focus-ring)"), paint(`var(--cp-surface-${surface})`)),
+              `${surface} hue ${String(hue)} chroma ${chroma}`,
+            ).toBeGreaterThanOrEqual(3);
+          }
+        }
+      }
+    });
+
+    it(`rings focus on the header at 3:1 on its fill at every hue in ${t}, and an overlay's as the page's`, () => {
+      theme(t);
+      const el = build(
+        '<button class="cp-button" type="button" id="page-btn">Page</button>' +
+          '<header class="cp-header"><a class="cp-wordmark" href="#a">Releases</a>' +
+          '<div class="cp-popover" data-variant="panel" popover id="hdr-panel"><button class="cp-button" type="button" id="hdr-in">Sign out</button></div></header>',
+      );
+      const header = el.querySelector(".cp-header") as HTMLElement;
+      const link = el.querySelector(".cp-wordmark") as HTMLElement;
+      const item = el.querySelector("#hdr-in") as HTMLElement;
+      const pageButton = el.querySelector("#page-btn") as HTMLElement;
+      (el.querySelector("#hdr-panel") as HTMLElement).showPopover();
+      for (let hue = 0; hue < 360; hue += 15) {
+        root.style.setProperty("--cp-accent-h", String(hue));
+        link.focus({ focusVisible: true } as FocusOptions);
+        expect(
+          contrast(getComputedStyle(link).outlineColor, getComputedStyle(header).backgroundColor),
+          `hue ${String(hue)}`,
+        ).toBeGreaterThanOrEqual(3);
+        pageButton.focus({ focusVisible: true } as FocusOptions);
+        const pageRing = getComputedStyle(pageButton).outlineColor;
+        item.focus({ focusVisible: true } as FocusOptions);
+        expect(getComputedStyle(item).outlineColor, `hue ${String(hue)}`).toBe(pageRing);
+      }
+    });
+  }
+
   it("draws a destination's badge in the bar's ink, and on its icon's corner in the accent on a phone", async () => {
     theme("light");
     const el = build(
