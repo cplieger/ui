@@ -1,11 +1,11 @@
 # Accessibility
 
-This page is the accessibility bar that every part of `@cplieger/ui` meets. It names the standards ui follows, how ui meets each criterion and how each one is tested. Read it before you build or review an element, a screen or a gallery card, and cite the criterion by its heading here.
+This page is the accessibility bar that every part of `@cplieger/ui` is built and reviewed against. It names the standards ui follows, how ui meets each criterion and how each one is tested. Read it before you build or review an element, a screen or a gallery card, and cite the criterion by its heading here.
 
 ## The bar
 
 - The floor is [WCAG 2.2](https://www.w3.org/TR/WCAG22/) at Level AA. Each custom widget also follows its pattern in the [ARIA Authoring Practices Guide](https://www.w3.org/WAI/ARIA/apg/) for its keys, name, role and states.
-- Each WCAG 2.2 AAA criterion is adopted unless it does not apply to an app interface or would harm another group of people. Of the 31 AAA criteria, 29 are adopted and 2 do not apply, because ui plays no live audio and carries no audio of its own.
+- Each WCAG 2.2 AAA criterion is adopted unless it does not apply to an app interface or would harm another group of people. Of the 31 AAA criteria, 30 are adopted and 1 does not apply: [1.2.9](#129-audio-only-live) Audio-only (live), because ui ships no live audio.
 - Each requirement of the [WCAG 3.0 Working Draft of 10 September 2026](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/) that is stricter than WCAG 2.2, testable on an app interface and never in conflict with WCAG 2.2 is adopted. A later draft that drops one does not remove it while it still helps people. WCAG 3 is a draft, so ui claims no WCAG 3 conformance.
 - Native HTML comes first. Anything a person must perceive goes through native HTML or [WAI-ARIA 1.2](https://www.w3.org/TR/wai-aria-1.2/). A WAI-ARIA 1.3 feature is used only as an addition whose absence loses nothing, and only where published results show it works in each browser and screen reader pairing. [ARIA](#aria) has the evidence.
 - An addition that makes a screen reader say more without telling the person more is refused. That covers a duplicate name, a description that repeats the name, and ARIA that restates what the HTML element already says. This page calls it the noise rule.
@@ -35,6 +35,7 @@ The list under each criterion says how it is tested:
 
 - `axe` names the rules of the [axe check](#the-axe-check) that test it.
 - `Unit` names the unit or browser tests in `src/`.
+- `SVG text` names the [SVG text check](#the-svg-text-check), the axe check's own measure of text inside SVG.
 - `Manual` names the [checks by hand](#checks-by-hand), with the gallery pages they cover.
 
 ## Where ui falls short
@@ -53,7 +54,7 @@ These adopted criteria are not fully met yet. Each item says what falls short an
 
 ## WCAG 2.2 criteria
 
-WCAG 2.2 has 86 success criteria: 31 at Level A, 24 at AA and 31 at AAA. Criterion 4.1.1 Parsing is obsolete and is not listed. Of the 86, 83 are adopted and 3 do not apply. Criterion 2.2.3 No timing is adopted with an exception for the recovery page and the passkey ceremony, whose time limits protect every account.
+WCAG 2.2 has 86 success criteria: 31 at Level A, 24 at AA and 31 at AAA. Criterion 4.1.1 Parsing is obsolete and is not listed. Of the 86, 84 are adopted and 2 do not apply. Criterion 2.2.3 No timing is adopted with an exception for the recovery page and the passkey ceremony, whose time limits protect every account.
 
 ### 1.1.1 Non-text content
 
@@ -216,7 +217,8 @@ Level AA. Adopted. Met by ui. [Understanding 1.4.3](https://www.w3.org/WAI/WCAG2
 The stylesheet owns lightness. Every text pair holds 4.5:1 (primary text 7:1) for any seed in the envelope, in both themes ([Contrast](design-colour.md#contrast)).
 
 - Unit: src/system/system-css.test.ts contrast tests over every hue.
-- axe: `color-contrast` in light and dark at 1440 and 390.
+- axe: `color-contrast` in light and dark at 1440 and 390, for text in HTML, since axe files text inside SVG as needs review.
+- SVG text: each visible `svg text` against the pixels under its glyphs at 4.5:1, or 3:1 for large text, in every page, overlay and details state.
 
 ### 1.4.4 Resize text
 
@@ -243,14 +245,15 @@ Primary text holds 7:1 on steps 1 to 3 at rest. Under `prefers-contrast: more` e
 
 - Unit: contrast tests at rest and under `prefers-contrast: more`.
 - axe: `color-contrast-enhanced` in the `contrast: more` state.
+- SVG text: as 1.4.3 at 7:1, or 4.5:1 for large text, under `prefers-contrast: more`.
 
 ### 1.4.7 Low or no background audio
 
-Level AAA. Does not apply, because ui ships no prerecorded audio content. [Understanding 1.4.7](https://www.w3.org/WAI/WCAG22/Understanding/low-or-no-background-audio.html)
+Level AAA. Adopted for media an app authors. Met by the app. [Understanding 1.4.7](https://www.w3.org/WAI/WCAG22/Understanding/low-or-no-background-audio.html)
 
-No ui element carries speech audio of its own. The person's library files are third-party content.
+The criterion covers prerecorded audio-only content that is mostly speech, not a video's soundtrack. An app's own such audio has no background sound, background sound at least 20 dB under the speech, or background sound the person can turn off. The video element, which plays an audio-only file too, blocks none of these. The person's library files are third-party content, which WCAG's statement of partial conformance covers.
 
-- Nothing to test in ui.
+- Manual: the media cards, where the gallery's sample has none.
 
 ### 1.4.8 Visual presentation
 
@@ -1903,15 +1906,19 @@ Contrast uses the WCAG 2 ratios: 4.5:1 for text, 3:1 for large text, boundaries 
 
 ### The axe check
 
-`gallery/a11y.ts` runs axe-core over every gallery page and frame and every reference page in `docs/system/`, in Chromium, Firefox and WebKit. Each engine has two test files: `gallery/a11y-<engine>.node.test.ts` checks the pages and `gallery/a11y-overlays-<engine>.node.test.ts` their overlays, one test per page and state. CI runs them with the other tests, split over three jobs (`cplieger.vitestShards` in `package.json`), and any violation fails the pull request.
+`gallery/a11y.ts` runs axe-core over every gallery page and frame and every reference page in `docs/system/`, in Chromium, Firefox and WebKit. Each engine has three test files: `gallery/a11y-<engine>.node.test.ts` checks the pages, `gallery/a11y-overlays-<engine>.node.test.ts` their overlays, and `gallery/a11y-charts-<engine>.node.test.ts` the charts page and its overlays, whose SVG text check takes the longest. Each runs one test per page and state. CI runs them with the other tests, split over three jobs (`cplieger.vitestShards` in `package.json`), and any violation fails the pull request.
 
 - axe-core is pinned to 4.13.0 as an exact dev dependency. A bump comes as a dependency update, and the check fails until each rule the new version adds is ruled in the table below.
 - The check selects rules by id, never by tag, so a rule that tests an adopted criterion runs even when axe marks it experimental. It also asserts that the rules it runs and the rules it leaves out together equal `axe.getRules()`.
-- Each page runs in the light and dark themes at 1440 by 900 and 390 by 844 CSS pixels. Both themes at 1440 also run under `prefers-contrast: more`, where `color-contrast-enhanced` checks the 7:1 pairs.
-- Each overlay, every `[popover]` and `dialog`, is opened the way a person opens it and checked alone, in both themes at 1440. A menu or panel opens by its button, a list of suggestions by ArrowDown in its field, and the tooltip by the pointer resting on a control with a tip. An overlay inside another opens after the one holding it. The tooltip is skipped on a page with no control that has a tip, since it never shows there. Any other overlay with nothing on the page to open it is opened by script, and the check's report names it. A button whose overlay is built when it is pressed, such as a question or a toast, is pressed on a fresh page, and what it opens is checked.
+- Each page runs in the light and dark themes at 1440 by 900 and 390 by 844 CSS pixels. Both themes at 1440 also run under `prefers-contrast: more`, where `color-contrast-enhanced` and the SVG text check hold the 7:1 pairs and the other rules have nothing new to find.
+- Each overlay, every `[popover]` and `dialog`, is opened the way a person opens it and checked alone, in each of the page's six states. A dialog becomes a bottom sheet at 390, and the overlays' text must hold 7:1 under more contrast. A menu or panel opens by its button, a list of suggestions by ArrowDown in its field, and the tooltip by the pointer resting on a control with a tip. An overlay inside another opens after the one holding it. The tooltip is skipped on a page with no control that has a tip, since it never shows there. Any other overlay with nothing on the page to open it is opened by script, and the check's report names it. A button whose overlay is built when it is pressed, such as a question or a toast, is pressed on a fresh page, and what it opens is checked.
 - Every closed `details` is opened in one more pass in the light theme at 1440. The members of a group that share a `name` open one per pass, since opening one closes the others.
-- A page whose run reports no passes fails, and a test page with a button that has no name must report `button-name` in every engine, so a run where axe did not start cannot pass.
-- axe reports some failures only as needs review. The check fails on those results for `aria-braille-equivalent`, `bypass`, `duplicate-id-aria`, `frame-title-unique`, `identical-links-same-purpose` and `no-autoplay-audio`, because axe files their real failures there. Every other needs-review result is written to the check's report and read by hand.
+- A run fails unless axe reports every rule it was given, but for `bypass`, its one page-level rule, which it runs only on a whole page. A test page with a button that has no name must report `button-name` in every engine, so a run where axe did not start cannot pass.
+- axe reports some failures only as needs review. The check fails on those results for `aria-braille-equivalent`, `aria-prohibited-attr`, `bypass`, `duplicate-id-aria`, `frame-title-unique`, `identical-links-same-purpose` and `no-autoplay-audio`, because axe files their real failures there. Every other needs-review result is written to the check's report as a notice, and the review of each pull request reads them against this page.
+
+### The SVG text check
+
+axe files text inside SVG, such as a chart's axis labels, as needs review, so the check measures it itself, in every page, overlay and details state. It scrolls each visible `svg text` into view and takes two screenshots: one with the text's fill transparent, which shows what is behind the glyphs, and one with the fill magenta, which shows the pixels the glyphs cover. Each pixel the glyphs cover at least half of must hold 4.5:1 between the text's fill and what is behind it, or 3:1 for large text. For text on an opaque halo, a stroke painted under its fill, the halo is what is behind it. A text under a fixed or sticky bar waits for a view where it is clear. Under `prefers-contrast: more` the ratios are 7:1 and 4.5:1. A test page with text that falls short, text on a halo, faded text and text off screen in a scrolling box proves the measure in each engine.
 
 Of axe 4.13.0's 105 rules, 100 run in every state, 1 runs only under `prefers-contrast: more`, and 4 do not run: `aria-roledescription`, `audio-caption`, `hidden-content` and `landmark-complementary-is-top-level`. The [table of rules](#axe-rules) gives the reason for each.
 
@@ -1955,7 +1962,7 @@ No screen reader runs in CI. The flows that most need one are live announcements
 | [`aria-input-field-name`](https://dequeuniversity.com/rules/axe/4.13/aria-input-field-name) | every state | no | [4.1.2](#412-name-role-value) | Tests an adopted A or AA criterion. |
 | [`aria-meter-name`](https://dequeuniversity.com/rules/axe/4.13/aria-meter-name) | every state | no | [1.1.1](#111-non-text-content) | Tests an adopted A or AA criterion. |
 | [`aria-progressbar-name`](https://dequeuniversity.com/rules/axe/4.13/aria-progressbar-name) | every state | no | [1.1.1](#111-non-text-content) | Tests an adopted A or AA criterion. |
-| [`aria-prohibited-attr`](https://dequeuniversity.com/rules/axe/4.13/aria-prohibited-attr) | every state | no | [4.1.2](#412-name-role-value) | Tests an adopted A or AA criterion. |
+| [`aria-prohibited-attr`](https://dequeuniversity.com/rules/axe/4.13/aria-prohibited-attr) | every state | yes | [4.1.2](#412-name-role-value) | axe files a name ARIA 1.2 prohibits as needs review when the element also has text, or an `aria-labelledby` whose targets show, since a screen reader still says something. ARIA 1.2 forbids authors to name these roles, so a browser may drop the name. Any result is a defect. |
 | [`aria-required-attr`](https://dequeuniversity.com/rules/axe/4.13/aria-required-attr) | every state | no | [4.1.2](#412-name-role-value) | Tests an adopted A or AA criterion. |
 | [`aria-required-children`](https://dequeuniversity.com/rules/axe/4.13/aria-required-children) | every state | no | [1.3.1](#131-info-and-relationships) | Tests an adopted A or AA criterion. |
 | [`aria-required-parent`](https://dequeuniversity.com/rules/axe/4.13/aria-required-parent) | every state | no | [1.3.1](#131-info-and-relationships) | Tests an adopted A or AA criterion. |
@@ -1974,8 +1981,8 @@ No screen reader runs in CI. The flows that most need one are live announcements
 | [`blink`](https://dequeuniversity.com/rules/axe/4.13/blink) | every state | no | [2.2.2](#222-pause-stop-hide) | Tests an adopted A or AA criterion. |
 | [`button-name`](https://dequeuniversity.com/rules/axe/4.13/button-name) | every state | no | [4.1.2](#412-name-role-value) | Tests an adopted A or AA criterion. |
 | [`bypass`](https://dequeuniversity.com/rules/axe/4.13/bypass) | every state | yes | [2.4.1](#241-bypass-blocks) | axe files its failures as needs review. A ui page with no landmark, no heading and no skip link is a defect, so the check counts them. |
-| [`color-contrast-enhanced`](https://dequeuniversity.com/rules/axe/4.13/color-contrast-enhanced) | `contrast: more` only | no | [1.4.6](#146-contrast-enhanced) | AAA 1.4.6 is adopted. Primary text holds 7:1 at rest, and every text pair holds it under `prefers-contrast: more`. The rule runs in the `contrast: more` state, where every pair must hold 7:1. At rest, secondary text holds 4.5:1 by design. Its needs-review results go to the contrast check by hand. |
-| [`color-contrast`](https://dequeuniversity.com/rules/axe/4.13/color-contrast) | every state | no | [1.4.3](#143-contrast-minimum) | Its needs-review results, such as text over an image or a gradient, overlapping boxes and pseudo-elements, go to the contrast check by hand in each theme. |
+| [`color-contrast-enhanced`](https://dequeuniversity.com/rules/axe/4.13/color-contrast-enhanced) | `contrast: more` only | no | [1.4.6](#146-contrast-enhanced) | AAA 1.4.6 is adopted. Primary text holds 7:1 at rest, and every text pair holds it under `prefers-contrast: more`. The rule runs in the `contrast: more` state, where every pair must hold 7:1. At rest, secondary text holds 4.5:1 by design. It files text inside SVG as needs review, which the [SVG text check](#the-svg-text-check) measures. Its other needs-review results go to the contrast check by hand. |
+| [`color-contrast`](https://dequeuniversity.com/rules/axe/4.13/color-contrast) | every state | no | [1.4.3](#143-contrast-minimum) | It files text inside SVG as needs review, which the [SVG text check](#the-svg-text-check) measures. Its other needs-review results, such as text over an image or a gradient, overlapping boxes and pseudo-elements, go to the contrast check by hand in each theme. |
 | [`css-orientation-lock`](https://dequeuniversity.com/rules/axe/4.13/css-orientation-lock) | every state | no | [1.3.4](#134-orientation) | Experimental in 4.13.0. It is the only automated test of 1.3.4, it reads ui's own stylesheets on the gallery's origin, and axe is pinned, so a later change to it arrives in a reviewed bump. |
 | [`definition-list`](https://dequeuniversity.com/rules/axe/4.13/definition-list) | every state | no | [1.3.1](#131-info-and-relationships) | Tests an adopted A or AA criterion. |
 | [`dlitem`](https://dequeuniversity.com/rules/axe/4.13/dlitem) | every state | no | [1.3.1](#131-info-and-relationships) | Tests an adopted A or AA criterion. |

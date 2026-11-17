@@ -180,9 +180,9 @@ const HARMONY = {
   // the lighter accent sits this far above step 9
   lighter: 0.14,
   // Under prefers-contrast: more, a light partner whose floor passes `split`
-  // rises to `high` for black ink, and every other partner sits at the more
-  // ladder's step 9, so no ink falls under 7:1. `chroma` keeps those
-  // lightnesses inside sRGB.
+  // rises to `high` for black ink and any other sits at the more ladder's
+  // step 9; a dark partner sits at the higher of its floor and step 9. So no
+  // ink falls under 7:1. `chroma` keeps those lightnesses inside sRGB.
   more: { split: 0.62, high: 0.8, chroma: 0.8 },
   // chroma cap: a - b * max(0, cos(h - centre))^power
   cap: {
@@ -236,13 +236,16 @@ function harmony(hue: number, chroma: number, theme: Theme, mode: Mode = "normal
 
 const num = (v: number) => String(Number(v.toFixed(4)));
 
+// The models' comparisons as CSS steps: 1 where `x > 0`, and where `x >= 0`, else 0.
+const above = (x: string) => `max(0, sign(${x}))`;
+const atLeast = (x: string) => `(1 - max(0, sign(-1 * (${x}))))`;
+
 // A partner's hue as CSS: the turn wrapped into 0 to 360, then the band's
-// two halves moved to their edges. clamp(0, x * 1e5, 1) is 0 for x <= 0 and
-// 1 from x = 1e-5; adding 1 makes it 1 at x = 0 too, for the closed edge.
+// two halves moved to their edges.
 function partnerHueCss(turn: number): string {
   const { band } = HARMONY;
   const raw = `mod(calc(var(--cp-accent-h) + ${String(turn)}), 360)`;
-  const step = (x: string, closed = false) => `clamp(0, (${x}) * 100000${closed ? " + 1" : ""}, 1)`;
+  const step = (x: string, closed = false) => (closed ? atLeast(x) : above(x));
   const lowHalf = `${step(`${raw} - ${num(band.from)}`)} * ${step(`${num(band.split)} - ${raw}`)}`;
   const highHalf = `${step(`${raw} - ${num(band.split)}`, true)} * ${step(`${num(band.to)} - ${raw}`)}`;
   return `calc(${raw} + ${lowHalf} * (${num(band.low)} - ${raw}) + ${highHalf} * (${num(band.high)} - ${raw}))`;
@@ -268,7 +271,7 @@ function partnerMoreCss(theme: Theme, h: string): string {
   const l =
     theme === "dark"
       ? `max(${num(l9)}, ${lift})`
-      : `calc(${num(l9)} + clamp(0, (${lift} - ${num(more.split)}) * 100000, 1) * (max(${lift}, ${num(more.high)}) - ${num(l9)}))`;
+      : `calc(${num(l9)} + ${above(`${lift} - ${num(more.split)}`)} * (max(${lift}, ${num(more.high)}) - ${num(l9)}))`;
   const c = `calc(min(calc(var(--cp-accent-c) * ${num(HARMONY.chroma)}), ${capCss(HARMONY.cap[theme].partner, h)}) * ${num(more.chroma)})`;
   return `oklch(${l} ${c} ${h})`;
 }
@@ -558,15 +561,14 @@ function scaleCss(l: number, h: string, cusp: string): string {
 function turnCss(to: number): string {
   const d = `mod(${String(to)} - var(--cp-accent-h), 360)`;
   const max = String(SCALE.turn.max);
-  return `clamp(-${max}, ${d} - 360 * clamp(0, (${d} - 180) * 100000, 1), ${max})`;
+  return `clamp(-${max}, ${d} - 360 * ${above(`${d} - 180`)}, ${max})`;
 }
 
-// The four pieces of oppositeHue as CSS, each a window of the accent's hue
-// with the partners' steps (partnerHueCss).
+// The four pieces of oppositeHue as CSS, each a window of the accent's hue.
 function oppositeHueCss(): string {
   const a = "mod(var(--cp-accent-h), 360)";
-  const from = (edge: number) => `clamp(0, (${a} - ${String(edge)}) * 100000 + 1, 1)`;
-  const below = (edge: number) => `clamp(0, (${String(edge)} - ${a}) * 100000, 1)`;
+  const from = (edge: number) => atLeast(`${a} - ${String(edge)}`);
+  const below = (edge: number) => above(`${String(edge)} - ${a}`);
   const mirror = `(${from(120)} * ${below(170)} + ${from(308)} * ${below(355)})`;
   return `calc(245 + ${mirror} * (230 - ${a}) - ${from(170)} * ${below(308)} * 190)`;
 }

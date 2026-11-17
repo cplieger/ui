@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, onTestFinished } from "vitest";
 
 import { build, contrast, q, resolved, useSystemSheet } from "../../system/test-helpers/css.js";
 
@@ -57,12 +57,22 @@ describe("notice", () => {
     expect(box.color).toBe(resolved("var(--cp-warning-12)"));
   });
 
-  it("gives each link of an error summary a 24px row, so lines of links keep their spacing", () => {
-    const el = build(
-      `<div class="cp-notice" data-tone="danger" role="alert"><span><strong>Two fields need a fix.</strong><ul><li><a href="#a">API key</a></li><li><a href="#b">Check every</a></li></ul></span></div>`,
-    );
+  const summary = `<div class="cp-notice" data-tone="danger" role="alert"><span><strong>Two fields need a fix.</strong><ul><li><a href="#a">API key</a></li><li><a href="#b">Check every</a></li></ul></span></div>`;
+  const linkGap = (el: HTMLElement) => {
     const [first, second] = [...el.querySelectorAll("a")].map((a) => a.getBoundingClientRect());
-    expect(first && second && second.top - first.top).toBeGreaterThanOrEqual(24);
+    return first && second && second.top - first.top;
+  };
+
+  it("gives each link of an error summary a 24px row, so lines of links keep their spacing", () => {
+    expect(linkGap(build(summary))).toBeGreaterThanOrEqual(24);
+  });
+
+  it("keeps the 24px rows when the person's root font is smaller than 16px", () => {
+    document.documentElement.style.fontSize = "12px";
+    onTestFinished(() => {
+      document.documentElement.style.removeProperty("font-size");
+    });
+    expect(linkGap(build(summary))).toBeGreaterThanOrEqual(24);
   });
 
   it("keeps a notice's own drawing apart from the banner's", () => {

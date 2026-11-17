@@ -164,6 +164,18 @@ describe("css/system.css harmony colours", () => {
     expect(harmonyAt(2, 310)[2]).toBeCloseTo(100, 3);
   });
 
+  // Stylo computes calc() in f32 (its CSSFloat), where no turned hue lands
+  // within 1e-5 of an edge.
+  it.skipIf(server.browser === "firefox")(
+    "moves a partner a hair inside the yellow-greens as one at the band's edges",
+    () => {
+      theme("light");
+      expect(harmonyAt(2, 310.000005)[2]).toBeCloseTo(90, 3);
+      expect(harmonyAt(2, 327.499995)[2]).toBeCloseTo(90, 3);
+      expect(harmonyAt(2, 344.999995)[2]).toBeCloseTo(142, 3);
+    },
+  );
+
   it("lifts a yellow partner above the accent, and keeps the others at its lightness", () => {
     theme("light");
     const [yellowL] = harmonyAt(2, 305);
@@ -215,7 +227,10 @@ describe("css/system.css harmony colours", () => {
       async () => {
         theme(t);
         await media("prefers-contrast", "more");
-        for (let hue = 0; hue < 360; hue += 15) {
+        // 206.4945 and 266.4945 turn to a partner at 56.4945, whose floor
+        // lands on the split where a light partner's lightness steps.
+        const hues = [...Array.from({ length: 24 }, (_, i) => i * 15), 206.4945, 266.4945];
+        for (const hue of hues) {
           root.style.setProperty("--cp-accent-h", String(hue));
           for (const n of [1, 2, 3, 4]) {
             const el = host("");

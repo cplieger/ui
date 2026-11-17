@@ -126,6 +126,8 @@ const EVERY: readonly string[] = [
   "valid-lang",
   "video-caption",
 ];
+/** axe's page-level rules, which it runs only on the whole document. */
+const PAGE_LEVEL: readonly string[] = ["bypass"];
 /** Run only under `prefers-contrast: more`, where the 7:1 pairs hold. */
 const CONTRAST_MORE: readonly string[] = ["color-contrast-enhanced"];
 const OUT: readonly string[] = [
@@ -137,6 +139,7 @@ const OUT: readonly string[] = [
 // axe files these rules' real failures as needs review.
 const REVIEW_FAILS: readonly string[] = [
   "aria-braille-equivalent",
+  "aria-prohibited-attr",
   "bypass",
   "duplicate-id-aria",
   "frame-title-unique",
@@ -158,11 +161,18 @@ const STATES: readonly State[] = [1440, 390].flatMap((width) =>
     theme,
   })),
 );
-/** Where every overlay and every closed `details` is opened. */
-const WIDE: readonly State[] = STATES.filter((s) => s.width === 1440);
+/** Where every closed `details` is opened. */
 const LIGHT_WIDE: State = { width: 1440, height: 900, theme: "light" };
 // docs/design-colour.md "Contrast" holds the 7:1 pairs in both themes.
-const MORE: readonly State[] = WIDE.map((s) => ({ ...s, contrast: "more" as const }));
+const MORE: readonly State[] = STATES.filter((s) => s.width === 1440).map((s) => ({
+  ...s,
+  contrast: "more" as const,
+}));
+const EVERY_STATE: readonly State[] = [...STATES, ...MORE];
+
+/** The rules a state runs: under more contrast only the 7:1 pairs are new. */
+const rulesOf = (state: State): readonly string[] =>
+  state.contrast === undefined ? EVERY : CONTRAST_MORE;
 
 const OVERLAY = "[popover], dialog";
 // Buttons whose overlay the gallery's script builds on the press (gallery/wire),
@@ -181,7 +191,10 @@ interface Found {
 }
 
 interface Run {
-  readonly passes: number;
+  /** The rules given that axe reported in none of its four lists. */
+  readonly unrun: readonly string[];
+  /** Whether axe checked part of the page, which skips `PAGE_LEVEL`. */
+  readonly scoped: boolean;
   readonly violations: readonly Found[];
   readonly incomplete: readonly Found[];
 }
@@ -205,8 +218,9 @@ class Report {
   }
 
   add(run: Run, at: string): void {
-    if (run.passes === 0) {
-      this.fail(`no rule passed, ${at}`);
+    const unrun = run.unrun.filter((id) => !run.scoped || !PAGE_LEVEL.includes(id));
+    if (unrun.length > 0) {
+      this.fail(`axe did not run, ${at}`, unrun);
     }
     for (const v of run.violations) {
       this.fail(`${v.id}, ${at}`, v.nodes);
@@ -228,6 +242,13 @@ class Report {
   openedByScript(overlay: string): void {
     if (!this.scripted.includes(overlay)) {
       this.scripted.push(overlay);
+    }
+  }
+
+  /** Records the SVG text in `low`, from `svgText`. */
+  svgText(low: readonly string[], at: string): void {
+    if (low.length > 0) {
+      this.fail(`svg text contrast, ${at}`, low);
     }
   }
 
@@ -326,13 +347,333 @@ async function check(
           id: r.id,
           nodes: r.nodes.map((n) => n.target.map(String).join(" >> ")),
         }));
+      const ran = new Set(
+        [result.passes, result.violations, result.incomplete, result.inapplicable].flatMap((l) =>
+          l.map((r) => r.id),
+        ),
+      );
       return {
-        passes: result.passes.length,
+        unrun: values.filter((id) => !ran.has(id)),
+        scoped: within !== undefined,
         violations: found(result.violations),
         incomplete: found(result.incomplete),
       };
     },
     [rules, scope] as const,
+  );
+}
+
+/** The least ratio WCAG 1.4.3 asks of text, or 1.4.6 under more contrast. */
+function least(state: State, large: boolean): number {
+  if (state.contrast === undefined) {
+    return large ? 3 : 4.5;
+  }
+  return large ? 4.5 : 7;
+}
+
+/** A `svg text` as the contrast check reads it. */
+interface Ink {
+  /** Its outermost svg's place among the page's, and its own place in that
+   *  svg, which a redraw of the svg keeps. */
+  readonly key: string;
+  readonly name: string;
+  /** Its fill in sRGB, 0 to 255, with alpha 0 to 1 after fill-opacity and opacity. */
+  readonly rgba: readonly [number, number, number, number];
+  /** An opaque halo's sRGB, a stroke painted under the fill, which is then
+   *  the whole background of every glyph. */
+  readonly halo: readonly [number, number, number] | null;
+  readonly large: boolean;
+  /** Its box in the screenshot, CSS px. */
+  readonly box: { readonly x: number; readonly y: number; readonly w: number; readonly h: number };
+}
+
+type Texts = (within?: readonly Element[]) => Map<string, SVGTextElement>;
+
+/**
+ * Each visible `svg text` in `scope`, or on the page, whose fill holds less
+ * than `least` against what is under its glyphs, as "name: ratio" in page
+ * order. Each text not yet measured is scrolled into view with the others
+ * then on screen. A screenshot with every fill transparent shows what is
+ * behind them, and one with it magenta shows which pixels they cover.
+ */
+async function svgText(tab: Page, state: State, scope?: JSHandle<Element[]>): Promise<string[]> {
+  // A chart draws its text again as new nodes after each font `loading`
+  // event, which WebKit fires whenever a sheet changes, Playwright's own
+  // per shot included. So texts are found by place, never by node, the one
+  // sheet goes in first, and an attribute on the root switches it.
+  const keys = await tab.evaluate(async (within) => {
+    const texts: Texts = (inside) => {
+      const found = new Map<string, SVGTextElement>();
+      const roots = [...document.querySelectorAll("svg")].filter((s) => s.ownerSVGElement === null);
+      roots.forEach((root, r) => {
+        root.querySelectorAll("text").forEach((t, n) => {
+          const b = t.getBoundingClientRect();
+          if (
+            (inside === undefined || inside.some((w) => w.contains(t))) &&
+            t.textContent.trim() !== "" &&
+            b.width > 0 &&
+            b.height > 0 &&
+            t.checkVisibility({ opacityProperty: true, visibilityProperty: true })
+          ) {
+            found.set(`${String(r)} ${String(n)}`, t);
+          }
+        });
+      });
+      return found;
+    };
+    (window as unknown as { a11yTexts: Texts }).a11yTexts = texts;
+    const sheet = document.head.appendChild(document.createElement("style"));
+    sheet.id = "a11y-ink";
+    sheet.textContent = [
+      `[data-a11y-ink] svg text { transition: none !important; }`,
+      `[data-a11y-ink="clear"] svg text { fill: transparent !important; }`,
+      `[data-a11y-ink="probe"] svg text { fill: #f0f !important; }`,
+    ].join("\n");
+    // Fixed and sticky bars, and the scroll positions to restore.
+    for (const e of document.querySelectorAll<HTMLElement>("body *:not(svg *)")) {
+      if (
+        ["fixed", "sticky"].includes(getComputedStyle(e).position) &&
+        e.querySelector("svg text") === null
+      ) {
+        e.dataset["a11yBar"] = "";
+      }
+      if (e.scrollWidth > e.clientWidth || e.scrollHeight > e.clientHeight) {
+        e.dataset["a11yScroll"] = `${String(e.scrollLeft)} ${String(e.scrollTop)}`;
+      }
+    }
+    document.documentElement.dataset["a11yScroll"] = `${String(scrollX)} ${String(scrollY)}`;
+    await document.fonts.ready;
+    return [...texts(within).keys()];
+  }, scope);
+  await settle(tab);
+  const low = new Map<string, string>();
+  const done = new Set<string>();
+  for (const next of keys) {
+    if (done.has(next)) {
+      continue;
+    }
+    // Scrolling the text, not its svg, also scrolls each box that clips it.
+    // It then sits a quarter down, clear of a sticky header, so most of the
+    // view is texts still to measure.
+    await tab.evaluate(
+      ([k, within]) => {
+        const t = (window as unknown as { a11yTexts: Texts }).a11yTexts(within).get(k);
+        t?.scrollIntoView({ block: "nearest", inline: "center", behavior: "instant" });
+        const top = t?.getBoundingClientRect().top ?? 0;
+        scrollBy({ top: top - innerHeight / 4, behavior: "instant" });
+      },
+      [next, scope] as const,
+    );
+    const [clip, inks] = await readInks(tab, next, [...done], scope);
+    if (inks.length === 0) {
+      done.add(next);
+      continue;
+    }
+    const shots: string[] = [];
+    for (const ink of ["clear", "probe", null]) {
+      await tab.evaluate((i) => {
+        if (i === null) {
+          delete document.documentElement.dataset["a11yInk"];
+        } else {
+          document.documentElement.dataset["a11yInk"] = i;
+        }
+      }, ink);
+      if (ink !== null) {
+        // Playwright's `caret: "hide"` adds a sheet a shot.
+        shots.push(
+          (await tab.screenshot({ clip, scale: "css", caret: "initial" })).toString("base64"),
+        );
+      }
+    }
+    const ratios = await measure(tab, shots, inks);
+    inks.forEach((ink, i) => {
+      const ratio = ratios[i] ?? Number.POSITIVE_INFINITY;
+      if (ratio === Number.POSITIVE_INFINITY && ink.key !== next) {
+        return;
+      }
+      done.add(ink.key);
+      const want = least(state, ink.large);
+      if (ratio === Number.POSITIVE_INFINITY) {
+        low.set(ink.key, `${ink.name}: no glyph on screen`);
+      } else if (ratio < want) {
+        low.set(ink.key, `${ink.name}: ${ratio.toFixed(2)}:1, under ${String(want)}:1`);
+      }
+    });
+  }
+  // A later check of the same page reads it where this one found it.
+  await tab.evaluate(() => {
+    document.getElementById("a11y-ink")?.remove();
+    delete document.documentElement.dataset["a11yInk"];
+    for (const e of document.querySelectorAll<HTMLElement>("[data-a11y-scroll]")) {
+      const [left = 0, top = 0] = (e.dataset["a11yScroll"] ?? "").split(" ").map(Number);
+      (e === document.documentElement ? window : e).scrollTo({ left, top, behavior: "instant" });
+    }
+    for (const e of document.querySelectorAll<HTMLElement>("[data-a11y-bar], [data-a11y-scroll]")) {
+      delete e.dataset["a11yBar"];
+      delete e.dataset["a11yScroll"];
+    }
+  });
+  return keys.flatMap((k) => {
+    const line = low.get(k);
+    return line === undefined ? [] : [line];
+  });
+}
+
+/** Text `next` and the texts on screen that are not in `done`, with the
+ *  screenshot box that holds them. */
+async function readInks(
+  tab: Page,
+  next: string,
+  done: readonly string[],
+  scope?: JSHandle<Element[]>,
+): Promise<[{ x: number; y: number; width: number; height: number }, Ink[]]> {
+  return tab.evaluate(
+    ([n, skip, within]) => {
+      const all = (window as unknown as { a11yTexts: Texts }).a11yTexts(within);
+      // A fixed or sticky bar, and its shadow, can lie over a text, which
+      // it then darkens without hiding.
+      const bars = [...document.querySelectorAll("[data-a11y-bar]")].map((e) =>
+        e.getBoundingClientRect(),
+      );
+      const onScreen = (t: SVGTextElement): boolean => {
+        const b = t.getBoundingClientRect();
+        return (
+          b.left >= 0 &&
+          b.top >= 0 &&
+          b.right <= innerWidth &&
+          b.bottom <= innerHeight &&
+          bars.every(
+            (r) =>
+              b.right < r.left - 16 ||
+              b.left > r.right + 16 ||
+              b.bottom < r.top - 16 ||
+              b.top > r.bottom + 16,
+          )
+        );
+      };
+      const texts = [...all].filter(([k, t]) => k === n || (!skip.includes(k) && onScreen(t)));
+      const boxes = texts.map(([, t]) => t.getBoundingClientRect());
+      const x = Math.max(0, Math.floor(Math.min(...boxes.map((b) => b.left))));
+      const y = Math.max(0, Math.floor(Math.min(...boxes.map((b) => b.top))));
+      const right = Math.min(innerWidth, Math.ceil(Math.max(...boxes.map((b) => b.right))));
+      const bottom = Math.min(innerHeight, Math.ceil(Math.max(...boxes.map((b) => b.bottom))));
+      const canvas = document.createElement("canvas");
+      canvas.width = canvas.height = 1;
+      const g = canvas.getContext("2d", { willReadFrequently: true });
+      const inks = texts.map(([key, t], i) => {
+        const css = getComputedStyle(t);
+        let alpha = Number(css.fillOpacity);
+        for (let e: Element | null = t; e !== null; e = e.parentElement) {
+          alpha *= Number(getComputedStyle(e).opacity);
+        }
+        const srgb = (colour: string): number[] => {
+          g?.clearRect(0, 0, 1, 1);
+          if (g !== null && CSS.supports("color", colour)) {
+            g.fillStyle = colour;
+            g.fillRect(0, 0, 1, 1);
+          }
+          return [...(g?.getImageData(0, 0, 1, 1).data ?? [])];
+        };
+        const [red = 0, green = 0, blue = 0, a = 0] = srgb(css.fill);
+        const [hr = 0, hg = 0, hb = 0, ha = 0] = srgb(css.stroke);
+        const halo =
+          css.paintOrder.startsWith("stroke") &&
+          Number.parseFloat(css.strokeWidth) >= 2 &&
+          ha === 255 &&
+          Number(css.strokeOpacity) === 1
+            ? ([hr, hg, hb] as const)
+            : null;
+        const size = Number.parseFloat(css.fontSize);
+        const b = boxes[i] ?? new DOMRect();
+        const where =
+          t.closest(".card")?.querySelector("h2")?.textContent ??
+          t.closest("[aria-label]")?.getAttribute("aria-label") ??
+          document.title;
+        return {
+          key,
+          name: `${where}: "${t.textContent.trim().slice(0, 40)}"`,
+          rgba: [red, green, blue, (a / 255) * alpha] as const,
+          halo,
+          large: size >= 24 || (size >= 18.66 && Number(css.fontWeight) >= 700),
+          box: { x: b.left - x, y: b.top - y, w: b.width, h: b.height },
+        };
+      });
+      return [
+        { x, y, width: Math.max(1, right - x), height: Math.max(1, bottom - y) },
+        inks,
+      ] as const;
+    },
+    [next, done, scope] as const,
+  );
+}
+
+/** Each ink's least WCAG contrast over the pixels its glyphs cover, or
+ *  Infinity where it covers none. */
+async function measure(
+  tab: Page,
+  shots: readonly string[],
+  inks: readonly Ink[],
+): Promise<number[]> {
+  return tab.evaluate(
+    async ([pngs, list]) => {
+      const pixels = await Promise.all(
+        pngs.map(async (b64) => {
+          const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+          const image = await createImageBitmap(new Blob([bytes], { type: "image/png" }));
+          const canvas = new OffscreenCanvas(image.width, image.height);
+          const g = canvas.getContext("2d", { willReadFrequently: true });
+          g?.drawImage(image, 0, 0);
+          return {
+            w: image.width,
+            h: image.height,
+            data: g?.getImageData(0, 0, image.width, image.height).data,
+          };
+        }),
+      );
+      const [under, probe] = pixels;
+      // WCAG 2.2's relative luminance of an sRGB colour, 0 to 255 a channel.
+      const lum = (rgb: readonly number[]): number => {
+        const [r = 0, g = 0, b = 0] = rgb.map((v) => {
+          const s = v / 255;
+          return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+        });
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+      };
+      return list.map((ink) => {
+        let low = Number.POSITIVE_INFINITY;
+        const [u, m] = [under?.data, probe?.data];
+        if (under === undefined || u === undefined || m === undefined) {
+          return low;
+        }
+        const [r, g, b, a] = ink.rgba;
+        const x0 = Math.max(0, Math.floor(ink.box.x));
+        const y0 = Math.max(0, Math.floor(ink.box.y));
+        const x1 = Math.min(under.w, Math.ceil(ink.box.x + ink.box.w));
+        const y1 = Math.min(under.h, Math.ceil(ink.box.y + ink.box.h));
+        for (let y = y0; y < y1; y++) {
+          for (let x = x0; x < x1; x++) {
+            const i = (y * under.w + x) * 4;
+            // The glyph's cover of the pixel, read on the channel where the
+            // magenta probe differs most from what is under it. Under half is
+            // its antialiased edge, and a magenta background reads as none.
+            const c = [255, 0, 255]
+              .map((v, ch) => [v - (u[i + ch] ?? 0), (m[i + ch] ?? 0) - (u[i + ch] ?? 0)] as const)
+              .toSorted(([p], [q]) => Math.abs(q) - Math.abs(p))[0];
+            if (c === undefined || Math.abs(c[0]) < 96 || c[1] / c[0] < 0.5) {
+              continue;
+            }
+            // Under a transparent fill Firefox shows what lies inside a glyph,
+            // not its halo, so a halo is read from the style.
+            const bg = ink.halo ?? [0, 1, 2].map((c) => u[i + c] ?? 0);
+            const fg = bg.map((v, c) => a * ([r, g, b][c] ?? 0) + (1 - a) * v);
+            const [hi = 0, lo = 0] = [lum(fg), lum(bg)].toSorted((p, q) => q - p);
+            low = Math.min(low, (hi + 0.05) / (lo + 0.05));
+          }
+        }
+        return low;
+      });
+    },
+    [shots, inks] as const,
   );
 }
 
@@ -346,10 +687,8 @@ const statePass = (state: State): Pass => ({
   name: label(state),
   run: async (browser, url, report) => {
     const tab = await open(browser, url, state);
-    report.add(
-      await check(tab, state.contrast === undefined ? EVERY : CONTRAST_MORE),
-      label(state),
-    );
+    report.add(await check(tab, rulesOf(state)), label(state));
+    report.svgText(await svgText(tab, state), label(state));
     await tab.close();
   },
 });
@@ -384,6 +723,7 @@ const detailsPass: Pass = {
       }, n);
       await settle(tab);
       report.add(await check(tab, EVERY, opened), DETAILS);
+      report.svgText(await svgText(tab, LIGHT_WIDE, opened), DETAILS);
     }
     await tab.close();
   },
@@ -468,13 +808,21 @@ async function show(
         o.showPopover();
       }
     });
-  } else if (how === "click") {
-    await by.click();
-  } else if (how === "keys") {
-    await by.focus();
-    await tab.keyboard.press("ArrowDown");
   } else {
-    await by.hover();
+    // axe 4.13.0's target-size stacks elements with no regard for the top
+    // layer, so a popover over the sticky header or the fixed controls reads
+    // as covered by them. Its opener at mid-screen keeps it clear of both.
+    await by.evaluate((e) => {
+      e.scrollIntoView({ block: "center", behavior: "instant" });
+    });
+    if (how === "click") {
+      await by.click();
+    } else if (how === "keys") {
+      await by.focus();
+      await tab.keyboard.press("ArrowDown");
+    } else {
+      await by.hover();
+    }
   }
   const shown = await tab.waitForFunction(isOpen, overlay, { timeout: 3_000 }).then(
     (): Shown => "open",
@@ -517,18 +865,18 @@ async function overlayStates(
   state: State,
 ): Promise<void> {
   const at = `${label(state)} overlay`;
+  const rules = rulesOf(state);
   const tab = await open(browser, url, state);
   const overlays = await tab.$$(OVERLAY);
   let opened = 0;
   let absent = 0;
   for (const overlay of overlays) {
     const name = await overlay.evaluate(nameOf);
+    const alone = await overlay.evaluateHandle((o) => [o]);
     if (await overlay.evaluate(isOpen)) {
       opened++;
-      report.add(
-        await check(tab, EVERY, await overlay.evaluateHandle((o) => [o])),
-        `${at} ${name} open at rest`,
-      );
+      report.add(await check(tab, rules, alone), `${at} ${name} open at rest`);
+      report.svgText(await svgText(tab, state, alone), `${at} ${name} open at rest`);
       continue;
     }
     const [chain, shown] = await show(tab, overlay, report);
@@ -537,10 +885,8 @@ async function overlayStates(
     } else if (shown === "open") {
       opened++;
       await settle(tab);
-      report.add(
-        await check(tab, EVERY, await overlay.evaluateHandle((o) => [o])),
-        `${at} ${name} open`,
-      );
+      report.add(await check(tab, rules, alone), `${at} ${name} open`);
+      report.svgText(await svgText(tab, state, alone), `${at} ${name} open`);
     } else {
       report.fail(`${name} did not open, ${at}`);
     }
@@ -576,7 +922,9 @@ async function overlayStates(
       report.fail(`${name} opened nothing, ${at}`);
     } else {
       await settle(page);
-      report.add(await check(page, EVERY, made as JSHandle<Element[]>), `${at} after ${name}`);
+      const shown = made as JSHandle<Element[]>;
+      report.add(await check(page, rules, shown), `${at} after ${name}`);
+      report.svgText(await svgText(page, state, shown), `${at} after ${name}`);
     }
     await page.close();
   }
@@ -587,20 +935,22 @@ const overlayPass = (state: State): Pass => ({
   run: (browser, url, report) => overlayStates(browser, url, report, state),
 });
 
-const PAGE_PASSES: readonly Pass[] = [...[...STATES, ...MORE].map(statePass), detailsPass];
-const OVERLAY_PASSES: readonly Pass[] = WIDE.map(overlayPass);
+const PAGE_PASSES: readonly Pass[] = [...EVERY_STATE.map(statePass), detailsPass];
+const OVERLAY_PASSES: readonly Pass[] = EVERY_STATE.map(overlayPass);
 
 /** Pages served by one server, each checked by the same passes, one test
  *  per page and pass. */
-export interface Pages {
+interface Pages {
   readonly name: string;
-  /** The test's name, with `$page` and `$pass`. */
+  /** The test's name, with `$page` and `$pass.name`. */
   readonly title: string;
   readonly names: readonly string[];
   readonly serve: () => Promise<Served>;
   /** The pages' folder on the server, as `/docs/system`, or "" for its root. */
   readonly path: string;
   readonly passes: readonly Pass[];
+  /** Each test's budget in ms. */
+  readonly timeout: number;
 }
 
 /**
@@ -643,57 +993,74 @@ export function describeAxe(
         await served?.close();
       });
 
-      const cases = group.names.flatMap((page) =>
-        group.passes.map((p) => ({ page, pass: p.name })),
+      const cases = group.names.flatMap((page) => group.passes.map((pass) => ({ page, pass })));
+      it.for(cases)(
+        group.title,
+        { timeout: group.timeout },
+        async ({ page, pass }, { annotate }) => {
+          const report = new Report();
+          await pass.run(launched(), `${served?.origin ?? ""}${group.path}/${page}.html`, report);
+          await report.annotate(annotate);
+          expect(report.failed).toEqual({});
+        },
       );
-      it.for(cases)(group.title, { timeout: 180_000 }, async ({ page, pass }, { annotate }) => {
-        const work = group.passes.find((p) => p.name === pass);
-        if (work === undefined) {
-          throw new Error(`no pass ${pass}`);
-        }
-        const report = new Report();
-        await work.run(launched(), `${served?.origin ?? ""}${group.path}/${page}.html`, report);
-        await report.annotate(annotate);
-        expect(report.failed).toEqual({});
-      });
     });
   });
 }
 
-const GALLERY = [...pageNames, ...frameNames];
+// Its own files, so CI's shards run its SVG text check beside the other pages.
+const CHARTS = "charts";
+const GALLERY = [...pageNames, ...frameNames].filter((n) => n !== CHARTS);
 const REFERENCE = (await readdir(join(ROOT, "docs", "system")))
   .filter((f) => f.endsWith(".html"))
   .map((f) => f.slice(0, -".html".length));
 
-/** Every gallery page and frame, and every reference page in docs/system. */
+/** Every gallery page and frame but the charts, and every reference page in docs/system. */
 export const PAGES: readonly Pages[] = [
   {
     name: "gallery",
-    title: "finds no violation on the gallery's $page in $pass",
+    title: "finds no violation on the gallery's $page in $pass.name",
     names: GALLERY,
     serve: serveGallery,
     path: "",
     passes: PAGE_PASSES,
+    timeout: 180_000,
   },
   {
     name: "reference",
-    title: "finds no violation on the reference page $page in $pass",
+    title: "finds no violation on the reference page $page in $pass.name",
     names: REFERENCE,
     serve: () => serve(ROOT),
     path: "/docs/system",
     passes: [...PAGE_PASSES, ...OVERLAY_PASSES],
+    timeout: 180_000,
   },
 ];
 
-/** Every overlay of every gallery page and frame. */
+/** Every overlay of every gallery page and frame but the charts. */
 export const OVERLAYS: readonly Pages[] = [
   {
     name: "gallery",
-    title: "finds no violation in the gallery's $page in $pass",
+    title: "finds no violation in the gallery's $page in $pass.name",
     names: GALLERY,
     serve: serveGallery,
     path: "",
     passes: OVERLAY_PASSES,
+    timeout: 180_000,
+  },
+];
+
+/** The gallery's charts page and its overlays. */
+export const CHART_PAGES: readonly Pages[] = [
+  {
+    name: "gallery",
+    title: "finds no violation on the gallery's $page in $pass.name",
+    names: [CHARTS],
+    serve: serveGallery,
+    path: "",
+    passes: [...PAGE_PASSES, ...OVERLAY_PASSES],
+    // About fifty views of its SVG text a state, up to three seconds each in WebKit.
+    timeout: 480_000,
   },
 ];
 
@@ -702,12 +1069,13 @@ const PAGE = '<!DOCTYPE html><html lang="en"><title>Check</title><main><h1>Check
 /** Proves the rule lists match the pinned axe and that axe runs at all. */
 export function selfTest(browser: () => Browser): void {
   it(
-    "has every rule of the pinned axe ruled once, and finds a button with no name",
+    "has every rule of the pinned axe ruled once, runs each, and finds a button with no name",
     { timeout: 60_000 },
     async () => {
       const tab = await browser().newPage();
       await tab.setContent(`${PAGE}<button></button></main></html>`);
       const run = await check(tab, EVERY);
+      const part = await check(tab, EVERY, await tab.evaluateHandle(() => [document.body]));
       const rules = await tab.evaluate(() =>
         (window as unknown as { axe: typeof Axe }).axe.getRules().map((r) => r.ruleId),
       );
@@ -716,7 +1084,43 @@ export function selfTest(browser: () => Browser): void {
       expect(new Set(ruled).size).toBe(ruled.length);
       expect(rules.toSorted()).toEqual(ruled.toSorted());
       expect(REVIEW_FAILS.filter((id) => !EVERY.includes(id))).toEqual([]);
+      expect(run.unrun).toEqual([]);
+      expect(part.unrun).toEqual(PAGE_LEVEL);
       expect(run.violations.map((v) => v.id)).toEqual(["button-name"]);
+    },
+  );
+
+  it(
+    "measures SVG text against what is behind its glyphs, its halo included, scrolled into view",
+    { timeout: 60_000 },
+    async () => {
+      const tab = await browser().newPage({ viewport: { width: 400, height: 300 } });
+      await tab.setContent(
+        `${PAGE}<svg width="320" height="120" font-size="16" font-family="sans-serif">` +
+          '<rect x="160" width="160" height="120" fill="#222"/>' +
+          '<text x="10" y="20" fill="#767676">grey enough</text>' +
+          '<text x="10" y="50" fill="#808080">too light</text>' +
+          '<text x="170" y="20" fill="#000" stroke="#fff" stroke-width="6" paint-order="stroke">halo</text>' +
+          '<text x="170" y="50" fill="#000">no halo</text>' +
+          '<text x="10" y="100" font-size="30" opacity="0.4">faded</text>' +
+          "</svg>" +
+          '<div style="overflow-x: auto; inline-size: 200px">' +
+          '<svg width="600" height="40" font-size="16" font-family="sans-serif">' +
+          '<text x="520" y="20" fill="#808080">far</text></svg></div></main></html>',
+      );
+      const named = (low: readonly string[]) => low.map((l) => /"([^"]+)"/.exec(l)?.[1]);
+      const rest = await svgText(tab, LIGHT_WIDE);
+      expect(named(rest)).toEqual(["too light", "no halo", "faded", "far"]);
+      // #808080 on white is 3.95:1 by WCAG's formula.
+      expect(rest.at(-1)).toMatch(/"far": 3\.9[45]:1, under 4\.5:1$/u);
+      expect(named(await svgText(tab, { ...LIGHT_WIDE, contrast: "more" }))).toEqual([
+        "grey enough",
+        "too light",
+        "no halo",
+        "faded",
+        "far",
+      ]);
+      await tab.close();
     },
   );
 }

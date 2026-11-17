@@ -770,20 +770,20 @@
 :root {
   --cp-harmony-2-h: calc(
     mod(calc(var(--cp-accent-h) + 150), 360) +
-      clamp(0, (mod(calc(var(--cp-accent-h) + 150), 360) - 100) * 100000, 1) *
-      clamp(0, (117.5 - mod(calc(var(--cp-accent-h) + 150), 360)) * 100000, 1) *
+      max(0, sign(mod(calc(var(--cp-accent-h) + 150), 360) - 100)) *
+      max(0, sign(117.5 - mod(calc(var(--cp-accent-h) + 150), 360))) *
       (90 - mod(calc(var(--cp-accent-h) + 150), 360)) +
-      clamp(0, (mod(calc(var(--cp-accent-h) + 150), 360) - 117.5) * 100000 + 1, 1) *
-      clamp(0, (135 - mod(calc(var(--cp-accent-h) + 150), 360)) * 100000, 1) *
+      (1 - max(0, sign(-1 * (mod(calc(var(--cp-accent-h) + 150), 360) - 117.5)))) *
+      max(0, sign(135 - mod(calc(var(--cp-accent-h) + 150), 360))) *
       (142 - mod(calc(var(--cp-accent-h) + 150), 360))
   );
   --cp-harmony-3-h: calc(
     mod(calc(var(--cp-accent-h) + 210), 360) +
-      clamp(0, (mod(calc(var(--cp-accent-h) + 210), 360) - 100) * 100000, 1) *
-      clamp(0, (117.5 - mod(calc(var(--cp-accent-h) + 210), 360)) * 100000, 1) *
+      max(0, sign(mod(calc(var(--cp-accent-h) + 210), 360) - 100)) *
+      max(0, sign(117.5 - mod(calc(var(--cp-accent-h) + 210), 360))) *
       (90 - mod(calc(var(--cp-accent-h) + 210), 360)) +
-      clamp(0, (mod(calc(var(--cp-accent-h) + 210), 360) - 117.5) * 100000 + 1, 1) *
-      clamp(0, (135 - mod(calc(var(--cp-accent-h) + 210), 360)) * 100000, 1) *
+      (1 - max(0, sign(-1 * (mod(calc(var(--cp-accent-h) + 210), 360) - 117.5)))) *
+      max(0, sign(135 - mod(calc(var(--cp-accent-h) + 210), 360))) *
       (142 - mod(calc(var(--cp-accent-h) + 210), 360))
   );
   --cp-harmony-1: var(--cp-accent-9);
@@ -853,14 +853,11 @@
       oklch(
         calc(
             0.43 +
-              clamp(
+              max(
                 0,
-                (
-                    calc(0.5 + 0.32 * pow(max(0, cos((var(--cp-harmony-2-h) - 95) * 1deg)), 4)) -
-                      0.62
-                  ) *
-                  100000,
-                1
+                sign(
+                  calc(0.5 + 0.32 * pow(max(0, cos((var(--cp-harmony-2-h) - 95) * 1deg)), 4)) - 0.62
+                )
               ) *
               (
                 max(
@@ -895,14 +892,11 @@
       oklch(
         calc(
             0.43 +
-              clamp(
+              max(
                 0,
-                (
-                    calc(0.5 + 0.32 * pow(max(0, cos((var(--cp-harmony-3-h) - 95) * 1deg)), 4)) -
-                      0.62
-                  ) *
-                  100000,
-                1
+                sign(
+                  calc(0.5 + 0.32 * pow(max(0, cos((var(--cp-harmony-3-h) - 95) * 1deg)), 4)) - 0.62
+                )
               ) *
               (
                 max(
@@ -1077,11 +1071,11 @@
   );
   --cp-series-4-h: calc(
     mod(calc(var(--cp-accent-h) + 30), 360) +
-      clamp(0, (mod(calc(var(--cp-accent-h) + 30), 360) - 100) * 100000, 1) *
-      clamp(0, (117.5 - mod(calc(var(--cp-accent-h) + 30), 360)) * 100000, 1) *
+      max(0, sign(mod(calc(var(--cp-accent-h) + 30), 360) - 100)) *
+      max(0, sign(117.5 - mod(calc(var(--cp-accent-h) + 30), 360))) *
       (90 - mod(calc(var(--cp-accent-h) + 30), 360)) +
-      clamp(0, (mod(calc(var(--cp-accent-h) + 30), 360) - 117.5) * 100000 + 1, 1) *
-      clamp(0, (135 - mod(calc(var(--cp-accent-h) + 30), 360)) * 100000, 1) *
+      (1 - max(0, sign(-1 * (mod(calc(var(--cp-accent-h) + 30), 360) - 117.5)))) *
+      max(0, sign(135 - mod(calc(var(--cp-accent-h) + 30), 360))) *
       (142 - mod(calc(var(--cp-accent-h) + 30), 360))
   );
   --cp-series-4: light-dark(
@@ -1113,11 +1107,11 @@
   );
   --cp-series-5-h: calc(
     mod(calc(var(--cp-accent-h) + 60), 360) +
-      clamp(0, (mod(calc(var(--cp-accent-h) + 60), 360) - 100) * 100000, 1) *
-      clamp(0, (117.5 - mod(calc(var(--cp-accent-h) + 60), 360)) * 100000, 1) *
+      max(0, sign(mod(calc(var(--cp-accent-h) + 60), 360) - 100)) *
+      max(0, sign(117.5 - mod(calc(var(--cp-accent-h) + 60), 360))) *
       (90 - mod(calc(var(--cp-accent-h) + 60), 360)) +
-      clamp(0, (mod(calc(var(--cp-accent-h) + 60), 360) - 117.5) * 100000 + 1, 1) *
-      clamp(0, (135 - mod(calc(var(--cp-accent-h) + 60), 360)) * 100000, 1) *
+      (1 - max(0, sign(-1 * (mod(calc(var(--cp-accent-h) + 60), 360) - 117.5)))) *
+      max(0, sign(135 - mod(calc(var(--cp-accent-h) + 60), 360))) *
       (142 - mod(calc(var(--cp-accent-h) + 60), 360))
   );
   --cp-series-5: light-dark(
@@ -1149,11 +1143,11 @@
   );
   --cp-series-6-h: calc(
     mod(calc(var(--cp-accent-h) + 90), 360) +
-      clamp(0, (mod(calc(var(--cp-accent-h) + 90), 360) - 100) * 100000, 1) *
-      clamp(0, (117.5 - mod(calc(var(--cp-accent-h) + 90), 360)) * 100000, 1) *
+      max(0, sign(mod(calc(var(--cp-accent-h) + 90), 360) - 100)) *
+      max(0, sign(117.5 - mod(calc(var(--cp-accent-h) + 90), 360))) *
       (90 - mod(calc(var(--cp-accent-h) + 90), 360)) +
-      clamp(0, (mod(calc(var(--cp-accent-h) + 90), 360) - 117.5) * 100000 + 1, 1) *
-      clamp(0, (135 - mod(calc(var(--cp-accent-h) + 90), 360)) * 100000, 1) *
+      (1 - max(0, sign(-1 * (mod(calc(var(--cp-accent-h) + 90), 360) - 117.5)))) *
+      max(0, sign(135 - mod(calc(var(--cp-accent-h) + 90), 360))) *
       (142 - mod(calc(var(--cp-accent-h) + 90), 360))
   );
   --cp-series-6: light-dark(
@@ -1185,11 +1179,11 @@
   );
   --cp-series-7-h: calc(
     mod(calc(var(--cp-accent-h) + 120), 360) +
-      clamp(0, (mod(calc(var(--cp-accent-h) + 120), 360) - 100) * 100000, 1) *
-      clamp(0, (117.5 - mod(calc(var(--cp-accent-h) + 120), 360)) * 100000, 1) *
+      max(0, sign(mod(calc(var(--cp-accent-h) + 120), 360) - 100)) *
+      max(0, sign(117.5 - mod(calc(var(--cp-accent-h) + 120), 360))) *
       (90 - mod(calc(var(--cp-accent-h) + 120), 360)) +
-      clamp(0, (mod(calc(var(--cp-accent-h) + 120), 360) - 117.5) * 100000 + 1, 1) *
-      clamp(0, (135 - mod(calc(var(--cp-accent-h) + 120), 360)) * 100000, 1) *
+      (1 - max(0, sign(-1 * (mod(calc(var(--cp-accent-h) + 120), 360) - 117.5)))) *
+      max(0, sign(135 - mod(calc(var(--cp-accent-h) + 120), 360))) *
       (142 - mod(calc(var(--cp-accent-h) + 120), 360))
   );
   --cp-series-7: light-dark(
@@ -1221,11 +1215,11 @@
   );
   --cp-series-8-h: calc(
     mod(calc(var(--cp-accent-h) + 240), 360) +
-      clamp(0, (mod(calc(var(--cp-accent-h) + 240), 360) - 100) * 100000, 1) *
-      clamp(0, (117.5 - mod(calc(var(--cp-accent-h) + 240), 360)) * 100000, 1) *
+      max(0, sign(mod(calc(var(--cp-accent-h) + 240), 360) - 100)) *
+      max(0, sign(117.5 - mod(calc(var(--cp-accent-h) + 240), 360))) *
       (90 - mod(calc(var(--cp-accent-h) + 240), 360)) +
-      clamp(0, (mod(calc(var(--cp-accent-h) + 240), 360) - 117.5) * 100000 + 1, 1) *
-      clamp(0, (135 - mod(calc(var(--cp-accent-h) + 240), 360)) * 100000, 1) *
+      (1 - max(0, sign(-1 * (mod(calc(var(--cp-accent-h) + 240), 360) - 117.5)))) *
+      max(0, sign(135 - mod(calc(var(--cp-accent-h) + 240), 360))) *
       (142 - mod(calc(var(--cp-accent-h) + 240), 360))
   );
   --cp-series-8: light-dark(
@@ -1257,11 +1251,11 @@
   );
   --cp-series-9-h: calc(
     mod(calc(var(--cp-accent-h) + 270), 360) +
-      clamp(0, (mod(calc(var(--cp-accent-h) + 270), 360) - 100) * 100000, 1) *
-      clamp(0, (117.5 - mod(calc(var(--cp-accent-h) + 270), 360)) * 100000, 1) *
+      max(0, sign(mod(calc(var(--cp-accent-h) + 270), 360) - 100)) *
+      max(0, sign(117.5 - mod(calc(var(--cp-accent-h) + 270), 360))) *
       (90 - mod(calc(var(--cp-accent-h) + 270), 360)) +
-      clamp(0, (mod(calc(var(--cp-accent-h) + 270), 360) - 117.5) * 100000 + 1, 1) *
-      clamp(0, (135 - mod(calc(var(--cp-accent-h) + 270), 360)) * 100000, 1) *
+      (1 - max(0, sign(-1 * (mod(calc(var(--cp-accent-h) + 270), 360) - 117.5)))) *
+      max(0, sign(135 - mod(calc(var(--cp-accent-h) + 270), 360))) *
       (142 - mod(calc(var(--cp-accent-h) + 270), 360))
   );
   --cp-series-9: light-dark(
@@ -1546,14 +1540,13 @@
 :root {
   --cp-scale-to-light: clamp(
     -30,
-    mod(95 - var(--cp-accent-h), 360) - 360 *
-      clamp(0, (mod(95 - var(--cp-accent-h), 360) - 180) * 100000, 1),
+    mod(95 - var(--cp-accent-h), 360) - 360 * max(0, sign(mod(95 - var(--cp-accent-h), 360) - 180)),
     30
   );
   --cp-scale-to-dark: clamp(
     -30,
     mod(265 - var(--cp-accent-h), 360) - 360 *
-      clamp(0, (mod(265 - var(--cp-accent-h), 360) - 180) * 100000, 1),
+      max(0, sign(mod(265 - var(--cp-accent-h), 360) - 180)),
     30
   );
   --cp-scale-1-h: mod(
@@ -1622,14 +1615,14 @@
   --cp-scale-opposite-h: calc(
     245 +
       (
-        clamp(0, (mod(var(--cp-accent-h), 360) - 120) * 100000 + 1, 1) *
-          clamp(0, (170 - mod(var(--cp-accent-h), 360)) * 100000, 1) +
-          clamp(0, (mod(var(--cp-accent-h), 360) - 308) * 100000 + 1, 1) *
-          clamp(0, (355 - mod(var(--cp-accent-h), 360)) * 100000, 1)
+        (1 - max(0, sign(-1 * (mod(var(--cp-accent-h), 360) - 120)))) *
+          max(0, sign(170 - mod(var(--cp-accent-h), 360))) +
+          (1 - max(0, sign(-1 * (mod(var(--cp-accent-h), 360) - 308)))) *
+          max(0, sign(355 - mod(var(--cp-accent-h), 360)))
       ) *
       (230 - mod(var(--cp-accent-h), 360)) -
-      clamp(0, (mod(var(--cp-accent-h), 360) - 170) * 100000 + 1, 1) *
-      clamp(0, (308 - mod(var(--cp-accent-h), 360)) * 100000, 1) * 190
+      (1 - max(0, sign(-1 * (mod(var(--cp-accent-h), 360) - 170)))) *
+      max(0, sign(308 - mod(var(--cp-accent-h), 360))) * 190
   );
   --cp-scale-1-lc: calc(
     0.7427 - 0.1278 * cos(var(--cp-scale-1-h) * 1deg) + 0.1233 * sin(var(--cp-scale-1-h) * 1deg) +
@@ -2348,8 +2341,7 @@
   --cp-accent-ink: var(--cp-accent-11);
   --cp-accent-wash: var(--cp-accent-3);
   --cp-selected: var(--cp-accent-4);
-  /* A done fill: a green dark enough for white words in both themes, about
-   * 5:1. */
+  /* A done fill: a green dark enough for white words in both themes, about 5:1. */
   --cp-done-fill: oklch(from var(--cp-success-9) min(l, 0.52) c h);
   --cp-focus-ring: var(--cp-accent-9);
   --cp-selection-bg: var(--cp-accent-5);
@@ -2391,8 +2383,8 @@
   );
 }
 
-/* At the more ladder's step 9 lightness, white words on the done fill clear
- * 7:1 in both themes. */
+/* At lightness 0.43 at most, white words on the done fill clear 7:1 in both
+ * themes. */
 @media (prefers-contrast: more) {
   :root {
     --cp-done-fill: oklch(from var(--cp-success-9) min(l, 0.43) c h);
@@ -6971,11 +6963,12 @@ th[aria-sort="descending"] > .cp-sort::after {
   fill: var(--cp-ink);
 }
 
-/* A note's, a bar value's or a tile label's 3 px halo of the plot's surface
- * keeps it legible over bars, tiles, gridlines and rules, on the surface
- * its ink was tested on; the stroke paints first, so it widens the glyphs
- * by half. */
+/* A note's, a bar value's, a tile label's or an in-plot rule label's 3 px
+ * halo of the plot's surface keeps it legible over bars, tiles, lines,
+ * gridlines and rules, on the surface its ink was tested on; the stroke
+ * paints first, so it widens the glyphs by half. */
 .cp-chart svg :is([data-part="note"], [data-part="value"]) text,
+.cp-chart svg [data-part="area"] [data-part="rule-label"] text,
 .cp-chart svg [data-part="tile"] text {
   fill: var(--cp-ink);
   stroke: var(--cp-chart-surface);
@@ -8507,15 +8500,15 @@ div.cp-list-foot {
 }
 
 /* A list inside a notice, such as an error summary's links to its fields.
- * Each item is at least 24px tall, so links on consecutive lines keep the
- * spacing WCAG 2.5.8 asks of targets under 24px. */
+ * Each item is at least 24 CSS px tall at any root font size, so links on
+ * consecutive lines keep the spacing WCAG 2.5.8 asks of targets under 24px. */
 .cp-notice :where(ul, ol) {
   margin: var(--cp-space-1) 0 0;
   padding-inline-start: 1.25em;
 }
 
 .cp-notice :where(ul, ol) > li {
-  min-block-size: 1.5rem;
+  min-block-size: max(1.5rem, 24px);
 }
 
 /* A banner's links keep the accent, so its one way to act reads as a link

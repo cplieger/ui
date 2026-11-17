@@ -32,8 +32,7 @@
   --cp-accent-ink: var(--cp-accent-11);
   --cp-accent-wash: var(--cp-accent-3);
   --cp-selected: var(--cp-accent-4);
-  /* A done fill: a green dark enough for white words in both themes, about
-   * 5:1. */
+  /* A done fill: a green dark enough for white words in both themes, about 5:1. */
   --cp-done-fill: oklch(from var(--cp-success-9) min(l, 0.52) c h);
   --cp-focus-ring: var(--cp-accent-9);
   --cp-selection-bg: var(--cp-accent-5);
@@ -75,8 +74,8 @@
   );
 }
 
-/* At the more ladder's step 9 lightness, white words on the done fill clear
- * 7:1 in both themes. */
+/* At lightness 0.43 at most, white words on the done fill clear 7:1 in both
+ * themes. */
 @media (prefers-contrast: more) {
   :root {
     --cp-done-fill: oklch(from var(--cp-success-9) min(l, 0.43) c h);
