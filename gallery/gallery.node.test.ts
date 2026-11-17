@@ -21,6 +21,16 @@ const TYPES: Record<string, string> = {
 const ENGINES: Record<string, BrowserType> = { chromium, firefox, webkit };
 const browsers = (process.env["CPLIEGER_BROWSERS"] ?? "chromium").split(",");
 
+// WCAG 2.5.3 Label in Name: an account button is named by the initials it
+// shows then ", account", or "Account" alone over an avatar with no text.
+// Runs in the page, so it closes over nothing.
+const misnamedAccounts = (): string[] =>
+  [...document.querySelectorAll<HTMLElement>(".cp-account")].flatMap((b) => {
+    const text = b.innerText.trim();
+    const name = b.getAttribute("aria-label") ?? "";
+    return name === (text === "" ? "Account" : `${text}, account`) ? [] : [`${name} / ${text}`];
+  });
+
 let out = "";
 let origin = "";
 let close = (): void => undefined;
@@ -95,20 +105,17 @@ describe.each(browsers)("the gallery in %s", (name) => {
         tab.on("pageerror", (e) => errors.push(e.message));
         await tab.goto(`${origin}/${page}.html`);
         await tab.evaluate(() => document.fonts.ready.then(() => undefined));
-        const state = await tab.evaluate(() => ({
-          wide: document.documentElement.scrollWidth > document.documentElement.clientWidth,
-          unpainted: [...document.querySelectorAll<HTMLElement>(".cp-icon")].filter(
-            (i) =>
-              getComputedStyle(i).getPropertyValue("--cp-icon-image") === "" && i.checkVisibility(),
-          ).length,
-          // WCAG 2.5.3 Label in Name: the name starts with the text the button
-          // shows, which aria-hidden does not take off the screen.
-          misnamed: [...document.querySelectorAll<HTMLElement>(".cp-account")].flatMap((b) => {
-            const text = b.innerText.trim();
-            const name = b.getAttribute("aria-label") ?? "";
-            return name.toLowerCase().startsWith(text.toLowerCase()) ? [] : [`${name} / ${text}`];
-          }),
-        }));
+        const state = {
+          ...(await tab.evaluate(() => ({
+            wide: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+            unpainted: [...document.querySelectorAll<HTMLElement>(".cp-icon")].filter(
+              (i) =>
+                getComputedStyle(i).getPropertyValue("--cp-icon-image") === "" &&
+                i.checkVisibility(),
+            ).length,
+          }))),
+          misnamed: await tab.evaluate(misnamedAccounts),
+        };
         if (
           errors.length > 0 ||
           (width === 390 && state.wide) ||
@@ -123,6 +130,24 @@ describe.each(browsers)("the gallery in %s", (name) => {
     },
     60_000,
   );
+
+  it("names an account button by its initials, or Account alone over an empty avatar", async () => {
+    const tab = await (browser as Browser).newPage();
+    const button = (name: string, text: string): string =>
+      `<button class="cp-button cp-account" type="button" aria-label="${name}"><span class="cp-avatar" data-size="sm">${text}</span></button>`;
+    await tab.setContent(
+      [
+        button("CP, account", "CP"),
+        button("C, account", "C"),
+        button("Account", ""),
+        button("Account", "CP"),
+        button("CP, account", ""),
+      ].join(""),
+    );
+    const misnamed = await tab.evaluate(misnamedAccounts);
+    await tab.close();
+    expect(misnamed).toEqual(["Account / CP", "CP, account / "]);
+  });
 
   it("finds every file the pages ask for", () => {
     expect([...missing]).toEqual([]);
