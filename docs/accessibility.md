@@ -40,18 +40,21 @@ The list under each criterion says how it is tested:
 
 ## Where ui falls short
 
-These adopted criteria are not fully met yet. Each item says what falls short and what the bar requires.
+These adopted criteria are not fully met yet, and one item is a default the bar sets beyond its criterion. Each item says what falls short, what the bar requires and the elements whose fix closes it.
 
-- [1.4.6 Contrast (enhanced)](#146-contrast-enhanced): Secondary text and ink on a solid hold 7:1 only when the operating system asks for more contrast, and not every platform offers that setting. The bar requires a contrast choice in the page, beside the theme choice, with three values: follow the system, more and standard. More applies what `prefers-contrast: more` applies, and standard overrides a system that asks for more.
-- [1.4.8 Visual presentation](#148-visual-presentation): Prose paragraphs are 33.7px top to top at the 14px body size, 2.41 times the font size. The bar requires paragraph top to top of at least 2.5 times the font size, a paragraph gap of at least 0.95em.
-- [2.5.5 Target size (enhanced)](#255-target-size-enhanced): A mouse user gets 32px controls and 24px targets and cannot ask for 44px. The bar requires a stored choice of larger targets, with the values follow the device and larger, that pins the touch sizes.
-- [1.4.13 Content on hover or focus](#1413-content-on-hover-or-focus): The tooltip hides when the pointer leaves its control, so the pointer cannot move onto the tip. The bar requires the tip to stay while the pointer is over the control or the tip, and to hide when it leaves both.
-- [2.4.12 Focus not obscured (enhanced)](#2412-focus-not-obscured-enhanced): No stylesheet sets `scroll-padding` for the sticky header, the foot bar or the status line. The bar requires that no part of a focused control sits under them.
-- [3.2.5 Change on request](#325-change-on-request): Markdown output opens web links in a new tab and the link does not say so. The bar requires the link's name to say it opens a new tab, or the link to open in the same tab.
-- [WCAG 3 2.6.1.4](#2614-no-visual-motion-no-exceptions): The spinners, the loader and the skeleton move for as long as their work runs. The bar requires each to stop within 5 seconds on a whole cycle, at a still frame. Its words keep saying the work runs, and reduced motion keeps its still state.
-- [WCAG 3 2.1.5.5, 2.1.5.6, 2.1.6.7, 2.1.6.8, 2.12.4.3 and 2.12.4.4](#2155-caption-language-adjustable): The video bar has play, seek and time only. The bar requires a captions button that turns the track on and off, a choice of captions track and a chapter list from a `chapters` track. Where the engine exposes `audioTracks`, it also requires a choice of audio track.
-- [WCAG 3 2.1.5.1](#2151-captions-adjustable): The video's `::cue` rule sets the caption colour, background and font, which can override the person's caption settings. The bar requires the person's caption settings to win.
-- [WCAG 3 2.4.1.5](#2415-no-keyboard-conflicts): The palette's Ctrl+K takes the browser's own Ctrl+K on Windows and Linux, and the person cannot change it. The bar requires a stored shortcut map in which the person can change or turn off each shortcut, with a row for each on the settings page. The palette's default stays Ctrl+K, or Command+K on a Mac.
+- [1.4.6 Contrast (enhanced)](#146-contrast-enhanced): Secondary text and ink on a solid hold 7:1 only when the operating system asks for more contrast, and not every platform offers that setting. The bar requires a contrast choice in the page, beside the theme choice, with three values: follow the system, more and standard. More applies what `prefers-contrast: more` applies, and standard overrides a system that asks for more. Owed by `foundations/colour` and `core/theme`.
+- [1.4.8 Visual presentation](#148-visual-presentation): The criterion is met through its Note 1, since the person's own paragraph spacing applies. The bar asks more of ui's default: prose paragraphs are 33.7px top to top at the 14px body size, 2.41 times the font size, and the bar requires at least 2.5 times, a paragraph gap of at least 0.95em. Owed by `content/prose`.
+- [2.5.5 Target size (enhanced)](#255-target-size-enhanced): A mouse user gets 32px controls and 24px targets and cannot ask for 44px. The bar requires a stored choice of larger targets, with the values follow the device and larger, that gives every control the touch sizes while hover keeps working. Owed by `core/theme` and `core/pointer`.
+- [2.5.8 Target size (minimum)](#258-target-size-minimum): When a feed row wraps its lines, its summary is one line tall and under 24px from the row's other targets. In a context panel's list, links one word long sit on consecutive lines under 24px apart. The bar requires each target to be 24px, or to keep 24px of spacing from the next. Owed by `data/feed` and `layout/context-panel`.
+- [2.5.3 Label in name](#253-label-in-name): The account button is named Account while it shows the person's initials, so a voice user who says the initials reaches nothing. WCAG 3 2.3.5.5 asks the same. The bar requires the name to contain the visible words, or the initials to be hidden from the name as a picture of the person. Owed by `navigation/account`.
+- [4.1.2 Name, role, value](#412-name-role-value): A list row's cut line takes focus so a keyboard and a tap reach its full text, but it is a `span` with no role, which a screen reader announces as nothing. WCAG 3 2.3.5.6 and 2.12.1.1 ask the same. The bar requires each focus stop to have a role and a name: the cut line becomes a button named by the whole line. Owed by `data/list-row`.
+- [1.4.13 Content on hover or focus](#1413-content-on-hover-or-focus): The tooltip hides when the pointer leaves its control, so the pointer cannot move onto the tip. WCAG 3 2.4.5.2 asks for the same hoverable tip. The bar requires the tip to stay while the pointer is over the control or the tip, and to hide when it leaves both. Owed by `overlays/tooltip`.
+- [2.4.12 Focus not obscured (enhanced)](#2412-focus-not-obscured-enhanced): No stylesheet sets `scroll-padding` for the sticky header, the foot bar or the status line. The bar requires that no part of a focused control sits under them. Owed by `layout/app-frame`.
+- [3.2.5 Change on request](#325-change-on-request): Markdown output opens web links in a new tab and the link does not say so, which WCAG 3 2.12.5.3 also asks. The bar requires the link's name to say it opens a new tab. Owed by `content/markdown`.
+- [WCAG 3 2.6.1.4](#2614-no-visual-motion-no-exceptions): The spinners, the loader and the skeleton move for as long as their work runs. The bar requires each to stop within 5 seconds on a whole cycle, at a still frame. Its words keep saying the work runs, and reduced motion keeps its still state. Until then their motion past 5 seconds is a trigger under WCAG 3 2.6.1.5, which the bar meets by removing it, never by a warning. Owed by `feedback/skeleton`, `buttons/button`, `buttons/confirm`, `feedback/state` and `feedback/loader`.
+- [WCAG 3 2.1.5.5, 2.1.5.6, 2.1.6.7, 2.1.6.8, 2.12.4.3 and 2.12.4.4](#2155-caption-language-adjustable): The video bar has play, seek and time only. The bar requires a captions button that turns the track on and off, a choice of captions track and a chapter list from a `chapters` track. Where the engine exposes `audioTracks`, it also requires a choice of audio track. Owed by `media/video`.
+- [WCAG 3 2.1.5.1](#2151-captions-adjustable): The video's `::cue` rule sets the caption colour, background and font, which can override the person's caption settings. The bar requires the person's caption settings to win. Owed by `media/video`.
+- [WCAG 3 2.4.1.5](#2415-no-keyboard-conflicts): The palette's Ctrl+K takes the browser's own Ctrl+K on Windows and Linux, and the person cannot change it. The bar requires a stored shortcut map in which the person can change or turn off each shortcut, with a row for each on the settings page. The palette's default stays Ctrl+K, or Command+K on a Mac. Owed by `overlays/palette` and `overlays/keys`.
 
 ## WCAG 2.2 criteria
 
@@ -240,7 +243,7 @@ Text is text. The wordmark's logotype is the criterion's own exception.
 
 ### 1.4.6 Contrast (enhanced)
 
-Level AAA. Adopted, partly met. Met by ui. [Understanding 1.4.6](https://www.w3.org/WAI/WCAG22/Understanding/contrast-enhanced.html)
+Level AAA. Adopted, partly met, owed by `foundations/colour` and `core/theme`. Met by ui. [Understanding 1.4.6](https://www.w3.org/WAI/WCAG22/Understanding/contrast-enhanced.html)
 
 Primary text holds 7:1 on steps 1 to 3 at rest. Under `prefers-contrast: more` every text pair and ink on a solid holds 7:1. Secondary text and ink on a solid hold 4.5:1 at rest. WCAG lets a presentation the person chooses meet the criterion (technique G174). The operating system's contrast setting is not on every platform, so the page owes its own choice of more contrast. [Where ui falls short](#where-ui-falls-short) has the shape.
 
@@ -258,9 +261,9 @@ The criterion covers prerecorded audio-only content that is mostly speech, not a
 
 ### 1.4.8 Visual presentation
 
-Level AAA. Adopted, partly met. Met by ui. [Understanding 1.4.8](https://www.w3.org/WAI/WCAG22/Understanding/visual-presentation.html)
+Level AAA. Adopted. Met by ui. [Understanding 1.4.8](https://www.w3.org/WAI/WCAG22/Understanding/visual-presentation.html)
 
-Colours are chosen by the person through the theme and forced colours. Prose stops at 68 characters. Text is start-aligned, never justified. Body leading 1.55 meets space-and-a-half (technique C21). Prose paragraphs are 12px apart on a 21.7px line at the 14px body size, so the top of one paragraph's last line is 33.7px from the top of the next paragraph's first line. That is 2.41 times the font size, under the 2.5 times Understanding 1.4.8 describes. Until ui's default meets it, the person's own paragraph spacing applies with no loss (the criterion's Note 1, tested through 1.4.12), and [Where ui falls short](#where-ui-falls-short) has the fix. Text at 200% reflows with no horizontal scroll.
+Colours are chosen by the person through the theme and forced colours. Prose stops at 68 characters. Text is start-aligned, never justified. Body leading 1.55 meets space-and-a-half (technique C21). The person's own paragraph spacing applies with no loss, which meets the criterion through its Note 1 (tested through 1.4.12). The bar goes further and asks ui's default to meet the values too. Prose paragraphs are 12px apart on a 21.7px line at the 14px body size, so the top of one paragraph's last line is 33.7px from the top of the next paragraph's first line. That is 2.41 times the font size, under the 2.5 times Understanding 1.4.8 describes, as [Where ui falls short](#where-ui-falls-short) records. Text at 200% reflows with no horizontal scroll.
 
 - Manual: the content cards (prose measure, leading, paragraph gap), reflow per page.
 
@@ -302,7 +305,7 @@ No text container has a fixed height or a clipping overflow. Boxes grow with the
 
 ### 1.4.13 Content on hover or focus
 
-Level AA. Adopted, partly met. Met by ui. [Understanding 1.4.13](https://www.w3.org/WAI/WCAG22/Understanding/content-on-hover-or-focus.html)
+Level AA. Adopted, partly met, owed by `overlays/tooltip`. Met by ui. [Understanding 1.4.13](https://www.w3.org/WAI/WCAG22/Understanding/content-on-hover-or-focus.html)
 
 A tooltip shows on focus at once and on a pointer resting 500ms. Escape and blur hide it without moving focus, so it is dismissible and persistent. It hides as soon as the pointer leaves the control, so the pointer cannot move onto the tip, which fails the hoverable condition. [Where ui falls short](#where-ui-falls-short) has the fix.
 
@@ -516,7 +519,7 @@ A focused control is never wholly under the sticky header, the foot bar, the sta
 
 ### 2.4.12 Focus not obscured (enhanced)
 
-Level AAA. Adopted, partly met. Met by ui. [Understanding 2.4.12](https://www.w3.org/WAI/WCAG22/Understanding/focus-not-obscured-enhanced.html)
+Level AAA. Adopted, partly met, owed by `layout/app-frame`. Met by ui. [Understanding 2.4.12](https://www.w3.org/WAI/WCAG22/Understanding/focus-not-obscured-enhanced.html)
 
 As 2.4.11 with no part hidden: the page scrolls a focused control clear of every sticky part. No ui stylesheet sets `scroll-padding` for the sticky parts yet, so a focused control may sit partly under one, as [Where ui falls short](#where-ui-falls-short) records.
 
@@ -548,9 +551,9 @@ Actions run on `click`. A press only draws on the down event. A drag lifts on a 
 
 ### 2.5.3 Label in name
 
-Level A. Adopted. Met by ui. [Understanding 2.5.3](https://www.w3.org/WAI/WCAG22/Understanding/label-in-name.html)
+Level A. Adopted, partly met, owed by `navigation/account`. Met by ui. [Understanding 2.5.3](https://www.w3.org/WAI/WCAG22/Understanding/label-in-name.html)
 
-A control's accessible name starts with its visible words. A hidden destination word is added after them.
+A control's accessible name starts with its visible words, and a hidden destination word is added after them. The account button's name does not contain its visible initials, as [Where ui falls short](#where-ui-falls-short) records.
 
 - axe: `label-content-name-mismatch` (experimental in 4.13.0).
 - Manual: name against visible text per control.
@@ -565,7 +568,7 @@ No ui element responds to device or body motion.
 
 ### 2.5.5 Target size (enhanced)
 
-Level AAA. Adopted, partly met. Met by ui. [Understanding 2.5.5](https://www.w3.org/WAI/WCAG22/Understanding/target-size-enhanced.html)
+Level AAA. Adopted, partly met, owed by `core/theme` and `core/pointer`. Met by ui. [Understanding 2.5.5](https://www.w3.org/WAI/WCAG22/Understanding/target-size-enhanced.html)
 
 On the coarse tier every target is 44px at least. On the fine tier controls are 32px and targets 24px at least. The tier follows the last real pointer, so a mouse user with a tremor gets 32px. The person's own choice of large targets is in [Where ui falls short](#where-ui-falls-short).
 
@@ -591,9 +594,9 @@ Every drag has a single-pointer alternative: reorder's Move up and Move down, a 
 
 ### 2.5.8 Target size (minimum)
 
-Level AA. Adopted. Met by ui. [Understanding 2.5.8](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html)
+Level AA. Adopted, partly met, owed by `data/feed` and `layout/context-panel`. Met by ui. [Understanding 2.5.8](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html)
 
-Every target is 24px at least on the fine tier, links inside a line of text keep the inline exception.
+Every target is 24px at least on the fine tier, and links inside a line of text keep the inline exception. A feed row's summary when the row wraps its lines and the links of a context panel's list fall short, as [Where ui falls short](#where-ui-falls-short) records.
 
 - Unit: hit-area tests.
 - axe: `target-size` at 1440 and 390.
@@ -681,7 +684,7 @@ An action keeps one name and one icon wherever it appears.
 
 ### 3.2.5 Change on request
 
-Level AAA. Adopted, partly met. Met by ui. [Understanding 3.2.5](https://www.w3.org/WAI/WCAG22/Understanding/change-on-request.html)
+Level AAA. Adopted, partly met, owed by `content/markdown`. Met by ui. [Understanding 3.2.5](https://www.w3.org/WAI/WCAG22/Understanding/change-on-request.html)
 
 Only the person starts a change of context. A link that opens a new tab says so in its words (technique H83). Markdown output opens web links in a new tab without saying so, as [Where ui falls short](#where-ui-falls-short) records.
 
@@ -773,9 +776,9 @@ As 3.3.8. No step asks to recognise an object or the person's own content.
 
 ### 4.1.2 Name, role, value
 
-Level A. Adopted. Met by ui. [Understanding 4.1.2](https://www.w3.org/WAI/WCAG22/Understanding/name-role-value.html)
+Level A. Adopted, partly met, owed by `data/list-row`. Met by ui. [Understanding 4.1.2](https://www.w3.org/WAI/WCAG22/Understanding/name-role-value.html)
 
-Native elements first. A custom widget has its APG role, its name, and each state and value in ARIA 1.2, kept current by its module.
+Native elements first. A custom widget has its APG role, its name, and each state and value in ARIA 1.2, kept current by its module. A list row's cut line takes focus with no role, as [Where ui falls short](#where-ui-falls-short) records.
 
 - axe: `aria-*`, `button-name`, `input-button-name`, `input-image-alt`, `link-name`, `area-alt`, `label`, `select-name`, `summary-name`, `nested-interactive`, `presentation-role-conflict`, `focus-order-semantics`, `duplicate-id`, `duplicate-id-active`, `duplicate-id-aria`, `frame-title`, `frame-title-unique`.
 - Manual: each engine's own accessibility tree per gallery card.
@@ -791,7 +794,7 @@ Level AA. Adopted. Met by ui. [Understanding 4.1.3](https://www.w3.org/WAI/WCAG2
 
 ## WCAG 3 requirements ui adopts
 
-The WCAG 3.0 Working Draft of 10 September 2026 has 216 requirements. ui adopts 108 that are stricter than WCAG 2.2, or that set a duty on media an app authors. [Other WCAG 3 requirements](#other-wcag-3-requirements) lists the rest.
+The WCAG 3.0 Working Draft of 10 September 2026 has 216 requirements. ui adopts 109 that are stricter than WCAG 2.2, or that set a duty on media an app authors. [Other WCAG 3 requirements](#other-wcag-3-requirements) lists the rest.
 
 ### 2.1.4.1 Transcripts findable
 
@@ -843,7 +846,7 @@ Visual information needed to follow an app's own media (actions, charts, scene c
 
 ### 2.1.5.1 Captions adjustable
 
-A supplemental requirement. Adopted, partly met. Met by ui. [Draft](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#captions-adjustable)
+A supplemental requirement. Adopted, partly met, owed by `media/video`. Met by ui. [Draft](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#captions-adjustable)
 
 The video element leaves caption appearance to the person's own caption settings in the browser and operating system: font size, weight, style, colour, background, transparency and placement. The stylesheet's `::cue` rule sets the colour, background and font, which can override those settings. [Where ui falls short](#where-ui-falls-short) has the fix.
 
@@ -851,7 +854,7 @@ The video element leaves caption appearance to the person's own caption settings
 
 ### 2.1.5.5 Caption language adjustable
 
-A supplemental requirement. Adopted, not met yet. Met by ui. [Draft](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#caption-language-adjustable)
+A supplemental requirement. Adopted, not met yet, owed by `media/video`. Met by ui. [Draft](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#caption-language-adjustable)
 
 The video element lets the person choose among the file's captions and subtitles tracks. The module turns the native controls off and shows one track with no choice, as [Where ui falls short](#where-ui-falls-short) records.
 
@@ -860,7 +863,7 @@ The video element lets the person choose among the file's captions and subtitles
 
 ### 2.1.5.6 Captions controllable
 
-A supplemental requirement. Adopted, not met yet. Met by ui. [Draft](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#captions-controllable)
+A supplemental requirement. Adopted, not met yet, owed by `media/video`. Met by ui. [Draft](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#captions-controllable)
 
 The video element has a captions button that turns the showing track on and off. There is none once the native controls are off, as [Where ui falls short](#where-ui-falls-short) records.
 
@@ -910,7 +913,7 @@ An app's own audio description never speaks over dialogue or meaningful sound.
 
 ### 2.1.6.7 Audio description language adjustable
 
-A supplemental requirement. Adopted where the engine exposes audio tracks, not met yet. Met by ui. [Draft](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#audio-description-language-adjustable)
+A supplemental requirement. Adopted where the engine exposes audio tracks, not met yet, owed by `media/video`. Met by ui. [Draft](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#audio-description-language-adjustable)
 
 Where a file carries several audio tracks and the engine exposes them, the video element lets the person choose one, which covers a described track. `HTMLMediaElement.audioTracks` ships in Safari only, behind a flag in Chromium and a preference in Firefox. Elsewhere the engine gives the page no way to switch, so the requirement does not apply there. [Where ui falls short](#where-ui-falls-short) records it.
 
@@ -918,7 +921,7 @@ Where a file carries several audio tracks and the engine exposes them, the video
 
 ### 2.1.6.8 Audio descriptions controllable
 
-A supplemental requirement. Adopted where the engine exposes audio tracks, not met yet. Met by ui. [Draft](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#audio-descriptions-controllable)
+A supplemental requirement. Adopted where the engine exposes audio tracks, not met yet, owed by `media/video`. Met by ui. [Draft](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#audio-descriptions-controllable)
 
 As 2.1.6.7: choosing the described or the plain audio track turns audio description on and off. [Where ui falls short](#where-ui-falls-short) records it.
 
@@ -1173,7 +1176,7 @@ Every custom shortcut is listed in the shortcut list (`@cplieger/ui/keys`), open
 
 ### 2.4.1.5 No keyboard conflicts
 
-A core requirement. Adopted, partly met. Met by ui. [Draft](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#no-keyboard-conflicts)
+A core requirement. Adopted, partly met, owed by `overlays/palette` and `overlays/keys`. Met by ui. [Draft](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#no-keyboard-conflicts)
 
 Stricter than 2.1.4, which covers single keys only. No custom shortcut takes a key the browser or the operating system uses, unless the person can change it. The palette's Ctrl+K takes Chrome's and Firefox's own Ctrl+K, a web search, on Windows and Linux, and the person cannot change it. [Where ui falls short](#where-ui-falls-short) has the shape.
 
@@ -1239,9 +1242,9 @@ No ui element reads pointer pressure.
 
 A core requirement. Adopted, stricter than WCAG 2.2. Met by ui. [Draft](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#pointer-speed-not-relied-on)
 
-No ui element reads pointer speed: a sheet closes by its button, Escape or a drag past a distance, never a fling.
+No ui element reads pointer speed: a toast swipes away past 80px of travel, however slowly, and a reordered row moves by where the pointer is, never by how fast.
 
-- Manual: a code search finds no velocity read in src, the dialog cards (sheet).
+- Manual: a code search finds no velocity or pointer-time read in src, the toast cards (swipe) and the reorder card.
 
 ### 2.4.4.1 Speech not relied on
 
@@ -1367,9 +1370,17 @@ No ui motion runs past 5 seconds except a busy indicator while its work runs, wh
 
 ### 2.6.1.4 No visual motion (no exceptions)
 
-A supplemental requirement. Adopted, not met yet. Met by ui. [Draft](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#no-visual-motion-no-exceptions)
+A supplemental requirement. Adopted, not met yet, owed by `feedback/skeleton`, `buttons/button`, `buttons/confirm`, `feedback/state` and `feedback/loader`. Met by ui. [Draft](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#no-visual-motion-no-exceptions)
 
-With no exceptions, a busy indicator also settles within 5 seconds. The button's busy spinner, the confirm button, the state words' spinner, the loader and the skeleton loop for as long as their work runs, as [Where ui falls short](#where-ui-falls-short) records.
+With no exceptions, a busy indicator also settles within 5 seconds. The button's busy spinner, the confirm button, the state words' spinner, the loader and the skeleton loop for as long as their work runs, as [Where ui falls short](#where-ui-falls-short) records. Until they do, that motion is a trigger under 2.6.1.5.
+
+- Manual: a 6-second sample of `getAnimations()` per busy card, outside reduced motion.
+
+### 2.6.1.5 Trigger warning available
+
+A core requirement. Adopted, not met yet, owed by `feedback/skeleton`, `buttons/button`, `buttons/confirm`, `feedback/state` and `feedback/loader`. Met by ui. [Draft](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#trigger-warning-available)
+
+The busy indicators' motion past 5 seconds is a trigger today, as 2.6.1.4 records. The bar meets this requirement by removing the trigger, never by a warning, which would add noise before every spinner. Once each indicator stops within 5 seconds, no trigger remains and the requirement stops applying. Reduced motion already stills the indicators. ui has no flashing and no pseudo-motion.
 
 - Manual: a 6-second sample of `getAnimations()` per busy card, outside reduced motion.
 
@@ -1640,7 +1651,7 @@ An app's own transcript is text on the page, so the browser's find searches it.
 
 ### 2.12.4.3 Media alternatives controllable
 
-A supplemental requirement. Adopted, not met yet. Met by ui. [Draft](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#media-alternatives-controllable)
+A supplemental requirement. Adopted, not met yet, owed by `media/video`. Met by ui. [Draft](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#media-alternatives-controllable)
 
 As 2.1.5.6 and 2.1.6.8: captions and audio description can be turned on and off from the video element's bar. [Where ui falls short](#where-ui-falls-short) records it.
 
@@ -1648,7 +1659,7 @@ As 2.1.5.6 and 2.1.6.8: captions and audio description can be turned on and off 
 
 ### 2.12.4.4 Media chapters available
 
-A supplemental requirement. Adopted, not met yet. Met by ui and the app. [Draft](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#media-chapters-available)
+A supplemental requirement. Adopted, not met yet, owed by `media/video`. Met by ui and the app. [Draft](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#media-chapters-available)
 
 The video element lists a file's `chapters` track, when it carries one, as a list of seek points. It reads no chapters track yet, as [Where ui falls short](#where-ui-falls-short) records. An app's own video of five minutes or more carries chapters.
 
@@ -1673,15 +1684,15 @@ When ui moves focus (2.4.1.8's cases), the new focus is visible and lands on an 
 
 ### 2.12.5.3 Change of user agent notified
 
-A core requirement. Adopted, partly met. Met by ui. [Draft](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#change-of-user-agent-notified)
+A core requirement. Adopted, partly met, owed by `content/markdown`. Met by ui. [Draft](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#change-of-user-agent-notified)
 
-A change of window or device is announced before it happens. A link that opens a new tab says so in its words, as 3.2.5 asks, and no ui element opens fullscreen or a new window on its own.
+A change of window or device is announced before it happens. No ui element opens fullscreen or a new window on its own. A link that opens a new tab says so in its words, as 3.2.5 asks, except the web links of markdown output, as [Where ui falls short](#where-ui-falls-short) records.
 
 - Manual: the content cards.
 
 ## Other WCAG 3 requirements
 
-Of the rest, 54 are met through a WCAG 2.2 criterion at the same strength, 13 do not apply, and 41 are not adopted. An assertion is an organisation's statement about its own process, not a property of the interface, and ui claims no WCAG 3 conformance, so no assertion is adopted. A requirement whose values the draft still leaves undetermined cannot be tested, so it waits for a draft that sets them.
+Of the rest, 50 are met through a WCAG 2.2 criterion at the same strength, 4 ask the same as a WCAG 2.2 criterion ui does not meet yet, 12 do not apply, and 41 are not adopted. An assertion is an organisation's statement about its own process, not a property of the interface, and ui claims no WCAG 3 conformance, so no assertion is adopted. A requirement whose values the draft still leaves undetermined cannot be tested, so it waits for a draft that sets them.
 
 | Requirement | Type | Ruling |
 | --- | --- | --- |
@@ -1744,8 +1755,8 @@ Of the rest, 54 are met through a WCAG 2.2 criterion at the same strength, 13 do
 | [2.3.4.1 Consistent interactions](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#consistent-interactions) | assertion | Not adopted, because it is an assertion |
 | [2.3.4.3 Conventional pattern used](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#conventional-pattern-used) | assertion | Not adopted, because it is an assertion |
 | [2.3.5.1 Interactive element contrast sufficient](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#interactive-element-contrast-sufficient) | core | Met through WCAG 2.2 [1.4.11](#1411-non-text-contrast) |
-| [2.3.5.5 Label included in programmatic name](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#label-included-in-programmatic-name) | core | Met through WCAG 2.2 [2.5.3](#253-label-in-name) |
-| [2.3.5.6 Roles, values, states, properties available](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#roles-values-states-properties-available) | core | Met through WCAG 2.2 [4.1.2](#412-name-role-value) |
+| [2.3.5.5 Label included in programmatic name](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#label-included-in-programmatic-name) | core | Same as WCAG 2.2 [2.5.3](#253-label-in-name), which ui does not meet yet, owed by `navigation/account`, as [Where ui falls short](#where-ui-falls-short) records |
+| [2.3.5.6 Roles, values, states, properties available](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#roles-values-states-properties-available) | core | Same as WCAG 2.2 [4.1.2](#412-name-role-value), which ui does not meet yet, owed by `data/list-row`, as [Where ui falls short](#where-ui-falls-short) records |
 | [2.4.1.1 Keyboard operable](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#keyboard-operable) | core | Met through WCAG 2.2 [2.1.1](#211-keyboard) |
 | [2.4.1.7 No keyboard traps](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#no-keyboard-traps) | core | Met through WCAG 2.2 [2.1.2](#212-no-keyboard-trap) |
 | [2.4.2.3 Keyboard effort comparable](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#keyboard-effort-comparable) | assertion | Not adopted, because it is an assertion |
@@ -1754,7 +1765,7 @@ Of the rest, 54 are met through a WCAG 2.2 criterion at the same strength, 13 do
 | [2.4.4.2 Real-time text available](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#real-time-text-available) | core | Does not apply, because ui has no voice communication |
 | [2.4.4.3 Generated speech testing](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#generated-speech-testing) | assertion | Not adopted, because it is an assertion |
 | [2.4.5.1 Hover or focus content dismissible](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#hover-or-focus-content-dismissible) | core | Met through WCAG 2.2 [1.4.13](#1413-content-on-hover-or-focus) |
-| [2.4.5.2 Hover content persistent](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#hover-content-persistent) | core | Met through WCAG 2.2 [1.4.13](#1413-content-on-hover-or-focus) |
+| [2.4.5.2 Hover content persistent](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#hover-content-persistent) | core | Same as WCAG 2.2 [1.4.13](#1413-content-on-hover-or-focus)'s hoverable condition, which ui does not meet yet, owed by `overlays/tooltip`, as [Where ui falls short](#where-ui-falls-short) records |
 | [2.4.5.3 Hover or focus content persistent](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#hover-or-focus-content-persistent) | supplemental | Met through WCAG 2.2 [1.4.13](#1413-content-on-hover-or-focus) |
 | [2.4.5.4 Path-based gesture not relied on](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#path-based-gesture-not-relied-on) | core | Met through WCAG 2.2 [2.5.1](#251-pointer-gestures) |
 | [2.5.1.1 Error notifications available](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#error-notifications-available) | core | Met through WCAG 2.2 [3.3.1](#331-error-identification) |
@@ -1762,7 +1773,6 @@ Of the rest, 54 are met through a WCAG 2.2 criterion at the same strength, 13 do
 | [2.5.2.4 Error prevention review](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#error-prevention-review) | assertion | Not adopted, because it is an assertion |
 | [2.6.1.1 No flashing over threshold](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#no-flashing-over-threshold) | core | Met through WCAG 2.2 [2.3.1](#231-three-flashes-or-below-threshold) |
 | [2.6.1.2 No flashing over threshold (no exceptions)](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#no-flashing-over-threshold-no-exceptions) | supplemental | Met through WCAG 2.2 [2.3.2](#232-three-flashes) |
-| [2.6.1.5 Trigger warning available](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#trigger-warning-available) | core | Does not apply, because ui has no flashing, no pseudo-motion and, once its busy indicators settle within 5 seconds, no motion past 5 seconds, so there is no trigger to warn of |
 | [2.6.1.8 Safe content review](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#safe-content-review) | assertion | Not adopted, because it is an assertion |
 | [2.7.1.1 Conventional layout review](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#conventional-layout-review) | assertion | Not adopted, because it is an assertion |
 | [2.7.2.2 Location within product review](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#location-within-product-review) | assertion | Not adopted, because it is an assertion |
@@ -1788,7 +1798,7 @@ Of the rest, 54 are met through a WCAG 2.2 criterion at the same strength, 13 do
 | [2.11.1.4 Sensory characteristics not relied on](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#sensory-characteristics-not-relied-on) | core | Met through WCAG 2.2 [1.3.3](#133-sensory-characteristics) |
 | [2.11.1.5 Supported decision-making review](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#supported-decision-making-review) | assertion | Not adopted, because it is an assertion |
 | [2.11.1.6 Help usability testing](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#help-usability-testing) | assertion | Not adopted, because it is an assertion |
-| [2.12.1.1 Assistive technology supported](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#assistive-technology-supported) | core | Met through WCAG 2.2 [4.1.2](#412-name-role-value) |
+| [2.12.1.1 Assistive technology supported](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#assistive-technology-supported) | core | Same as WCAG 2.2 [4.1.2](#412-name-role-value), which ui does not meet yet, owed by `data/list-row`, as [Where ui falls short](#where-ui-falls-short) records |
 | [2.12.3.1 Orientation supported (minimum)](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#orientation-supported-minimum) | core | Met through WCAG 2.2 [1.3.4](#134-orientation) |
 | [2.12.3.2 Orientation supported (enhanced)](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#orientation-supported-enhanced) | supplemental | Met through WCAG 2.2 [1.3.4](#134-orientation) |
 | [2.12.3.3 Text reflow supported](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#text-reflow-supported) | supplemental | Met through WCAG 2.2 [1.4.10](#1410-reflow) |
@@ -1933,7 +1943,7 @@ Contrast uses the WCAG 2 ratios: 4.5:1 for text, 3:1 for large text, boundaries 
 
 ### The SVG text check
 
-axe files text inside SVG, such as a chart's axis labels, as needs review, so the check measures it itself, in every page, overlay and details state. It scrolls each visible `svg text` into view and takes three screenshots: one with the text's fill transparent, which shows what is behind the glyphs, and one each with the fill magenta and green, which show the pixels the glyphs cover. Each pixel is read against whichever of the two differs more from what is behind it, so a magenta-like or green-like background hides no glyph. Each pixel the glyphs cover at least half of must hold 4.5:1 between the text's fill and what is behind it, or 3:1 for large text. For text on an opaque halo, a stroke painted under its fill, the halo is what is behind it. A text under a fixed or sticky bar waits for a view where it is clear. Under `prefers-contrast: more` the ratios are 7:1 and 4.5:1. A test page with text that falls short, text on a halo, faded text, text half over a magenta-like fill and text off screen in a scrolling box proves the measure in each engine.
+axe files text inside SVG, such as a chart's axis labels, as needs review, so the check measures it itself, in every page, overlay and details state. It scrolls each visible `svg text` into view and takes three screenshots: one with the text's fill transparent, which shows what is behind the glyphs, and one each with the fill magenta and green, which show the pixels the glyphs cover. Each pixel is read against whichever of the two differs more from what is behind it, so a magenta-like or green-like background hides no glyph. Each pixel the glyphs cover at least half of must hold 4.5:1 between the text's fill and what is behind it, or 3:1 for large text. For text on a wide opaque halo, a stroke painted under its fill at least a quarter of the font size wide, the halo is what is behind it. A narrower stroke is part of the letter, as WCAG's definition of the contrast ratio says in its Note 5, so the fill is measured against what is under the glyphs. A text under a fixed or sticky bar waits for a view where it is clear. Under `prefers-contrast: more` the ratios are 7:1 and 4.5:1. A test page with text that falls short, text on a halo, text with a narrow stroke, faded text, text half over a magenta-like fill and text off screen in a scrolling box proves the measure in each engine.
 
 Of axe 4.13.0's 105 rules, 100 run in every state, 1 runs only under `prefers-contrast: more`, and 4 do not run: `aria-roledescription`, `audio-caption`, `hidden-content` and `landmark-complementary-is-top-level`. The [table of rules](#axe-rules) gives the reason for each.
 

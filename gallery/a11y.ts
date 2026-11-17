@@ -377,8 +377,8 @@ interface Ink {
   readonly name: string;
   /** Its fill in sRGB, 0 to 255, with alpha 0 to 1 after fill-opacity and opacity. */
   readonly rgba: readonly [number, number, number, number];
-  /** An opaque halo's sRGB, a stroke painted under the fill, which is then
-   *  the whole background of every glyph. */
+  /** A wide opaque halo's sRGB, a stroke painted under the fill, which is
+   *  then the background of every glyph. */
   readonly halo: readonly [number, number, number] | null;
   readonly large: boolean;
   /** Its box in the screenshot, CSS px. */
@@ -399,51 +399,61 @@ async function svgText(tab: Page, state: State, scope?: JSHandle<Element[]>): Pr
   // event, which WebKit fires whenever a sheet changes, Playwright's own
   // per shot included. So texts are found by place, never by node, the one
   // sheet goes in first, and an attribute on the root switches it.
-  const keys = await tab.evaluate(async (within) => {
-    const texts: Texts = (inside) => {
-      const found = new Map<string, SVGTextElement>();
-      const roots = [...document.querySelectorAll("svg")].filter((s) => s.ownerSVGElement === null);
-      roots.forEach((root, r) => {
-        root.querySelectorAll("text").forEach((t, n) => {
-          const b = t.getBoundingClientRect();
-          if (
-            (inside === undefined || inside.some((w) => w.contains(t))) &&
-            t.textContent.trim() !== "" &&
-            b.width > 0 &&
-            b.height > 0 &&
-            t.checkVisibility({ opacityProperty: true, visibilityProperty: true })
-          ) {
-            found.set(`${String(r)} ${String(n)}`, t);
-          }
+  const keys = await tab.evaluate(
+    async ([within, probes]) => {
+      const texts: Texts = (inside) => {
+        const found = new Map<string, SVGTextElement>();
+        const roots = [...document.querySelectorAll("svg")].filter(
+          (s) => s.ownerSVGElement === null,
+        );
+        roots.forEach((root, r) => {
+          root.querySelectorAll("text").forEach((t, n) => {
+            const b = t.getBoundingClientRect();
+            if (
+              (inside === undefined || inside.some((w) => w.contains(t))) &&
+              t.textContent.trim() !== "" &&
+              b.width > 0 &&
+              b.height > 0 &&
+              t.checkVisibility({ opacityProperty: true, visibilityProperty: true })
+            ) {
+              found.set(`${String(r)} ${String(n)}`, t);
+            }
+          });
         });
-      });
-      return found;
-    };
-    (window as unknown as { a11yTexts: Texts }).a11yTexts = texts;
-    const sheet = document.head.appendChild(document.createElement("style"));
-    sheet.id = "a11y-ink";
-    sheet.textContent = [
-      `[data-a11y-ink] svg text { transition: none !important; }`,
-      `[data-a11y-ink="clear"] svg text { fill: transparent !important; }`,
-      `[data-a11y-ink="magenta"] svg text { fill: #f0f !important; }`,
-      `[data-a11y-ink="green"] svg text { fill: #0f0 !important; }`,
-    ].join("\n");
-    // Fixed and sticky bars, and the scroll positions to restore.
-    for (const e of document.querySelectorAll<HTMLElement>("body *:not(svg *)")) {
-      if (
-        ["fixed", "sticky"].includes(getComputedStyle(e).position) &&
-        e.querySelector("svg text") === null
-      ) {
-        e.dataset["a11yBar"] = "";
+        return found;
+      };
+      (window as unknown as { a11yTexts: Texts }).a11yTexts = texts;
+      const sheet = document.head.appendChild(document.createElement("style"));
+      sheet.id = "a11y-ink";
+      // No shot paints a stroke: under a transparent fill Firefox shows what
+      // lies inside a glyph, not its halo, so a halo is read from the style,
+      // and a narrow stroke is part of the letter, never its background.
+      sheet.textContent = [
+        `[data-a11y-ink] svg text { transition: none !important; stroke: none !important; }`,
+        `[data-a11y-ink="clear"] svg text { fill: transparent !important; }`,
+        ...probes.map(
+          (p) =>
+            `[data-a11y-ink="${p.name}"] svg text { fill: rgb(${p.rgb.join(" ")}) !important; }`,
+        ),
+      ].join("\n");
+      // Fixed and sticky bars, and the scroll positions to restore.
+      for (const e of document.querySelectorAll<HTMLElement>("body *:not(svg *)")) {
+        if (
+          ["fixed", "sticky"].includes(getComputedStyle(e).position) &&
+          e.querySelector("svg text") === null
+        ) {
+          e.dataset["a11yBar"] = "";
+        }
+        if (e.scrollWidth > e.clientWidth || e.scrollHeight > e.clientHeight) {
+          e.dataset["a11yScroll"] = `${String(e.scrollLeft)} ${String(e.scrollTop)}`;
+        }
       }
-      if (e.scrollWidth > e.clientWidth || e.scrollHeight > e.clientHeight) {
-        e.dataset["a11yScroll"] = `${String(e.scrollLeft)} ${String(e.scrollTop)}`;
-      }
-    }
-    document.documentElement.dataset["a11yScroll"] = `${String(scrollX)} ${String(scrollY)}`;
-    await document.fonts.ready;
-    return [...texts(within).keys()];
-  }, scope);
+      document.documentElement.dataset["a11yScroll"] = `${String(scrollX)} ${String(scrollY)}`;
+      await document.fonts.ready;
+      return [...texts(within).keys()];
+    },
+    [scope, PROBES] as const,
+  );
   await settle(tab);
   const low = new Map<string, string>();
   const done = new Set<string>();
@@ -575,14 +585,17 @@ async function readInks(
         };
         const [red = 0, green = 0, blue = 0, a = 0] = srgb(css.fill);
         const [hr = 0, hg = 0, hb = 0, ha = 0] = srgb(css.stroke);
+        const size = Number.parseFloat(css.fontSize);
+        // WCAG 2.2's contrast ratio, Note 5: a narrow border around a letter
+        // is part of the letter, and only a wide one that fills the letters'
+        // inner details is background. A quarter of the font size fills them.
         const halo =
           css.paintOrder.startsWith("stroke") &&
-          Number.parseFloat(css.strokeWidth) >= 2 &&
+          Number.parseFloat(css.strokeWidth) >= size / 4 &&
           ha === 255 &&
           Number(css.strokeOpacity) === 1
             ? ([hr, hg, hb] as const)
             : null;
-        const size = Number.parseFloat(css.fontSize);
         const b = boxes[i] ?? new DOMRect();
         const where =
           t.closest(".card")?.querySelector("h2")?.textContent ??
@@ -607,7 +620,8 @@ async function readInks(
 }
 
 /** The fills a screenshot paints every svg text in, to see which pixels it
- *  covers, as `[data-a11y-ink]` names them. */
+ *  covers, as `[data-a11y-ink]` names them. They differ by 255 on every
+ *  channel, so one of them is at least 128 from any background. */
 const PROBES = [
   { name: "magenta", rgb: [255, 0, 255] },
   { name: "green", rgb: [0, 255, 0] },
@@ -665,8 +679,7 @@ async function measure(
             const i = (y * under.w + x) * 4;
             // The glyph's cover of the pixel, read on the channel where a
             // probe differs most from what is under it. Under half is its
-            // antialiased edge. Magenta and green differ by 255 on every
-            // channel, so one of them is at least 128 from any background.
+            // antialiased edge.
             const c = shown
               .flatMap(({ rgb, data }) =>
                 rgb.map(
@@ -678,8 +691,6 @@ async function measure(
             if (c === undefined || Math.abs(c[0]) < 96 || c[1] / c[0] < 0.5) {
               continue;
             }
-            // Under a transparent fill Firefox shows what lies inside a glyph,
-            // not its halo, so a halo is read from the style.
             const bg = ink.halo ?? [0, 1, 2].map((c) => u[i + c] ?? 0);
             const fg = bg.map((v, c) => a * ([r, g, b][c] ?? 0) + (1 - a) * v);
             const [hi = 0, lo = 0] = [lum(fg), lum(bg)].toSorted((p, q) => q - p);
@@ -1121,6 +1132,7 @@ export function selfTest(browser: () => Browser): void {
           '<text x="170" y="20" fill="#000" stroke="#fff" stroke-width="6" paint-order="stroke">halo</text>' +
           '<text x="170" y="50" fill="#000">no halo</text>' +
           '<text x="10" y="100" font-size="30" opacity="0.4">faded</text>' +
+          '<text x="170" y="90" fill="#000" stroke="#fff" stroke-width="2" paint-order="stroke">thin halo</text>' +
           "</svg>" +
           '<svg width="320" height="40" font-size="16" font-family="sans-serif">' +
           '<rect x="60" width="260" height="40" fill="rgb(200 60 200)"/>' +
@@ -1132,8 +1144,16 @@ export function selfTest(browser: () => Browser): void {
       const named = (low: readonly string[]) => low.map((l) => /"([^"]+)"/.exec(l)?.[1]);
       const light: State = { width: 400, height: 300, theme: "light" };
       const rest = await svgText(tab, light);
-      // #595959 holds 7:1 on white and 1.6:1 on the pink.
-      expect(named(rest)).toEqual(["too light", "no halo", "faded", "half on pink", "far"]);
+      // #595959 holds 7:1 on white and 1.6:1 on the pink. A 2px stroke on
+      // 16px text is a narrow border, so "thin halo" is #000 on #222.
+      expect(named(rest)).toEqual([
+        "too light",
+        "no halo",
+        "faded",
+        "thin halo",
+        "half on pink",
+        "far",
+      ]);
       // #808080 on white is 3.95:1 by WCAG's formula.
       expect(rest.at(-1)).toMatch(/"far": 3\.9[45]:1, under 4\.5:1$/u);
       expect(named(await svgText(tab, { ...light, contrast: "more" }))).toEqual([
@@ -1141,6 +1161,7 @@ export function selfTest(browser: () => Browser): void {
         "too light",
         "no halo",
         "faded",
+        "thin halo",
         "half on pink",
         "far",
       ]);
