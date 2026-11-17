@@ -79,6 +79,13 @@ function frames(n = 2): Promise<void> {
   });
 }
 
+/** Asserts `actual` is within a pixel of `expected`: WebKit scrolls to whole
+ *  pixels, rounding a fractional offset up
+ *  (https://github.com/WebKit/WebKit/blob/9fea36ebc8f5d9bd116ccdbc2e7130eeb02217b3/Source/WebCore/page/LocalFrameView.cpp#L3433). */
+function nearPixel(actual: number, expected: number, message: string): void {
+  expect(Math.abs(actual - expected), message).toBeLessThan(1);
+}
+
 /** Waits for what `el` is playing now, which a loaded engine can stretch
  *  past any fixed wait. */
 async function played(el: Element): Promise<void> {
@@ -1069,8 +1076,8 @@ describe("enhanceListDetail", () => {
     await frames();
     expect(document.activeElement).toBe(heading);
     const back = heading.getBoundingClientRect();
-    expect(back.top, "the heading's top at the view's top").toBeCloseTo(0, 0);
-    expect(y - scrollY, "scrolled by its distance out").toBeCloseTo(-out.top, 0);
+    nearPixel(back.top, 0, "the heading's top at the view's top");
+    nearPixel(y - scrollY, -out.top, "scrolled by its distance out");
   });
 
   it("counts a heading under the page's scroll padding as out of view, and brings it out from under it", async () => {
@@ -1095,8 +1102,8 @@ describe("enhanceListDetail", () => {
     api.show("entry");
     await frames();
     expect(document.activeElement).toBe(heading);
-    expect(heading.getBoundingClientRect().top, "its top at the band's edge").toBeCloseTo(120, 0);
-    expect(y - scrollY, "scrolled by its distance under the band").toBeCloseTo(120 - under.top, 0);
+    nearPixel(heading.getBoundingClientRect().top, 120, "its top at the band's edge");
+    nearPixel(y - scrollY, 120 - under.top, "scrolled by its distance under the band");
   });
 
   it("docks a still show without moving focus or the page, and still focuses the sheet's heading", async () => {
