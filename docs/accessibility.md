@@ -43,6 +43,7 @@ The list under each criterion says how it is tested:
 These adopted criteria are not fully met yet. Each item says what falls short and what the bar requires.
 
 - [1.4.6 Contrast (enhanced)](#146-contrast-enhanced): Secondary text and ink on a solid hold 7:1 only when the operating system asks for more contrast, and not every platform offers that setting. The bar requires a contrast choice in the page, beside the theme choice, with three values: follow the system, more and standard. More applies what `prefers-contrast: more` applies, and standard overrides a system that asks for more.
+- [1.4.8 Visual presentation](#148-visual-presentation): Prose paragraphs are 33.7px top to top at the 14px body size, 2.41 times the font size. The bar requires paragraph top to top of at least 2.5 times the font size, a paragraph gap of at least 0.95em.
 - [2.5.5 Target size (enhanced)](#255-target-size-enhanced): A mouse user gets 32px controls and 24px targets and cannot ask for 44px. The bar requires a stored choice of larger targets, with the values follow the device and larger, that pins the touch sizes.
 - [1.4.13 Content on hover or focus](#1413-content-on-hover-or-focus): The tooltip hides when the pointer leaves its control, so the pointer cannot move onto the tip. The bar requires the tip to stay while the pointer is over the control or the tip, and to hide when it leaves both.
 - [2.4.12 Focus not obscured (enhanced)](#2412-focus-not-obscured-enhanced): No stylesheet sets `scroll-padding` for the sticky header, the foot bar or the status line. The bar requires that no part of a focused control sits under them.
@@ -257,9 +258,9 @@ The criterion covers prerecorded audio-only content that is mostly speech, not a
 
 ### 1.4.8 Visual presentation
 
-Level AAA. Adopted. Met by ui. [Understanding 1.4.8](https://www.w3.org/WAI/WCAG22/Understanding/visual-presentation.html)
+Level AAA. Adopted, partly met. Met by ui. [Understanding 1.4.8](https://www.w3.org/WAI/WCAG22/Understanding/visual-presentation.html)
 
-Colours are chosen by the person through the theme and forced colours. Prose stops at 68 characters. Text is start-aligned, never justified. Body leading 1.55. Paragraphs 12px apart on a 21.7px line (33.7px baseline to baseline, 1.55 times the line, the measurement Understanding 1.4.8 describes). Text at 200% reflows with no horizontal scroll.
+Colours are chosen by the person through the theme and forced colours. Prose stops at 68 characters. Text is start-aligned, never justified. Body leading 1.55 meets space-and-a-half (technique C21). Prose paragraphs are 12px apart on a 21.7px line at the 14px body size, so the top of one paragraph's last line is 33.7px from the top of the next paragraph's first line. That is 2.41 times the font size, under the 2.5 times Understanding 1.4.8 describes. Until ui's default meets it, the person's own paragraph spacing applies with no loss (the criterion's Note 1, tested through 1.4.12), and [Where ui falls short](#where-ui-falls-short) has the fix. Text at 200% reflows with no horizontal scroll.
 
 - Manual: the content cards (prose measure, leading, paragraph gap), reflow per page.
 
@@ -560,7 +561,7 @@ Level A. Adopted. Met by ui. [Understanding 2.5.4](https://www.w3.org/WAI/WCAG22
 
 No ui element responds to device or body motion.
 
-- Manual: a a code search finds no `devicemotion` or `deviceorientation`.
+- Manual: a code search finds no `devicemotion` or `deviceorientation`.
 
 ### 2.5.5 Target size (enhanced)
 
@@ -777,7 +778,7 @@ Level A. Adopted. Met by ui. [Understanding 4.1.2](https://www.w3.org/WAI/WCAG22
 Native elements first. A custom widget has its APG role, its name, and each state and value in ARIA 1.2, kept current by its module.
 
 - axe: `aria-*`, `button-name`, `input-button-name`, `input-image-alt`, `link-name`, `area-alt`, `label`, `select-name`, `summary-name`, `nested-interactive`, `presentation-role-conflict`, `focus-order-semantics`, `duplicate-id`, `duplicate-id-active`, `duplicate-id-aria`, `frame-title`, `frame-title-unique`.
-- Manual: each engine's own accessibility the accessibility tree of each gallery card.
+- Manual: each engine's own accessibility tree per gallery card.
 
 ### 4.1.3 Status messages
 
@@ -790,7 +791,7 @@ Level AA. Adopted. Met by ui. [Understanding 4.1.3](https://www.w3.org/WAI/WCAG2
 
 ## WCAG 3 requirements ui adopts
 
-The WCAG 3.0 Working Draft of 10 September 2026 has 216 requirements. ui adopts 106 that are stricter than WCAG 2.2, or that set a duty on media an app authors. [Other WCAG 3 requirements](#other-wcag-3-requirements) lists the rest.
+The WCAG 3.0 Working Draft of 10 September 2026 has 216 requirements. ui adopts 108 that are stricter than WCAG 2.2, or that set a duty on media an app authors. [Other WCAG 3 requirements](#other-wcag-3-requirements) lists the rest.
 
 ### 2.1.4.1 Transcripts findable
 
@@ -969,7 +970,15 @@ A core requirement. Adopted, stricter than WCAG 2.2. Met by ui. [Draft](https://
 
 No ui element plays a sound, so nothing is conveyed by sound.
 
-- Manual: a a code search finds no `Audio`, `AudioContext` or sound file in src.
+- Manual: a code search finds no `Audio`, `AudioContext` or sound file in src.
+
+### 2.1.8.5 Spatial audio not relied on
+
+A core requirement. Adopted for media an app authors. Met by the app. [Draft](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#spatial-audio-not-relied-on)
+
+An app's own clip that places sounds in space, played in ui's video element, never conveys information by where a sound seems to come from alone. Its words, captions or transcript say it too. The video element plays the file as it is and blocks none of this.
+
+- Manual: the media cards, where the gallery's sample has none.
 
 ### 2.2.1.4 Blocks of text adjustable
 
@@ -993,7 +1002,7 @@ A supplemental requirement. Adopted, stricter than WCAG 2.2. Met by ui. [Draft](
 
 ui ships no print stylesheet, so a printed or saved page keeps the person's own text settings (zoom, minimum font size, user styles).
 
-- Manual: a a code search finds no `@media print` in src or css/system.
+- Manual: a code search finds no `@media print` in src or css/system.
 
 ### 2.2.2.1 Text detectable
 
@@ -1224,7 +1233,7 @@ A core requirement. Adopted, stricter than WCAG 2.2. Met by ui. [Draft](https://
 
 No ui element reads pointer pressure.
 
-- Manual: a a code search finds no `pressure`, `tangentialPressure` or `force` read in src.
+- Manual: a code search finds no `pressure`, `tangentialPressure` or `force` read in src.
 
 ### 2.4.3.5 Pointer speed not relied on
 
@@ -1232,7 +1241,7 @@ A core requirement. Adopted, stricter than WCAG 2.2. Met by ui. [Draft](https://
 
 No ui element reads pointer speed: a sheet closes by its button, Escape or a drag past a distance, never a fling.
 
-- Manual: a a code search finds no velocity read in src, the dialog cards (sheet).
+- Manual: a code search finds no velocity read in src, the dialog cards (sheet).
 
 ### 2.4.4.1 Speech not relied on
 
@@ -1240,7 +1249,7 @@ A core requirement. Adopted, stricter than WCAG 2.2. Met by ui. [Draft](https://
 
 No ui element takes speech input.
 
-- Manual: a a code search finds no `SpeechRecognition` in src.
+- Manual: a code search finds no `SpeechRecognition` in src.
 
 ### 2.4.5.5 Input method flexible
 
@@ -1256,7 +1265,7 @@ A core requirement. Adopted, stricter than WCAG 2.2. Met by ui. [Draft](https://
 
 No ui element reads device motion or body movement.
 
-- Manual: a a code search finds no `devicemotion` or `deviceorientation` in src.
+- Manual: a code search finds no `devicemotion` or `deviceorientation` in src.
 
 ### 2.4.5.7 Eye tracking not relied on
 
@@ -1370,7 +1379,15 @@ A core requirement. Adopted, stricter than WCAG 2.2. Met by ui. [Draft](https://
 
 No ui element vibrates the device.
 
-- Manual: a a code search finds no `navigator.vibrate` in src.
+- Manual: a code search finds no `navigator.vibrate` in src.
+
+### 2.6.1.7 Audio shifting adjustable
+
+A core requirement. Adopted for media an app authors. Met by the app. [Draft](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#audio-shifting-adjustable)
+
+An app's own clip whose audio shifts to suggest motion lets the person pause or turn the shift off. The video element's pause stops the whole clip, and the element leaves room for a control of the app's own that turns the shift off. No ui element shifts audio of its own.
+
+- Manual: the media cards, where the gallery's sample has none.
 
 ### 2.7.2.1 Page/view title available
 
@@ -1664,7 +1681,7 @@ A change of window or device is announced before it happens. A link that opens a
 
 ## Other WCAG 3 requirements
 
-Of the rest, 54 are met through a WCAG 2.2 criterion at the same strength, 15 do not apply, and 41 are not adopted. An assertion is an organisation's statement about its own process, not a property of the interface, and ui claims no WCAG 3 conformance, so no assertion is adopted. A requirement whose values the draft still leaves undetermined cannot be tested, so it waits for a draft that sets them.
+Of the rest, 54 are met through a WCAG 2.2 criterion at the same strength, 13 do not apply, and 41 are not adopted. An assertion is an organisation's statement about its own process, not a property of the interface, and ui claims no WCAG 3 conformance, so no assertion is adopted. A requirement whose values the draft still leaves undetermined cannot be tested, so it waits for a draft that sets them.
 
 | Requirement | Type | Ruling |
 | --- | --- | --- |
@@ -1701,9 +1718,8 @@ Of the rest, 54 are met through a WCAG 2.2 criterion at the same strength, 15 do
 | [2.1.7.3 Sign language policy (live)](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#sign-language-policy-live) | assertion | Not adopted, because it is an assertion |
 | [2.1.8.1 Hue not relied on](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#hue-not-relied-on) | core | Met through WCAG 2.2 [1.4.1](#141-use-of-color) |
 | [2.1.8.2 Graphical object contrast sufficient](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#graphical-object-contrast-sufficient) | core | Met through WCAG 2.2 [1.4.11](#1411-non-text-contrast) |
-| [2.1.8.5 Spatial audio not relied on](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#spatial-audio-not-relied-on) | core | Does not apply, because ui plays no audio of its own, spatial or not |
 | [2.1.9.1 Accessible video player selected](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#accessible-video-player-selected) | assertion | Does not apply, because it applies only to a video that does not play in standard browsers. ui uses the native `<video>` |
-| [2.1.9.2 Accessible audio player selected](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#accessible-audio-player-selected) | assertion | Does not apply, because it applies only to an audio format that does not play in standard browsers. ui has no audio player |
+| [2.1.9.2 Accessible audio player selected](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#accessible-audio-player-selected) | assertion | Does not apply, because it applies only to an audio format that does not play in standard browsers |
 | [2.2.1.1 Blocks of text readable (minimum)](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#blocks-of-text-readable-minimum) | core | Not adopted, because the draft leaves its values undetermined (@@), so nothing can be tested |
 | [2.2.1.2 Text style readable (minimum)](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#text-style-readable-minimum) | core | Not adopted, because the draft leaves its values undetermined (@@), so nothing can be tested |
 | [2.2.1.3 Text contrast sufficient (minimum)](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#text-contrast-sufficient-minimum) | core | Not adopted, because the draft's contrast method is undecided, so contrast stays on WCAG 2's ratios |
@@ -1747,7 +1763,6 @@ Of the rest, 54 are met through a WCAG 2.2 criterion at the same strength, 15 do
 | [2.6.1.1 No flashing over threshold](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#no-flashing-over-threshold) | core | Met through WCAG 2.2 [2.3.1](#231-three-flashes-or-below-threshold) |
 | [2.6.1.2 No flashing over threshold (no exceptions)](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#no-flashing-over-threshold-no-exceptions) | supplemental | Met through WCAG 2.2 [2.3.2](#232-three-flashes) |
 | [2.6.1.5 Trigger warning available](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#trigger-warning-available) | core | Does not apply, because ui has no flashing, no pseudo-motion and, once its busy indicators settle within 5 seconds, no motion past 5 seconds, so there is no trigger to warn of |
-| [2.6.1.7 Audio shifting adjustable](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#audio-shifting-adjustable) | core | Does not apply, because ui plays no audio of its own |
 | [2.6.1.8 Safe content review](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#safe-content-review) | assertion | Not adopted, because it is an assertion |
 | [2.7.1.1 Conventional layout review](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#conventional-layout-review) | assertion | Not adopted, because it is an assertion |
 | [2.7.2.2 Location within product review](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#location-within-product-review) | assertion | Not adopted, because it is an assertion |
@@ -1912,13 +1927,13 @@ Contrast uses the WCAG 2 ratios: 4.5:1 for text, 3:1 for large text, boundaries 
 - The check selects rules by id, never by tag, so a rule that tests an adopted criterion runs even when axe marks it experimental. It also asserts that the rules it runs and the rules it leaves out together equal `axe.getRules()`.
 - Each page runs in the light and dark themes at 1440 by 900 and 390 by 844 CSS pixels. Both themes at 1440 also run under `prefers-contrast: more`, where `color-contrast-enhanced` and the SVG text check hold the 7:1 pairs and the other rules have nothing new to find.
 - Each overlay, every `[popover]` and `dialog`, is opened the way a person opens it and checked alone, in each of the page's six states. A dialog becomes a bottom sheet at 390, and the overlays' text must hold 7:1 under more contrast. A menu or panel opens by its button, a list of suggestions by ArrowDown in its field, and the tooltip by the pointer resting on a control with a tip. An overlay inside another opens after the one holding it. The tooltip is skipped on a page with no control that has a tip, since it never shows there. Any other overlay with nothing on the page to open it is opened by script, and the check's report names it. A button whose overlay is built when it is pressed, such as a question or a toast, is pressed on a fresh page, and what it opens is checked.
-- Every closed `details` is opened in one more pass in the light theme at 1440. The members of a group that share a `name` open one per pass, since opening one closes the others.
+- Every closed `details` is opened and checked in a pass of its own in each of the six page states. The members of a group that share a `name` open one per pass, since opening one closes the others.
 - A run fails unless axe reports every rule it was given, but for `bypass`, its one page-level rule, which it runs only on a whole page. A test page with a button that has no name must report `button-name` in every engine, so a run where axe did not start cannot pass.
 - axe reports some failures only as needs review. The check fails on those results for `aria-braille-equivalent`, `aria-prohibited-attr`, `bypass`, `duplicate-id-aria`, `frame-title-unique`, `identical-links-same-purpose` and `no-autoplay-audio`, because axe files their real failures there. Every other needs-review result is written to the check's report as a notice, and the review of each pull request reads them against this page.
 
 ### The SVG text check
 
-axe files text inside SVG, such as a chart's axis labels, as needs review, so the check measures it itself, in every page, overlay and details state. It scrolls each visible `svg text` into view and takes two screenshots: one with the text's fill transparent, which shows what is behind the glyphs, and one with the fill magenta, which shows the pixels the glyphs cover. Each pixel the glyphs cover at least half of must hold 4.5:1 between the text's fill and what is behind it, or 3:1 for large text. For text on an opaque halo, a stroke painted under its fill, the halo is what is behind it. A text under a fixed or sticky bar waits for a view where it is clear. Under `prefers-contrast: more` the ratios are 7:1 and 4.5:1. A test page with text that falls short, text on a halo, faded text and text off screen in a scrolling box proves the measure in each engine.
+axe files text inside SVG, such as a chart's axis labels, as needs review, so the check measures it itself, in every page, overlay and details state. It scrolls each visible `svg text` into view and takes three screenshots: one with the text's fill transparent, which shows what is behind the glyphs, and one each with the fill magenta and green, which show the pixels the glyphs cover. Each pixel is read against whichever of the two differs more from what is behind it, so a magenta-like or green-like background hides no glyph. Each pixel the glyphs cover at least half of must hold 4.5:1 between the text's fill and what is behind it, or 3:1 for large text. For text on an opaque halo, a stroke painted under its fill, the halo is what is behind it. A text under a fixed or sticky bar waits for a view where it is clear. Under `prefers-contrast: more` the ratios are 7:1 and 4.5:1. A test page with text that falls short, text on a halo, faded text, text half over a magenta-like fill and text off screen in a scrolling box proves the measure in each engine.
 
 Of axe 4.13.0's 105 rules, 100 run in every state, 1 runs only under `prefers-contrast: more`, and 4 do not run: `aria-roledescription`, `audio-caption`, `hidden-content` and `landmark-complementary-is-top-level`. The [table of rules](#axe-rules) gives the reason for each.
 

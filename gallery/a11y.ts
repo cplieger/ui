@@ -161,8 +161,6 @@ const STATES: readonly State[] = [1440, 390].flatMap((width) =>
     theme,
   })),
 );
-/** Where every closed `details` is opened. */
-const LIGHT_WIDE: State = { width: 1440, height: 900, theme: "light" };
 // docs/design-colour.md "Contrast" holds the 7:1 pairs in both themes.
 const MORE: readonly State[] = STATES.filter((s) => s.width === 1440).map((s) => ({
   ...s,
@@ -394,7 +392,7 @@ type Texts = (within?: readonly Element[]) => Map<string, SVGTextElement>;
  * than `least` against what is under its glyphs, as "name: ratio" in page
  * order. Each text not yet measured is scrolled into view with the others
  * then on screen. A screenshot with every fill transparent shows what is
- * behind them, and one with it magenta shows which pixels they cover.
+ * behind them, and one per probe colour shows which pixels they cover.
  */
 async function svgText(tab: Page, state: State, scope?: JSHandle<Element[]>): Promise<string[]> {
   // A chart draws its text again as new nodes after each font `loading`
@@ -427,7 +425,8 @@ async function svgText(tab: Page, state: State, scope?: JSHandle<Element[]>): Pr
     sheet.textContent = [
       `[data-a11y-ink] svg text { transition: none !important; }`,
       `[data-a11y-ink="clear"] svg text { fill: transparent !important; }`,
-      `[data-a11y-ink="probe"] svg text { fill: #f0f !important; }`,
+      `[data-a11y-ink="magenta"] svg text { fill: #f0f !important; }`,
+      `[data-a11y-ink="green"] svg text { fill: #0f0 !important; }`,
     ].join("\n");
     // Fixed and sticky bars, and the scroll positions to restore.
     for (const e of document.querySelectorAll<HTMLElement>("body *:not(svg *)")) {
@@ -470,7 +469,7 @@ async function svgText(tab: Page, state: State, scope?: JSHandle<Element[]>): Pr
       continue;
     }
     const shots: string[] = [];
-    for (const ink of ["clear", "probe", null]) {
+    for (const ink of ["clear", ...PROBES.map((p) => p.name), null]) {
       await tab.evaluate((i) => {
         if (i === null) {
           delete document.documentElement.dataset["a11yInk"];
@@ -607,15 +606,23 @@ async function readInks(
   );
 }
 
+/** The fills a screenshot paints every svg text in, to see which pixels it
+ *  covers, as `[data-a11y-ink]` names them. */
+const PROBES = [
+  { name: "magenta", rgb: [255, 0, 255] },
+  { name: "green", rgb: [0, 255, 0] },
+] as const;
+
 /** Each ink's least WCAG contrast over the pixels its glyphs cover, or
- *  Infinity where it covers none. */
+ *  Infinity where it covers none. `shots` are the clear shot, then one per
+ *  probe in `PROBES` order. */
 async function measure(
   tab: Page,
   shots: readonly string[],
   inks: readonly Ink[],
 ): Promise<number[]> {
   return tab.evaluate(
-    async ([pngs, list]) => {
+    async ([pngs, list, colours]) => {
       const pixels = await Promise.all(
         pngs.map(async (b64) => {
           const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
@@ -630,7 +637,7 @@ async function measure(
           };
         }),
       );
-      const [under, probe] = pixels;
+      const [under, ...probes] = pixels;
       // WCAG 2.2's relative luminance of an sRGB colour, 0 to 255 a channel.
       const lum = (rgb: readonly number[]): number => {
         const [r = 0, g = 0, b = 0] = rgb.map((v) => {
@@ -641,8 +648,11 @@ async function measure(
       };
       return list.map((ink) => {
         let low = Number.POSITIVE_INFINITY;
-        const [u, m] = [under?.data, probe?.data];
-        if (under === undefined || u === undefined || m === undefined) {
+        const u = under?.data;
+        const shown = probes.flatMap((p, n) =>
+          p.data === undefined ? [] : [{ rgb: colours[n] ?? [], data: p.data }],
+        );
+        if (under === undefined || u === undefined || shown.length !== colours.length) {
           return low;
         }
         const [r, g, b, a] = ink.rgba;
@@ -653,11 +663,17 @@ async function measure(
         for (let y = y0; y < y1; y++) {
           for (let x = x0; x < x1; x++) {
             const i = (y * under.w + x) * 4;
-            // The glyph's cover of the pixel, read on the channel where the
-            // magenta probe differs most from what is under it. Under half is
-            // its antialiased edge, and a magenta background reads as none.
-            const c = [255, 0, 255]
-              .map((v, ch) => [v - (u[i + ch] ?? 0), (m[i + ch] ?? 0) - (u[i + ch] ?? 0)] as const)
+            // The glyph's cover of the pixel, read on the channel where a
+            // probe differs most from what is under it. Under half is its
+            // antialiased edge. Magenta and green differ by 255 on every
+            // channel, so one of them is at least 128 from any background.
+            const c = shown
+              .flatMap(({ rgb, data }) =>
+                rgb.map(
+                  (v, ch) =>
+                    [v - (u[i + ch] ?? 0), (data[i + ch] ?? 0) - (u[i + ch] ?? 0)] as const,
+                ),
+              )
               .toSorted(([p], [q]) => Math.abs(q) - Math.abs(p))[0];
             if (c === undefined || Math.abs(c[0]) < 96 || c[1] / c[0] < 0.5) {
               continue;
@@ -673,7 +689,7 @@ async function measure(
         return low;
       });
     },
-    [shots, inks] as const,
+    [shots, inks, PROBES.map((p) => p.rgb)] as const,
   );
 }
 
@@ -693,13 +709,12 @@ const statePass = (state: State): Pass => ({
   },
 });
 
-const DETAILS = `${label(LIGHT_WIDE)} details open`;
-
-/** Each round of the page's closed `details` opened. */
-const detailsPass: Pass = {
-  name: DETAILS,
+/** Each round of the page's closed `details` opened, in `state`. */
+const detailsPass = (state: State): Pass => ({
+  name: `${label(state)} details open`,
   run: async (browser, url, report) => {
-    const tab = await open(browser, url, LIGHT_WIDE);
+    const at = `${label(state)} details open`;
+    const tab = await open(browser, url, state);
     // Opening one `details` of a name group closes the others, so the n-th
     // closed member of each group opens in round n.
     const rounds = await tab.evaluateHandle(() => {
@@ -722,12 +737,12 @@ const detailsPass: Pass = {
         return round.filter((d) => !round.some((o) => o !== d && o.contains(d)));
       }, n);
       await settle(tab);
-      report.add(await check(tab, EVERY, opened), DETAILS);
-      report.svgText(await svgText(tab, LIGHT_WIDE, opened), DETAILS);
+      report.add(await check(tab, rulesOf(state), opened), at);
+      report.svgText(await svgText(tab, state, opened), at);
     }
     await tab.close();
   },
-};
+});
 
 const isOpen = (o: Element): boolean =>
   o.matches(":popover-open") || (o instanceof HTMLDialogElement && o.open);
@@ -935,7 +950,10 @@ const overlayPass = (state: State): Pass => ({
   run: (browser, url, report) => overlayStates(browser, url, report, state),
 });
 
-const PAGE_PASSES: readonly Pass[] = [...EVERY_STATE.map(statePass), detailsPass];
+const PAGE_PASSES: readonly Pass[] = [
+  ...EVERY_STATE.map(statePass),
+  ...EVERY_STATE.map(detailsPass),
+];
 const OVERLAY_PASSES: readonly Pass[] = EVERY_STATE.map(overlayPass);
 
 /** Pages served by one server, each checked by the same passes, one test
@@ -1104,20 +1122,26 @@ export function selfTest(browser: () => Browser): void {
           '<text x="170" y="50" fill="#000">no halo</text>' +
           '<text x="10" y="100" font-size="30" opacity="0.4">faded</text>' +
           "</svg>" +
+          '<svg width="320" height="40" font-size="16" font-family="sans-serif">' +
+          '<rect x="60" width="260" height="40" fill="rgb(200 60 200)"/>' +
+          '<text x="10" y="25" fill="#595959">half on pink</text></svg>' +
           '<div style="overflow-x: auto; inline-size: 200px">' +
           '<svg width="600" height="40" font-size="16" font-family="sans-serif">' +
           '<text x="520" y="20" fill="#808080">far</text></svg></div></main></html>',
       );
       const named = (low: readonly string[]) => low.map((l) => /"([^"]+)"/.exec(l)?.[1]);
-      const rest = await svgText(tab, LIGHT_WIDE);
-      expect(named(rest)).toEqual(["too light", "no halo", "faded", "far"]);
+      const light: State = { width: 400, height: 300, theme: "light" };
+      const rest = await svgText(tab, light);
+      // #595959 holds 7:1 on white and 1.6:1 on the pink.
+      expect(named(rest)).toEqual(["too light", "no halo", "faded", "half on pink", "far"]);
       // #808080 on white is 3.95:1 by WCAG's formula.
       expect(rest.at(-1)).toMatch(/"far": 3\.9[45]:1, under 4\.5:1$/u);
-      expect(named(await svgText(tab, { ...LIGHT_WIDE, contrast: "more" }))).toEqual([
+      expect(named(await svgText(tab, { ...light, contrast: "more" }))).toEqual([
         "grey enough",
         "too light",
         "no halo",
         "faded",
+        "half on pink",
         "far",
       ]);
       await tab.close();
