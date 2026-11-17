@@ -720,6 +720,110 @@ describe.each(browsers)("the gallery in %s", (name) => {
     }, 60_000);
   });
 
+  describe("the master and detail's address", () => {
+    const N = "/navigation.html";
+    /** The address, what the detail shows, the rows marked current, and the focused row's href. */
+    const read = (tab: Page) =>
+      tab.evaluate(() => {
+        const root = document.getElementById("md");
+        const title = document.getElementById("md-title");
+        const docked = root?.hasAttribute("data-cp-docked") === true;
+        const open = document.querySelector<HTMLDialogElement>("#md + dialog")?.open === true;
+        const hidden = title?.closest<HTMLElement>(".cp-detail")?.hidden !== false;
+        return {
+          address: location.pathname + location.hash,
+          shows: !hidden && (docked || open) ? (title?.textContent ?? "") : "nothing",
+          current: [...(root?.querySelectorAll("a.cp-list-row[aria-current]") ?? [])].map((a) =>
+            a.getAttribute("href"),
+          ),
+          focus: ((el) => el?.getAttribute("href") ?? (el?.id || el?.tagName))(
+            document.activeElement,
+          ),
+          app: (history.state as Record<string, unknown> | null)?.["app"],
+        };
+      });
+    const at = async (tab: Page, address: string) => {
+      await tab.waitForFunction((a) => location.pathname + location.hash === a, address, {
+        timeout: 5000,
+      });
+      // The detail's exit and the router's focus settle within a few frames.
+      await tab.waitForTimeout(400);
+      return read(tab);
+    };
+    const press = async (tab: Page, href: string) => {
+      await tab.locator(`#md a.cp-list-row[href="${href}"]`).focus();
+      await tab.keyboard.press("Enter");
+    };
+    const closeDetail = (tab: Page) => tab.locator("#md-title ~ [data-detail-close]").click();
+    const wired = (tab: Page) =>
+      tab.waitForFunction(() => document.querySelector("[data-build]") !== null);
+
+    it("closes after two presses onto the list, focusing the row it closed, and Back reopens it", async () => {
+      const tab = await (browser as Browser).newPage({ viewport: { width: 1280, height: 800 } });
+      await tab.goto(`${origin}/index.html`);
+      await tab.goto(`${origin}${N}`);
+      await wired(tab);
+      await press(tab, "#md/frieren");
+      await at(tab, `${N}#md/frieren`);
+      await press(tab, "#md/mushishi");
+      await at(tab, `${N}#md/mushishi`);
+      await closeDetail(tab);
+      const closed = await at(tab, `${N}#detail`).catch(() => read(tab));
+      await tab.goBack();
+      const back = await at(tab, `${N}#md/mushishi`).catch(() => read(tab));
+      await tab.close();
+      expect({ closed, back }).toEqual({
+        closed: {
+          address: `${N}#detail`,
+          shows: "nothing",
+          current: [],
+          focus: "#md/mushishi",
+          app: undefined,
+        },
+        back: {
+          address: `${N}#md/mushishi`,
+          shows: "Mushishi",
+          current: ["#md/mushishi"],
+          focus: "md-title",
+          app: undefined,
+        },
+      });
+    }, 60_000);
+
+    it("closes a loaded entry onto the list, focusing its row, and keeps the app's key on it", async () => {
+      const tab = await (browser as Browser).newPage({ viewport: { width: 1280, height: 800 } });
+      await tab.goto(`${origin}/index.html`);
+      await tab.goto(`${origin}${N}#md/mushishi`);
+      await wired(tab);
+      await tab.evaluate(() => {
+        history.replaceState({ ...(history.state as object), app: "loaded" }, "");
+      });
+      const loaded = await read(tab);
+      await closeDetail(tab);
+      const closed = await at(tab, `${N}#detail`).catch(() => read(tab));
+      await tab.goBack();
+      const back = await at(tab, `${N}#md/mushishi`).catch(() => read(tab));
+      await tab.goBack();
+      const left = await at(tab, "/index.html").catch(() => read(tab));
+      await tab.goForward();
+      const forward = await at(tab, `${N}#md/mushishi`).catch(() => read(tab));
+      await tab.close();
+      expect({
+        loaded: loaded.focus,
+        closed: [closed.address, closed.shows, closed.focus],
+        back: [back.address, back.shows, back.app],
+        left: left.address,
+        forward: [forward.address, forward.shows, forward.app],
+      }).toEqual({
+        loaded: "BODY",
+        closed: [`${N}#detail`, "nothing", "#md/mushishi"],
+        back: [`${N}#md/mushishi`, "Mushishi", "loaded"],
+        left: "/index.html",
+        forward: [`${N}#md/mushishi`, "Mushishi", "loaded"],
+      });
+    }, 60_000);
+  });
+
   it.each(pageNames)(
     "runs %s's script to its end inside a sandboxed frame, as a preview tab shows it",
     async (page) => {

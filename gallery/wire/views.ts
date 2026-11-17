@@ -8,6 +8,8 @@ import { enhanceListDetail } from "@cplieger/ui/list-detail";
 import { enhanceTabs } from "@cplieger/ui/tabs";
 import { enhanceVideo } from "@cplieger/ui/video";
 
+import { routeListDetail } from "./route.js";
+
 const pane = document.getElementById("video-preview");
 const nudge = document.getElementById("nudge-video-input");
 if (pane !== null && nudge instanceof HTMLInputElement) {
@@ -29,21 +31,19 @@ if (md !== null && mdTabs !== null) {
     subtitles: document.getElementById("md-p2"),
   };
   enhanceTabs(mdTabs);
-  const detail = enhanceListDetail(md, {
-    // Back when a row's press pushed the entry; a page that loaded on the
-    // entry has no entry of its own to go back to.
-    onDismiss: () => {
-      if ((history.state as { md?: unknown } | null)?.md === true) {
-        history.back();
-      } else {
-        history.replaceState(null, "", "#detail");
-        route(false);
-      }
-    },
-  });
   const current = (): HTMLAnchorElement | undefined =>
     rows.find((r) => location.hash !== "" && r.hash === location.hash);
-  function route(still: boolean): void {
+  const route = routeListDetail({
+    root: md,
+    names: (hash) => rows.some((r) => hash !== "" && r.hash === hash),
+    list: "#detail",
+    sync: () => {
+      render(false);
+    },
+    rowOrStop: (key) => rows.find((r) => r.hash === key) ?? null,
+  });
+  const detail = enhanceListDetail(md, { onDismiss: route.close });
+  function render(still: boolean): void {
     const row = current();
     for (const r of rows) {
       if (r === row) {
@@ -56,6 +56,9 @@ if (md !== null && mdTabs !== null) {
       detail.show(null);
       return;
     }
+    if (detail.key === row.hash) {
+      return;
+    }
     for (const [key, el] of Object.entries(fill)) {
       if (el !== null) {
         el.textContent = row.dataset[key] ?? "";
@@ -63,23 +66,17 @@ if (md !== null && mdTabs !== null) {
     }
     detail.show(row.hash, { still });
   }
-  for (const row of rows) {
-    row.addEventListener("click", (e) => {
-      if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) {
-        return;
-      }
-      e.preventDefault();
-      // A second press on the open entry pushes nothing, so one Back closes.
-      if (row !== current()) {
-        history.pushState({ md: true }, "", row.href);
-      }
-      route(false);
-    });
+  route.start(detail);
+  const wide =
+    md.getBoundingClientRect().width >=
+    52 * (Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16);
+  // On a phone the addressed row takes focus first, so Close returns it there.
+  if (!wide) {
+    current()?.focus({ preventScroll: true });
   }
-  addEventListener("hashchange", () => {
-    route(false);
-  });
-  if (current() !== undefined) {
-    route(true);
+  render(true);
+  // A wide load leaves focus at the page's start.
+  if (wide && detail.key !== null) {
+    fill["title"]?.blur();
   }
 }

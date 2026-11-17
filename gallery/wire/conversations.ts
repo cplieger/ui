@@ -6,6 +6,7 @@ import { enhanceRelativeTime } from "@cplieger/ui/relative-time";
 import { enhanceRovingFocus } from "@cplieger/ui/roving-focus";
 
 import { markDay, messageFeed } from "./feed.js";
+import { routeListDetail } from "./route.js";
 
 interface Conversation {
   readonly id: string;
@@ -169,42 +170,22 @@ if (root !== null && list instanceof HTMLUListElement && filters !== null) {
     replyFor(view);
   }
 
-  // The address is the state: its fragment names the open conversation, and
-  // sync() renders it. Each entry records whether the one before it showed
-  // the list, so Close is one Back to that list, or else a push of the
-  // list's address: never a jump over several entries.
-  const FROM_LIST = "cp-gallery-from-list";
-  const fromList = (state: unknown): boolean | undefined => {
-    const v: unknown =
-      typeof state === "object" && state !== null ? Reflect.get(state, FROM_LIST) : undefined;
-    return typeof v === "boolean" ? v : undefined;
+  /** The open conversation's row, or the list's tab stop when a filter or a later page leaves it undrawn. */
+  const rowOrStop = (id: string): HTMLElement | null => {
+    const link = linkOf(items.get(id));
+    return link?.isConnected === true
+      ? link
+      : list.querySelector<HTMLElement>('a.cp-list-row[tabindex="0"]');
   };
-  // The app's own keys in an entry's state, such as its router's scroll, stay beside this one.
-  const stamp = (from: boolean, url?: string): void => {
-    const own: unknown = history.state;
-    history.replaceState(
-      { ...(typeof own === "object" && own !== null ? own : {}), [FROM_LIST]: from },
-      "",
-      url,
-    );
-  };
-  /** Set from a Close's Back until the page arrives, so a second Close leaves no further. */
-  let leaving = false;
-
-  const detail = enhanceListDetail(root, {
-    onDismiss: () => {
-      if (leaving) {
-        return;
-      }
-      if (fromList(history.state) === true) {
-        leaving = true;
-        history.back();
-        return;
-      }
-      history.pushState({ [FROM_LIST]: false }, "", location.pathname + location.search);
-      sync();
-    },
+  // The address is the state: its fragment names the open conversation, and sync() renders it.
+  const route = routeListDetail({
+    root,
+    names: (hash) => named(hash.slice(1)) !== undefined,
+    list: location.pathname + location.search,
+    sync,
+    rowOrStop,
   });
+  const detail = enhanceListDetail(root, { onDismiss: route.close });
   root.addEventListener("detailopen", (e) => {
     const view = named((e as DetailOpenEvent).detail.key);
     if (view !== undefined) {
@@ -230,59 +211,19 @@ if (root !== null && list instanceof HTMLUListElement && filters !== null) {
       messageFeed?.toNewest();
     }
   }
-  const arrive = (e: Event): void => {
-    leaving = false;
-    if (e instanceof HashChangeEvent && fromList(history.state) === undefined) {
-      stamp(named(new URL(e.oldURL).hash.slice(1)) === undefined);
-    }
-    sync();
-  };
-
   const rem = Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
   const wide = root.getBoundingClientRect().width >= 52 * rem;
-  if (fromList(history.state) === undefined) {
-    // A wide page docks the markup's open conversation, so the address names it.
-    const open = location.hash === "" && wide ? current()?.hash : undefined;
-    stamp(false, open ?? location.href);
-  }
+  // A wide page docks the markup's open conversation, so the address names it.
+  route.start(detail, location.hash === "" && wide ? current()?.hash : undefined);
   // On a phone the addressed row takes focus first, so Close returns it there.
-  if (!wide) {
-    linkOf(items.get(location.hash.slice(1)))?.focus({ preventScroll: true });
+  const loaded = location.hash.slice(1);
+  if (!wide && named(loaded) !== undefined) {
+    rowOrStop(loaded)?.focus({ preventScroll: true });
   }
   sync(true);
   if (wide) {
     title?.blur();
   }
-
-  addEventListener("popstate", arrive);
-  addEventListener("hashchange", arrive);
-  addEventListener("pageshow", (e) => {
-    if (e.persisted) {
-      arrive(e);
-    }
-  });
-  // A press on a link to the address itself would replace its entry, which
-  // in Firefox drops its state (https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate-fragid);
-  // the page keeps the entry and only moves focus.
-  document.addEventListener("click", (e) => {
-    const link = e.target instanceof Element ? e.target.closest("a[href]") : null;
-    const plain = e.button === 0 && !(e.metaKey || e.ctrlKey || e.shiftKey || e.altKey);
-    if (
-      !(link instanceof HTMLAnchorElement) ||
-      !plain ||
-      e.defaultPrevented ||
-      location.hash === "" ||
-      link.href !== location.href
-    ) {
-      return;
-    }
-    e.preventDefault();
-    if (detail.key === null) {
-      document.getElementById(location.hash.slice(1))?.scrollIntoView();
-    } else {
-      detail.show(detail.key);
-    }
-  });
 
   // A filter replaces the rows; the open conversation stays open, and its
   // row is current again wherever the filter shows it.
