@@ -275,6 +275,26 @@ describe.each(browsers)("the gallery in %s", (name) => {
     expect(low).toEqual([]);
   }, 60_000);
 
+  // WAI-ARIA 1.2 prohibits aria-label on a label, which has no role, so only the label's own text
+  // names its radio in every engine.
+  it("names the settings page's accent swatches by their labels' own words", async () => {
+    const tab = await (browser as Browser).newPage();
+    await tab.goto(`${origin}/settings.html`);
+    const swatches = await tab.evaluate(() =>
+      [...document.querySelectorAll<HTMLInputElement>("input[name='g-accent']")].map((radio) => ({
+        words: radio.labels?.[0]?.textContent.trim(),
+        labelNamed: radio.labels?.[0]?.hasAttribute("aria-label"),
+      })),
+    );
+    await tab.close();
+    expect(swatches).toEqual(
+      ["Blue", "Green", "Terracotta", "Violet", "Pink", "Teal"].map((words) => ({
+        words,
+        labelNamed: false,
+      })),
+    );
+  });
+
   it("shows a template's destination as a route change, focus on its h1", async () => {
     const tab = await (browser as Browser).newPage({ viewport: { width: 1440, height: 900 } });
     await tab.goto(`${origin}/templates/app.html`);
