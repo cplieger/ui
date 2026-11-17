@@ -66,7 +66,7 @@ enhanceProposal(unchecked, {
 - Apply that succeeds marks the card `data-cp-state="applied"`, which turns its edge solid on the success wash, puts the `applied` words in the `<p>` and says them politely. Focus goes to Undo, or to the words when there is no Undo. Undo takes Apply's place and Discard goes, and nothing else in the card moves.
 - Undo that succeeds puts the proposal's words and buttons back where they were, focuses Apply and says `undone`.
 - Discard that succeeds removes the card, focuses `returnFocus` and says `discarded`.
-- Each of these focus moves happens only when focus was in the card, or would drop to the page; a person who moved on while the action ran keeps their place.
+- Each of these focus moves happens only when focus was in the card, or would drop to the page. A person who moved on while the action ran keeps their place.
 - An action that fails leaves the card as it was, with a `.cp-state[data-cp-state="failed"]` line under the words, said assertively, and focus on the button pressed, so a second press tries again. The next action removes the line.
 - The unverified card asks first. A declined question runs nothing, and focus is back on Apply.
 

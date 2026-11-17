@@ -70,7 +70,7 @@ Ended, a job reads:
 
 ## Behaviour
 
-- A press on Stop runs `stop` with the button `aria-busy`, still focusable, and a second press while the first runs does nothing. The busy state lasts only while `stop` is pending. Once it resolves the job ends with `stopped` in the neutral tone and the count at the press as its cause. When the app's job stream later reports the job's own end, `end` rewrites that outcome and cause; leave its `said` out then, since the stop was already said. An end the app writes while Stop is pending wins: the stop's answer, a success or a failure, then writes nothing.
+- A press on Stop runs `stop` with the button `aria-busy`, still focusable, and a second press while the first runs does nothing. The busy state lasts only while `stop` is pending. Once it resolves the job ends with `stopped` in the neutral tone and the count at the press as its cause. When the app's job stream later reports the job's own end, `end` rewrites that outcome and cause. Leave its `said` out then, since the stop was already said. An end the app writes while Stop is pending wins: the stop's answer, a success or a failure, then writes nothing.
 - A stop that fails keeps the job running and adds its sentence under the row as a failed `.cp-state`, with focus left on Stop, so a second press tries again. That press removes the line.
 - When the job ends while focus is on Stop or a line that goes, focus moves to the job's first part that takes focus, its link, else the row, so it never drops to the page.
 - The list's foot is [load-more](../data/load-more.md), which adds the next jobs before it and focuses the first one's link.
