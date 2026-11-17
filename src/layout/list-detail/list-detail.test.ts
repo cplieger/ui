@@ -1008,6 +1008,315 @@ describe("enhanceListDetail", () => {
     }
   });
 
+  /** Where the route shows what the address names: in `popstate`, in
+   *  `hashchange`, a task after it, or 50 ms after it, as a route that
+   *  fetches first. */
+  type Timing = "popstate" | "hashchange" | "task" | "late";
+  /** How the reader left the first entry before the traversal: by its own
+   *  row, by a link in the detail to the second entry, or by a link in the
+   *  detail to a part of the page (a link, a button, a held heading). */
+  type Before = "row" | "link" | "part-link" | "part-button" | "part-held";
+  type Travel = "back" | "forward";
+  /** The hide after the traversal: the route's, Close, or the route's after a
+   *  press on the third row. */
+  type Then = "route" | "close" | "press";
+  type ListDraws = "entry" | "roving" | "link" | "heading";
+  const TIMINGS: readonly Timing[] = ["popstate", "hashchange", "task", "late"];
+
+  /** Three rows a window and a half apart, `#row-0` to `#row-2`, a list
+   *  column drawing them or, with `heading`, only its heading while the rows
+   *  sit before the box, parts of the page far below, and a link in the
+   *  detail. The route shows the row the address names at `timing`. */
+  async function travelScene(width: number, draws: ListDraws, timing: Timing) {
+    history.replaceState(history.state, "", "#list");
+    const rows = [0, 1, 2].map((i) => {
+      const a = document.createElement("a");
+      a.href = `#row-${String(i)}`;
+      a.textContent = `Row ${String(i)}`;
+      return a;
+    });
+    const m = mount(width, {
+      entry: (key) => (draws === "entry" ? (rows.find((a) => a.hash === `#${key}`) ?? null) : null),
+    });
+    m.opener.remove();
+    document.documentElement.style.overflowAnchor = "none";
+    const list = document.createElement("ul");
+    for (const a of rows) {
+      const li = document.createElement("li");
+      li.style.marginBlockEnd = "150vh";
+      li.append(a);
+      list.append(li);
+    }
+    const column = document.createElement("div");
+    const title = document.createElement("h3");
+    title.textContent = "Library";
+    column.append(title);
+    if (draws === "heading") {
+      m.root.before(list);
+    } else {
+      column.append(list);
+    }
+    m.root.prepend(column);
+    if (draws === "roving") {
+      rows[2]!.tabIndex = 0;
+    }
+    const tall = document.createElement("div");
+    tall.style.blockSize = "300vh";
+    const farLink = document.createElement("a");
+    farLink.id = "far-link";
+    farLink.href = "#elsewhere";
+    farLink.textContent = "Far link";
+    const farButton = document.createElement("button");
+    farButton.id = "far-button";
+    farButton.type = "button";
+    farButton.textContent = "Far button";
+    const farHeld = document.createElement("h2");
+    farHeld.id = "far-held";
+    farHeld.tabIndex = -1;
+    farHeld.textContent = "Far held";
+    document.body.append(tall, farLink, farButton, farHeld);
+    const link = document.createElement("a");
+    link.textContent = "Next";
+    m.detail.querySelector(".cp-detail-body")!.append(link);
+    const keyOf = (): string | null =>
+      /^#row-\d$/.test(location.hash) ? location.hash.slice(1) : null;
+    const apply = (): void => {
+      const key = keyOf();
+      if (key !== m.api.key) {
+        m.api.show(key);
+      }
+    };
+    const delay = timing === "task" ? 0 : timing === "late" ? 50 : null;
+    // A route that fetches before it shows still hides at once.
+    addEventListener(
+      timing === "popstate" ? "popstate" : "hashchange",
+      () => {
+        if (delay === null || keyOf() === null) {
+          apply();
+        } else {
+          setTimeout(apply, delay);
+        }
+      },
+      { signal: life.signal },
+    );
+    return { ...m, rows, title, link };
+  }
+  type TravelScene = Awaited<ReturnType<typeof travelScene>>;
+
+  const opened = (root: HTMLElement): Promise<unknown> =>
+    new Promise((r) => {
+      root.addEventListener("detailopen", r, { once: true });
+    });
+  /** Presses a row where the reader scrolled to it. */
+  const pressRow = async (s: TravelScene, i: number): Promise<void> => {
+    s.rows[i]!.scrollIntoView({ block: "center" });
+    await frames(1);
+    const shown = opened(s.root);
+    await keys(s.rows[i]!, "{Enter}");
+    await shown;
+    await played(s.dialog);
+  };
+  /** Waits for the traversal's show, then for the page's scroll restoration
+   *  and what follows it. */
+  const traverse = async (s: TravelScene, step: () => void): Promise<void> => {
+    const shown = opened(s.root);
+    step();
+    await shown;
+    await played(s.dialog);
+    await frames(3);
+    await task();
+  };
+  const leave: Record<Before, (s: TravelScene) => Promise<void>> = {
+    row: (s) => pressRow(s, 1),
+    link: async (s) => {
+      s.link.href = "#row-1";
+      const shown = opened(s.root);
+      await keys(s.link, "{Enter}");
+      await shown;
+    },
+    "part-link": (s) => toPart(s, "#far-link"),
+    "part-button": (s) => toPart(s, "#far-button"),
+    "part-held": (s) => toPart(s, "#far-held"),
+  };
+  async function toPart(s: TravelScene, href: string): Promise<void> {
+    s.link.href = href;
+    const done = closed(s.root);
+    await keys(s.link, "{Enter}");
+    await done;
+    await exited(s.dialog);
+    expect(document.activeElement, "the part took focus").toBe(document.querySelector(href));
+  }
+
+  type TravelRow = readonly [string, number, Before, Travel, Timing, ListDraws, Then];
+  const travelRow = (
+    width: number,
+    before: Before,
+    travel: Travel,
+    timing: Timing,
+    draws: ListDraws,
+    then: Then,
+  ): TravelRow => [
+    `${where(width)}, left by ${before}, ${travel} shown in ${timing}, the ${draws} drawn, then ${then}`,
+    width,
+    before,
+    travel,
+    timing,
+    draws,
+    then,
+  ];
+  const OTHERS: readonly ListDraws[] = ["roving", "link", "heading"];
+  const SOME_TIMES: readonly Timing[] = ["popstate", "late"];
+  const TRAVEL_ROWS: readonly TravelRow[] = [
+    ...[DOCK, SHEET].flatMap((w) =>
+      // A row behind the modal sheet takes no press.
+      (w === DOCK ? (["row", "link"] as const) : (["link"] as const)).flatMap((b) =>
+        (["back", "forward"] as const).flatMap((t) => [
+          ...TIMINGS.map((tm) => travelRow(w, b, t, tm, "entry", "route")),
+          ...OTHERS.flatMap((d) => SOME_TIMES.map((tm) => travelRow(w, b, t, tm, d, "route"))),
+          ...SOME_TIMES.map((tm) => travelRow(w, b, t, tm, "entry", "close")),
+        ]),
+      ),
+    ),
+    ...(["part-link", "part-button", "part-held"] as const).flatMap((b) =>
+      [DOCK, SHEET].flatMap((w) =>
+        TIMINGS.map((tm) => travelRow(w, b, "back", tm, "entry", "route")),
+      ),
+    ),
+    ...SOME_TIMES.map((tm) => travelRow(DOCK, "row", "back", tm, "entry", "press")),
+    travelRow(DOCK, "link", "back", "late", "heading", "press"),
+  ];
+
+  it.each(TRAVEL_ROWS)(
+    "after a traversal %s",
+    async (_, width, before, travel, timing, draws, then) => {
+      const s = await travelScene(width, draws, timing);
+      await pressRow(s, 0);
+      await leave[before](s);
+      await traverse(s, () => {
+        history.back();
+      });
+      if (travel === "forward") {
+        await traverse(s, () => {
+          history.forward();
+        });
+      }
+      const back = travel === "back" ? 0 : 1;
+      expect(s.api.key, "the entry the address names").toBe(`row-${String(back)}`);
+      expect(document.activeElement, "the traversal's show focuses the heading").toBe(s.heading);
+      const h = s.heading.getBoundingClientRect();
+      expect(h.top > -1 && h.bottom < innerHeight + 1, "the heading wholly in view").toBe(true);
+      if (then === "press") {
+        await pressRow(s, 2);
+      }
+      const done = closed(s.root);
+      if (then === "close") {
+        await keys(s.close, "{Enter}");
+      } else {
+        s.api.show(null);
+      }
+      await done;
+      await exited(s.dialog);
+      const ends: Record<ListDraws, HTMLElement> = {
+        entry: s.rows[back]!,
+        roving: s.rows[2]!,
+        link: s.rows[0]!,
+        heading: s.title,
+      };
+      const want = then === "press" ? s.rows[2]! : ends[draws];
+      expect(document.activeElement, "focus on what the list draws for the entry").toBe(want);
+      const r = want.getBoundingClientRect();
+      expect(r.bottom > 0 && r.top < innerHeight, "in view").toBe(true);
+      if (want !== s.rows[1]) {
+        const b = s.rows[1]!.getBoundingClientRect();
+        expect(b.bottom <= 0 || b.top >= innerHeight, "the page not at the second row").toBe(true);
+      }
+    },
+  );
+
+  it.each([
+    ["docked, a link at the top", DOCK, "link"],
+    ["in the sheet, a link at the top", SHEET, "link"],
+    ["docked, only a main heading at the top", DOCK, "heading"],
+    ["in the sheet, only a main heading at the top", SHEET, "heading"],
+  ] as const)(
+    "after a push to #top, %s, ends there at the page's start",
+    async (_, width, first) => {
+      const m = mount(width);
+      const top = document.createElement(first === "link" ? "a" : "h1");
+      top.textContent = "Start";
+      if (top instanceof HTMLAnchorElement) {
+        top.href = "#start";
+      }
+      const spacer = document.createElement("div");
+      spacer.style.blockSize = "150vh";
+      document.body.prepend(top, spacer);
+      const link = document.createElement("a");
+      link.href = "#top";
+      link.textContent = "To the top";
+      m.detail.querySelector(".cp-detail-body")!.append(link);
+      hideOn(m.api);
+      m.api.show("entry");
+      await played(m.dialog);
+      scrollTo(0, document.documentElement.scrollHeight);
+      await frames();
+      const done = closed(m.root);
+      await keys(link, "{Enter}");
+      await done;
+      await exited(m.dialog);
+      expect(scrollY, "the page at its start").toBe(0);
+      expect(document.activeElement).toBe(top);
+      if (first === "heading") {
+        expect(top.getAttribute("tabindex"), "focusable until it loses focus").toBe("-1");
+        m.opener.focus();
+        expect(top.hasAttribute("tabindex"), "no tab stop left behind").toBe(false);
+      }
+    },
+  );
+
+  it.each([
+    ["docked, an svg figure", DOCK, "svg"],
+    ["in the sheet, an svg figure", SHEET, "svg"],
+    ["docked, a math formula", DOCK, "math"],
+    ["in the sheet, a math formula", SHEET, "math"],
+  ] as const)(
+    "after a push to a part below the fold, %s, ends on it, its top in view",
+    async (_, width, kind) => {
+      const m = mount(width);
+      const tall = document.createElement("div");
+      tall.style.blockSize = "300vh";
+      const ns =
+        kind === "svg" ? "http://www.w3.org/2000/svg" : "http://www.w3.org/1998/Math/MathML";
+      const part = document.createElementNS(ns, kind) as SVGElement | MathMLElement;
+      part.id = "far-figure";
+      if (part instanceof SVGElement) {
+        part.setAttribute("width", "100");
+        part.setAttribute("height", "100");
+      } else {
+        part.append(document.createElementNS(ns, "mi"));
+        part.firstElementChild!.textContent = "x";
+      }
+      m.root.after(tall, part);
+      const link = document.createElement("a");
+      link.href = "#far-figure";
+      link.textContent = "To the figure";
+      m.detail.querySelector(".cp-detail-body")!.append(link);
+      hideOn(m.api);
+      m.api.show("entry");
+      await played(m.dialog);
+      const done = closed(m.root);
+      await keys(link, "{Enter}");
+      await done;
+      await exited(m.dialog);
+      expect(document.activeElement, "on the part").toBe(part);
+      expect(part.getAttribute("tabindex"), "focusable until it loses focus").toBe("-1");
+      const top = part.getBoundingClientRect().top;
+      expect(top, "its top in the view").toBeGreaterThanOrEqual(0);
+      expect(top).toBeLessThan(innerHeight);
+      m.opener.focus();
+      expect(part.hasAttribute("tabindex"), "no tab stop left behind").toBe(false);
+    },
+  );
+
   it("returns focus to the opener on a Close pressed after a link in the sheet the route kept open", async () => {
     const m = mount(400);
     const { link } = farPart(m);
@@ -1020,8 +1329,12 @@ describe("enhanceListDetail", () => {
     expect(document.activeElement).toBe(m.opener);
   });
 
-  it("returns focus to the opener when a link in the detail showed another entry before the hide", async () => {
-    const m = mount(400);
+  it("ends on the row of the entry a link in the detail showed, not the first entry's opener", async () => {
+    const other = document.createElement("a");
+    other.href = "#other";
+    other.textContent = "Other";
+    const m = mount(400, { entry: (key) => (key === "other" ? other : null) });
+    m.opener.after(other);
     const { link } = farPart(m);
     // The part the link names is an entry's own row, as a list's row can be.
     hideOn(m.api, { "#far-part": "other" });
@@ -1036,7 +1349,7 @@ describe("enhanceListDetail", () => {
     location.hash = "#gone";
     await done;
     await exited(m.dialog);
-    expect(document.activeElement).toBe(m.opener);
+    expect(document.activeElement).toBe(other);
   });
 
   it("refocuses a shown heading still partly in view without scrolling the page", async () => {

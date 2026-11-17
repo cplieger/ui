@@ -23,8 +23,8 @@ export interface ListDetailOptions {
   readonly onDismiss?: () => void;
   /** The entry's own row, which takes focus after a hide when the element
    *  that showed the entry is gone, was the page, or none did, as when Back
-   *  or Forward showed it; null when the row is not drawn. Default: none, so
-   *  focus goes to the list's tab stop. */
+   *  or Forward showed it, at once or after an await; null when the row is
+   *  not drawn. Default: none, so focus goes to the list's tab stop. */
   readonly entry?: (key: string) => HTMLElement | null;
 }
 
@@ -87,9 +87,16 @@ function padding(): readonly [number, number] {
   return [px(style.scrollPaddingTop), px(style.scrollPaddingBottom)];
 }
 
+/** An element that can take focus once it has a `tabindex`: the
+ *  HTMLOrSVGElement mixin's (https://html.spec.whatwg.org/multipage/dom.html#htmlorsvgelement). */
+type Part = HTMLElement | SVGElement | MathMLElement;
+
+const isPart = (el: Element | null | undefined): el is Part =>
+  el instanceof HTMLElement || el instanceof SVGElement || el instanceof MathMLElement;
+
 /** Focuses `target` without scrolling; one that takes no focus gets
  *  `tabindex="-1"` until it loses focus, so the next Tab starts there. */
-function land(target: HTMLElement): void {
+function land(target: Part): void {
   target.focus({ preventScroll: true });
   if (document.activeElement !== target && !target.hasAttribute("tabindex")) {
     target.tabIndex = -1;
@@ -106,7 +113,7 @@ function land(target: HTMLElement): void {
 
 /** Focuses `el` where it is, then reveals it, so a focus ring never lands
  *  where nobody sees it and a ring in view never jumps the page. */
-function refocus(el: HTMLElement | null): void {
+function refocus(el: Part | null): void {
   if (el === null) {
     return;
   }
@@ -116,7 +123,7 @@ function refocus(el: HTMLElement | null): void {
 
 /** Scrolls `el` in only when none of it is in the viewport clear of its
  *  scroll padding. */
-function reveal(el: HTMLElement): void {
+function reveal(el: Element): void {
   const r = el.getBoundingClientRect();
   const vh = document.documentElement.clientHeight;
   const vw = document.documentElement.clientWidth;
@@ -130,7 +137,7 @@ function reveal(el: HTMLElement): void {
  *  it, with its top scrolled clear of the scroll padding when it is not in
  *  view
  *  (https://html.spec.whatwg.org/multipage/browsing-the-web.html#scroll-to-the-fragment-identifier). */
-function reach(target: HTMLElement): void {
+function reach(target: Part): void {
   land(target);
   const top = target.getBoundingClientRect().top;
   const [clear, foot] = padding();
@@ -146,7 +153,7 @@ const TOP = "top";
  *  fragment, or null for none
  *  (https://html.spec.whatwg.org/multipage/browsing-the-web.html#select-the-indicated-part,
  *  https://html.spec.whatwg.org/multipage/browsing-the-web.html#find-a-potential-indicated-element). */
-function indicated(url: string): HTMLElement | typeof TOP | null {
+function indicated(url: string): Part | typeof TOP | null {
   const at = url.indexOf("#");
   if (at < 0) {
     return null;
@@ -167,14 +174,14 @@ function indicated(url: string): HTMLElement | typeof TOP | null {
     null;
   const el = potential(raw) ?? (decoded === null ? null : potential(decoded));
   if (el !== null) {
-    return el instanceof HTMLElement ? el : null;
+    return isPart(el) ? el : null;
   }
   return decoded !== null && /^top$/i.test(decoded) ? TOP : null;
 }
 
 /** Whether `el` is an element a person sees now. */
-const drawn = (el: Element | null | undefined): el is HTMLElement =>
-  el instanceof HTMLElement && el.isConnected && el.checkVisibility();
+const drawn = (el: Element | null | undefined): el is Part =>
+  isPart(el) && el.isConnected && el.checkVisibility();
 
 const isPage = (el: Element | null): boolean =>
   el === null || el === document.body || el === document.documentElement;
@@ -189,12 +196,14 @@ interface Nav {
   /** The element that started it, which keeps focus without being moved. */
   readonly source: Element | null;
   /** What its destination's fragment indicates, read at its `navigate`. */
-  readonly part: HTMLElement | typeof TOP | null;
+  readonly part: Part | typeof TOP | null;
   /** Set by its own `currententrychange`: a navigation that opens nothing
    *  here, as a Ctrl press in WebKit, fires `navigate` and never commits. */
   committed: boolean;
   /** Committed under a route's `intercept()`, which fires no hashchange. */
   intercepted: boolean;
+  /** A traversal whose show focused the detail's heading. */
+  focusedHeading: boolean;
 }
 
 /** What a hide hands `focusOnHide`, read at the hide: a modal sheet keeps
@@ -202,14 +211,14 @@ interface Nav {
 interface Hidden {
   readonly key: string;
   /** What a link target navigation in progress at the hide went to. */
-  readonly part: HTMLElement | typeof TOP | null;
+  readonly part: Part | typeof TOP | null;
   /** Whether the reader had moved focus out of the detail. */
   readonly moved: boolean;
   readonly opener: Element | null;
 }
 
 interface Target {
-  readonly el: HTMLElement;
+  readonly el: Part;
   readonly how: "top" | "part" | "control";
 }
 
@@ -242,12 +251,18 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
   let shown: string | null = null;
   /** Where the shown detail sits; null while it is hidden. */
   let at: "dock" | "dialog" | null = null;
+  /** What had focus when a show of the shown key that was not Back or
+   *  Forward came, so it never names another entry's row. */
   let opener: Element | null = null;
   /** The hide whose focus and `detailclose` wait for the sheet's exit in
    *  script to end: the page stays inert until the dialog closes. */
   let pending: Hidden | null = null;
   /** The navigation in progress, or null. */
   let current: Nav | null = null;
+  /** The type of the last navigation recorded here that committed. A task
+   *  never clears it, so a route that awaits before it shows on Back still
+   *  reads the traversal. */
+  let lastType: NavigationType | null = null;
   /** Counts opens and closes, so an exit that ends after the next open
    *  leaves the detail where it is. */
   let turn = 0;
@@ -373,9 +388,10 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
     };
   };
 
-  /** The top of the document, which a fragment indicated: the page at its
-   *  start, and focus where the next Tab starts there, on the first
-   *  focusable element in view, else the main heading, else the body
+  /** The top of the document, which a fragment indicated: the page scrolls
+   *  to its start, and focus goes to its first focusable element outside the
+   *  detail that is in view, else its main heading, which takes
+   *  `tabindex="-1"` until it loses focus, else the body
    *  (https://html.spec.whatwg.org/multipage/browsing-the-web.html#scroll-to-the-fragment-identifier). */
   const toTop = (): void => {
     scrollTo(0, 0);
@@ -392,9 +408,9 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
 
   /** The list column's tab stop: its roving item, else its first link, else
    *  its first heading, else the column. */
-  const tabStop = (): HTMLElement | null => {
+  const tabStop = (): Part | null => {
     const column = [...root.children].find((c) => c !== detail);
-    const first = (selector: string): HTMLElement | undefined =>
+    const first = (selector: string): Part | undefined =>
       [...(column?.querySelectorAll(selector) ?? [])].find(drawn);
     const stop = first('[tabindex="0"]') ?? first("a[href]") ?? first("h1, h2, h3, h4, h5, h6");
     return stop ?? (drawn(column) ? column : null);
@@ -505,18 +521,19 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
         return;
       }
       const previous = shown;
-      // Back and Forward bring an entry back from the address alone, so
-      // whatever focus is on did not show it, a part a link reached included.
-      const traversing = current?.type === "traverse";
+      // Back and Forward bring an entry back from the address alone, awaited
+      // or not, so whatever focus is on did not show it, a part a link
+      // reached included.
+      const traversing = current?.type === "traverse" || lastType === "traverse";
+      let was = document.activeElement;
       if (previous === null) {
         turn += 1;
         const leaving = pending;
         pending = null;
-        // A show during the sheet's exit takes the element that hide would
-        // have focused as its opener.
-        const was = leaving === null ? document.activeElement : (focusTarget(leaving)?.el ?? null);
-        opener = traversing ? null : was;
         if (leaving !== null) {
+          // A show during the sheet's exit stands where that hide would
+          // have put focus.
+          was = focusTarget(leaving)?.el ?? null;
           fireClose(leaving.key);
         }
         detail.hidden = false;
@@ -524,20 +541,22 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
         if (opts.still === true) {
           holdStill();
         }
-      } else if (
-        !traversing &&
-        !dialog.contains(document.activeElement) &&
-        !detail.contains(document.activeElement) &&
-        document.activeElement !== document.body
-      ) {
-        // Another entry's link opened the docked detail: Close returns there.
-        opener = document.activeElement;
+      }
+      if (key !== previous || traversing) {
+        opener = null;
+      }
+      if (!traversing && !isPage(was) && !detail.contains(was) && !dialog.contains(was)) {
+        opener = was;
       }
       shown = key;
       if (key !== previous) {
         root.dispatchEvent(new CustomEvent("detailopen", { detail: { key, previous } }));
       }
       place(true, opts.still === true);
+      const h = heading();
+      if (current?.type === "traverse" && h !== null && document.activeElement === h) {
+        current.focusedHeading = true;
+      }
     },
   };
 
@@ -640,6 +659,13 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
       if (current === n) {
         current = null;
       }
+      // A traversal restores the page's scroll after its popstate, which can
+      // carry the heading its show focused out of view; by this task it has
+      // (https://html.spec.whatwg.org/multipage/browsing-the-web.html#restore-persisted-user-state).
+      const h = heading();
+      if (n.focusedHeading && h !== null && document.activeElement === h) {
+        reveal(h);
+      }
     }, 0);
   };
   navigation?.addEventListener(
@@ -656,6 +682,7 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
         part: e.hashChange ? indicated(e.destination.url) : null,
         committed: false,
         intercepted: false,
+        focusedHeading: false,
       };
     },
     listen,
@@ -669,6 +696,7 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
         return;
       }
       n.committed = true;
+      lastType = n.type;
       const transition = navigation.transition;
       if (transition !== null) {
         // An intercepted navigation fires no popstate or hashchange: its
