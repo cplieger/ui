@@ -11,6 +11,7 @@ import { enhanceConfirm } from "../../buttons/confirm/confirm.js";
 import { until, whenAborted } from "../../core/lifetime/lifetime.js";
 import { rollText } from "../../core/roll/roll.js";
 import { announce } from "../../feedback/announce/announce.js";
+import { glyph } from "../../foundations/icons/glyph.js";
 import { focusOn, landing } from "../list-row/row.js";
 
 export interface LoadMorePage {
@@ -255,12 +256,7 @@ function prepare(button: HTMLButtonElement): void {
     button.append(words);
   }
   if (button.querySelector(':scope > .cp-icon[data-part="busy"]') === null) {
-    const spin = document.createElement("span");
-    spin.className = "cp-icon";
-    spin.dataset["cpIcon"] = "spinner-arc";
-    spin.dataset["part"] = "busy";
-    spin.setAttribute("aria-hidden", "true");
-    words.before(spin);
+    words.before(glyph("spinner-arc", "busy"));
   }
 }
 

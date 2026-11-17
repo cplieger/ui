@@ -16,7 +16,7 @@
         <div class="cp-panel" data-flush role="region" tabindex="0" aria-labelledby="g-table-title">
           <table class="cp-table" id="g-table" aria-labelledby="g-table-title">
             <thead><tr>
-              <th data-col="select"><label><input class="cp-checkbox" type="checkbox" data-select-all="rows"></label></th>
+              <th data-col="select"><label><input class="cp-checkbox" type="checkbox" data-select-all="rows" aria-label="Select all 4 entries on this page"></label></th>
               <th aria-sort="ascending"><button class="cp-sort" type="button">Title</button></th>
               <th data-priority="mid"><button class="cp-sort" type="button">Verdict</button></th>
               <th data-col="num" data-priority="low"><button class="cp-sort" type="button">Size</button></th>
@@ -55,12 +55,12 @@
         <h2>A row that acts and explains itself</h2>
         <div class="cp-panel" data-flush>
           <table class="cp-table">
-            <thead><tr><th data-col="expand"><span class="cp-visually-hidden">Why this rank</span></th><th>Release</th><th data-col="num">Rank</th><th data-col="actions"><span class="cp-visually-hidden">Actions</span></th></tr></thead>
+            <thead><tr><th scope="col" data-col="expand"><span class="cp-visually-hidden">Why this rank</span></th><th scope="col">Release</th><th scope="col" data-col="num">Rank</th><th scope="col" data-col="actions"><span class="cp-visually-hidden">Actions</span></th></tr></thead>
             <tbody>
               <tr><td data-col="expand"><button class="cp-button" data-variant="quiet" data-size="sm" type="button" aria-expanded="false" aria-controls="why-1" aria-label="Why Arid's release ranks first"><span class="cp-icon" data-cp-icon="chevron-right" aria-hidden="true"></span></button></td><td><div class="cp-cell-stack"><strong>[Arid] Frieren S01E04</strong><span class="cp-meta">English, ASS, 412 downloads</span></div></td><td data-col="num">1st</td><td data-col="actions"><button class="cp-button" data-size="sm" type="button" aria-label="Download [Arid] Frieren S01E04" data-outcome="ok"><span class="cp-icon" data-cp-icon="download" aria-hidden="true"></span><span class="cp-icon" data-cp-icon="spinner-arc" data-part="busy" aria-hidden="true"></span><span class="cp-roll">Download</span></button></td></tr>
               <tr id="why-1" data-part="detail" hidden><td colspan="4"><div><dl class="cp-facts" data-variant="compare"><dt>Episode</dt><dd><span class="cp-state" data-tone="success"><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Same</span><small>S01E04 in both</small></dd><dt>Release group</dt><dd><span class="cp-state" data-tone="warning"><span class="cp-icon" data-cp-icon="triangle-alert" aria-hidden="true"></span>Differs</span><small>Arid's video, a fansub's subtitles</small></dd><dt>Frame rate</dt><dd><span class="cp-state" data-tone="neutral"><span class="cp-icon" data-cp-icon="circle-help" aria-hidden="true"></span>Unknown</span><small>The provider does not say</small></dd></dl></div></td></tr>
               <tr><td data-col="expand"><button class="cp-button" data-variant="quiet" data-size="sm" type="button" aria-expanded="false" aria-controls="why-2" aria-label="Why Okay-Subs' release ranks second"><span class="cp-icon" data-cp-icon="chevron-right" aria-hidden="true"></span></button></td><td><div class="cp-cell-stack"><strong>[Okay-Subs] Frieren S01E04</strong><span class="cp-meta">English, SRT, 96 downloads</span></div></td><td data-col="num">2nd</td><td data-col="actions"><button class="cp-button" data-size="sm" type="button" aria-label="Download [Okay-Subs] Frieren S01E04" data-outcome="fail"><span class="cp-icon" data-cp-icon="download" aria-hidden="true"></span><span class="cp-icon" data-cp-icon="spinner-arc" data-part="busy" aria-hidden="true"></span><span class="cp-roll">Download</span></button></td></tr>
-              <tr id="why-2" data-part="detail" hidden><td colspan="4"><div><dl class="cp-facts" data-variant="compare"><dt>Episode</dt><dd><span class="cp-state" data-tone="success"><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Same</span><small>S01E04 in both</small></dd><dt>Release group</dt><dd><span class="cp-state" data-tone="warning"><span class="cp-icon" data-cp-icon="triangle-alert" aria-hidden="true"></span>Differs</span><small>Timed to a web release, not your BD</small></dd><dt>Downloads</dt><dd><span class="cp-state" data-tone="neutral"><span class="cp-icon" data-cp-icon="circle-minus" aria-hidden="true"></span>Fewer</span><small>96 against 412</small></dd></dl></div></td></tr>
+              <tr id="why-2" data-part="detail" hidden><td colspan="4"><div><dl class="cp-facts" data-variant="compare"><dt>Episode</dt><dd><span class="cp-state" data-tone="success"><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Same</span><small>S01E04 in both</small></dd><dt>Release group</dt><dd><span class="cp-state" data-tone="warning"><span class="cp-icon" data-cp-icon="triangle-alert" aria-hidden="true"></span>Differs</span><small>Timed to a web release, not your BD</small></dd><dt>Downloads</dt><dd><span class="cp-state" data-tone="neutral"><span class="cp-icon" data-cp-icon="info" aria-hidden="true"></span>Fewer</span><small>96 against 412</small></dd></dl></div></td></tr>
             </tbody>
           </table>
         </div>
@@ -427,18 +427,18 @@
         <p class="g-gap-top">In a table row: <button class="cp-track-compact" type="button" data-cp-tip="Step 3 of 4: Found, Sent, Downloading, Imported" data-cp-tip-toggle aria-label="Downloading, 42 %"><span class="cp-icon" data-cp-icon="download" aria-hidden="true"></span>Downloading</button></p>
         <footer>Four named steps, each done, current or to come, in words for a screen reader as well as by fill; the current step's bar fills as it goes, and its percentage is read out, not shown. The kept form goes grey and says when it was true. The compact form shows the current step and puts the rest in a tooltip.</footer>
       </div>
-      <div class="card">
+      <div class="card" data-new>
         <h2>A batched action</h2>
-        <button class="cp-button" data-variant="primary" type="button" data-batch-total="248" data-batch-size="100" data-report="batch-report"><span class="cp-icon" data-cp-icon="captions" aria-hidden="true"></span><span>Start the first 100</span></button>
-        <div class="cp-batch-report" id="batch-report" tabindex="-1"><p>248 episodes need subtitles.</p></div>
-        <footer>Each press sends the next batch and the button names what the next press does; the report under it sums up the presses and lists each item that did not go, with its reason. After the last batch, focus moves to the report.</footer>
+        <button class="cp-button" data-variant="primary" type="button" data-batch-total="248" data-batch-size="100" data-report="batch-report"><span class="cp-icon" data-cp-icon="captions" aria-hidden="true"></span><span class="cp-icon" data-cp-icon="spinner-arc" data-part="busy" aria-hidden="true"></span><span class="cp-roll">Start the first 100</span></button>
+        <div class="cp-batch-report" id="batch-report"><p>248 episodes need subtitles.</p></div>
+        <footer>Each press sends the next batch and the button names what the next press does; the report under it sums up the presses and lists each item that did not go, with its reason. Items a press held back, such as by a full queue, wait in what remains and go with the next press. After the last batch, focus moves to the report.</footer>
       </div>
       <div class="card" data-new>
         <h2>Jobs</h2>
-        <ul class="cp-list" data-jobs>
-          <li><div class="cp-list-row"><span class="cp-cell-stack"><strong data-job-kind>Finding subtitles</strong><a href="#steps">Frieren, Season 1</a></span><button class="cp-button" data-size="sm" type="button" data-stop>Stop</button><progress max="40" value="12" aria-label="Finding subtitles, Frieren Season 1"></progress><small><span data-job-n>12 of 40</span> · <span data-job-phase>Searching providers</span></small></div></li>
-          <li><div class="cp-list-row"><span class="cp-cell-stack"><strong data-job-kind>Fixing timing</strong><a href="#steps">Mushishi, Season 1</a></span><button class="cp-button" data-size="sm" type="button" data-stop>Stop</button><progress max="26" value="20" aria-label="Fixing timing, Mushishi Season 1"></progress><small><span data-job-n>20 of 26</span> · <span data-job-phase>Matching cues to the audio</span></small></div></li>
-          <li class="cp-list-foot"><button class="cp-button" data-variant="quiet" data-size="sm" type="button" data-more-jobs>Show all 5 running</button></li>
+        <ul class="cp-list" aria-label="Running jobs" data-jobs>
+          <li><div class="cp-list-row"><span class="cp-cell-stack"><strong data-part="kind">Finding subtitles</strong><a href="#steps">Frieren, Season 1</a></span><button class="cp-button" data-size="sm" type="button" data-part="stop">Stop</button><progress max="40" value="12" aria-label="Finding subtitles, Frieren Season 1"></progress><small><span data-part="count">12 of 40</span> · <span data-part="phase">Searching providers</span></small></div></li>
+          <li><div class="cp-list-row"><span class="cp-cell-stack"><strong data-part="kind">Fixing timing</strong><a href="#steps">Mushishi, Season 1</a></span><button class="cp-button" data-size="sm" type="button" data-part="stop">Stop</button><progress max="26" value="20" aria-label="Fixing timing, Mushishi Season 1"></progress><small><span data-part="count">20 of 26</span> · <span data-part="phase">Matching cues to the audio</span></small></div></li>
+          <li class="cp-list-foot"><button class="cp-button" data-variant="quiet" data-size="sm" type="button">Show all 5 running</button></li>
         </ul>
         <footer>What, where as a link, how far, the phase, and Stop. An ended job drops its bar and Stop, and keeps its outcome at its end and its cause under its scope. Show all 5 running adds the other jobs before the foot, moves focus to the first one's link, and goes.</footer>
       </div>

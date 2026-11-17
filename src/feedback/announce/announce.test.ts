@@ -49,6 +49,30 @@ describe("announce", () => {
     expect(region(document.body, "polite").textContent).toBe("");
   });
 
+  it("says a message from a .cp-dialog its command button opened, and from the page again once it closes", async () => {
+    installAnnouncer({ signal: life.signal });
+    const d = document.createElement("dialog");
+    d.className = "cp-dialog";
+    d.id = "timing";
+    const open = document.createElement("button");
+    open.setAttribute("commandfor", "timing");
+    open.setAttribute("command", "show-modal");
+    document.body.append(open, d);
+    open.click();
+    expect(d.matches(":modal")).toBe(true);
+    announce("Timing applied");
+    await said();
+    expect(region(d, "polite").textContent).toBe("Timing applied");
+    expect(region(document.body, "polite").textContent).toBe("");
+    const closed = new Promise((r) => d.addEventListener("close", r, { once: true }));
+    d.close();
+    await closed;
+    announce("3 subtitles found");
+    await said();
+    expect(region(document.body, "polite").textContent).toBe("3 subtitles found");
+    expect(region(d, "polite").textContent).toBe("");
+  });
+
   it("reaches a modal dialog opened before the announcer existed", async () => {
     const d = document.createElement("dialog");
     document.body.append(d);

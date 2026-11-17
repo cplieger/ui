@@ -1231,8 +1231,8 @@ const COLUMNS: ReadonlyMap<string, ReadonlySet<string>> = new Map(
     THEAD: [],
     TBODY: [],
     TR: [],
-    TH: ["data-align"],
-    TD: ["data-align"],
+    TH: ["data-align", "data-cp-line", "data-cp-wrap"],
+    TD: ["data-align", "data-cp-line", "data-cp-wrap"],
     A: ["href", "title", "rel", "target", "data-cp-withheld"],
     IMG: ["src", "alt", "title", "loading", "referrerpolicy"],
     PRE: ["tabindex"],
@@ -1326,6 +1326,12 @@ describe("the allowlist", () => {
       ),
       { numRuns: 500 },
     );
+  });
+
+  it("holds for a table's header and body cells", () => {
+    const el = render("| a | " + "word ".repeat(6) + "|\n|---|---|\n| b | c |");
+    expectInVocabulary(el);
+    el.remove();
   });
 
   it("holds for an ordered list whose numbers reach 10", () => {

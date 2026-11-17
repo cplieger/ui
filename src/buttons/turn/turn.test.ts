@@ -67,6 +67,24 @@ describe("turnWhile", () => {
     expect(icon.getAnimations()[0]?.effect?.getTiming().iterations).toBe(1);
   });
 
+  it("leaves the busy mark and the turn to a later call on the same button", async () => {
+    const { button, icon } = refresh();
+    const first = Promise.withResolvers<number>();
+    const second = Promise.withResolvers<number>();
+    const one = turnWhile(button, first.promise);
+    const two = turnWhile(button, second.promise);
+    first.reject(new Error("replaced"));
+    await expect(one).rejects.toThrow("replaced");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(button.getAttribute("aria-busy")).toBe("true");
+    const [a] = icon.getAnimations();
+    expect(a?.effect?.getTiming().iterations).toBe(Infinity);
+    second.resolve(2);
+    await expect(two).resolves.toBe(2);
+    expect(button.hasAttribute("aria-busy")).toBe(false);
+    expect(a?.effect?.getTiming().iterations).not.toBe(Infinity);
+  });
+
   it("pulses instead of turning under reduced motion", () => {
     vi.stubGlobal(
       "matchMedia",

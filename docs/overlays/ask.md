@@ -41,12 +41,13 @@ if (groups !== null) {
 | `details` | none | Facts to see before answering, as `{ label, value }` pairs, in order, in a `.cp-facts`. |
 | `input` | none | Ask for a value: `{ type, initialValue, placeholder, maxLength, autocomplete }`, or `true`. |
 | `choices` | none | Ask which groups the action takes: `{ value, label, note, count }` each, listed as checkboxes in a `.cp-choices`. |
+| `signal` | none | An `AbortSignal` for the view that asks, such as a route's: aborting it answers the open question as declined and removes its dialog, so no question outlives the page that put it. A signal already aborted resolves as declined and opens nothing. |
 
 - Enter in the field answers. Cancel and Escape decline.
 - A yes or no and a question with choices are an `alertdialog`, described by the message when there is a title. A value question is a dialog named by its heading.
 - No group is chosen to start, and the answer stays disabled until one is. `count` defaults to 1, so without counts the function gets the number of groups chosen. The answer resolves the chosen groups' values in their order.
-- A question asked while another is open replaces it, and the open one answers as declined.
-- Options it cannot draw throw a `TypeError` before anything opens: `details` or `choices` that are not arrays of string pairs, an empty `choices`, two choices with one value, a `count` that is not a whole number of 0 or more, `input` with `choices`, a `confirmLabel` function without `choices`, and a `tone` or `focus` outside its values.
+- A question asked while another is open replaces it, and the open one answers as declined, as it does when its `signal` aborts.
+- Options it cannot draw throw a `TypeError` before anything opens: `details` or `choices` that are not arrays of string pairs, an empty `choices`, two choices with one value, a `count` that is not a whole number of 0 or more, `input` with `choices`, a `confirmLabel` function without `choices`, a `signal` that is not an `AbortSignal`, and a `tone` or `focus` outside its values.
 
 ## Which question to ask
 

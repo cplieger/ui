@@ -32,12 +32,18 @@ export function turn(button: Element): void {
   play(target, 1);
 }
 
+/** The latest `turnWhile` call on each button. */
+const latest = new WeakMap<Element, object>();
+
 /**
  * Turns `button`'s icon while `work` runs and marks the button
- * `aria-busy="true"`, then finishes the turn in progress. Resolves or
- * rejects as `work` does.
+ * `aria-busy="true"`, then finishes the turn in progress. A later call on
+ * the same button takes over its busy mark and its turn, so only the
+ * latest call's settling clears them. Resolves or rejects as `work` does.
  */
 export async function turnWhile<T>(button: Element, work: Promise<T>): Promise<T> {
+  const token = {};
+  latest.set(button, token);
   const target = icon(button);
   for (const a of target?.getAnimations() ?? []) {
     a.cancel();
@@ -47,11 +53,14 @@ export async function turnWhile<T>(button: Element, work: Promise<T>): Promise<T
   try {
     return await work;
   } finally {
-    button.removeAttribute("aria-busy");
-    if (anim !== null) {
-      const length = Number(anim.effect?.getTiming().duration ?? 1);
-      const done = Math.max(1, Math.ceil(Number(anim.currentTime ?? 0) / length));
-      anim.effect?.updateTiming({ iterations: done });
+    if (latest.get(button) === token) {
+      latest.delete(button);
+      button.removeAttribute("aria-busy");
+      if (anim !== null) {
+        const length = Number(anim.effect?.getTiming().duration ?? 1);
+        const done = Math.max(1, Math.ceil(Number(anim.currentTime ?? 0) / length));
+        anim.effect?.updateTiming({ iterations: done });
+      }
     }
   }
 }

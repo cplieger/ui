@@ -133,6 +133,24 @@ async function holdLast(links: readonly HTMLAnchorElement[]): Promise<void> {
   await task();
 }
 
+/** Scrolls `box`, else the page, to its top, waits for its scrollend and
+ *  then for `first` to be seen in the band, as the module's observer sees
+ *  it, so no poll bounds a scroll a loaded engine delivers late. */
+async function scrollHome(first: Element, box?: Element): Promise<void> {
+  const ended = new Promise((resolve) => {
+    (box ?? window).addEventListener("scrollend", resolve, { once: true });
+  });
+  if (box === undefined) {
+    scrollTo({ top: 0, behavior: "instant" });
+  } else {
+    box.scrollTop = 0;
+  }
+  await ended;
+  await entered(first);
+  await new Promise(requestAnimationFrame);
+  await task();
+}
+
 /** Moves the first section into the band with no scroll, as a layout
  *  change would, and waits for the module's observer to see it. */
 async function shiftFirstIntoBand(): Promise<void> {
@@ -467,14 +485,14 @@ describe("enhanceSettings", () => {
     const { form, links } = page(true);
     enhanceSettings(form, { signal: life.signal });
     const current = (): number => links.findIndex((l) => l.hasAttribute("aria-current"));
+    const checksSeen = entered(document.getElementById("s-chk") as HTMLElement);
     (document.getElementById("s-chk") as HTMLElement).scrollIntoView();
-    await vi.waitFor(() => {
-      expect(current()).toBe(1);
-    });
-    scrollTo(0, 0);
-    await vi.waitFor(() => {
-      expect(current()).toBe(0);
-    });
+    await checksSeen;
+    await new Promise(requestAnimationFrame);
+    await task();
+    expect(current()).toBe(1);
+    await scrollHome(document.getElementById("s-con") as HTMLElement);
+    expect(current()).toBe(0);
     // Chromium may deliver the module's own observer's entries a task later.
     const checks = document.getElementById("s-chk") as HTMLElement;
     const seen = new Promise<void>((resolve) => {
@@ -495,10 +513,8 @@ describe("enhanceSettings", () => {
     await new Promise(requestAnimationFrame);
     await task();
     expect(current()).toBe(2);
-    scrollTo(0, 0);
-    await vi.waitFor(() => {
-      expect(current()).toBe(0);
-    });
+    await scrollHome(document.getElementById("s-con") as HTMLElement);
+    expect(current()).toBe(0);
   });
 
   it("ends a pressed category's hold on a page scroll that no wheel, touch or key made", async () => {
@@ -507,11 +523,8 @@ describe("enhanceSettings", () => {
     const current = (): number => links.findIndex((l) => l.hasAttribute("aria-current"));
     await holdLast(links);
     expect(current()).toBe(2);
-    scrollTo(0, 0);
-    await new Promise(requestAnimationFrame);
-    await vi.waitFor(() => {
-      expect(current()).toBe(0);
-    });
+    await scrollHome(document.getElementById("s-con") as HTMLElement);
+    expect(current()).toBe(0);
   });
 
   it("keeps a pressed category through its own gliding jump, and ends the hold on a later scroll", async () => {
@@ -532,10 +545,8 @@ describe("enhanceSettings", () => {
       document.documentElement.style.scrollBehavior = "";
     }
     // Firefox may still glide a scroll made just after the style changes.
-    scrollTo({ top: 0, behavior: "instant" });
-    await vi.waitFor(() => {
-      expect(current()).toBe(0);
-    });
+    await scrollHome(document.getElementById("s-con") as HTMLElement);
+    expect(current()).toBe(0);
   });
 
   it("ends the hold of a press at the page's end, which scrolls nothing, on the next scroll", async () => {
@@ -548,10 +559,8 @@ describe("enhanceSettings", () => {
     await new Promise(requestAnimationFrame);
     await task();
     expect([current(), scrollY]).toEqual([2, before]);
-    scrollTo(0, 0);
-    await vi.waitFor(() => {
-      expect(current()).toBe(0);
-    });
+    await scrollHome(document.getElementById("s-con") as HTMLElement);
+    expect(current()).toBe(0);
   });
 
   it("ends the hold of a press that scrolled nothing on the person's scroll toward its section", async () => {
@@ -641,10 +650,8 @@ describe("enhanceSettings", () => {
       document.documentElement.style.scrollBehavior = "";
     }
     // Firefox may still glide a scroll made just after the style changes.
-    scrollTo({ top: 0, behavior: "instant" });
-    await vi.waitFor(() => {
-      expect(current()).toBe(0);
-    });
+    await scrollHome(document.getElementById("s-con") as HTMLElement);
+    expect(current()).toBe(0);
   });
 
   it("keeps a pressed category through a box's scrollend during its own gliding jump", async () => {
@@ -678,10 +685,8 @@ describe("enhanceSettings", () => {
       document.documentElement.style.scrollBehavior = "";
     }
     // Firefox may still glide a scroll made just after the style changes.
-    scrollTo({ top: 0, behavior: "instant" });
-    await vi.waitFor(() => {
-      expect(current()).toBe(0);
-    });
+    await scrollHome(document.getElementById("s-con") as HTMLElement);
+    expect(current()).toBe(0);
   });
 
   it.each([0, 100])(
@@ -742,9 +747,11 @@ describe("enhanceSettings", () => {
   ): Promise<number> => {
     const checks = document.getElementById("b-chk") as HTMLElement;
     links[1]?.click();
-    await vi.waitFor(() => {
-      expect(Math.abs(checks.getBoundingClientRect().top - want)).toBeLessThanOrEqual(1);
-    });
+    // A glide under load outlasts any fixed poll, so this waits for the jump
+    // to bring Checks within 1px, bounded only by the test's timeout.
+    while (Math.abs(checks.getBoundingClientRect().top - want) > 1) {
+      await new Promise(requestAnimationFrame);
+    }
     await still(document.documentElement, ...scrollers);
     return links.findIndex((l) => l.hasAttribute("aria-current"));
   };
@@ -1011,10 +1018,8 @@ describe("enhanceSettings", () => {
     const current = (): number => fresh.findIndex((l) => l.hasAttribute("aria-current"));
     expect(current()).toBe(2);
     dispatchEvent(new KeyboardEvent("keydown", { key: "Tab" }));
-    scrollTo(0, 0);
-    await vi.waitFor(() => {
-      expect(current()).toBe(0);
-    });
+    await scrollHome(document.getElementById("s-con") as HTMLElement);
+    expect(current()).toBe(0);
   });
 
   it("carries the hold through an app that renders its categories again on hashchange", async () => {
@@ -1040,10 +1045,45 @@ describe("enhanceSettings", () => {
     const current = (): number => fresh.findIndex((l) => l.hasAttribute("aria-current"));
     expect(current()).toBe(2);
     dispatchEvent(new PointerEvent("pointerdown"));
-    scrollTo(0, 0);
-    await vi.waitFor(() => {
-      expect(current()).toBe(0);
-    });
+    await scrollHome(document.getElementById("s-con") as HTMLElement);
+    expect(current()).toBe(0);
+  });
+
+  it("keeps a pressed category through its own jump when update shortens the page under it", async () => {
+    const { form, nav, links } = page(true);
+    const s = enhanceSettings(form, { signal: life.signal });
+    // Display's jump ends at the page's end. Before its scroll event, the
+    // app drops a row above the form, so the page ends higher than planned.
+    links[2]?.click();
+    const ul = nav.querySelector("ul") as HTMLElement;
+    ul.innerHTML = row("Checks", "#s-chk") + row("Display", "#s-dis");
+    s.update();
+    await still();
+    const fresh = [...nav.querySelectorAll<HTMLAnchorElement>("a.cp-list-row")];
+    expect(fresh.map((l) => l.getAttribute("aria-current"))).toEqual([null, "location"]);
+  });
+
+  it("keeps a pressed category through its own jump when update lengthens the page above it", async () => {
+    const { form, nav, links } = page(true);
+    const s = enhanceSettings(form, { signal: life.signal });
+    // Display's jump ends at the page's end. Before its scroll event, the
+    // app adds a row above the form, so the section ends lower than planned.
+    links[2]?.click();
+    const ul = nav.querySelector("ul") as HTMLElement;
+    ul.innerHTML =
+      row("Connections", "#s-con") +
+      row("Account", "#s-acc") +
+      row("Checks", "#s-chk") +
+      row("Display", "#s-dis");
+    s.update();
+    await still();
+    const fresh = [...nav.querySelectorAll<HTMLAnchorElement>("a.cp-list-row")];
+    expect(fresh.map((l) => l.getAttribute("aria-current"))).toEqual([
+      null,
+      null,
+      null,
+      "location",
+    ]);
   });
 
   it("ends the hold when update removes the pressed category, and marks the section in view", async () => {
@@ -1054,9 +1094,11 @@ describe("enhanceSettings", () => {
     ul.innerHTML = row("Connections", "#s-con") + row("Checks", "#s-chk");
     s.update();
     const fresh = [...nav.querySelectorAll<HTMLAnchorElement>("a.cp-list-row")];
-    await vi.waitFor(() => {
-      expect(fresh.map((l) => l.getAttribute("aria-current"))).toEqual([null, "location"]);
-    });
+    // update observes the sections again, and the band reports them anew.
+    await entered(document.getElementById("s-chk") as HTMLElement);
+    await new Promise(requestAnimationFrame);
+    await task();
+    expect(fresh.map((l) => l.getAttribute("aria-current"))).toEqual([null, "location"]);
   });
 
   it("marks the section in view as soon as a small scroll ends the hold", async () => {
@@ -1167,10 +1209,8 @@ describe("enhanceSettings", () => {
     await new Promise(requestAnimationFrame);
     await task();
     expect([current(), scroller.scrollTop > 0]).toEqual([2, true]);
-    scroller.scrollTop = 0;
-    await vi.waitFor(() => {
-      expect(current()).toBe(0);
-    });
+    await scrollHome(shadow.getElementById("s-con") as HTMLElement, scroller);
+    expect(current()).toBe(0);
   });
 
   it("finds a section whose fragment does not percent-decode whole, as the browser does", () => {
