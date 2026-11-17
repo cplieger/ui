@@ -13,7 +13,7 @@ The frame every screen inside the app shares, `.cp-app`.
 | Region | Element | Slots, in order |
 | --- | --- | --- |
 | skip | `a.cp-skip`, first in `<body>` | |
-| header | `header.cp-header` | brand (`a.cp-wordmark`), destinations (`nav.cp-nav`, the current one `aria-current="page"`), toolbar (the header status's button and its empty panel `#status`, the theme toggle, the global actions, the account button last) |
+| header | `header.cp-header` | brand (`a.cp-wordmark`), destinations (`nav.cp-nav`, the current one `aria-current="page"`), toolbar (the header status's button and its empty panel `#status`, the theme toggle, the global actions, the account button last when the app's account opens a menu, named by its avatar's initials then ", account", as "CP, account" or "C, account", and "Account" alone while the avatar shows no text) |
 | rail | `aside.cp-rail` | filters: a `.cp-list-heading` over a plain compact `.cp-list` per group. Under 60rem the rail leaves and the heading's Filters button, `.cp-rail-toggle`, opens the same filters in a sheet |
 | main | `main.cp-main#main`, `tabindex="-1"` | banner (the header status's urgent part `#urgent`, hidden while no urgent condition holds, then a `.cp-notice[data-variant="banner"]` per condition of the app's own that stops work on every screen), heading (`.cp-heading-row`: the `<h1 tabindex="-1">` and its facts line, then the page's actions), notices (a `.cp-notice` per condition of the whole screen), content |
 | status | `footer.cp-status` | the facts about the whole screen, freshness first, a part `data-state="late"` for work that has not run when it should have; about, last |
