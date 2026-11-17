@@ -33,6 +33,7 @@ afterEach(() => {
   sheet.remove();
   document.documentElement.classList.remove("cp");
   document.documentElement.style.removeProperty("scroll-padding-top");
+  document.documentElement.style.removeProperty("overflow-anchor");
   document.body.replaceChildren();
   history.replaceState(history.state, "", location.pathname + location.search);
 });
@@ -339,7 +340,7 @@ describe("enhanceListDetail", () => {
     expect(said).toEqual(["open a from null, focus A", "open b from a, focus H2", "close b"]);
   });
 
-  it("says detailclose after the sheet has closed, so its listener can move focus out of it", async () => {
+  it("says detailclose after the sheet has closed, and a listener's own focus move stands", async () => {
     const { root, dialog, api } = mount(400);
     const elsewhere = outsideButton(root);
     api.show("entry");
@@ -374,25 +375,6 @@ describe("enhanceListDetail", () => {
     expect(said).toEqual(["open a", "close a", "open b", "close b"]);
   });
 
-  it("leaves focus the reader moved out of the detail where it is", () => {
-    const { root, api } = mount(1000);
-    const elsewhere = outsideButton(root);
-    api.show("entry");
-    elsewhere.focus();
-    api.show(null);
-    expect(document.activeElement, "on another control").toBe(elsewhere);
-  });
-
-  it("returns focus on the page to the opener", () => {
-    const { root, opener, api } = mount(1000);
-    const elsewhere = outsideButton(root);
-    api.show("entry");
-    elsewhere.focus();
-    elsewhere.blur();
-    api.show(null);
-    expect(document.activeElement).toBe(opener);
-  });
-
   /** A wide box of `rows` row links, opened on a still load, so the opener
    *  is the page, and the detail's entry is the second row. */
   function loaded(rows: number, options: Omit<ListDetailOptions, "signal"> = {}) {
@@ -414,28 +396,6 @@ describe("enhanceListDetail", () => {
     m.close.focus();
     return { ...m, list, links };
   }
-
-  it("focuses the entry's row from entry when the opener was the page", () => {
-    const m = loaded(3, {
-      entry: (key) => document.querySelector<HTMLElement>(`a[href="#${key}"]`),
-    });
-    m.api.show(null);
-    expect(document.activeElement).toBe(m.links[1]);
-  });
-
-  it("falls back to the list's roving item when the row is not drawn", () => {
-    const m = loaded(3, { entry: () => null });
-    m.links[2]!.tabIndex = 0;
-    m.api.show(null);
-    expect(document.activeElement).toBe(m.links[2]);
-  });
-
-  it("falls back to the list's first drawn link when it has no roving item", () => {
-    const m = loaded(3, { entry: () => null });
-    m.links[0]!.hidden = true;
-    m.api.show(null);
-    expect(document.activeElement).toBe(m.links[1]);
-  });
 
   it("falls back to the list column's heading, focusable until it loses focus, when no link is drawn", () => {
     const m = loaded(0);
@@ -553,29 +513,205 @@ describe("enhanceListDetail", () => {
     expect(document.activeElement).toBe(part);
   });
 
-  it("returns focus to the opener after a Ctrl press on a link that opened no page here", async () => {
-    const m = mount(400);
-    const { link } = farPart(m);
-    m.api.show("entry");
-    await played(m.dialog);
-    await userEvent.click(link, { modifiers: ["Control"] });
-    m.api.show(null);
-    await exited(m.dialog);
-    expect(document.activeElement).toBe(m.opener);
-  });
+  /** A hide's cause, where focus is when it comes, and what the list draws
+   *  for focus to return to: the axes of the one decision. */
+  type Cause =
+    | "route"
+    | "close"
+    | "escape"
+    | "outside"
+    | "link"
+    | "beside"
+    | "kept"
+    | "ctrl"
+    | "shift"
+    | "prevented"
+    | "ctrl-escape";
+  type At = "detail" | "page" | "moved" | "link";
+  type Drawn = "opener" | "entry" | "roving" | "link" | "heading";
+  type Ends = Drawn | "part" | "moved";
 
-  it("returns focus to the opener after a link press the page took over", async () => {
-    const m = mount(400);
-    const { link } = farPart(m);
-    link.addEventListener("click", (e) => {
-      e.preventDefault();
+  /** A list column of three row links, or of only its heading, and the
+   *  detail on `row-1` with a link to a part of the page far below. With
+   *  `opener` the second row showed the entry; otherwise the page did, and
+   *  `entry` finds that row only when `drawn` is `entry`. */
+  async function scene(width: number, drawn: Drawn) {
+    const m = mount(
+      width,
+      drawn === "opener"
+        ? {}
+        : {
+            entry: (key) =>
+              drawn === "entry" ? document.querySelector<HTMLElement>(`a[href="#${key}"]`) : null,
+          },
+    );
+    m.opener.remove();
+    // The docked detail's hide shortens the box, and scroll anchoring would
+    // move the page for it; the rows check the module's own scroll.
+    document.documentElement.style.overflowAnchor = "none";
+    const column = document.createElement("div");
+    const heading = document.createElement("h3");
+    heading.textContent = "Library";
+    const list = document.createElement("ul");
+    const links = (drawn === "heading" ? [] : [0, 1, 2]).map((i) => {
+      const li = document.createElement("li");
+      const a = document.createElement("a");
+      a.href = `#row-${String(i)}`;
+      a.textContent = `Row ${String(i)}`;
+      li.append(a);
+      list.append(li);
+      return a;
     });
-    m.api.show("entry");
+    column.append(heading, list);
+    m.root.prepend(column);
+    if (drawn === "roving") {
+      links[2]!.tabIndex = 0;
+    }
+    const far = farPart(m);
+    const elsewhere = outsideButton(m.root);
+    if (drawn === "opener") {
+      links[1]!.focus();
+    } else {
+      (document.activeElement as HTMLElement | null)?.blur();
+    }
+    m.api.show("row-1");
     await played(m.dialog);
-    await userEvent.click(link);
-    m.api.show(null);
-    await exited(m.dialog);
-    expect(document.activeElement).toBe(m.opener);
+    const ends: Record<Ends, HTMLElement | undefined> = {
+      opener: links[1],
+      entry: links[1],
+      roving: links[2],
+      link: links[0],
+      heading,
+      part: far.part,
+      moved: elsewhere,
+    };
+    return { ...m, ...far, elsewhere, ends };
+  }
+  type Scene = Awaited<ReturnType<typeof scene>>;
+
+  const task = (): Promise<void> => new Promise((r) => setTimeout(r, 0));
+  const put: Record<At, (s: Scene) => void> = {
+    detail: () => undefined,
+    link: () => undefined,
+    page: () => {
+      (document.activeElement as HTMLElement | null)?.blur();
+    },
+    moved: (s) => {
+      s.elsewhere.focus();
+    },
+  };
+  const follow = async (s: Scene): Promise<void> => {
+    hideOn(s.api);
+    const done = closed(s.root);
+    await userEvent.click(s.link);
+    await done;
+  };
+  /** Presses `el` from the keyboard, since a pointer press first scrolls
+   *  what it presses into view. */
+  const keys = (el: HTMLElement, typed: string): Promise<void> => {
+    el.focus({ preventScroll: true });
+    return userEvent.keyboard(typed);
+  };
+  const act: Record<Cause, (s: Scene) => Promise<unknown>> = {
+    route: async (s) => {
+      s.api.show(null);
+    },
+    close: (s) => keys(s.close, "{Enter}"),
+    escape: () => userEvent.keyboard("{Escape}"),
+    outside: () => userEvent.click(document.body, { position: { x: 5, y: 5 } }),
+    link: follow,
+    beside: (s) => {
+      s.root.before(s.link);
+      return follow(s);
+    },
+    // The route keeps the detail open on the fragment; a later change hides it.
+    kept: async (s) => {
+      const changed = new Promise((r) => {
+        addEventListener("hashchange", r, { once: true });
+      });
+      await userEvent.click(s.link);
+      await changed;
+      await task();
+      s.api.show(null);
+    },
+    ctrl: async (s) => {
+      await keys(s.link, "{Control>}{Enter}{/Control}");
+      await task();
+      s.api.show(null);
+    },
+    shift: async (s) => {
+      await keys(s.link, "{Shift>}{Enter}{/Shift}");
+      await task();
+      s.api.show(null);
+    },
+    prevented: async (s) => {
+      s.link.addEventListener("click", (e) => {
+        e.preventDefault();
+      });
+      await keys(s.link, "{Enter}");
+      s.api.show(null);
+    },
+    "ctrl-escape": async (s) => {
+      await userEvent.click(s.link, { modifiers: ["Control"] });
+      await task();
+      await userEvent.keyboard("{Escape}");
+    },
+  };
+  /** The causes that scroll the page to the part before the hide. */
+  const NAVIGATES = new Set<Cause>(["link", "beside", "kept"]);
+
+  const DOCK = 1000;
+  const SHEET = 400;
+  type Row = readonly [string, number, Cause, At, Drawn, Ends];
+  const row = (width: number, cause: Cause, at: At, drawn: Drawn, ends: Ends): Row => [
+    `${width === DOCK ? "docked" : "in the sheet"}, ${cause} with focus ${at} and the ${drawn} drawn, ends on the ${ends}`,
+    width,
+    cause,
+    at,
+    drawn,
+    ends,
+  ];
+  const DRAWN: readonly Drawn[] = ["opener", "entry", "roving", "link", "heading"];
+  // Escape and a press outside close only the sheet, and the modal sheet
+  // keeps focus from moving outside it.
+  const ROWS: readonly Row[] = [
+    ...DRAWN.flatMap((d) => [
+      row(DOCK, "route", "detail", d, d),
+      row(DOCK, "route", "page", d, d),
+      row(DOCK, "route", "moved", d, "moved"),
+      row(DOCK, "close", "detail", d, d),
+      row(SHEET, "route", "detail", d, d),
+      row(SHEET, "route", "page", d, d),
+      row(SHEET, "close", "detail", d, d),
+      row(SHEET, "escape", "detail", d, d),
+      row(SHEET, "outside", "detail", d, d),
+    ]),
+    row(DOCK, "link", "link", "opener", "part"),
+    row(DOCK, "beside", "link", "opener", "part"),
+    row(SHEET, "link", "link", "opener", "part"),
+    ...[DOCK, SHEET].flatMap((w) =>
+      (["kept", "ctrl", "shift", "prevented"] as const).flatMap((c) => [
+        row(w, c, "link", "opener", "opener"),
+        row(w, c, "link", "entry", "entry"),
+      ]),
+    ),
+    row(SHEET, "ctrl-escape", "link", "opener", "opener"),
+    row(SHEET, "ctrl-escape", "link", "entry", "entry"),
+  ];
+
+  it.each(ROWS)("after a hide %s, in view", async (_, width, cause, at, drawn, ends) => {
+    const s = await scene(width, drawn);
+    put[at](s);
+    const y = scrollY;
+    await act[cause](s);
+    await exited(s.dialog);
+    const want = s.ends[ends];
+    expect(document.activeElement, ends).toBe(want);
+    const r = want!.getBoundingClientRect();
+    expect(r.bottom > 0 && r.top < innerHeight, "in view").toBe(true);
+    if (!NAVIGATES.has(cause)) {
+      expect(scrollY, "the page kept its scroll").toBe(y);
+    }
   });
 
   it("returns focus to the opener on a Close pressed after a link in the sheet the route kept open", async () => {

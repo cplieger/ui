@@ -255,6 +255,7 @@ describe.each(browsers)("the gallery in %s", (name) => {
       | `focus #${string}`
       | `resize ${number}`
       | "author"
+      | "ctrl-author"
       | "older"
       | "close"
       | "escape"
@@ -513,6 +514,14 @@ describe.each(browsers)("the gallery in %s", (name) => {
             await enter(tab, '#msg-feed header > a[href="#agent-codex"]');
             want = { ...want, focus: focus ?? "#agent-codex", inView: "#agent-codex" };
             break;
+          case "ctrl-author": {
+            // Opens the agent in another tab, so this page navigates nothing.
+            const link = '#msg-feed header > a[href="#agent-codex"]';
+            await tab.locator(link).first().focus();
+            await tab.keyboard.press("ControlOrMeta+Enter");
+            want = { ...want, ...(before === undefined ? {} : { length: before.length }) };
+            break;
+          }
           case "filter":
             await enter(tab, `#msg-filters a[data-show="${arg}"]`);
             break;
@@ -540,7 +549,11 @@ describe.each(browsers)("the gallery in %s", (name) => {
           }
           case "close":
           case "escape":
-            want = { ...want, focus: focus ?? before?.closes ?? "body" };
+            want = {
+              ...want,
+              focus: focus ?? before?.closes ?? "body",
+              ...(verb === "escape" && focus !== undefined ? { inView: focus } : {}),
+            };
             await tab.evaluate(() => {
               (window as unknown as Helpers).cpWatch();
             });
@@ -550,6 +563,7 @@ describe.each(browsers)("the gallery in %s", (name) => {
             break;
           case "back":
             await tab.goBack();
+            want = focus === undefined ? want : { ...want, inView: focus };
             break;
           case "forward":
             await tab.goForward();
@@ -876,6 +890,39 @@ describe.each(browsers)("the gallery in %s", (name) => {
           ["back", `${M}#c-marotte`],
           ["close", M],
           ["back", "/index.html"],
+        ],
+      ],
+      [
+        "a press, Ctrl+Enter on an author link, Back",
+        W,
+        AFTER,
+        [
+          ["load messages.html#agent-kiro", `${M}#agent-kiro`],
+          ["press #c-marotte", `${M}#c-marotte`],
+          ["ctrl-author", `${M}#c-marotte`],
+          ["back", `${M}#agent-kiro`, '#msg-list a[href="#c-marotte"]'],
+        ],
+      ],
+      [
+        "a phone's press, Ctrl+Enter on an author link, Back",
+        P,
+        AFTER,
+        [
+          ["load messages.html", M],
+          ["press #c-marotte", `${M}#c-marotte`],
+          ["ctrl-author", `${M}#c-marotte`],
+          ["back", M, '#msg-list a[href="#c-marotte"]'],
+        ],
+      ],
+      [
+        "a phone's press, Ctrl+Enter on an author link, Escape",
+        P,
+        AFTER,
+        [
+          ["load messages.html", M],
+          ["press #c-marotte", `${M}#c-marotte`],
+          ["ctrl-author", `${M}#c-marotte`],
+          ["escape", M, '#msg-list a[href="#c-marotte"]'],
         ],
       ],
       [
