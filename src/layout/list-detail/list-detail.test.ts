@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 
 import { installDialogs } from "../../overlays/dialog/dialog.js";
@@ -11,6 +11,34 @@ import {
 
 let life = new AbortController();
 let sheet: HTMLLinkElement;
+
+// WebKit throws on a page's 101st pushState or replaceState in 10 seconds
+// (https://github.com/WebKit/WebKit/blob/main/Source/WebCore/page/History.cpp,
+// stateObjectAdded), and the tables make several a case, so each case
+// starts once fewer than half that many ran in the last 10 seconds.
+const WINDOW = 10_000;
+const stamps: number[] = [];
+const { pushState, replaceState } = History.prototype;
+beforeAll(() => {
+  history.pushState = (...args) => {
+    stamps.push(performance.now());
+    pushState.apply(history, args);
+  };
+  history.replaceState = (...args) => {
+    stamps.push(performance.now());
+    replaceState.apply(history, args);
+  };
+});
+afterAll(() => {
+  Reflect.deleteProperty(history, "pushState");
+  Reflect.deleteProperty(history, "replaceState");
+});
+beforeEach(async () => {
+  const recent = (): number[] => stamps.filter((t) => t > performance.now() - WINDOW);
+  for (let r = recent(); r.length >= 50; r = recent()) {
+    await new Promise((done) => setTimeout(done, r[r.length - 50]! + WINDOW - performance.now()));
+  }
+});
 
 // The stylesheet draws the sheet and its motion, so the tests link it as an
 // app's page does.
@@ -495,51 +523,19 @@ describe("enhanceListDetail", () => {
     expect(document.activeElement).toBe(part);
   });
 
-  it("keeps a link's part as the cause when the route rewrites the entry's state before the hide", async () => {
-    const m = mount(1000);
-    const { part, link } = farPart(m);
-    addEventListener(
-      "popstate",
-      () => {
-        history.replaceState({ ...(history.state as object | null), scroll: 0 }, "");
-        m.api.show(null);
-      },
-      { signal: life.signal },
-    );
-    m.api.show("entry");
-    const done = closed(m.root);
-    await userEvent.click(link);
-    await done;
-    expect(document.activeElement).toBe(part);
-  });
-
-  /** A hide's cause, where focus is when it comes, and what the list draws
-   *  for focus to return to: the axes of the one decision. */
-  type Cause =
-    | "route"
-    | "close"
-    | "escape"
-    | "outside"
-    | "link"
-    | "beside"
-    | "kept"
-    | "ctrl"
-    | "shift"
-    | "prevented"
-    | "ctrl-escape"
-    | "ctrl-replace"
-    | "shift-replace"
-    | "intercepted"
-    | "intercept-hide";
-  type At = "detail" | "page" | "moved" | "link";
+  /** A hide with no navigation in progress, where focus is when it comes,
+   *  and what the list draws for focus to return to. */
+  type Cause = "route" | "close" | "escape" | "outside";
+  type At = "detail" | "page" | "moved";
   type Drawn = "opener" | "entry" | "roving" | "link" | "heading";
-  type Ends = Drawn | "part" | "moved";
+  type Ends = Drawn | "moved";
 
   /** A list column of three row links, or of only its heading, and the
    *  detail on `row-1` with a link to a part of the page far below. With
    *  `opener` the second row showed the entry; otherwise the page did, and
-   *  `entry` finds that row only when `drawn` is `entry`. */
-  async function scene(width: number, drawn: Drawn) {
+   *  `entry` finds that row only when `drawn` is `entry`. With `above`, a
+   *  spacer a window and a half tall starts the page. */
+  async function scene(width: number, drawn: Drawn, above = false) {
     const m = mount(
       width,
       drawn === "opener"
@@ -553,6 +549,11 @@ describe("enhanceListDetail", () => {
     // The docked detail's hide shortens the box, and scroll anchoring would
     // move the page for it; the rows check the module's own scroll.
     document.documentElement.style.overflowAnchor = "none";
+    if (above) {
+      const spacer = document.createElement("div");
+      spacer.style.blockSize = "150vh";
+      document.body.prepend(spacer);
+    }
     const column = document.createElement("div");
     const heading = document.createElement("h3");
     heading.textContent = "Library";
@@ -586,7 +587,6 @@ describe("enhanceListDetail", () => {
       roving: links[2],
       link: links[0],
       heading,
-      part: far.part,
       moved: elsewhere,
     };
     return { ...m, ...far, elsewhere, ends };
@@ -596,7 +596,6 @@ describe("enhanceListDetail", () => {
   const task = (): Promise<void> => new Promise((r) => setTimeout(r, 0));
   const put: Record<At, (s: Scene) => void> = {
     detail: () => undefined,
-    link: () => undefined,
     page: () => {
       (document.activeElement as HTMLElement | null)?.blur();
     },
@@ -604,11 +603,148 @@ describe("enhanceListDetail", () => {
       s.elsewhere.focus();
     },
   };
-  const follow = async (s: Scene): Promise<void> => {
-    hideOn(s.api);
-    const done = closed(s.root);
-    await userEvent.click(s.link);
-    await done;
+  /** Presses `el` from the keyboard, since a pointer press first scrolls
+   *  what it presses into view. */
+  const keys = (el: HTMLElement, typed: string): Promise<void> => {
+    el.focus({ preventScroll: true });
+    return userEvent.keyboard(typed);
+  };
+  const act: Record<Cause, (s: Scene) => Promise<unknown>> = {
+    route: async (s) => {
+      s.api.show(null);
+    },
+    close: (s) => keys(s.close, "{Enter}"),
+    escape: () => userEvent.keyboard("{Escape}"),
+    outside: () => userEvent.click(document.body, { position: { x: 5, y: 5 } }),
+  };
+
+  const DOCK = 1000;
+  const SHEET = 400;
+  const where = (width: number): string => (width === DOCK ? "docked" : "in the sheet");
+  type Row = readonly [string, number, Cause, At, Drawn, Ends];
+  const row = (width: number, cause: Cause, at: At, drawn: Drawn, ends: Ends): Row => [
+    `${where(width)}, ${cause} with focus ${at} and the ${drawn} drawn, ends on the ${ends}`,
+    width,
+    cause,
+    at,
+    drawn,
+    ends,
+  ];
+  const DRAWN: readonly Drawn[] = ["opener", "entry", "roving", "link", "heading"];
+  // Escape and a press outside close only the sheet, and the modal sheet
+  // keeps focus from moving outside it.
+  const ROWS: readonly Row[] = DRAWN.flatMap((d) => [
+    row(DOCK, "route", "detail", d, d),
+    row(DOCK, "route", "page", d, d),
+    row(DOCK, "route", "moved", d, "moved"),
+    row(DOCK, "close", "detail", d, d),
+    row(SHEET, "route", "detail", d, d),
+    row(SHEET, "route", "page", d, d),
+    row(SHEET, "close", "detail", d, d),
+    row(SHEET, "escape", "detail", d, d),
+    row(SHEET, "outside", "detail", d, d),
+  ]);
+
+  it.each(ROWS)("after a hide %s, in view", async (_, width, cause, at, drawn, ends) => {
+    const s = await scene(width, drawn);
+    put[at](s);
+    const y = scrollY;
+    await act[cause](s);
+    await exited(s.dialog);
+    const want = s.ends[ends];
+    expect(document.activeElement, ends).toBe(want);
+    const r = want!.getBoundingClientRect();
+    expect(r.bottom > 0 && r.top < innerHeight, "in view").toBe(true);
+    expect(scrollY, "the page kept its scroll").toBe(y);
+  });
+
+  /** How the navigation the hide comes during, or after, starts: its type
+   *  (push, replace, traverse) and its source, or a press that commits
+   *  nothing, before the route's hide. */
+  type Kind =
+    | "press"
+    | "beside"
+    | "script"
+    | "stamped"
+    | "intercept-hide"
+    | "replace"
+    | "back"
+    | "kept"
+    | "intercepted"
+    | "ctrl"
+    | "shift"
+    | "ctrl-replace"
+    | "shift-replace"
+    | "prevented"
+    | "ctrl-escape"
+    | "reopened"
+    | "forward";
+  /** Where its destination's fragment goes. */
+  type Dest =
+    "heading" | "link" | "button" | "held" | "top" | "TOP" | "empty" | "nowhere" | "inside";
+  type NavEnds = "opener" | "entry" | "dest" | "top";
+  const HREF: Record<Dest, string> = {
+    heading: "#far-part",
+    link: "#far-link",
+    button: "#far-button",
+    held: "#far-held",
+    top: "#top",
+    TOP: "#TOP",
+    empty: "#",
+    nowhere: "#nowhere",
+    inside: "#inside",
+  };
+  const TOPS = new Set<Dest>(["top", "TOP", "empty"]);
+
+  /** The scene at the entry's own address, `#row-1` (for Back, after an
+   *  entry at the destination), with a link to it in the detail and every
+   *  destination drawn: below the list a heading, a link, a button and a
+   *  heading the page keeps focusable, and one element in the detail. With
+   *  `top`, a spacer starts the page. */
+  async function navScene(width: number, kind: Kind, drawn: Drawn, dest: Dest, top: boolean) {
+    if (kind === "back") {
+      history.replaceState(history.state, "", HREF[dest]);
+      history.pushState(history.state, "", "#row-1");
+    } else {
+      history.replaceState(history.state, "", "#row-1");
+    }
+    const s = await scene(width, drawn, top);
+    const link = document.createElement("a");
+    link.id = "far-link";
+    link.href = "#row-0";
+    link.textContent = "Far link";
+    const button = document.createElement("button");
+    button.id = "far-button";
+    button.type = "button";
+    button.textContent = "Far button";
+    const held = document.createElement("h2");
+    held.id = "far-held";
+    held.tabIndex = -1;
+    held.textContent = "Far held";
+    s.part.after(link, button, held);
+    const inside = document.createElement("span");
+    inside.id = "inside";
+    inside.textContent = "Inside";
+    s.detail.querySelector(".cp-detail-body")!.prepend(inside);
+    s.link.href = HREF[dest];
+    const targets: Record<Dest, HTMLElement | undefined> = {
+      heading: s.part,
+      link,
+      button,
+      held,
+      top: undefined,
+      TOP: undefined,
+      empty: undefined,
+      nowhere: undefined,
+      inside: undefined,
+    };
+    return { ...s, target: targets[dest], href: HREF[dest] };
+  }
+  type NavScene = Awaited<ReturnType<typeof navScene>>;
+
+  /** The route: the entry's address shows it, any other hides it. */
+  const route = (s: NavScene): void => {
+    hideOn(s.api, { "#row-1": "row-1" });
   };
   const nav = (globalThis as { readonly navigation?: Navigation }).navigation!;
   /** A route on the Navigation API's `intercept()`, which fires no
@@ -632,40 +768,100 @@ describe("enhanceListDetail", () => {
       { signal: life.signal },
     );
   };
+  /** Runs `start`, and waits for the route's hide. */
+  const hidesOn = async (s: NavScene, start: () => unknown): Promise<void> => {
+    const done = closed(s.root);
+    await start();
+    await done;
+  };
   /** A modifier press, then a router stamping state on the same address, as
    *  grelot keeps its scroll, then the route's hide. */
-  const modifiedThenStamped = async (s: Scene, typed: string): Promise<void> => {
+  const modifiedThenStamped = async (s: NavScene, typed: string): Promise<void> => {
     await keys(s.link, typed);
     await task();
     history.replaceState({ ...(history.state as object | null), scroll: 0 }, "", location.href);
     await task();
     s.api.show(null);
   };
-  /** Presses `el` from the keyboard, since a pointer press first scrolls
-   *  what it presses into view. */
-  const keys = (el: HTMLElement, typed: string): Promise<void> => {
-    el.focus({ preventScroll: true });
-    return userEvent.keyboard(typed);
+  /** A press the route hides on, then Back, which shows the entry again. */
+  const pressThenBack = async (s: NavScene): Promise<void> => {
+    route(s);
+    await hidesOn(s, () => keys(s.link, "{Enter}"));
+    await exited(s.dialog);
+    const shown = new Promise((r) => {
+      s.root.addEventListener("detailopen", r, { once: true });
+    });
+    history.back();
+    await shown;
+    await played(s.dialog);
+    await task();
   };
-  const act: Record<Cause, (s: Scene) => Promise<unknown>> = {
-    route: async (s) => {
-      s.api.show(null);
+  const go: Record<Kind, (s: NavScene) => Promise<unknown>> = {
+    press: (s) => {
+      route(s);
+      return hidesOn(s, () => keys(s.link, "{Enter}"));
     },
-    close: (s) => keys(s.close, "{Enter}"),
-    escape: () => userEvent.keyboard("{Escape}"),
-    outside: () => userEvent.click(document.body, { position: { x: 5, y: 5 } }),
-    link: follow,
     beside: (s) => {
       s.root.before(s.link);
-      return follow(s);
+      route(s);
+      return hidesOn(s, () => keys(s.link, "{Enter}"));
+    },
+    script: (s) => {
+      route(s);
+      return hidesOn(s, () => {
+        location.hash = s.href;
+      });
+    },
+    // The route stamps the entry's state before it hides, as grelot keeps
+    // its scroll there.
+    stamped: (s) => {
+      addEventListener(
+        "popstate",
+        () => {
+          history.replaceState({ ...(history.state as object | null), scroll: 0 }, "");
+          s.api.show(null);
+        },
+        { signal: life.signal },
+      );
+      return hidesOn(s, () => keys(s.link, "{Enter}"));
+    },
+    "intercept-hide": (s) => {
+      intercepting(() => {
+        s.api.show(null);
+      });
+      return hidesOn(s, () => keys(s.link, "{Enter}"));
+    },
+    replace: (s) => {
+      route(s);
+      return hidesOn(s, () => {
+        location.replace(s.href);
+      });
+    },
+    back: (s) => {
+      route(s);
+      return hidesOn(s, () => {
+        history.back();
+      });
     },
     // The route keeps the detail open on the fragment; a later change hides it.
     kept: async (s) => {
       const changed = new Promise((r) => {
         addEventListener("hashchange", r, { once: true });
       });
-      await userEvent.click(s.link);
+      await keys(s.link, "{Enter}");
       await changed;
+      await task();
+      s.api.show(null);
+    },
+    // The intercepting route keeps the detail open; a later change hides it.
+    intercepted: async (s) => {
+      intercepting();
+      const done = new Promise((r) => {
+        nav.addEventListener("navigatesuccess", r, { once: true });
+      });
+      await keys(s.link, "{Enter}");
+      await done;
+      await task();
       await task();
       s.api.show(null);
     },
@@ -679,6 +875,8 @@ describe("enhanceListDetail", () => {
       await task();
       s.api.show(null);
     },
+    "ctrl-replace": (s) => modifiedThenStamped(s, "{Control>}{Enter}{/Control}"),
+    "shift-replace": (s) => modifiedThenStamped(s, "{Shift>}{Enter}{/Shift}"),
     prevented: async (s) => {
       s.link.addEventListener("click", (e) => {
         e.preventDefault();
@@ -686,94 +884,119 @@ describe("enhanceListDetail", () => {
       await keys(s.link, "{Enter}");
       s.api.show(null);
     },
-    "ctrl-replace": (s) => modifiedThenStamped(s, "{Control>}{Enter}{/Control}"),
-    "shift-replace": (s) => modifiedThenStamped(s, "{Shift>}{Enter}{/Shift}"),
-    // The intercepting route keeps the detail open; a later change hides it.
-    intercepted: async (s) => {
-      intercepting();
-      const done = new Promise((r) => {
-        nav.addEventListener("navigatesuccess", r, { once: true });
-      });
-      await keys(s.link, "{Enter}");
-      await done;
-      await task();
-      await task();
-      s.api.show(null);
-    },
-    "intercept-hide": async (s) => {
-      intercepting(() => {
-        s.api.show(null);
-      });
-      const done = closed(s.root);
-      await keys(s.link, "{Enter}");
-      await done;
-    },
     "ctrl-escape": async (s) => {
       await userEvent.click(s.link, { modifiers: ["Control"] });
       await task();
       await userEvent.keyboard("{Escape}");
     },
+    // Back shows the entry again with focus on the part the press reached.
+    reopened: async (s) => {
+      await pressThenBack(s);
+      s.api.show(null);
+    },
+    forward: async (s) => {
+      await pressThenBack(s);
+      await hidesOn(s, () => {
+        history.forward();
+      });
+    },
   };
-  /** The causes that scroll the page to the part before the hide. */
-  const NAVIGATES = new Set<Cause>(["link", "beside", "kept", "intercept-hide"]);
+  /** The kinds that leave the page's scroll where it was. */
+  const STILL = new Set<Kind>([
+    "intercepted",
+    "ctrl",
+    "shift",
+    "ctrl-replace",
+    "shift-replace",
+    "prevented",
+    "ctrl-escape",
+  ]);
 
-  const DOCK = 1000;
-  const SHEET = 400;
-  type Row = readonly [string, number, Cause, At, Drawn, Ends];
-  const row = (width: number, cause: Cause, at: At, drawn: Drawn, ends: Ends): Row => [
-    `${width === DOCK ? "docked" : "in the sheet"}, ${cause} with focus ${at} and the ${drawn} drawn, ends on the ${ends}`,
+  type NavRow = readonly [string, number, Kind, Dest, Drawn, NavEnds];
+  const navRow = (width: number, kind: Kind, dest: Dest, drawn: Drawn, ends: NavEnds): NavRow => [
+    `${where(width)}, ${kind} to ${HREF[dest]} with the ${drawn} drawn, ends on the ${ends}`,
     width,
-    cause,
-    at,
+    kind,
+    dest,
     drawn,
     ends,
   ];
-  const DRAWN: readonly Drawn[] = ["opener", "entry", "roving", "link", "heading"];
-  // Escape and a press outside close only the sheet, and the modal sheet
-  // keeps focus from moving outside it.
-  const ROWS: readonly Row[] = [
-    ...DRAWN.flatMap((d) => [
-      row(DOCK, "route", "detail", d, d),
-      row(DOCK, "route", "page", d, d),
-      row(DOCK, "route", "moved", d, "moved"),
-      row(DOCK, "close", "detail", d, d),
-      row(SHEET, "route", "detail", d, d),
-      row(SHEET, "route", "page", d, d),
-      row(SHEET, "close", "detail", d, d),
-      row(SHEET, "escape", "detail", d, d),
-      row(SHEET, "outside", "detail", d, d),
-    ]),
-    row(DOCK, "link", "link", "opener", "part"),
-    row(DOCK, "beside", "link", "opener", "part"),
-    row(SHEET, "link", "link", "opener", "part"),
-    ...[DOCK, SHEET].flatMap((w) =>
-      (["kept", "ctrl", "shift", "prevented"] as const).flatMap((c) => [
-        row(w, c, "link", "opener", "opener"),
-        row(w, c, "link", "entry", "entry"),
-      ]),
-    ),
+  /** A committed push to a fragment the route hides during. */
+  const target = (dest: Dest): NavEnds =>
+    TOPS.has(dest) ? "top" : dest === "nowhere" || dest === "inside" ? "opener" : "dest";
+  const DESTS: readonly Dest[] = [
+    "heading",
+    "link",
+    "button",
+    "held",
+    "top",
+    "TOP",
+    "empty",
+    "nowhere",
+    "inside",
+  ];
+  const SOME: readonly Dest[] = ["heading", "button", "top", "nowhere"];
+  const NONE: readonly Kind[] = [
+    "replace",
+    "back",
+    "kept",
+    "intercepted",
+    "ctrl",
+    "shift",
+    "ctrl-replace",
+    "shift-replace",
+    "prevented",
+  ];
+  const NAV_ROWS: readonly NavRow[] = [
     ...[DOCK, SHEET].flatMap((w) => [
-      ...(["ctrl-replace", "shift-replace", "intercepted"] as const).flatMap((c) => [
-        row(w, c, "link", "opener", "opener"),
-        row(w, c, "link", "entry", "entry"),
+      ...DESTS.map((d) => navRow(w, "press", d, "opener", target(d))),
+      ...(["script", "stamped", "intercept-hide"] as const).flatMap((k) =>
+        SOME.map((d) => navRow(w, k, d, "opener", target(d))),
+      ),
+      ...NONE.flatMap((k) => [
+        navRow(w, k, "heading", "opener", "opener"),
+        navRow(w, k, "top", "opener", "opener"),
+        navRow(w, k, "heading", "entry", "entry"),
       ]),
-      row(w, "intercept-hide", "link", "opener", "part"),
+      ...(["heading", "link", "button", "held"] as const).map((d) =>
+        navRow(w, "reopened", d, "entry", "entry"),
+      ),
+      ...(["link", "button"] as const).map((d) => navRow(w, "forward", d, "entry", "entry")),
     ]),
-    row(SHEET, "ctrl-escape", "link", "opener", "opener"),
-    row(SHEET, "ctrl-escape", "link", "entry", "entry"),
+    // A link beside the list is inert behind the modal sheet.
+    ...SOME.map((d) => navRow(DOCK, "beside", d, "opener", target(d))),
+    navRow(SHEET, "ctrl-escape", "heading", "opener", "opener"),
+    navRow(SHEET, "ctrl-escape", "top", "opener", "opener"),
+    navRow(SHEET, "ctrl-escape", "heading", "entry", "entry"),
   ];
 
-  it.each(ROWS)("after a hide %s, in view", async (_, width, cause, at, drawn, ends) => {
-    const s = await scene(width, drawn);
-    put[at](s);
+  it.each(NAV_ROWS)("after a hide %s", async (_, width, kind, dest, drawn, ends) => {
+    const s = await navScene(width, kind, drawn, dest, ends === "top");
+    if (ends === "top") {
+      scrollTo(0, document.documentElement.scrollHeight);
+      await frames();
+    }
     const y = scrollY;
-    await act[cause](s);
+    await go[kind](s);
     await exited(s.dialog);
-    const want = s.ends[ends];
+    if (ends === "top") {
+      expect(scrollY, "the page at its start").toBe(0);
+      expect(document.activeElement, "not on the row").not.toBe(s.ends.opener);
+      expect(s.detail.contains(document.activeElement), "not in the detail").toBe(false);
+      await userEvent.tab();
+      expect(document.activeElement, "the next Tab on the page's first control").toBe(s.elsewhere);
+      return;
+    }
+    const want = ends === "dest" ? s.target : s.ends[ends];
     expect(document.activeElement, ends).toBe(want);
     const r = want!.getBoundingClientRect();
-    expect(r.bottom > 0 && r.top < innerHeight, "in view").toBe(true);
-    if (!NAVIGATES.has(cause)) {
+    if (ends === "dest") {
+      expect(r.top, "its top in view").toBeGreaterThanOrEqual(0);
+      expect(r.top).toBeLessThan(innerHeight);
+    } else {
+      expect(r.bottom > 0 && r.top < innerHeight, "in view").toBe(true);
+    }
+    if (STILL.has(kind)) {
       expect(scrollY, "the page kept its scroll").toBe(y);
     }
   });

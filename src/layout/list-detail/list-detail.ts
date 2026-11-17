@@ -22,8 +22,9 @@ export interface ListDetailOptions {
    *  sheet open. Default: `show(null)`. */
   readonly onDismiss?: () => void;
   /** The entry's own row, which takes focus after a hide when the element
-   *  that showed the entry is gone or was the page; null when the row is not
-   *  drawn. Default: none, so focus goes to the list's tab stop. */
+   *  that showed the entry is gone, was the page, or none did, as when Back
+   *  or Forward showed it; null when the row is not drawn. Default: none, so
+   *  focus goes to the list's tab stop. */
   readonly entry?: (key: string) => HTMLElement | null;
 }
 
@@ -43,8 +44,9 @@ export interface ListDetail {
    *  far as it takes to show it when it is entirely out of view or under the
    *  page's scroll padding.
    *  With null, hides it. Focus the reader moved out of the detail stays;
-   *  otherwise it ends on the part of the page a link went to, else on what
-   *  showed the entry, else on the entry's row, else on the list's tab stop. */
+   *  otherwise it ends where the fragment navigation the hide comes during
+   *  went, else on what showed the entry, else on its row, else on the
+   *  list's tab stop. */
   show(key: string | null, options?: ShowOptions): void;
 }
 
@@ -65,6 +67,8 @@ const CLOSE = "[data-detail-close]";
 const STILL = "data-cp-still";
 /** closeDialog's mark on a sheet whose exit plays in script. */
 const LEAVING = "data-cp-leaving";
+const FOCUSABLE =
+  "a[href], area[href], button, input, select, textarea, summary, iframe, [contenteditable], [tabindex]";
 
 function remPx(): number {
   return Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
@@ -130,16 +134,22 @@ function reach(target: HTMLElement): void {
   }
 }
 
-/** The element of this document a press on `link` scrolls to, by its
- *  fragment, or null when it goes to another document, another browsing
- *  context or no element
- *  (https://html.spec.whatwg.org/multipage/browsing-the-web.html#find-the-indicated-part). */
-function indicated(link: HTMLAnchorElement | HTMLAreaElement): HTMLElement | null {
-  const self = (link.target === "" || link.target === "_self") && !link.hasAttribute("download");
-  if (!self || link.hash.length <= 1 || link.href.split("#")[0] !== document.URL.split("#")[0]) {
+/** The top of the document, as a fragment can indicate it. */
+const TOP = "top";
+
+/** The part of this document a same-document `url` indicates by its
+ *  fragment, or null for none
+ *  (https://html.spec.whatwg.org/multipage/browsing-the-web.html#select-the-indicated-part,
+ *  https://html.spec.whatwg.org/multipage/browsing-the-web.html#find-a-potential-indicated-element). */
+function indicated(url: string): HTMLElement | typeof TOP | null {
+  const at = url.indexOf("#");
+  if (at < 0) {
     return null;
   }
-  const raw = link.hash.slice(1);
+  const raw = url.slice(at + 1);
+  if (raw === "") {
+    return TOP;
+  }
   let decoded: string | null = null;
   try {
     decoded = decodeURIComponent(raw);
@@ -151,7 +161,10 @@ function indicated(link: HTMLAnchorElement | HTMLAreaElement): HTMLElement | nul
     [...document.getElementsByName(fragment)].find((e) => e instanceof HTMLAnchorElement) ??
     null;
   const el = potential(raw) ?? (decoded === null ? null : potential(decoded));
-  return el instanceof HTMLElement ? el : null;
+  if (el !== null) {
+    return el instanceof HTMLElement ? el : null;
+  }
+  return decoded !== null && /^top$/i.test(decoded) ? TOP : null;
 }
 
 /** Whether `el` is an element a person sees now. */
@@ -161,28 +174,38 @@ const drawn = (el: Element | null | undefined): el is HTMLElement =>
 const isPage = (el: Element | null): boolean =>
   el === null || el === document.body || el === document.documentElement;
 
-/** A same-page link press the Navigation API reported
+/** A same-document navigation the Navigation API reported, while it is in
+ *  progress: from its `navigate` until a task after the last event a route
+ *  hides in, so only a hide during it has it as its cause
  *  (https://html.spec.whatwg.org/multipage/nav-history-apis.html#the-navigation-interface). */
-interface Press {
-  readonly link: Element;
-  /** The part of the page its fragment names. */
-  readonly part: HTMLElement | null;
-  /** Set by the `currententrychange` of the press's own navigation, the next
-   *  one after its `navigate` with no other `navigate` between: a press that
-   *  navigated nothing, as a Ctrl press in WebKit, never commits, and a
-   *  router's later same-URL `replaceState` commits only itself. */
+interface Nav {
+  readonly type: NavigationType;
+  readonly hashChange: boolean;
+  /** The element that started it, which keeps focus without being moved. */
+  readonly source: Element | null;
+  /** What its destination's fragment indicates, read at its `navigate`. */
+  readonly part: HTMLElement | typeof TOP | null;
+  /** Set by its own `currententrychange`: a navigation that opens nothing
+   *  here, as a Ctrl press in WebKit, fires `navigate` and never commits. */
   committed: boolean;
+  /** Committed under a route's `intercept()`, which fires no hashchange. */
+  intercepted: boolean;
 }
 
 /** What a hide hands `focusOnHide`, read at the hide: a modal sheet keeps
  *  focus until it closes, so the decision runs then. */
 interface Hidden {
   readonly key: string;
-  /** The part a committed press went to, when that press is why it hides. */
-  readonly part: HTMLElement | null;
+  /** What a link target navigation in progress at the hide went to. */
+  readonly part: HTMLElement | typeof TOP | null;
   /** Whether the reader had moved focus out of the detail. */
   readonly moved: boolean;
   readonly opener: Element | null;
+}
+
+interface Target {
+  readonly el: HTMLElement;
+  readonly how: "top" | "part" | "control";
 }
 
 /**
@@ -218,9 +241,8 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
   /** The hide whose focus and `detailclose` wait for the sheet's exit in
    *  script to end: the page stays inert until the dialog closes. */
   let pending: Hidden | null = null;
-  let press: Press | null = null;
-  /** The press the next `currententrychange` commits. */
-  let awaiting: Press | null = null;
+  /** The navigation in progress, or null. */
+  let current: Nav | null = null;
   /** Counts opens and closes, so an exit that ends after the next open
    *  leaves the detail where it is. */
   let turn = 0;
@@ -328,18 +350,39 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
     root.dispatchEvent(new CustomEvent("detailclose", { detail: { key } }));
   };
 
-  /** Reads a hide's inputs now, using up the press that caused it. */
+  /** Reads a hide's inputs now. Only a committed push to a fragment counts
+   *  as a link target: a replace, a reload and Back or Forward go nowhere
+   *  the reader chose on this page. */
   const hidden = (key: string): Hidden => {
-    const p = press?.committed === true ? press : null;
-    press = null;
+    const n = current;
+    const target = n?.committed === true && n.type === "push" && n.hashChange;
     const active = document.activeElement;
     const inside = detail.contains(active) || dialog.contains(active);
     return {
       key,
-      part: p?.part ?? null,
-      moved: !inside && !isPage(active) && active !== p?.link,
+      part: target ? n.part : null,
+      // The navigation's source and the part it indicates hold focus by the
+      // press or the browser, as WebKit focuses the part on Back or Forward.
+      moved: !inside && !isPage(active) && active !== n?.source && active !== n?.part,
       opener,
     };
+  };
+
+  /** The top of the document, which a fragment indicated: the page at its
+   *  start, and focus where the next Tab starts there, on the first
+   *  focusable element in view, else the main heading, else the body
+   *  (https://html.spec.whatwg.org/multipage/browsing-the-web.html#scroll-to-the-fragment-identifier). */
+  const toTop = (): void => {
+    scrollTo(0, 0);
+    const kept = (el: Element | null | undefined): el is HTMLElement =>
+      drawn(el) && !detail.contains(el) && !dialog.contains(el) && el.closest("[inert]") === null;
+    const first = [...document.querySelectorAll(FOCUSABLE)].find(
+      (el) => kept(el) && el.tabIndex >= 0 && !el.matches(":disabled"),
+    );
+    const main = document.querySelector("main h1") ?? document.querySelector("h1");
+    const inView = (el: Element | undefined | null): el is HTMLElement =>
+      kept(el) && el.getBoundingClientRect().top < document.documentElement.clientHeight;
+    land(inView(first) ? first : inView(main) ? main : document.body);
   };
 
   /** The list column's tab stop: its roving item, else its first link, else
@@ -352,39 +395,43 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
     return stop ?? (drawn(column) ? column : null);
   };
 
-  /** Where focus goes after a hide, and whether the target's top is
-   *  revealed as a fragment's is; null to leave focus where it is. Resolved
-   *  when focus moves, so a row the app redraws during the sheet's exit is
-   *  found. */
-  const focusTarget = (h: Hidden): { readonly el: HTMLElement; readonly top: boolean } | null => {
+  /** Where focus goes after a hide: the top of the document, a part
+   *  revealed as a fragment's is, or a control; null to leave focus where it
+   *  is. Resolved when focus moves, so a row the app redraws during the
+   *  sheet's exit is found. */
+  const focusTarget = (h: Hidden): Target | null => {
     if (h.moved) {
       return null;
     }
     const { part } = h;
+    if (part === TOP) {
+      return { el: document.body, how: "top" };
+    }
     if (drawn(part) && !detail.contains(part) && !part.contains(root)) {
-      return { el: part, top: true };
+      return { el: part, how: "part" };
     }
     const outside = (el: Element | null): el is HTMLElement =>
       drawn(el) && !isPage(el) && !detail.contains(el) && !dialog.contains(el);
-    // A part a fragment reached held focus only until it blurred, so it is
-    // no control to return to: the row is.
+    // Only an element that still takes focus is one to return to.
     const control = (el: Element | null): el is HTMLElement =>
       outside(el) && (el.hasAttribute("tabindex") || el.tabIndex >= 0) && !el.matches(":disabled");
     if (control(h.opener)) {
-      return { el: h.opener, top: false };
+      return { el: h.opener, how: "control" };
     }
     const row = entry?.(h.key) ?? null;
     if (control(row)) {
-      return { el: row, top: false };
+      return { el: row, how: "control" };
     }
     const stop = tabStop();
-    return outside(stop) ? { el: stop, top: false } : null;
+    return outside(stop) ? { el: stop, how: "control" } : null;
   };
 
   /** The one place focus moves after a hide, then `detailclose` fires. */
   const focusOnHide = (h: Hidden): void => {
     const to = focusTarget(h);
-    if (to?.top === true) {
+    if (to?.how === "top") {
+      toTop();
+    } else if (to?.how === "part") {
       reach(to.el);
     } else if (to !== null) {
       refocus(to.el);
@@ -441,16 +488,17 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
         return;
       }
       const previous = shown;
-      if (key !== previous) {
-        press = null;
-      }
+      // Back and Forward bring an entry back from the address alone, so
+      // whatever focus is on did not show it, a part a link reached included.
+      const traversing = current?.type === "traverse";
       if (previous === null) {
         turn += 1;
         const leaving = pending;
         pending = null;
         // A show during the sheet's exit takes the element that hide would
         // have focused as its opener.
-        opener = leaving === null ? document.activeElement : (focusTarget(leaving)?.el ?? null);
+        const was = leaving === null ? document.activeElement : (focusTarget(leaving)?.el ?? null);
+        opener = traversing ? null : was;
         if (leaving !== null) {
           fireClose(leaving.key);
         }
@@ -460,6 +508,7 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
           holdStill();
         }
       } else if (
+        !traversing &&
         !dialog.contains(document.activeElement) &&
         !detail.contains(document.activeElement) &&
         document.activeElement !== document.body
@@ -567,58 +616,83 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
     listen,
   );
   const navigation = (globalThis as { readonly navigation?: Navigation }).navigation;
+  /** Ends `n` a task after now, which runs after every listener of the
+   *  event being dispatched, the route's included. */
+  const end = (n: Nav): void => {
+    setTimeout(() => {
+      if (current === n) {
+        current = null;
+      }
+    }, 0);
+  };
   navigation?.addEventListener(
     "navigate",
     (e) => {
-      const link = e.sourceElement;
-      if (e.hashChange && (link instanceof HTMLAnchorElement || link instanceof HTMLAreaElement)) {
-        press = { link, part: indicated(link), committed: false };
-        awaiting = press;
+      if (e.navigationType === "replace" && !e.hashChange && e.destination.url === location.href) {
+        // A route stamping the entry's state while it handles a navigation.
         return;
       }
-      awaiting = null;
-      if (!(e.navigationType === "replace" && e.destination.url === location.href)) {
-        // A router rewriting the entry's state keeps the press it handles.
-        press = null;
-      }
+      current = {
+        type: e.navigationType,
+        hashChange: e.hashChange,
+        source: e.sourceElement,
+        part: e.hashChange ? indicated(e.destination.url) : null,
+        committed: false,
+        intercepted: false,
+      };
     },
     listen,
   );
   navigation?.addEventListener(
     "currententrychange",
-    () => {
-      const p = awaiting;
-      awaiting = null;
-      if (p === null || p !== press) {
+    (e) => {
+      const n = current;
+      // A stamp's own commit is a replace, so it never commits a push.
+      if (n === null || n.committed || e.navigationType !== n.type) {
         return;
       }
-      p.committed = true;
-      // An intercepted navigation fires no hashchange: its route has handled
-      // the press once the handler's promise settles.
-      const finished = navigation.transition?.finished;
-      const forget = (): void => {
-        setTimeout(() => {
-          if (press === p) {
-            press = null;
-          }
-        }, 0);
-      };
-      finished?.then(forget, forget);
+      n.committed = true;
+      const transition = navigation.transition;
+      if (transition !== null) {
+        // An intercepted navigation fires no popstate or hashchange: its
+        // route has handled it once the handler's promise settles.
+        n.intercepted = true;
+        transition.finished.then(
+          () => {
+            end(n);
+          },
+          () => {
+            end(n);
+          },
+        );
+      } else if (!n.hashChange && n.type !== "traverse") {
+        // pushState and replaceState fire no popstate.
+        end(n);
+      }
+    },
+    listen,
+  );
+  const settled = (): void => {
+    if (current !== null && !current.committed) {
+      end(current);
+    }
+  };
+  navigation?.addEventListener("navigatesuccess", settled, listen);
+  navigation?.addEventListener("navigateerror", settled, listen);
+  addEventListener(
+    "popstate",
+    () => {
+      if (current?.committed === true && !current.intercepted && !current.hashChange) {
+        end(current);
+      }
     },
     listen,
   );
   addEventListener(
     "hashchange",
     () => {
-      const p = press;
-      if (p?.committed === true) {
-        // A task queued here runs after every listener of this hashchange,
-        // the router's included, so the press causes no later hide.
-        setTimeout(() => {
-          if (press === p) {
-            press = null;
-          }
-        }, 0);
+      if (current?.committed === true && !current.intercepted) {
+        end(current);
       }
     },
     listen,
