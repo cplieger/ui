@@ -46,7 +46,7 @@ export interface BatchWords {
   readonly busy?: string;
   /** The report's sum after each press, said politely. Default "Started
    *  {started} of {total}. {pending} waiting to be sent again. {left}
-   *  remain (1 remains). {missed} couldn't start:". */
+   *  remain (1 remains), or None remain. {missed} couldn't start:". */
   readonly report?: (counts: BatchCounts) => string;
   /** The sentence for a press that failed outright, or built from what
    *  `send` rejected with. Default "The batch could not start." */

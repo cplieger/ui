@@ -1,10 +1,9 @@
 /**
- * ask.ts — `ask()` puts one question to the person in a modal
- * `.cp-dialog`: a yes or no that resolves true or false, with `input` a
- * value that resolves its text or null, or with `choices` the groups the
- * action takes, which resolve their values or null. A question asked while
- * another is open replaces it, and the open one answers as cancelled, as it
- * does when its `signal` aborts.
+ * ask.ts — `ask()` puts one question to the person in a modal `.cp-dialog`:
+ * a yes or no resolves true or false, `input` resolves its text or null, and
+ * `choices`, the groups the action takes, resolves their values or null. A
+ * question asked while another is open replaces it, and the open one answers
+ * as cancelled, as on an aborted `signal`.
  * @module
  */
 
