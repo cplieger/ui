@@ -44,9 +44,8 @@ These adopted criteria are not fully met yet, and one item is a default the bar 
 
 - [1.4.6 Contrast (enhanced)](#146-contrast-enhanced): Secondary text and ink on a solid hold 7:1 only when the operating system asks for more contrast, and not every platform offers that setting. The bar requires a contrast choice in the page, beside the theme choice, with three values: follow the system, more and standard. More applies what `prefers-contrast: more` applies, and standard overrides a system that asks for more. Owed by `foundations/colour` and `core/theme`.
 - [1.4.8 Visual presentation](#148-visual-presentation): The criterion is met through its Note 1, since the person's own paragraph spacing applies. The bar asks more of ui's default: prose paragraphs are 33.7px top to top at the 14px body size, 2.41 times the font size, and the bar requires at least 2.5 times, a paragraph gap of at least 0.95em. Owed by `content/prose`.
-- [2.5.5 Target size (enhanced)](#255-target-size-enhanced): A mouse user gets 32px controls and 24px targets and cannot ask for 44px. The bar requires a stored choice of larger targets, with the values follow the device and larger, that gives every control the touch sizes while hover keeps working. On the touch sizes a split button's caret and each icon segment stay 36px wide, and the bar requires 44px. Owed by `core/theme`, `core/pointer`, `buttons/group` and `forms/segmented`.
-- [2.3.3 Animation from interactions](#233-animation-from-interactions): Under reduced motion a segmented choice's or a tab strip's pill still slides for 460ms, a filter chip's check still grows for 220ms and the drop zone's icon still moves for 300ms. A confirming button that holds its footprint moves the buttons after it by up to 36px while its words change. The bar requires the pill to move at once, every other glide to take the short duration, and a footprint to hold still. Owed by `buttons/confirm`, `core/pill`, `buttons/filter-chip` and `forms/file`.
-- [2.4.13 Focus appearance](#2413-focus-appearance): Each part of a split button rings in the accent, which is also the split's fill, so the side of the ring that crosses onto the other part does not show. WCAG 3 2.3.1.2 and 2.3.1.3 ask the same. The bar requires the ring to change at least a 2px perimeter of the part at 3:1. Owed by `buttons/group`.
+- [2.5.5 Target size (enhanced)](#255-target-size-enhanced): A mouse user gets 32px controls and 24px targets and cannot ask for 44px. The bar requires a stored choice of larger targets, with the values follow the device and larger, that gives every control the touch sizes while hover keeps working. On the touch sizes each icon segment stays 36px wide, and the bar requires 44px. Owed by `core/theme`, `core/pointer` and `forms/segmented`.
+- [2.3.3 Animation from interactions](#233-animation-from-interactions): Under reduced motion a filter chip's check still grows for 220ms and the drop zone's icon still moves for 300ms. The bar requires every glide to take the short duration. Owed by `buttons/filter-chip` and `forms/file`.
 - [2.4.6 Headings and labels](#246-headings-and-labels): A stepper whose value is a button that resets it, such as a zoom, names that button only by its value, so pressing 90% gives 100% with nothing saying so. The bar requires the button to say what it does, in a tip the description carries, such as Reset to 100%. Owed by `forms/stepper`.
 - [4.1.3 Status messages](#413-status-messages): A toast is put in the page as a live region that already holds its words, which some browser and screen-reader pairings do not speak. The bar requires a toast's words to reach a live region that was already in the page, once. Owed by `feedback/toast`.
 - [2.5.8 Target size (minimum)](#258-target-size-minimum): When a feed row wraps its lines, its summary is one line tall and under 24px from the row's other targets. In a context panel's list, links one word long sit on consecutive lines under 24px apart. The bar requires each target to be 24px, or to keep 24px of spacing from the next. Owed by `data/feed` and `layout/context-panel`.
@@ -419,9 +418,9 @@ As 2.3.1, with no threshold allowance.
 
 ### 2.3.3 Animation from interactions
 
-Level AAA. Adopted, partly met, owed by `buttons/confirm`, `core/pill`, `buttons/filter-chip` and `forms/file`. Met by ui. [Understanding 2.3.3](https://www.w3.org/WAI/WCAG22/Understanding/animation-from-interactions.html)
+Level AAA. Adopted, partly met, owed by `buttons/filter-chip` and `forms/file`. Met by ui. [Understanding 2.3.3](https://www.w3.org/WAI/WCAG22/Understanding/animation-from-interactions.html)
 
-Under `prefers-reduced-motion: reduce` presses do not scale, springs ease out at the short duration, dialogs and added rows only fade and reordered items move at once ([Motion](design.md#motion)). Fades are not motion animation under this criterion. A choice's pill, a filter chip's check and the drop zone's icon keep their full length under reduced motion, and a confirming button that holds its footprint moves the buttons after it.
+Under `prefers-reduced-motion: reduce` presses do not scale, springs ease out at the short duration, dialogs and added rows only fade and reordered items move at once ([Motion](design.md#motion)). Fades are not motion animation under this criterion. A choice's pill lands at once, and a confirming button's footprint holds still in both settings. A filter chip's check and the drop zone's icon keep their full length under reduced motion.
 
 - Unit: reduced-motion tests in src/system.
 - Manual: reduced motion per gallery card.
@@ -531,11 +530,11 @@ As 2.4.11 with no part hidden: the page scrolls a focused control clear of every
 
 ### 2.4.13 Focus appearance
 
-Level AAA. Adopted, partly met, owed by `buttons/group`. Met by ui. [Understanding 2.4.13](https://www.w3.org/WAI/WCAG22/Understanding/focus-appearance.html)
+Level AAA. Adopted. Met by ui. [Understanding 2.4.13](https://www.w3.org/WAI/WCAG22/Understanding/focus-appearance.html)
 
-The ring is a solid 2px outline at a 2px offset, so its area exceeds a 2px perimeter of the control, in the accent's step 9, which holds 3:1 against every surface at every hue and chroma. On the header the ring takes the shell's ink, because the light shell is the accent's own fill. A split button's parts lose the side of their ring that crosses onto the split's own fill.
+The ring is a solid 2px outline at a 2px offset, so its area exceeds a 2px perimeter of the control, in the accent's step 9, which holds 3:1 against every surface at every hue and chroma. On the header the ring takes the shell's ink, because the light shell is the accent's own fill. Inside a split button, whose fill is the ring's colour, focus rings the whole split outside its shape and marks the focused part with an inset ring in the split's ink.
 
-- Unit: the ring's 3:1 on every surface and on the header, src/system/system-css.test.ts.
+- Unit: the ring's 3:1 on every surface, on the header and inside a split button, src/system/system-css.test.ts.
 - Manual: ring width and its contrast against adjacent colours from a clipped screenshot per focus stop.
 
 ### 2.5.1 Pointer gestures
@@ -573,9 +572,9 @@ No ui element responds to device or body motion.
 
 ### 2.5.5 Target size (enhanced)
 
-Level AAA. Adopted, partly met, owed by `core/theme`, `core/pointer`, `buttons/group` and `forms/segmented`. Met by ui. [Understanding 2.5.5](https://www.w3.org/WAI/WCAG22/Understanding/target-size-enhanced.html)
+Level AAA. Adopted, partly met, owed by `core/theme`, `core/pointer` and `forms/segmented`. Met by ui. [Understanding 2.5.5](https://www.w3.org/WAI/WCAG22/Understanding/target-size-enhanced.html)
 
-On the coarse tier targets are 44px at least, except a split button's caret and an icon segment, which stay 36px wide. On the fine tier controls are 32px and targets 24px at least. The tier follows the last real pointer, so a mouse user with a tremor gets 32px. The person's own choice of large targets is in [Where ui falls short](#where-ui-falls-short).
+On the coarse tier targets are 44px at least, except an icon segment, which stays 36px wide. On the fine tier controls are 32px and targets 24px at least. The tier follows the last real pointer, so a mouse user with a tremor gets 32px. The person's own choice of large targets is in [Where ui falls short](#where-ui-falls-short).
 
 - Unit: hit-area tests in src/system/system-css.test.ts.
 - Manual: every target on both tiers.
@@ -1697,7 +1696,7 @@ A change of window or device is announced before it happens. No ui element opens
 
 ## Other WCAG 3 requirements
 
-Of the rest, 48 are met through a WCAG 2.2 criterion at the same strength, 6 ask the same as a WCAG 2.2 criterion ui does not meet yet, 12 do not apply, and 41 are not adopted. An assertion is an organisation's statement about its own process, not a property of the interface, and ui claims no WCAG 3 conformance, so no assertion is adopted. A requirement whose values the draft still leaves undetermined cannot be tested, so it waits for a draft that sets them.
+Of the rest, 50 are met through a WCAG 2.2 criterion at the same strength, 4 ask the same as a WCAG 2.2 criterion ui does not meet yet, 12 do not apply, and 41 are not adopted. An assertion is an organisation's statement about its own process, not a property of the interface, and ui claims no WCAG 3 conformance, so no assertion is adopted. A requirement whose values the draft still leaves undetermined cannot be tested, so it waits for a draft that sets them.
 
 | Requirement | Type | Ruling |
 | --- | --- | --- |
@@ -1750,8 +1749,8 @@ Of the rest, 48 are met through a WCAG 2.2 criterion at the same strength, 6 ask
 | [2.2.3.8 Clear language review](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#clear-language-review) | assertion | Not adopted, because it is an assertion |
 | [2.2.3.9 Visual aids review](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#visual-aids-review) | assertion | Not adopted, because it is an assertion |
 | [2.3.1.1 Default focus indicator used](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#default-focus-indicator-used) | supplemental | Not adopted, because the draft offers it as an alternative to 2.3.1.2 and 2.3.1.3, which ui meets with its own ring |
-| [2.3.1.2 Focus indicator contrast sufficient](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#focus-indicator-contrast-sufficient) | core | Same as WCAG 2.2 [2.4.13](#2413-focus-appearance), which ui does not meet yet, owed by `buttons/group`, as [Where ui falls short](#where-ui-falls-short) records |
-| [2.3.1.3 Focus indicator size sufficient](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#focus-indicator-size-sufficient) | supplemental | Same as WCAG 2.2 [2.4.13](#2413-focus-appearance), which ui does not meet yet, owed by `buttons/group`, as [Where ui falls short](#where-ui-falls-short) records |
+| [2.3.1.2 Focus indicator contrast sufficient](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#focus-indicator-contrast-sufficient) | core | Met through WCAG 2.2 [2.4.13](#2413-focus-appearance) |
+| [2.3.1.3 Focus indicator size sufficient](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#focus-indicator-size-sufficient) | supplemental | Met through WCAG 2.2 [2.4.13](#2413-focus-appearance) |
 | [2.3.1.4 Focus indicator style guide](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#focus-indicator-style-guide) | assertion | Not adopted, because it is an assertion |
 | [2.3.2.2 Pointer activation indicated (enhanced)](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#pointer-activation-indicated-enhanced) | supplemental | Does not apply, because it applies where the platform has no visible pointer (touch, eye tracking). Showing a pointer there is the platform's setting, and a page-drawn pointer would lag behind the real one |
 | [2.3.2.3 Pointer contrast sufficient](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#pointer-contrast-sufficient) | core | Does not apply, because it applies when the author changes the pointer's look. ui only names standard `cursor` keywords, which the operating system draws at the person's size and colour |

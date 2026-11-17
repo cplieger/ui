@@ -7,7 +7,7 @@
  * @module
  */
 
-import { reducedMotion, until } from "../../core/lifetime/lifetime.js";
+import { afterFontLoads, reducedMotion, until } from "../../core/lifetime/lifetime.js";
 import { rollText } from "../../core/roll/roll.js";
 import { enhanceMenu } from "../../overlays/menu/menu.js";
 
@@ -214,7 +214,7 @@ export function enhanceOverflow(bar: HTMLElement, options: OverflowOptions = {})
   const observer = new ResizeObserver(fit);
   observer.observe(bar);
   // A web font that loads after the first fit changes every button's width.
-  document.fonts.addEventListener("loadingdone", fit, listen);
+  afterFontLoads(fit, signal);
 
   signal?.addEventListener(
     "abort",

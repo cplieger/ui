@@ -7,7 +7,7 @@
  * @module
  */
 
-import { until } from "../../core/lifetime/lifetime.js";
+import { afterFontLoads } from "../../core/lifetime/lifetime.js";
 import { measureRoll, roll, rollText } from "../../core/roll/roll.js";
 
 /** How the button's width follows its words. */
@@ -153,6 +153,16 @@ export function enhanceConfirm(button: HTMLButtonElement, options: ConfirmOption
     }
   };
 
+  /** Fits at once, where no roll runs for the slack to keep pace with: as
+   *  the button is enhanced and after a web font loads. */
+  const settle = (text: string): void => {
+    const was = button.style.transitionProperty;
+    button.style.transitionProperty = "none";
+    fit(text);
+    button.getBoundingClientRect();
+    button.style.transitionProperty = was;
+  };
+
   const toRest = (): void => {
     button.removeAttribute(STATE);
     button.removeAttribute("aria-busy");
@@ -172,17 +182,13 @@ export function enhanceConfirm(button: HTMLButtonElement, options: ConfirmOption
     fit(text);
   };
 
-  fit(rest);
+  settle(rest);
   // A web font that loads after this changes every word's width, so the
   // width held from the fallback font's would be wrong.
   if (width !== "glide") {
-    document.fonts.addEventListener(
-      "loadingdone",
-      () => {
-        fit(rollText(words));
-      },
-      until(signal),
-    );
+    afterFontLoads(() => {
+      settle(rollText(words));
+    }, signal);
   }
 
   signal?.addEventListener(

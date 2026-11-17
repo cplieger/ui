@@ -171,6 +171,19 @@ describe("enhanceOverflow", () => {
     expect(t.more.hidden).toBe(true);
   });
 
+  it("fits again once a web font loads and widens its buttons", async () => {
+    const t = bar(300);
+    enhanceOverflow(t.bar, { signal: life.signal });
+    expect(hidden(t.buttons)).toEqual([]);
+    for (const b of t.buttons) {
+      b.style.inlineSize = "100px";
+    }
+    document.fonts.dispatchEvent(new Event("loading"));
+    await document.fonts.ready;
+    // 60 for More, then two of 4 + 100 fit in 300 and a third does not.
+    expect(hidden(t.buttons)).toEqual(["C"]);
+  });
+
   it("closes an open menu whose buttons change, focus back on More", async () => {
     const t = bar(200);
     const o = enhanceOverflow(t.bar, { signal: life.signal });

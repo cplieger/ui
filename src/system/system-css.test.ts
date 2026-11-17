@@ -1,6 +1,7 @@
-import { afterEach, beforeEach, describe, expect, it, onTestFinished } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { cdp, page, server, userEvent } from "vitest/browser";
 
+import { enhanceConfirm } from "../buttons/confirm/confirm.js";
 import { installRadioFocus } from "../core/radio-focus/radio-focus.js";
 import { enhanceShareBar } from "../data/share-bar/share-bar.js";
 import { enhanceMeter } from "../data/meter/meter.js";
@@ -114,6 +115,35 @@ function build(markup: string): HTMLElement {
 
 const media = (name: string, value: string) =>
   cdp().send("Emulation.setEmulatedMedia", { features: [{ name, value }] });
+
+// Firefox and WebKit take no media emulation from a browser test, so there
+// the linked sheet's own reduced-motion blocks are switched on in place,
+// keeping their place in the cascade, and a script's matchMedia agrees.
+async function reduceMotion(): Promise<void> {
+  if (emulates) {
+    await media("prefers-reduced-motion", "reduce");
+    return;
+  }
+  const flip = (rules: CSSRuleList) => {
+    for (const rule of rules) {
+      if (rule instanceof CSSMediaRule) {
+        rule.media.mediaText = rule.media.mediaText
+          .replaceAll(/\(prefers-reduced-motion:\s*reduce\)/g, "(min-width: 0px)")
+          .replaceAll(/\(prefers-reduced-motion:\s*no-preference\)/g, "(max-width: -1px)");
+      }
+      if ("cssRules" in rule) {
+        flip(rule.cssRules as CSSRuleList);
+      }
+    }
+  };
+  flip((sheet.sheet as CSSStyleSheet).cssRules);
+  const real = matchMedia.bind(window);
+  vi.stubGlobal("matchMedia", (q: string) =>
+    q.includes("prefers-reduced-motion")
+      ? ({ matches: q.includes("reduce"), media: q } as MediaQueryList)
+      : real(q),
+  );
+}
 
 const theme = (t: "light" | "dark") => {
   root.classList.add("cp");
@@ -2305,6 +2335,23 @@ describe("css/system.css", () => {
     expect(getComputedStyle(slid.querySelector(".cp-tab") as HTMLElement).zIndex).toBe("1");
   });
 
+  it("moves the pill at once under reduced motion", async () => {
+    await reduceMotion();
+    theme("light");
+    const el = build(
+      '<div class="cp-tabs" role="tablist" aria-label="Item"><span class="cp-pill" aria-hidden="true"></span>' +
+        '<button class="cp-tab" role="tab" type="button" aria-selected="true">Episodes</button></div>',
+    );
+    const pill = el.querySelector(".cp-pill") as HTMLElement;
+    pill.style.setProperty("--cp-pill-w", "80px");
+    pill.style.setProperty("--cp-pill-h", "32px");
+    pill.getBoundingClientRect();
+    pill.style.setProperty("--cp-pill-x", "120px");
+    pill.style.setProperty("--cp-pill-w", "100px");
+    expect(pill.getAnimations()).toEqual([]);
+    expect(pill.getBoundingClientRect().width).toBe(100);
+  });
+
   it.skipIf(!emulates)(
     "outlines the current link, the selected tab and the chosen segment in forced colours",
     async () => {
@@ -3564,6 +3611,113 @@ describe("css/system.css buttons and arrangements", () => {
       );
       expect(joined.getBoundingClientRect().width).toBeCloseTo(parts, 0);
     }
+  });
+
+  const confirmRow = async () => {
+    theme("light");
+    // Every word laid out first, so no face the cycle needs loads during it
+    // and moves the row by itself.
+    build('<span class="cp-button">Delete Deleting… Deleted Small</span>').getBoundingClientRect();
+    await vi.waitFor(() => {
+      expect(document.fonts.status).toBe("loaded");
+    });
+    const el = build(
+      '<div style="display: flex; gap: 8px"><button class="cp-button" type="button"><span class="cp-icon"></span><span class="cp-icon" data-part="busy"></span><span class="cp-icon" data-part="done"></span><span class="cp-roll">Delete</span></button><button class="cp-button" type="button">Small</button></div>',
+    );
+    const [del, next] = [...el.querySelectorAll("button")] as [HTMLButtonElement, HTMLElement];
+    del.getBoundingClientRect();
+    return { del, next };
+  };
+
+  for (const motion of ["allowed", "reduced"] as const) {
+    it(`never moves the button after a footprint button, from load through a cycle, motion ${motion}`, async () => {
+      if (motion === "reduced") {
+        await reduceMotion();
+      }
+      const { del, next } = await confirmRow();
+      const c = enhanceConfirm(del, {
+        busy: "Deleting…",
+        done: "Deleted",
+        width: "footprint",
+        busyDelay: 0,
+        busyMin: 500,
+        hold: 600,
+      });
+      const lefts: number[] = [];
+      let sampling = true;
+      const sample = () => {
+        lefts.push(next.getBoundingClientRect().left);
+        if (sampling) {
+          requestAnimationFrame(sample);
+        }
+      };
+      sample();
+      await new Promise((r) => setTimeout(r, 500));
+      await c.run(() => new Promise((r) => setTimeout(r, 100)));
+      await new Promise((r) => setTimeout(r, 600 + 600));
+      sampling = false;
+      expect(del.hasAttribute("data-cp-state")).toBe(false);
+      expect(Math.max(...lefts) - Math.min(...lefts)).toBeLessThanOrEqual(1);
+    });
+  }
+
+  it("refits a footprint button's slack at once when a web font loads", async () => {
+    const { del } = await confirmRow();
+    enhanceConfirm(del, { busy: "Deleting…", done: "Deleted", width: "footprint" });
+    await new Promise((r) => setTimeout(r, 500));
+    const before = del.style.marginInlineEnd;
+    del.style.fontSize = "24px";
+    document.fonts.dispatchEvent(new Event("loading"));
+    await document.fonts.ready;
+    expect(del.style.marginInlineEnd).not.toBe(before);
+    expect(getComputedStyle(del).marginInlineEnd).toBe(del.style.marginInlineEnd);
+  });
+
+  // WCAG 2.4.13: a ring of the split's own fill on the seam shows nothing,
+  // so the whole split rings outside its shape and the part inside it.
+  for (const part of ["main action", "caret"] as const) {
+    it(`rings a split around its shape and marks the focused ${part} at 3:1 on its fill`, async () => {
+      theme("light");
+      const el = build(
+        '<button type="button">Before</button><div class="cp-split" role="group" aria-label="Grab"><button class="cp-button" data-variant="primary" type="button">Grab the best</button><button class="cp-button" data-variant="primary" type="button" aria-label="More ways to grab"><span class="cp-icon"></span></button></div>',
+      );
+      const split = el.querySelector(".cp-split") as HTMLElement;
+      const target = split.children[part === "caret" ? 1 : 0] as HTMLElement;
+      (el.firstElementChild as HTMLElement).focus();
+      await userEvent.tab();
+      if (part === "caret") {
+        await userEvent.tab();
+      }
+      expect(document.activeElement).toBe(target);
+      const ring = host("");
+      ring.style.color = "var(--cp-focus-ring)";
+      const outer = getComputedStyle(split);
+      expect([outer.outlineStyle, outer.outlineWidth, outer.outlineColor]).toEqual([
+        "solid",
+        "2px",
+        getComputedStyle(ring).color,
+      ]);
+      expect(Number.parseFloat(outer.outlineOffset)).toBeGreaterThanOrEqual(0);
+      const inner = getComputedStyle(target);
+      expect([inner.outlineStyle, inner.outlineWidth]).toEqual(["solid", "2px"]);
+      expect(Number.parseFloat(inner.outlineOffset)).toBeLessThanOrEqual(-2);
+      expect(contrast(inner.outlineColor, outer.backgroundColor)).toBeGreaterThanOrEqual(3);
+    });
+  }
+
+  // WCAG 2.5.5, which the bar adopts on the coarse tier.
+  it("gives a split button's caret a 44px target on the coarse tier and keeps it 36px on the fine", () => {
+    theme("light");
+    const split = () =>
+      build(
+        '<div class="cp-split" role="group" aria-label="Grab"><button class="cp-button" data-variant="primary" type="button">Grab</button><button class="cp-button" data-variant="primary" type="button" aria-label="More ways to grab"><span class="cp-icon"></span></button></div>',
+      ).querySelector("[aria-label='More ways to grab']") as HTMLElement;
+    root.setAttribute("data-pointer", "fine");
+    expect(split().getBoundingClientRect().width).toBeCloseTo(36, 0);
+    root.setAttribute("data-pointer", "coarse");
+    const caret = split().getBoundingClientRect();
+    expect(caret.width).toBeGreaterThanOrEqual(44);
+    expect(caret.height).toBeGreaterThanOrEqual(44);
   });
 
   it("joins a group's buttons with one line and rounds only its outer corners", () => {

@@ -44,10 +44,9 @@
  * choices. It is one shape: the split paints the fill, its corners and its
  * state's colour, and its parts paint nothing at rest, so its edges are drawn
  * once and cannot disagree between the parts at a fractional offset. A part
- * paints only its own hover or press, inside the shape, and the split does
- * not clip, so a part's focus ring still shows outside it. */
+ * paints only its own hover or press, inside the shape. */
 .cp-split {
-  --cp-caret-w: 2.25rem;
+  --cp-caret-w: max(2.25rem, var(--cp-hit-min));
   --cp-done-paint: transparent;
 
   border-radius: var(--cp-radius-control);
@@ -148,4 +147,23 @@
 .cp-split:has(> [data-cp-state]) > :last-child > .cp-icon {
   opacity: 0;
   transition: opacity 90ms var(--cp-ease-out);
+}
+
+/* A part's own ring would cross the seam onto the other part, where it is
+ * the split's fill, so focus rings the whole split outside its shape and
+ * marks the focused part inside it in the split's ink. */
+.cp-split:has(> :focus-visible) {
+  outline: var(--cp-focus-w) solid var(--cp-focus-ring);
+  outline-offset: var(--cp-focus-offset);
+}
+
+.cp-split > .cp-button:focus-visible {
+  outline-color: var(--cp-tone-on);
+  outline-offset: calc(-2 * var(--cp-focus-w));
+}
+
+@media (forced-colors: active) {
+  .cp-split > .cp-button:focus-visible {
+    outline-color: Highlight;
+  }
 }

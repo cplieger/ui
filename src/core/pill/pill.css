@@ -29,6 +29,14 @@
   transition: none;
 }
 
+/* The chosen segment, tab or link says which it is by its own state, so
+ * the pill lands at once, as reordered items do. */
+@media (prefers-reduced-motion: reduce) {
+  .cp-pill {
+    transition: none;
+  }
+}
+
 .cp-pill[hidden] {
   display: none;
 }

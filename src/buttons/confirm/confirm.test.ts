@@ -245,7 +245,7 @@ describe("enhanceConfirm", () => {
     expect(Number.parseFloat(b.style.minInlineSize)).toBeGreaterThan(0);
   });
 
-  it("measures its held width again once a web font loads", () => {
+  it("measures its held width again once a web font loads", async () => {
     const split = document.createElement("div");
     split.className = "cp-split";
     document.body.append(split);
@@ -255,12 +255,14 @@ describe("enhanceConfirm", () => {
     const held = () => Number.parseFloat(b.style.minInlineSize);
     const before = held();
     b.style.fontSize = "32px";
-    document.fonts.dispatchEvent(new Event("loadingdone"));
+    document.fonts.dispatchEvent(new Event("loading"));
+    await document.fonts.ready;
     expect(held()).toBeGreaterThan(before * 1.5);
     const grown = held();
     stop.abort();
     b.style.fontSize = "";
-    document.fonts.dispatchEvent(new Event("loadingdone"));
+    document.fonts.dispatchEvent(new Event("loading"));
+    await document.fonts.ready;
     expect(held()).toBe(grown);
   });
 
