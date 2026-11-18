@@ -3947,6 +3947,39 @@ describe("css/system.css buttons and arrangements", () => {
     expect(b.dataset["cpConfirm"]).toBe("fixed");
   });
 
+  it("holds an icon-only fixed button at its icon's width through a cycle and across a resize", async () => {
+    await fontsIn("Grab Grabbing… Grabbed");
+    // A narrow rule that shows a row action's icon alone hides its words
+    // and its faces' words together, as docs/buttons/confirm.md asks.
+    const el = build(
+      `<style>@container (width < 20rem) { .t-narrow .cp-button > .cp-roll, .t-narrow .cp-button > [data-part="faces"] > ::after { display: none; } }</style><div class="t-narrow" style="container-type: inline-size; inline-size: 30rem"><span data-col="actions">${faces(true, "Grab")}</span></div>`,
+    );
+    const box = el.querySelector(".t-narrow") as HTMLElement;
+    const b = el.querySelector("button") as HTMLButtonElement;
+    const iconOnly = () => {
+      const cs = getComputedStyle(b);
+      const icon = b.querySelector(".cp-icon") as Element;
+      return (
+        Number.parseFloat(getComputedStyle(icon).inlineSize) +
+        ["paddingInlineStart", "paddingInlineEnd", "borderInlineStartWidth", "borderInlineEndWidth"]
+          .map((k) => Number.parseFloat(cs[k as "paddingInlineStart"]))
+          .reduce((a, v) => a + v, 0)
+      );
+    };
+    box.style.inlineSize = "16rem";
+    const widths = await everyFrame(b, () => b.getBoundingClientRect().width.toFixed(1));
+    expect([...widths], [...widths].join(" / ")).toHaveLength(1);
+    const narrow = b.getBoundingClientRect().width;
+    expect(narrow).toBeCloseTo(iconOnly(), 0);
+    box.style.inlineSize = "30rem";
+    const wide = b.getBoundingClientRect().width;
+    expect(wide).toBeGreaterThan(narrow + 40);
+    box.style.inlineSize = "16rem";
+    expect(b.getBoundingClientRect().width).toBeCloseTo(narrow, 1);
+    box.style.inlineSize = "30rem";
+    expect(b.getBoundingClientRect().width).toBeCloseTo(wide, 1);
+  });
+
   /** The widest of a fixed button's faces, icon and gap included, from
    *  words laid out in its own font. */
   const widestFace = (b: HTMLElement, faces: [string, boolean][]) => {
