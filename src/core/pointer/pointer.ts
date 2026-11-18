@@ -1,13 +1,10 @@
 /**
- * pointer.ts — The pointer tier css/system sizes controls from: `data-pointer`
- * on `<html>`, `"fine"` for a mouse and `"coarse"` for a finger or a pen.
- * `applyPointerTier` writes a first value before paint and `installPointerTier`
- * follows each real pointer, the authority over a capability query, which a
- * touchscreen laptop with a mouse answers wrong (crbug.com/398065927).
+ * pointer.ts — `data-pointer` on `<html>`, `"fine"` or `"coarse"`, the tier
+ * css/system sizes controls from. `applyPointerTier` writes the kept tier, else
+ * a capability guess a touchscreen laptop with a mouse gets wrong
+ * (crbug.com/398065927). Imports nothing, so a pre-paint allow list names it.
  * @module
  */
-
-import { shared } from "../lifetime/lifetime.js";
 
 /** A pen counts as coarse: a stylus on a touchscreen has no hover and wants
  *  finger-sized targets, whatever its precision. */
@@ -17,12 +14,6 @@ export interface PointerTierOptions {
   /** A `localStorage` key that keeps the last real pointer's tier, so the next
    *  load starts on it instead of the guess. Default: none, nothing kept. */
   readonly storageKey?: string;
-}
-
-export interface PointerTierFollowOptions extends PointerTierOptions {
-  /** Removes the listener and leaves the attribute, so the page keeps its
-   *  layout. Default: none, it follows for the page's life. */
-  readonly signal?: AbortSignal;
 }
 
 const ATTR = "data-pointer";
@@ -64,52 +55,4 @@ export function applyPointerTier(opts?: PointerTierOptions): PointerTier {
   const tier = cached(opts?.storageKey) ?? guess();
   document.documentElement.setAttribute(ATTR, tier);
   return tier;
-}
-
-function follow(signal: AbortSignal, opts: PointerTierOptions): void {
-  const key = opts.storageKey;
-  const root = document.documentElement;
-  const set = (tier: PointerTier): void => {
-    if (root.getAttribute(ATTR) === tier) {
-      return;
-    }
-    root.setAttribute(ATTR, tier);
-    if (key !== undefined) {
-      try {
-        globalThis.localStorage.setItem(key, tier);
-      } catch {
-        // A refused write only costs the next load its head start.
-      }
-    }
-  };
-  const onDown = (e: PointerEvent): void => {
-    if (e.pointerType !== "") {
-      set(e.pointerType === "mouse" ? "fine" : "coarse");
-    }
-  };
-  // A trackpad on an iPad moves the pointer long before it clicks; a finger
-  // or a pen sends no move without a press first.
-  const onMove = (e: PointerEvent): void => {
-    if (e.pointerType === "mouse") {
-      set("fine");
-    }
-  };
-  // Capture, so a page handler that stops the event cannot hide the input.
-  const options: AddEventListenerOptions = { capture: true, passive: true, signal };
-  globalThis.addEventListener("pointerdown", onDown, options);
-  globalThis.addEventListener("pointermove", onMove, options);
-}
-
-// Made on the first install, so a pre-paint bundle that imports only
-// applyPointerTier keeps no lifetime code.
-let page: ReturnType<typeof shared<PointerTierOptions>> | undefined;
-
-/** Follow each real pointer: a press of any pointer, or a mouse or trackpad
- *  that moves without one, sets `data-pointer` to its tier and keeps it
- *  under `storageKey`. Call it after `applyPointerTier`. Every call shares
- *  one set of listeners, held until every caller's `signal` has aborted;
- *  the first call's `storageKey` holds. */
-export function installPointerTier(opts: PointerTierFollowOptions = {}): void {
-  page ??= shared(follow);
-  page.install(opts);
 }
