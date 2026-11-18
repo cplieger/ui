@@ -35,7 +35,6 @@ import { redrawKeepingFocus } from "./focus.js";
 import { checkScopes, drawKeys, type KeyNote, type KeyScopes, type KeysSection } from "./keys.js";
 import { drawLog, type LogOptions, type SecurityLogScreen } from "./log.js";
 import { drawMethods } from "./methods.js";
-import { everyPage } from "./pages.js";
 import { drawProfile } from "./profile.js";
 import { screenPart } from "./part.js";
 import { runDirect, type AccountAction } from "./run.js";
@@ -386,9 +385,7 @@ export function mountSecurity<C extends SecurityClient>(
   };
 
   const readPasskeys = (): Promise<Result<readonly PasskeyView[]>> =>
-    has("passkeys")
-      ? everyPage((q) => client.passkeys(q))
-      : Promise.resolve({ ok: true, data: [] });
+    has("passkeys") ? read(() => client.passkeys()) : Promise.resolve({ ok: true, data: [] });
 
   /** Shows why a read failed, with Retry running `again`, unless the
    *  session is gone. */
@@ -499,7 +496,7 @@ export function mountSecurity<C extends SecurityClient>(
     }
     if (has("keys")) {
       keysView = drawKeys(ctx, keysPart.body, keysPart.heading, {
-        list: () => everyPage((q) => client.keys(q)),
+        list: () => read(() => client.keys()),
         revoke: (id) => client.revokeKey(id),
         own: {
           create: (r) => client.createKey(r),

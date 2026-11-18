@@ -13,10 +13,9 @@ import { codeOf } from "./answer.js";
 import type { Refusal, SecurityClient, SessionView } from "./client.js";
 import { deviceName } from "./device.js";
 import { actionButton, cell, cellStack, clockAt, el, stateMark, table } from "./dom.js";
-import { everyPage } from "./pages.js";
 import { screenPart } from "./part.js";
 import { nameRefused } from "./rename.js";
-import { cycle, question, retryButton, slot } from "./screen.js";
+import { cycle, question, read, retryButton, slot } from "./screen.js";
 import type { Ctx } from "./security.js";
 
 export interface SessionsSection {
@@ -42,7 +41,7 @@ export function drawSessions<C extends SecurityClient>(
     heading,
     notices,
     signal: ctx.signal,
-    read: () => everyPage((q) => client.sessions(q)),
+    read: () => read(() => client.sessions()),
     refused: (r, again) => {
       ctx.settle({ kind: "done", result: r }, notices, (x) => unavailable(x, again));
     },

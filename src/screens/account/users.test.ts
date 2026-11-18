@@ -796,7 +796,7 @@ describe("mountUsers, who a key reached", () => {
     });
     expect(queries).toEqual(["key=12"]);
     expect(document.activeElement).toBe(region.querySelector("h2"));
-    expect(fake.named("adminUsers").at(-1)?.args).toEqual([{ limit: 200, key: 12 }]);
+    expect(fake.named("adminUsers").at(-1)?.args).toEqual([{ key: 12 }]);
     const invites = await section(region, "invites");
     expect(invites.querySelectorAll("tbody tr")).toHaveLength(1);
     expect(invites.querySelector("tbody tr")?.textContent).toContain("Key nightly");
@@ -807,7 +807,7 @@ describe("mountUsers, who a key reached", () => {
       expect(region.querySelector("h2")?.textContent).toBe("Users");
     });
     expect(queries).toEqual(["key=12", ""]);
-    expect(fake.named("adminUsers").at(-1)?.args).toEqual([{ limit: 200 }]);
+    expect(fake.named("adminUsers").at(-1)?.args).toEqual([]);
   });
 
   it("reads the filter from the address, and says when no one was reached", async () => {
@@ -817,7 +817,7 @@ describe("mountUsers, who a key reached", () => {
       expect(region.textContent).toContain("No one was reached through this key.");
     });
     expect(region.querySelector("h2")?.textContent).toBe("Users reached through nightly");
-    expect(fake.named("adminUsers")[0]?.args).toEqual([{ limit: 200, key: 14 }]);
+    expect(fake.named("adminUsers")[0]?.args).toEqual([{ key: 14 }]);
   });
 
   it.each(["?key=0", "?key=-3", "?key=1.5", "?key=abc", "?key=99999999999999999"])(
@@ -826,7 +826,7 @@ describe("mountUsers, who a key reached", () => {
       const fake = reached();
       const { region } = mount(fake, { search, onQuery: () => undefined });
       await rowOf(region, "bot");
-      expect(fake.named("adminUsers")[0]?.args).toEqual([{ limit: 200 }]);
+      expect(fake.named("adminUsers")[0]?.args).toEqual([]);
     },
   );
 

@@ -27,58 +27,24 @@ const entry = (seq: number, rest: Partial<LogEntryView> = {}): LogEntryView => (
   ...rest,
 });
 
-/** The filters a cursor is sealed to, as one word. */
-const sealOf = (q: LogQuery): string =>
-  [...JSON.stringify([q.kinds ?? [], q.user ?? 0, q.actor ?? 0, q.actorKey ?? 0, q.oldestFirst])]
-    .reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7)
-    .toString(36);
-
-/** A cursor resuming after (`n`) or before (`p`) the entry `seq` under
- *  `q`'s filters. */
-const cursorOf = (side: "n" | "p", seq: number, q: LogQuery = {}): string =>
-  `${side}${String(seq)}-${sealOf(q)}`;
-
-/** access's security log over `log`: every filter matches,
- *  newest first unless `oldestFirst`, at most `limit` entries from the
- *  cursor's place, a page before one near the top is the first page, a
- *  cursor under other filters is `cursor_invalid`, and every class's
- *  counts. */
+/** access's SecurityLog over `log` (its account/log_read.go): every filter
+ *  matches, `after` and `before` are exclusive, newest first unless
+ *  `oldestFirst`, at most `limit` entries, and every class's counts. */
 function server(log: readonly LogEntryView[], evicted = 0) {
   return (q: LogQuery = {}): Result<SecurityLogView> => {
-    const oldest = q.oldestFirst === true;
-    const match = log
-      .filter(
-        (e) =>
-          (q.kinds === undefined || q.kinds.includes(e.kind)) &&
-          (q.user === undefined || e.user_id === q.user),
-      )
-      .toSorted((a, b) => (oldest ? a.seq - b.seq : b.seq - a.seq));
-    const limit = q.limit ?? 50;
-    const at = q.cursor === undefined ? undefined : /^([np])(\d+)-(\w+)$/.exec(q.cursor);
-    if (at === null || (at !== undefined && at[3] !== sealOf(q))) {
-      return refuse(400, "cursor_invalid");
-    }
-    const seq = Number(at?.[2] ?? 0);
-    const later = (e: LogEntryView): boolean => (oldest ? e.seq > seq : e.seq < seq);
-    const before = match.filter((e) => !later(e) && e.seq !== seq).length;
-    const start =
-      at === undefined
-        ? 0
-        : at[1] === "n"
-          ? match.length - match.filter(later).length
-          : Math.max(0, before - limit);
-    const items = match.slice(start, start + limit);
-    const last = items.at(-1);
-    const head = items[0];
+    const match = log.filter(
+      (e) =>
+        (q.kinds === undefined || q.kinds.includes(e.kind)) &&
+        (q.user === undefined || e.user_id === q.user) &&
+        (q.after === undefined || e.seq > q.after) &&
+        (q.before === undefined || e.seq < q.before),
+    );
+    const sorted = match.toSorted((a, b) =>
+      q.oldestFirst === true ? a.seq - b.seq : b.seq - a.seq,
+    );
     const count = (c: string): number => log.filter((e) => e.class === c).length;
     return ok({
-      items,
-      ...(last !== undefined && start + items.length < match.length
-        ? { next_cursor: cursorOf("n", last.seq, q) }
-        : {}),
-      ...(head !== undefined && start > 0 ? { prev_cursor: cursorOf("p", head.seq, q) } : {}),
-      offset: start,
-      total: match.length,
+      entries: sorted.slice(0, q.limit ?? 50),
       classes: [
         { class: "change", count: count("change"), evicted },
         { class: "session", count: count("session"), evicted: 0 },
@@ -287,14 +253,10 @@ describe("mountSecurityLog: the table", () => {
 
 describe("mountSecurityLog: the address and the pages", () => {
   it("reads its view from the address", async () => {
-    const q = { kinds: ["signed_in"], user: 2, oldestFirst: true };
-    const cursor = cursorOf("n", 20, q);
     const fake = new Fake().always("adminSecurityLog", server(range(1, 30)));
-    const { region } = mount(fake, {
-      search: `?order=oldest&kind=signed_in&user=2&cursor=${cursor}`,
-    });
+    const { region } = mount(fake, { search: "?order=oldest&kind=signed_in&user=2&before=20" });
     await vi.waitFor(() => {
-      expect(asked(fake)[0]).toEqual({ limit: 50, ...q, cursor });
+      expect(asked(fake)[0]).toEqual({ limit: 50, kinds: ["signed_in"], user: 2, before: 20 });
     });
     expect(region.querySelector<HTMLInputElement>("input[value='oldest']")?.checked).toBe(true);
   });
@@ -302,41 +264,35 @@ describe("mountSecurityLog: the address and the pages", () => {
   it("drops address values that name no view", async () => {
     const fake = new Fake().always("adminSecurityLog", server([entry(1)]));
     const { region } = mount(fake, {
-      search: `?kind=Signed%20in&user=constructor&cursor=a%2Fb&order=sideways`,
+      search: "?kind=Signed%20in&user=constructor&before=-3&after=1e3&order=sideways",
     });
     await rows(region);
     expect(asked(fake)[0]).toEqual({ limit: 50 });
-    const long = new Fake().always("adminSecurityLog", server([entry(1)]));
-    await rows(mount(long, { search: `?cursor=${"a".repeat(1417)}` }).region);
-    expect(asked(long)[0]).toEqual({ limit: 50 });
   });
 
-  it("pages newest first by the cursors the server answers, saying where", async () => {
+  it("pages back by the smallest seq shown, then forward by the largest, oldest first", async () => {
     const fake = new Fake().always("adminSecurityLog", server(range(1, 12)));
     const { region, queries } = mount(fake, { limit: 5 });
     expect(seqs(await rows(region))).toEqual([12, 11, 10, 9, 8]);
-    const pager = (): string => region.querySelector(".cp-pager > span")?.textContent ?? "";
-    expect(pager()).toBe("1 to 5 of 12");
     const newer = pagerLink(region, "Newer");
     expect(newer.getAttribute("aria-disabled")).toBe("true");
     expect(newer.hasAttribute("href")).toBe(false);
-    const next = cursorOf("n", 8);
-    expect(new URL(pagerLink(region, "Older").href).searchParams.get("cursor")).toBe(next);
+    const older = pagerLink(region, "Older");
+    expect(new URL(older.href).searchParams.get("before")).toBe("8");
 
-    await userEvent.click(pagerLink(region, "Older"));
+    await userEvent.click(older);
     await vi.waitFor(async () => {
       expect(seqs(await rows(region))).toEqual([7, 6, 5, 4, 3]);
     });
-    expect(asked(fake).at(-1)).toEqual({ limit: 5, cursor: next });
-    expect(queries.at(-1)).toBe(`cursor=${next}`);
-    expect(pager()).toBe("6 to 10 of 12");
+    expect(asked(fake).at(-1)).toEqual({ limit: 5, before: 8 });
+    expect(queries.at(-1)).toBe("before=8");
     expect(document.activeElement?.textContent).toBe("Security log");
 
     await userEvent.click(pagerLink(region, "Newer"));
     await vi.waitFor(async () => {
       expect(seqs(await rows(region))).toEqual([12, 11, 10, 9, 8]);
     });
-    expect(asked(fake).at(-1)).toEqual({ limit: 5, cursor: cursorOf("p", 7) });
+    expect(asked(fake).at(-1)).toEqual({ limit: 5, oldestFirst: true, after: 7 });
   });
 
   it("reads oldest first with Earlier and Later", async () => {
@@ -350,23 +306,6 @@ describe("mountSecurityLog: the address and the pages", () => {
       expect(seqs(await rows(region))).toEqual([6, 7]);
     });
     expect(pagerLink(region, "Later").getAttribute("aria-disabled")).toBe("true");
-    expect(pagerLink(region, "Earlier").getAttribute("aria-disabled")).toBeNull();
-  });
-
-  it.each([
-    ["newest first", "", "Older", [5, 4, 3, 2, 1]],
-    ["oldest first", "?order=oldest", "Later", [6, 7, 8, 9, 10]],
-  ] as const)("%s, offers no page after a full last page", async (_order, search, onward, last) => {
-    const fake = new Fake().always("adminSecurityLog", server(range(1, 10)));
-    const { region } = mount(fake, { limit: 5, search });
-    await rows(region);
-    await userEvent.click(pagerLink(region, onward));
-    await vi.waitFor(async () => {
-      expect(seqs(await rows(region))).toEqual(last);
-    });
-    const link = pagerLink(region, onward);
-    expect(link.getAttribute("aria-disabled")).toBe("true");
-    expect(link.hasAttribute("href")).toBe(false);
   });
 
   it("changing the order or the kind starts at the first page", async () => {
@@ -374,7 +313,7 @@ describe("mountSecurityLog: the address and the pages", () => {
       "adminSecurityLog",
       server([...range(1, 3), entry(4, { kind: "signed_in", class: "session" })]),
     );
-    const { region, queries } = mount(fake, { search: `?cursor=${cursorOf("n", 9)}` });
+    const { region, queries } = mount(fake, { search: "?before=9" });
     await rows(region);
     await userEvent.click(region.querySelector<HTMLInputElement>("input[value='oldest']")!);
     await vi.waitFor(() => {
@@ -389,29 +328,20 @@ describe("mountSecurityLog: the address and the pages", () => {
     expect(queries.at(-1)).toBe("order=oldest&kind=signed_in");
   });
 
-  it.each([
-    ["no longer opens", () => "n9-gone"],
-    ["was sealed to other filters", () => cursorOf("n", 9)],
-    ["reaches past the end", () => cursorOf("n", 1, { kinds: ["password_changed"] })],
-  ])(
-    "an address whose cursor %s shows its first page and corrects the address",
-    async (_case, cursor) => {
-      const fake = new Fake().always("adminSecurityLog", server(range(5, 8)));
-      const replaced: [string, boolean][] = [];
-      const { region } = mount(fake, {
-        search: `?kind=password_changed&cursor=${cursor()}`,
-        onQuery: (p, replace) => {
-          replaced.push([p.toString(), replace]);
-        },
-      });
-      await vi.waitFor(async () => {
-        expect(seqs(await rows(region))).toEqual([8, 7, 6, 5]);
-      });
-      expect(asked(fake).at(-1)).toEqual({ limit: 50, kinds: ["password_changed"] });
-      expect(replaced).toEqual([["kind=password_changed", true]]);
-      expect(noticeText(region)).toBe("");
-    },
-  );
+  it("an address past the end shows the newest page and corrects the address", async () => {
+    const fake = new Fake().always("adminSecurityLog", server(range(5, 8)));
+    const replaced: boolean[] = [];
+    const { region } = mount(fake, {
+      search: "?after=40",
+      onQuery: (_p, replace) => {
+        replaced.push(replace);
+      },
+    });
+    await vi.waitFor(async () => {
+      expect(seqs(await rows(region))).toEqual([8, 7, 6, 5]);
+    });
+    expect(replaced).toEqual([true]);
+  });
 });
 
 describe("mountSecurityLog: its states", () => {
@@ -505,7 +435,7 @@ describe("mountSecurityLog: refresh", () => {
     expect(seqs(await rows(region))).toEqual([3, 2, 1]);
     log.push(entry(4), entry(5));
     await refresh();
-    expect(asked(fake).at(-1)).toEqual({ limit: 4 });
+    expect(asked(fake).at(-1)).toEqual({ limit: 4, after: 3, oldestFirst: true });
     expect(seqs(await rows(region))).toEqual([5, 4, 3, 2]);
     expect(pagerLink(region, "Older").getAttribute("aria-disabled")).toBeNull();
     await vi.waitFor(() => {
@@ -513,78 +443,48 @@ describe("mountSecurityLog: refresh", () => {
     });
   });
 
-  it("re-sends the cursor that reached a later page, which keeps its rows", async () => {
-    const log = range(1, 8);
-    const fake = new Fake().always("adminSecurityLog", server(log));
-    const { region, refresh } = mount(fake, { limit: 5 });
-    await rows(region);
-    await userEvent.click(pagerLink(region, "Older"));
-    await vi.waitFor(async () => {
-      expect(seqs(await rows(region))).toEqual([3, 2, 1]);
-    });
-    const reached = asked(fake).at(-1);
-    log.push(entry(9));
-    await refresh();
-    expect(asked(fake).at(-1)).toEqual(reached);
-    expect(seqs(await rows(region))).toEqual([3, 2, 1]);
-    expect(region.querySelector(".cp-pager > span")?.textContent).toBe("7 to 9 of 9");
-    await new Promise((resolve) => setTimeout(resolve, 300));
-    expect(said("polite")).not.toContain("new entr");
-  });
-
-  it("oldest first, a full last page offers Later once another entry arrives", async () => {
-    const log = range(1, 5);
-    const fake = new Fake().always("adminSecurityLog", server(log));
-    const { region, refresh } = mount(fake, { limit: 5, search: "?order=oldest" });
-    expect(seqs(await rows(region))).toEqual([1, 2, 3, 4, 5]);
-    expect(pagerLink(region, "Later").getAttribute("aria-disabled")).toBe("true");
-    log.push(entry(6));
-    await refresh();
-    await vi.waitFor(() => {
-      expect(pagerLink(region, "Later").getAttribute("aria-disabled")).toBeNull();
-    });
-    expect(seqs(await rows(region))).toEqual([1, 2, 3, 4, 5]);
-    expect(said("polite")).not.toContain("new entr");
-  });
-
-  it("oldest first, adds new entries under a last page with room, saying only those drawn", async () => {
-    const log = range(1, 3);
-    const fake = new Fake().always("adminSecurityLog", server(log));
-    const { region, refresh } = mount(fake, { limit: 5, search: "?order=oldest" });
-    expect(seqs(await rows(region))).toEqual([1, 2, 3]);
-    log.push(...range(4, 8));
-    await refresh();
-    expect(seqs(await rows(region))).toEqual([1, 2, 3, 4, 5]);
-    expect(pagerLink(region, "Later").getAttribute("aria-disabled")).toBeNull();
-    await vi.waitFor(() => {
-      expect(said("polite")).toBe("2 new entries");
-    });
-  });
-
-  it("says nothing of a refresh the server refused, and keeps the rows", async () => {
+  it("reads the newest page again after a burst longer than ten pages", async () => {
     const log = range(1, 2);
     const fake = new Fake().always("adminSecurityLog", server(log));
     const { region, refresh } = mount(fake, { limit: 2 });
     expect(seqs(await rows(region))).toEqual([2, 1]);
-    log.push(...range(3, 5));
-    fake.answer("adminSecurityLog", refuse(503, "auth_unavailable"));
+    log.push(...range(3, 30));
     await refresh();
+    expect(asked(fake).at(-1)).toEqual({ limit: 2 });
+    await vi.waitFor(async () => {
+      expect(seqs(await rows(region))).toEqual([30, 29]);
+      expect(said("polite")).toBe("20 new entries");
+    });
+  });
+
+  it("says nothing of a burst whose newest page the server refused", async () => {
+    const log = range(1, 2);
+    let burst = false;
+    const fake = new Fake().always("adminSecurityLog", (q: LogQuery = {}) =>
+      burst && q.after === undefined ? refuse(503, "auth_unavailable") : server(log)(q),
+    );
+    const { region, refresh } = mount(fake, { limit: 2 });
+    expect(seqs(await rows(region))).toEqual([2, 1]);
+    log.push(...range(3, 30));
+    burst = true;
+    await refresh();
+    expect(asked(fake).at(-1)).toEqual({ limit: 2 });
     await vi.waitFor(() => {
       expect(noticeText(region)).toBe(
         "The app cannot do this right now. Try again in a few seconds.",
       );
     });
     await new Promise((resolve) => setTimeout(resolve, 300));
-    expect(said("polite")).not.toContain("new entr");
+    expect(said("polite")).not.toContain("new entries");
     expect(seqs(await rows(region))).toEqual([2, 1]);
   });
 
-  it("says nothing of a refresh a Kind change replaced", async () => {
+  it("says nothing of a burst whose newest page a Kind change replaced", async () => {
     const log = [...range(1, 2)];
     const late = Promise.withResolvers<undefined>();
-    let held = false;
+    let burst = false;
     const fake = new Fake().always("adminSecurityLog", async (q: LogQuery = {}) => {
-      if (held && q.kinds === undefined) {
+      if (burst && q.after === undefined && q.kinds === undefined) {
         await late.promise;
       }
       return server(log)(q);
@@ -592,10 +492,10 @@ describe("mountSecurityLog: refresh", () => {
     const { region, refresh } = mount(fake, { limit: 2 });
     expect(seqs(await rows(region))).toEqual([2, 1]);
     log.push(...range(3, 30), entry(31, { kind: "signed_in", class: "session" }));
-    held = true;
+    burst = true;
     const done = refresh();
     await vi.waitFor(() => {
-      expect(asked(fake)).toHaveLength(2);
+      expect(asked(fake).at(-1)).toEqual({ limit: 2 });
     });
     await userEvent.selectOptions(region.querySelector<HTMLSelectElement>("select")!, "signed_in");
     await vi.waitFor(async () => {
@@ -604,8 +504,31 @@ describe("mountSecurityLog: refresh", () => {
     late.resolve(undefined);
     await done;
     await new Promise((resolve) => setTimeout(resolve, 300));
-    expect(said("polite")).not.toContain("new entr");
+    expect(said("polite")).not.toContain("new entries");
     expect(seqs(await rows(region))).toEqual([31]);
+  });
+
+  it("oldest first, adds new entries under the last page", async () => {
+    const log = range(1, 3);
+    const fake = new Fake().always("adminSecurityLog", server(log));
+    const { region, refresh } = mount(fake, { limit: 5, search: "?order=oldest" });
+    expect(seqs(await rows(region))).toEqual([1, 2, 3]);
+    log.push(entry(4));
+    await refresh();
+    expect(seqs(await rows(region))).toEqual([1, 2, 3, 4]);
+  });
+
+  it("on a page past the newest, lights Newer and keeps the rows", async () => {
+    const log = range(1, 8);
+    const fake = new Fake().always("adminSecurityLog", server(log));
+    const { region, refresh } = mount(fake, { limit: 5, search: "?after=5" });
+    expect(seqs(await rows(region))).toEqual([8, 7, 6]);
+    expect(pagerLink(region, "Newer").getAttribute("aria-disabled")).toBe("true");
+    log.push(entry(9));
+    await refresh();
+    expect(asked(fake).at(-1)).toEqual({ limit: 1, after: 8, oldestFirst: true });
+    expect(seqs(await rows(region))).toEqual([8, 7, 6]);
+    expect(pagerLink(region, "Newer").getAttribute("aria-disabled")).toBeNull();
   });
 
   it("reads once after a load, however many refreshes came during it", async () => {
@@ -622,7 +545,7 @@ describe("mountSecurityLog: refresh", () => {
     log.push(entry(4));
     release();
     await both;
-    expect(asked(fake)).toEqual([{ limit: 4 }, { limit: 4 }]);
+    expect(asked(fake)).toEqual([{ limit: 4 }, { limit: 4, after: 3, oldestFirst: true }]);
     expect(seqs(await rows(region))).toEqual([4, 3, 2, 1]);
   });
 
@@ -638,7 +561,7 @@ describe("mountSecurityLog: refresh", () => {
       );
     });
     await refresh();
-    expect(asked(fake).at(-1)).toEqual({ limit: 5, cursor: cursorOf("n", 4) });
+    expect(asked(fake).at(-1)).toEqual({ limit: 5, before: 4 });
     expect(seqs(await rows(region))).toEqual([3, 2, 1]);
     expect(noticeText(region)).toBe("");
   });

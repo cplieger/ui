@@ -102,19 +102,14 @@ const entry = (seq: number): LogEntryView => ({
   user_id: 2,
   actor: { user_id: 2 },
 });
-/** The log's first page, holding `seqs` of `total` entries. */
-const firstPage = (seqs: readonly number[], total = seqs.length): unknown =>
+const page = (...seqs: number[]): unknown =>
   ok({
-    items: seqs.map(entry),
-    ...(total > seqs.length ? { next_cursor: "n-more" } : {}),
-    offset: 0,
-    total,
+    entries: seqs.map(entry),
     classes: [
-      { class: "change", count: total, evicted: 0 },
+      { class: "change", count: seqs.length, evicted: 0 },
       { class: "session", count: 0, evicted: 0 },
     ],
   });
-const page = (...seqs: number[]): unknown => firstPage(seqs);
 
 interface Reversed {
   readonly name: string;
@@ -485,10 +480,15 @@ describe("every account screen, a host's refresh while a control has focus", () 
 
   it("keeps focus on the log's Older link when new entries arrive", async () => {
     const log = [entry(1), entry(2), entry(3)];
-    const fake = new Fake().always("adminSecurityLog", () => {
-      const newest = log.map((e) => e.seq).toSorted((a, b) => b - a);
-      return firstPage(newest.slice(0, 2), newest.length);
-    });
+    const fake = new Fake().always("adminSecurityLog", (q: { after?: number } = {}) =>
+      page(
+        ...log
+          .map((e) => e.seq)
+          .filter((s) => q.after === undefined || s > q.after)
+          .toSorted((a, b) => (q.after === undefined ? b - a : a - b))
+          .slice(0, 2),
+      ),
+    );
     const region = host();
     const screen = mountSecurityLog(region, {
       client: fake.client,
@@ -499,7 +499,7 @@ describe("every account screen, a host's refresh while a control has focus", () 
       ...signal(),
     });
     const before = await vi.waitFor(() => {
-      const older = control(region, "log-next");
+      const older = control(region, "log-older");
       expect(older?.hasAttribute("href")).toBe(true);
       return older!;
     });
@@ -509,7 +509,7 @@ describe("every account screen, a host's refresh while a control has focus", () 
     await tick();
     expect(textOf(region, "tbody tr")).not.toBe("");
     expect(region.querySelector("tbody tr")?.getAttribute("data-seq")).toBe("4");
-    const after = control(region, "log-next");
+    const after = control(region, "log-older");
     expect(after).not.toBe(before);
     expect(document.activeElement).toBe(after);
   });
@@ -715,7 +715,8 @@ const refreshed: readonly Refreshed[] = [
     name: "Security log",
     call: "adminSecurityLog",
     older: page(1),
-    newer: page(2, 1),
+    // The first page whole, and what a read after entry 1 gains.
+    newer: (q: { after?: number } = {}) => (q.after === 1 ? page(2) : page(2, 1)),
     shown: "2,1",
     mount: (fake) => {
       const region = host();

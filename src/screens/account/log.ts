@@ -1,8 +1,8 @@
 /**
  * log.ts — the security log: one `.cp-table` of what succeeded and what
- * changed, filtered by kind and person, newest or oldest first, a page
- * at a time by the server's cursors, the view held in the address, as
- * docs/design-account.md "Security log" says. Account and security
+ * changed, filtered by kind and person, newest or oldest first, paged by
+ * the entries' `seq` with Newer and Older, the view held in the address,
+ * as docs/design-account.md "Security log" says. Account and security
  * shows it for the viewer; an admin's screen mounts it for everyone.
  * @module
  */
@@ -22,7 +22,6 @@ import type {
 } from "./client.js";
 import { deviceName } from "./device.js";
 import { cell, cellStack, el, heading, notice, table, time, uid } from "./dom.js";
-import { everyPage, MAX_PAGE, pager } from "./pages.js";
 import { screenPart, type Part } from "./part.js";
 import {
   endsSession,
@@ -44,13 +43,13 @@ export type LogKinds = Readonly<Record<string, string | ((entry: LogEntryView) =
 export interface LogOptions {
   /** The app's words per kind, read before the library's. */
   readonly kinds?: LogKinds;
-  /** Entries a page holds. Default 50, at most 200. */
+  /** Entries a page holds. Default 50, at most 500. */
   readonly limit?: number;
   /**
    * Writes the view into the address: `order=oldest`, `kind`, `user`, and
-   * the `cursor` of a page past the first. `replace` is true when the view
-   * corrects an address that named no page. Default: `history.pushState`,
-   * or `replaceState`, keeping every other parameter.
+   * `before` or `after` a `seq`. `replace` is true when the view corrects
+   * an address that named no page. Default: `history.pushState`, or
+   * `replaceState`, keeping every other parameter.
    */
   readonly onQuery?: (params: URLSearchParams, replace: boolean) => void;
 }
@@ -70,9 +69,10 @@ export interface SecurityLogOptions<C extends LogClient>
 }
 
 export interface SecurityLogScreen {
-  /** Reads the page shown again by the cursor that reached it, saying how
-   *  many entries newer than any it showed it gained. During a read it
-   *  waits for that read, and the calls made meanwhile share one. */
+  /** Reads what the log gained since the newest entry shown: the first
+   *  page takes it on top, a later page offers it through Newer. During a
+   *  read it waits for that read, and the calls made meanwhile share one;
+   *  while no page of the view is drawn, it reads the view's page. */
   refresh(): Promise<void>;
   /** Shows the view a query names, as Back does. The log follows
    *  `popstate` itself unless the host passes `onQuery`. */
@@ -95,15 +95,19 @@ export interface LogCtx {
   readonly forbidden?: () => void;
 }
 
-const KEYS = ["order", "kind", "user", "cursor"] as const;
+const KEYS = ["order", "kind", "user", "before", "after"] as const;
 
 /** A page of the log as drawn. */
 interface Page {
   /** The view it was read for. */
   readonly view: View;
+  /** The answer whose counts it shows. */
   readonly log: SecurityLogView;
-  /** How many entries newer than the page drawn before it arrived, said
-   *  as it draws. */
+  readonly entries: readonly LogEntryView[];
+  readonly past: boolean;
+  readonly future: boolean;
+  /** How many entries arrived since the page drawn before it, said as it
+   *  draws. */
   readonly arrived: number;
 }
 
@@ -111,8 +115,8 @@ interface View {
   readonly order: "newest" | "oldest";
   readonly kind?: string;
   readonly user?: number;
-  /** Absent on the first page. */
-  readonly cursor?: string;
+  readonly before?: number;
+  readonly after?: number;
 }
 
 // access's own kinds, each in the class its entries take (its
@@ -170,8 +174,7 @@ const CHANGE_KINDS = [
 // access's rule for a kind: a library kind, or an app's `<app>.<name>`.
 const KIND = /^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)*$/;
 const SEQ = /^[1-9]\d{0,15}$/;
-// A sealed cursor: unpadded base64url, at most 1,416 characters.
-const CURSOR = /^[\w-]{1,1416}$/;
+const WHEN: Intl.DateTimeFormatOptions = { dateStyle: "medium", timeStyle: "short" };
 // A row's time is two short lines, so the When column stays narrow.
 const DAY: Intl.DateTimeFormatOptions = { dateStyle: "medium" };
 const CLOCK: Intl.DateTimeFormatOptions = { timeStyle: "short" };
@@ -187,12 +190,14 @@ function viewOf(search: string, fixedUser: boolean): View {
   const p = new URLSearchParams(search);
   const kind = p.get("kind");
   const user = fixedUser ? undefined : seqOf(p.get("user"));
-  const cursor = p.get("cursor");
+  const before = seqOf(p.get("before"));
+  const after = before === undefined ? seqOf(p.get("after")) : undefined;
   return {
     order: p.get("order") === "oldest" ? "oldest" : "newest",
     ...(kind !== null && kind.length <= 64 && KIND.test(kind) ? { kind } : {}),
     ...(user === undefined ? {} : { user }),
-    ...(cursor !== null && CURSOR.test(cursor) ? { cursor } : {}),
+    ...(before === undefined ? {} : { before }),
+    ...(after === undefined ? {} : { after }),
   };
 }
 
@@ -207,8 +212,11 @@ function paramsOf(v: View): URLSearchParams {
   if (v.user !== undefined) {
     p.set("user", String(v.user));
   }
-  if (v.cursor !== undefined) {
-    p.set("cursor", v.cursor);
+  if (v.before !== undefined) {
+    p.set("before", String(v.before));
+  }
+  if (v.after !== undefined) {
+    p.set("after", String(v.after));
   }
   return p;
 }
@@ -234,7 +242,7 @@ const writeAddress = (params: URLSearchParams, replace: boolean): void => {
   }
 };
 
-/** `v`'s first page. */
+/** `v` with no page bound: its first page. */
 const first = (v: View): View => ({
   order: v.order,
   ...(v.kind === undefined ? {} : { kind: v.kind }),
@@ -287,7 +295,7 @@ export function drawLog(
 ): SecurityLogScreen {
   const { w, client } = ctx;
   const signal = ctx.life.signal;
-  const limit = Math.min(MAX_PAGE, Math.max(1, Math.trunc(ctx.options.limit ?? 50)));
+  const limit = Math.min(500, Math.max(1, Math.trunc(ctx.options.limit ?? 50)));
   const onQuery = ctx.options.onQuery ?? writeAddress;
   const kinds = ctx.options.kinds ?? {};
   const fixed = ctx.user !== undefined;
@@ -411,7 +419,7 @@ export function drawLog(
     if (fixed || users === undefined) {
       return;
     }
-    const got = await everyPage(users);
+    const got = await read(users);
     if (!got.ok || signal?.aborted === true) {
       return;
     }
@@ -433,28 +441,40 @@ export function drawLog(
 
   // Reading ----------------------------------------------------------------
 
-  const query = (v: View): Promise<Result<SecurityLogView>> => {
-    const q: LogQuery = {
-      limit,
-      ...(v.kind === undefined ? {} : { kinds: [v.kind] }),
-      ...(ctx.user === undefined
-        ? v.user === undefined
-          ? {}
-          : { user: v.user }
-        : { user: ctx.user }),
-      ...(v.order === "oldest" ? { oldestFirst: true } : {}),
-      ...(v.cursor === undefined ? {} : { cursor: v.cursor }),
-    };
-    return read(() => client.adminSecurityLog(q));
-  };
+  const query = (v: View, extra: LogQuery = {}): Promise<Result<SecurityLogView>> =>
+    read(() =>
+      client.adminSecurityLog({
+        limit,
+        ...(v.kind === undefined ? {} : { kinds: [v.kind] }),
+        ...(ctx.user === undefined
+          ? v.user === undefined
+            ? {}
+            : { user: v.user }
+          : { user: ctx.user }),
+        ...extra,
+      }),
+    );
 
-  /** The page `v` names. A cursor that no longer opens, or that reaches
-   *  past the end, reads the first page instead and corrects the address
-   *  while `v` is still the view. */
+  const ordered = (list: readonly LogEntryView[], order: View["order"]): LogEntryView[] =>
+    list.toSorted((a, b) => (order === "newest" ? b.seq - a.seq : a.seq - b.seq));
+
+  /** The page `v` names. One past the end reads the first page instead and
+   *  corrects the address while `v` is still the view. */
   const pageOf = async (v: View): Promise<Result<Page>> => {
-    const [got] = await Promise.all([query(v), peopleRead]);
-    const lost = got.ok ? got.data.items.length === 0 : codeOf(got) === "cursor_invalid";
-    if (lost && v.cursor !== undefined) {
+    const ascending = v.after !== undefined || (v.before === undefined && v.order === "oldest");
+    const [got] = await Promise.all([
+      query(v, {
+        ...(ascending ? { oldestFirst: true } : {}),
+        ...(v.before === undefined ? {} : { before: v.before }),
+        ...(v.after === undefined ? {} : { after: v.after }),
+      }),
+      peopleRead,
+    ]);
+    if (!got.ok) {
+      return got;
+    }
+    const page = got.data.entries;
+    if (page.length === 0 && (v.before !== undefined || v.after !== undefined)) {
       const top = first(v);
       if (view === v) {
         view = top;
@@ -463,24 +483,88 @@ export function drawLog(
       }
       return pageOf(top);
     }
-    return got.ok ? { ok: true, data: { view: v, log: got.data, arrived: 0 } } : got;
+    const full = page.length >= limit;
+    return {
+      ok: true,
+      data: {
+        view: v,
+        log: got.data,
+        entries: ordered(page, v.order),
+        past: ascending ? v.after !== undefined : full,
+        future: ascending ? full : v.before !== undefined,
+        arrived: 0,
+      },
+    };
   };
 
-  /** The view's page, counting the entries newer than any on the page
-   *  drawn when it is the same view's. */
-  const reread = async (): Promise<Result<Page>> => {
-    const drawn = part.drawn();
-    const got = await pageOf(view);
-    if (!got.ok || drawn?.view !== got.data.view) {
-      return got;
+  /** What arrived since `p` was read, as the page to draw; `p` itself when
+   *  nothing did. */
+  const since = async (p: Page): Promise<Result<Page>> => {
+    const v = p.view;
+    const top = p.entries.reduce((n, e) => Math.max(n, e.seq), 0);
+    const atTop = v.before === undefined && v.after === undefined;
+    const live = v.order === "newest" ? atTop : !p.future;
+    const from = top === 0 ? {} : { after: top };
+    if (!live) {
+      if (p.future) {
+        return { ok: true, data: p };
+      }
+      const got = await query(v, { ...from, oldestFirst: true, limit: 1 });
+      if (!got.ok) {
+        return got;
+      }
+      return {
+        ok: true,
+        data: got.data.entries.length > 0 ? { ...p, log: got.data, future: true, arrived: 0 } : p,
+      };
     }
-    const top = drawn.log.items.reduce((n, e) => Math.max(n, e.seq), 0);
-    const arrived = got.data.log.items.filter((e) => e.seq > top).length;
-    return { ok: true, data: { ...got.data, arrived } };
+    const fresh: LogEntryView[] = [];
+    let last: SecurityLogView | undefined;
+    let after = from;
+    let more = false;
+    // Ten pages at most: past them, a newest-first view reads its first
+    // page again, and an oldest-first one offers the rest through Later.
+    for (let i = 0; i < 10; i += 1) {
+      const got = await query(v, { ...after, oldestFirst: true });
+      if (!got.ok) {
+        return got;
+      }
+      last = got.data;
+      fresh.push(...got.data.entries);
+      const end = got.data.entries[got.data.entries.length - 1];
+      more = got.data.entries.length >= limit && end !== undefined;
+      if (!more || end === undefined) {
+        break;
+      }
+      after = { after: end.seq };
+    }
+    if (last === undefined || fresh.length === 0) {
+      return { ok: true, data: p };
+    }
+    if (more && v.order === "newest") {
+      const got = await pageOf(v);
+      return got.ok ? { ok: true, data: { ...got.data, arrived: fresh.length } } : got;
+    }
+    const known = new Set(p.entries.map((e) => e.seq));
+    const added = fresh.filter((e) => !known.has(e.seq));
+    if (added.length === 0) {
+      return { ok: true, data: p };
+    }
+    let entries = ordered([...p.entries, ...added], v.order);
+    let { past, future } = p;
+    if (entries.length > limit) {
+      if (v.order === "newest") {
+        past = true;
+      } else {
+        future = true;
+      }
+      entries = entries.slice(0, limit);
+    }
+    return { ok: true, data: { view: v, log: last, entries, past, future, arrived: added.length } };
   };
 
-  // A refresh counts what arrived against the page drawn, so one read
-  // follows another.
+  // Paging and refreshing build on the page drawn, so one read follows
+  // another; a page of another view is read whole.
   const part: Part<Page> = screenPart<Page>({
     content,
     scope: body,
@@ -489,10 +573,12 @@ export function drawLog(
     notices,
     signal,
     follows: true,
-    // Each answer seals its cursors afresh, so only whether one is there
-    // tells two pages apart.
-    unchanged: (p, drawn) => p.view === drawn.view && signature(p.log) === signature(drawn.log),
-    read: reread,
+    // `since` answers the page drawn when nothing arrived.
+    unchanged: (p, drawn) => p === drawn,
+    read: (): Promise<Result<Page>> => {
+      const p = part.drawn();
+      return p?.view === view ? since(p) : pageOf(view);
+    },
     refused: (r, again) => {
       refused(r, again);
     },
@@ -559,7 +645,7 @@ export function drawLog(
     if (p.arrived > 0) {
       announce(w["log.arrived"](p.arrived));
     }
-    if (page.items.length === 0) {
+    if (p.entries.length === 0) {
       content.replaceChildren(empty(p.view));
       return;
     }
@@ -571,7 +657,7 @@ export function drawLog(
       { text: w["log.where"], priority: "low" },
       { text: w["log.type"], priority: "low" },
     ]);
-    for (const e of page.items) {
+    for (const e of p.entries) {
       const tr = el("tr");
       tr.dataset["seq"] = String(e.seq);
       const what = kindWords(e);
@@ -594,25 +680,7 @@ export function drawLog(
       tr.append(who(e), where, type);
       t.body.append(tr);
     }
-    const newest = p.view.order === "newest";
-    const top = first(p.view);
-    t.root.append(
-      pager(page, {
-        words: {
-          label: w["log.pages"],
-          prev: w[newest ? "log.newer" : "log.earlier"],
-          next: w[newest ? "log.older" : "log.later"],
-          range: w["pages.range"],
-        },
-        key: "log",
-        href: (cursor) => {
-          const url = addressOf(paramsOf({ ...top, cursor }));
-          return url.pathname + url.search + url.hash;
-        },
-        go: (cursor) => void go({ ...top, cursor }, { focus: true }),
-        signal: part.life(),
-      }),
-    );
+    t.root.append(pager(p));
     content.replaceChildren(t.root);
   };
 
@@ -635,6 +703,61 @@ export function drawLog(
       return cell(named ? cellStack(name, deviceName(a, w)) : name);
     }
     return cell(w["log.nobody"]);
+  };
+
+  const pager = ({ view: v, entries, past, future }: Page): HTMLElement => {
+    const nav = el("nav", "cp-pager");
+    nav.setAttribute("aria-label", w["log.pages"]);
+    const times = entries.map((e) => e.occurred_at).sort();
+    const from = times[0];
+    const to = times[times.length - 1];
+    nav.append(
+      el(
+        "span",
+        undefined,
+        from === undefined || to === undefined
+          ? ""
+          : w["log.range"](time(from, WHEN).textContent, time(to, WHEN).textContent),
+      ),
+    );
+    const seqs = entries.map((e) => e.seq);
+    const low = Math.min(...seqs);
+    const high = Math.max(...seqs);
+    const base = first(v);
+    const toPast = past ? { ...base, before: low } : undefined;
+    const toFuture = future ? { ...base, after: high } : undefined;
+    const links =
+      v.order === "newest"
+        ? [link(w["log.newer"], toFuture, "newer"), link(w["log.older"], toPast, "older")]
+        : [link(w["log.earlier"], toPast, "older"), link(w["log.later"], toFuture, "newer")];
+    nav.append(...links);
+    return nav;
+  };
+
+  const link = (text: string, to: View | undefined, side: string): HTMLAnchorElement => {
+    const a = el("a", "cp-button", text);
+    a.dataset["variant"] = "quiet";
+    a.dataset["size"] = "sm";
+    a.dataset["part"] = side;
+    a.dataset["cpAction"] = `log-${side}`;
+    if (to === undefined) {
+      a.setAttribute("aria-disabled", "true");
+      return a;
+    }
+    const url = addressOf(paramsOf(to));
+    a.href = url.pathname + url.search + url.hash;
+    a.addEventListener(
+      "click",
+      (ev) => {
+        if (ev.button !== 0 || ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.altKey) {
+          return;
+        }
+        ev.preventDefault();
+        void go(to, { focus: true });
+      },
+      ctx.life,
+    );
+    return a;
   };
 
   const empty = (v: View): HTMLElement => {
@@ -684,19 +807,6 @@ export function drawLog(
     },
     show,
   };
-}
-
-/** What tells two answers for one cursor apart: their entries, place,
- *  neighbours and counts. */
-function signature(log: SecurityLogView): string {
-  return JSON.stringify([
-    log.items.map((e) => e.seq),
-    log.offset,
-    log.total,
-    log.prev_cursor !== undefined,
-    log.next_cursor !== undefined,
-    log.classes,
-  ]);
 }
 
 /** A kind with no words, as sent, with the app's detail under it. */

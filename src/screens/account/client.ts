@@ -20,25 +20,6 @@ export interface Refusal {
 
 export type Result<T> = { readonly ok: true; readonly data: T } | Refusal;
 
-/** What a list read sends: the cursor of the page wanted, absent for the
- *  first, and the page's size, 1 to 200 (absent is 50). A cursor is sealed
- *  to its list, its filters and its owner. */
-export interface PageQuery {
-  readonly cursor?: string;
-  readonly limit?: number;
-}
-
-/** One page of a list read. `offset` items come before it and `total`
- *  match the query; `prev_cursor` is absent exactly on the first page and
- *  `next_cursor` exactly on the last. */
-export interface ListAnswer<T> {
-  readonly items: readonly T[];
-  readonly next_cursor?: string;
-  readonly prev_cursor?: string;
-  readonly offset: number;
-  readonly total: number;
-}
-
 /** `GET /state`: which sign-in methods are on. */
 export interface StateResponse {
   readonly setup_required: boolean;
@@ -406,7 +387,7 @@ export interface SecurityClient extends StepUpClient, SessionsClient, KeysClient
     readonly password: string;
   }): Promise<Result<unknown>>;
   removePassword(r: { readonly current_password: string }): Promise<Result<void>>;
-  passkeys(q?: PageQuery): Promise<Result<ListAnswer<PasskeyView>>>;
+  passkeys(): Promise<Result<readonly PasskeyView[]>>;
   renamePasskey(id: number, r: { readonly name: string }): Promise<Result<void>>;
   removePasskey(id: number, proof?: SecondFactorProof): Promise<Result<void>>;
   reenableMethod(method: string): Promise<Result<void>>;
@@ -467,14 +448,14 @@ export interface KeyCreated {
 
 /** The client calls the Sessions and API keys sections make. */
 export interface SessionsClient {
-  sessions(q?: PageQuery): Promise<Result<ListAnswer<SessionView>>>;
+  sessions(): Promise<Result<readonly SessionView[]>>;
   renameSession(id: string, r: { readonly name: string }): Promise<Result<void>>;
   revokeSession(id: string): Promise<Result<void>>;
   revokeOtherSessions(): Promise<Result<void>>;
 }
 
 export interface KeysClient {
-  keys(q?: PageQuery): Promise<Result<ListAnswer<KeyView>>>;
+  keys(): Promise<Result<readonly KeyView[]>>;
   createKey(r: {
     readonly label: string;
     readonly scopes: readonly string[];
@@ -523,9 +504,10 @@ export interface LogEntryView {
   readonly detail?: string;
 }
 
-/** One page of the security log, in the order asked, and every class's
- *  count and the entries its size limit removed. */
-export interface SecurityLogView extends ListAnswer<LogEntryView> {
+/** One page of the security log, and every class's count and the
+ *  entries its size limit removed. */
+export interface SecurityLogView {
+  readonly entries: readonly LogEntryView[];
   readonly classes: readonly {
     readonly class: string;
     readonly count: number;
@@ -533,13 +515,16 @@ export interface SecurityLogView extends ListAnswer<LogEntryView> {
   }[];
 }
 
-/** `adminSecurityLog`'s query: newest first unless `oldestFirst`. A
- *  cursor answers `cursor_invalid` under any other filters than its own. */
-export interface LogQuery extends PageQuery {
+/** `adminSecurityLog`'s query: `after` and `before` are exclusive bounds
+ *  and never set the order. */
+export interface LogQuery {
   readonly user?: number;
   readonly actor?: number;
   readonly actorKey?: number;
+  readonly after?: number;
+  readonly before?: number;
   readonly kinds?: readonly string[];
+  readonly limit?: number;
   readonly oldestFirst?: boolean;
 }
 
@@ -555,7 +540,7 @@ export interface LogClient {
   adminSecurityLog(q?: LogQuery): Promise<Result<SecurityLogView>>;
   /** Names the people in the log, and offers them as a filter. Absent or
    *  refused, a person reads by their number. */
-  adminUsers?(q?: PageQuery): Promise<Result<ListAnswer<PersonView>>>;
+  adminUsers?(): Promise<Result<readonly PersonView[]>>;
 }
 
 /** A person's ways in, as only the admin's users list carries them.
@@ -628,8 +613,7 @@ export interface TemporaryPasswordResponse {
 export interface UsersClient extends StepUpClient {
   state(): Promise<Result<StateResponse>>;
   me(): Promise<Result<AccountView>>;
-  /** `key`: only the people that key's subtree reached. */
-  adminUsers(q?: PageQuery & { readonly key?: number }): Promise<Result<ListAnswer<UserView>>>;
+  adminUsers(o?: { readonly key?: number }): Promise<Result<readonly UserView[]>>;
   adminUpdateUser(
     id: number,
     r: { readonly role?: string; readonly enabled?: boolean },
@@ -644,8 +628,8 @@ export interface UsersClient extends StepUpClient {
     readonly role: string;
     readonly hours?: number;
   }): Promise<Result<TokenResponse>>;
-  adminTokens(q?: PageQuery): Promise<Result<ListAnswer<TokenView>>>;
-  adminKeys(q?: PageQuery): Promise<Result<ListAnswer<KeyView>>>;
+  adminTokens(): Promise<Result<readonly TokenView[]>>;
+  adminKeys(): Promise<Result<readonly KeyView[]>>;
   adminRevokeKey(id: number): Promise<Result<void>>;
   adminTemporaryPassword?(
     id: number,
