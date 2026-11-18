@@ -209,6 +209,8 @@ describe("a toggle's icon", () => {
       const el = build(
         `<p>${kinds.map((k) => toggle(k, "")).join("")}</p>` +
           `<p>${kinds.map((k) => toggle(k, "Notify me")).join("")}</p>` +
+          `<p>${kinds.map((k) => toggle(`${k} data-size="sm"`, "")).join("")}</p>` +
+          `<p>${kinds.map((k) => toggle(`${k} data-size="sm"`, "Notify me")).join("")}</p>` +
           `<header class="cp-header">${kinds.map((k) => toggle(k, "")).join("")}</header>`,
       );
       const off: string[] = [];
