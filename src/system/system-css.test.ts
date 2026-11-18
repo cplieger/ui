@@ -2035,7 +2035,7 @@ describe("css/system.css", () => {
     panel.hidePopover();
   });
 
-  it("runs a listbox's covered options edge to edge, a title over its facts, the covers flush", () => {
+  it("runs a listbox's covered options edge to edge, a title over its facts, the covers 2px apart", () => {
     theme("light");
     const option = (title: string) =>
       `<li role="option"><span class="cp-cover" data-harmony="2"><span class="cp-icon"></span></span><strong>${title}</strong><small>2023 · TV</small></li>`;
@@ -2056,7 +2056,7 @@ describe("css/system.css", () => {
     expect(Math.round(cover.left - box.left)).toBe(1);
     expect([cover.width, cover.height]).toEqual([32, 48]);
     expect(first.getBoundingClientRect().top - box.top).toBe(1);
-    expect(second.getBoundingClientRect().top - first.getBoundingClientRect().bottom).toBe(0);
+    expect(second.getBoundingClientRect().top - first.getBoundingClientRect().bottom).toBe(2);
     const title = (first.querySelector("strong") as Element).getBoundingClientRect();
     const facts = (first.querySelector("small") as Element).getBoundingClientRect();
     expect(facts.top).toBeGreaterThanOrEqual(title.bottom);
@@ -7168,6 +7168,159 @@ describe("css/system.css popup option row", () => {
         expect(getComputedStyle(end).color).toBe(resolve("color", "HighlightText"));
       }
     }
+  });
+
+  // Every popup list as a page writes it, open: a menu with a label, a
+  // separator and a radio group; both shapes of a combobox's listbox, one
+  // with a filtered-out option; a select panel; a palette.
+  function lists() {
+    const el = build(
+      '<div class="cp-popover cp-menu" popover="manual" role="menu" aria-label="Actions"><div class="cp-menu-label" aria-hidden="true">Season</div>' +
+        '<button role="menuitem" type="button">Search for a release<kbd>S</kbd></button><button role="menuitem" type="button">Refresh this season</button>' +
+        '<hr><button role="menuitem" type="button" data-tone="danger">Remove from the library…</button>' +
+        '<div role="group" aria-label="Sort"><button role="menuitemradio" type="button" aria-checked="true">Title</button><button role="menuitemradio" type="button" aria-checked="false">Size</button></div></div>' +
+        '<ul class="cp-popover cp-listbox" popover="manual" role="listbox" aria-label="Languages"><li role="option" aria-selected="true">French<small>fr</small></li><li role="option" hidden>German</li><li role="option">Italian</li></ul>' +
+        '<div class="cp-popover cp-listbox" popover="manual"><ul role="listbox" aria-label="Entries"><li role="option">Frieren</li><li role="option">Mushishi</li></ul><p class="cp-listbox-empty" hidden></p></div>' +
+        '<div class="cp-popover cp-select-panel" popover="manual"><form><ul role="listbox" aria-label="Lists"><li role="option" aria-selected="true">Watch next</li><li role="option" aria-selected="false">Rewatch</li></ul></form></div>' +
+        '<div class="cp-palette"><ul role="listbox" aria-label="Actions"><li role="option" aria-selected="true"><span>Go to the library</span></li><li role="option"><span>Open settings</span></li></ul></div>',
+    );
+    // Side by side, since the top layer would otherwise stack them.
+    for (const [i, p] of el.querySelectorAll<HTMLElement>("[popover]").entries()) {
+      p.style.transition = "none";
+      p.style.insetBlockStart = "0";
+      p.style.insetInlineStart = `${String(i * 300)}px`;
+      p.showPopover();
+    }
+    const q = (s: string) => el.querySelector(s) as HTMLElement;
+    const menu = q(".cp-menu");
+    const rows = (s: string) => [...el.querySelectorAll<HTMLElement>(`${s} [role="option"]`)];
+    const [french, , italian] = rows("ul.cp-listbox");
+    const [label, search, refresh, hr, remove, group] = [...menu.children] as HTMLElement[];
+    const [title, size] = [...(group as HTMLElement).children] as HTMLElement[];
+    const ends = (s: string) => {
+      const all = rows(s);
+      return [all[0], all.at(-1)] as [HTMLElement, HTMLElement];
+    };
+    return {
+      menu,
+      listbox: q("ul.cp-listbox"),
+      // [what, box, first row, last row, the box's edge plus padding]: a
+      // popover's 1px line and --cp-space-1, the palette list's
+      // --cp-space-1, and none in a select panel's list.
+      padding: [
+        ["menu", menu, label, group, 5],
+        ["combobox listbox", q("ul.cp-listbox"), french, italian, 5],
+        ["combobox popup", q("div.cp-listbox"), ...ends("div.cp-listbox"), 5],
+        [
+          "select panel list",
+          q('.cp-select-panel [role="listbox"]'),
+          ...ends(".cp-select-panel"),
+          0,
+        ],
+        ["palette list", q('.cp-palette [role="listbox"]'), ...ends(".cp-palette"), 4],
+      ] as [string, HTMLElement, HTMLElement, HTMLElement, number][],
+      // [what, upper, lower] for every pair of rows that sit one over the other.
+      neighbours: [
+        ["menu label, item", label, search],
+        ["menu items", search, refresh],
+        ["menu item, group", remove, group],
+        ["menu radio items", title, size],
+        ["combobox options around a hidden one", french, italian],
+        ["combobox popup options", ...rows("div.cp-listbox")],
+        ["select panel options", ...rows(".cp-select-panel")],
+        ["palette options", ...rows(".cp-palette")],
+      ] as [string, HTMLElement, HTMLElement][],
+      separator: [refresh, hr, remove] as [HTMLElement, HTMLElement, HTMLElement],
+      rows: [
+        search,
+        refresh,
+        remove,
+        title,
+        size,
+        french,
+        italian,
+        ...rows("div.cp-listbox"),
+        ...rows(".cp-select-panel"),
+        ...rows(".cp-palette"),
+      ] as HTMLElement[],
+    };
+  }
+  const apart = (upper: Element, lower: Element) =>
+    lower.getBoundingClientRect().top - upper.getBoundingClientRect().bottom;
+
+  it("sets every popup's rows 2px apart, each row still its tier's height", () => {
+    theme("light");
+    const { neighbours, rows } = lists();
+    for (const [pointer, token] of [
+      ["fine", "--cp-control-h-sm"],
+      ["coarse", "--cp-control-h"],
+    ] as const) {
+      root.setAttribute("data-pointer", pointer);
+      for (const [what, upper, lower] of neighbours) {
+        expect(apart(upper, lower), `${pointer} ${what}`).toBeCloseTo(2, 1);
+      }
+      const height = Number.parseFloat(resolve("blockSize", `var(${token})`));
+      for (const row of rows) {
+        expect(row.getBoundingClientRect().height, `${pointer} ${row.textContent}`).toBeCloseTo(
+          height,
+          1,
+        );
+        expect(getComputedStyle(row).marginBlock, `${pointer} ${row.textContent}`).toBe("0px");
+      }
+    }
+  });
+
+  it("keeps a menu separator 4px clear of the rows on each side, the gap included", () => {
+    theme("light");
+    const [above, line, below] = lists().separator;
+    expect(apart(above, line)).toBeCloseTo(4, 1);
+    expect(apart(line, below)).toBeCloseTo(4, 1);
+  });
+
+  it("shows the menu between the reached item and the item under a mouse", async () => {
+    theme("light");
+    root.setAttribute("data-pointer", "fine");
+    const menu = build(
+      '<div class="cp-popover cp-menu" popover="manual" role="menu" aria-label="Actions"><button role="menuitem" type="button">Search for a release<kbd>S</kbd></button><button role="menuitem" type="button">Refresh this season</button><button role="menuitem" type="button">Open in Sonarr</button></div>',
+    ).firstElementChild as HTMLElement;
+    menu.style.transition = "none";
+    menu.showPopover();
+    const [reached, hovered] = [...menu.children] as [HTMLElement, HTMLElement];
+    reached.focus();
+    await userEvent.hover(hovered);
+    expect(getComputedStyle(reached).backgroundColor).toBe(
+      resolve("backgroundColor", "var(--cp-selected)"),
+    );
+    expect(getComputedStyle(hovered).backgroundColor).toBe(
+      resolve("backgroundColor", "var(--cp-fill)"),
+    );
+    const box = reached.getBoundingClientRect();
+    const middle = (box.bottom + hovered.getBoundingClientRect().top) / 2;
+    expect(document.elementFromPoint(box.left + box.width / 2, middle)).toBe(menu);
+  });
+
+  it("keeps each list's padding around its first and last rows", () => {
+    theme("light");
+    for (const [what, box, first, last, want] of lists().padding) {
+      const b = box.getBoundingClientRect();
+      expect(first.getBoundingClientRect().top - b.top, `${what} top`).toBeCloseTo(want, 1);
+      expect(b.bottom - last.getBoundingClientRect().bottom, `${what} bottom`).toBeCloseTo(want, 1);
+    }
+  });
+
+  it("hides a closed menu and a closed listbox, which their grid would show", () => {
+    theme("light");
+    const { menu, listbox } = lists();
+    expect([getComputedStyle(menu).display, getComputedStyle(listbox).display]).toEqual([
+      "grid",
+      "grid",
+    ]);
+    menu.hidePopover();
+    listbox.hidePopover();
+    expect([getComputedStyle(menu).display, getComputedStyle(listbox).display]).toEqual([
+      "none",
+      "none",
+    ]);
   });
 });
 

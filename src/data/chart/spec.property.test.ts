@@ -1027,9 +1027,7 @@ describe("a chart spec", () => {
           try {
             drawn = exercise(changed, "UTC");
           } catch (e) {
-            if (!refusedByName(e)) {
-              throw e;
-            }
+            expect(refusedByName(e), String(e)).toBe(true);
             return;
           }
           expect(drawn, JSON.stringify(changed)).toBeLessThanOrEqual(mostDrawn(changed));

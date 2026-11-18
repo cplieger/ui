@@ -44,6 +44,7 @@
     "./panel": "./src/overlays/panel/panel.ts",
     "./pill": "./src/core/pill/pill.ts",
     "./pointer": "./src/core/pointer/pointer.ts",
+    "./pointer/follow": "./src/core/pointer/follow.ts",
     "./popconfirm": "./src/overlays/popconfirm/popconfirm.ts",
     "./press": "./src/core/press/press.ts",
     "./proposal": "./src/feedback/proposal/proposal.ts",

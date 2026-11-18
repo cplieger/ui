@@ -21,7 +21,7 @@ The stylesheet fixes the controls, the navigation, the type, the spacing, the ra
 2. Put `class="cp"` on `<html>`. Without it the file defines custom properties and fonts and styles only the `.cp-*` classes your markup uses, so an app can adopt it one subtree at a time. A `.cp` subtree takes the page's `color-scheme`, so set `color-scheme` on a page that themes itself, or `data-theme` on the subtree to pin it. Only `.cp` on `<html>` follows the system by default. Inside `.cp`, the `hidden` attribute always hides, even on a class that sets `display`.
 3. Set your seeds in your own unlayered `:root`, after the import. The steps are computed on `:root`, so a seed set on another element changes nothing there. To colour one region differently, give it a tone.
 4. Set `data-theme="light"` or `data-theme="dark"` on `<html>` before first paint from an external blocking script. `@cplieger/ui/theme` writes this attribute. With no attribute, the page follows the operating system.
-5. Set `data-pointer` with [`@cplieger/ui/pointer`](core/pointer.md), as [Touch and mouse](#touch-and-mouse) shows.
+5. Set `data-pointer` from the same script with `applyPointerTier` from [`@cplieger/ui/pointer`](core/pointer.md), and follow each real pointer at startup with `installPointerTier` from `@cplieger/ui/pointer/follow`, as [Touch and mouse](#touch-and-mouse) shows.
 6. Call `installPress()` from [`@cplieger/ui/press`](core/press.md) at startup, so a press shows under a finger too, and `installRadioFocus()` from [`@cplieger/ui/radio-focus`](core/radio-focus.md), so Safari keeps the focus ring on a radio the arrow keys reach.
 7. Set `lang` on `<html>`, and `dir` when the interface language reads right to left.
 
@@ -32,6 +32,18 @@ The stylesheet fixes the controls, the navigation, the type, the spacing, the ra
   --cp-neutral-h: 255;
 }
 ```
+
+The pre-paint script of steps 4 and 5 is an external blocking `<script src>` in `<head>`:
+
+```ts
+import { applyTheme } from "@cplieger/ui/theme";
+import { applyPointerTier } from "@cplieger/ui/pointer";
+
+applyTheme({ storageKey: "app-theme" });
+applyPointerTier({ storageKey: "app.pointer" });
+```
+
+Both modules import nothing, so the script carries those two files and nothing else. A bundler that bounds what a script may reach holds it there with an allow list of the two subpaths: `Allow: ["@cplieger/ui/theme", "@cplieger/ui/pointer"]`.
 
 A JSR install reads the stylesheet, fonts and icons from the package files `css/`, `fonts/`, `icons/svg/` and `icons/marks/`.
 
@@ -81,7 +93,7 @@ Width and input are separate, since a tablet can have a trackpad and a laptop a 
 
 The hit area binds every control, the header's account button and wordmark among them. A link inside a line of text, such as an author's name at the head of an entry, a value in a facts list or a chip's words, is an inline target: it keeps its line's height, which the inline exception of [WCAG 2.5.8](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html) allows.
 
-[`@cplieger/ui/pointer`](core/pointer.md) sets it. `applyPointerTier` writes a first value from the pre-paint script, and `installPointerTier` follows each real pointer, a mouse or a trackpad as `fine` and a finger or a pen as `coarse`:
+[`@cplieger/ui/pointer`](core/pointer.md) sets it. `applyPointerTier` writes a first value from the pre-paint script, and `installPointerTier` from `@cplieger/ui/pointer/follow` follows each real pointer, a mouse or a trackpad as `fine` and a finger or a pen as `coarse`:
 
 ```ts
 applyPointerTier({ storageKey: "app.pointer" }); // pre-paint
