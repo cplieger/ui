@@ -40,9 +40,9 @@ export interface ListDetail {
   /** The entry the detail shows, or null while it is hidden. */
   readonly key: string | null;
   /** With a key, shows the detail, docked or in its sheet, and focuses its
-   *  heading; the same key again only focuses the heading, scrolling only as
-   *  far as it takes to show it when it is entirely out of view or under the
-   *  page's scroll padding.
+   *  heading, a new copy of it when another entry was shown (look it up to
+   *  fill it). The same key again only focuses the heading, scrolling only
+   *  when it is entirely out of view or under the page's scroll padding.
    *  With null, hides it. Focus the reader moved out of the detail stays;
    *  otherwise it ends where the fragment navigation the hide comes during
    *  went, else on what showed the entry, else on its row, else on the
@@ -51,7 +51,8 @@ export interface ListDetail {
 }
 
 /** On the root when the detail starts showing `key`, before its heading
- *  takes focus, so a listener fills the detail first. */
+ *  takes focus, so a listener fills the detail, its new heading included,
+ *  first. */
 export type DetailOpenEvent = CustomEvent<{
   readonly key: string;
   readonly previous: string | null;
@@ -309,7 +310,7 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
 
   /** Puts the shown detail where the box's width says. A move between the
    *  dock and the sheet is not an open, so it plays no motion. */
-  const place = (opening: boolean, still = false, another = false): void => {
+  const place = (opening: boolean, still = false): void => {
     if (!opening && at === "dialog" && !dialog.open) {
       // Closed outside the module, its close event still queued: that
       // event dismisses, and reopening here would strand the route.
@@ -330,16 +331,8 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
     const want = root.getBoundingClientRect().width >= dockAt * remPx() ? "dock" : "dialog";
     const focusing = opening && !(still && want === "dock");
     if (want === at && (want === "dock" || dialog.open)) {
-      const h = heading();
-      if (focusing && another && h !== null && document.activeElement === h) {
-        // Focusing the focused heading fires no focus event, so a screen
-        // reader would not hear the new entry, and an intercepted
-        // navigation would see no focus change and reset focus to the body
-        // (https://html.spec.whatwg.org/multipage/nav-history-apis.html#focus-changed-during-ongoing-navigation).
-        h.blur();
-      }
       if (focusing) {
-        refocus(h);
+        refocus(heading());
       }
       return;
     }
@@ -567,11 +560,26 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
         opener = was;
       }
       shown = key;
+      let kept = false;
+      const old = heading();
+      if (previous !== null && key !== previous && old !== null) {
+        // A new node for the new entry: focus that stays on one node is no
+        // focus change to assistive technology, which then never hears the
+        // new name
+        // (https://github.com/chromium/chromium/blob/72e0b76845fa247601dae14b39702de2c28451d6/ui/accessibility/platform/browser_accessibility_manager.cc#L225-L233),
+        // and an intercepted navigation would reset focus to the body
+        // (https://html.spec.whatwg.org/multipage/nav-history-apis.html#focus-changed-during-ongoing-navigation).
+        kept = document.activeElement === old;
+        old.replaceWith(old.cloneNode(true));
+      }
       if (key !== previous) {
         root.dispatchEvent(new CustomEvent("detailopen", { detail: { key, previous } }));
       }
-      place(true, opts.still === true, key !== previous);
+      place(true, opts.still === true);
       const h = heading();
+      if (kept && h !== null && document.activeElement !== h) {
+        h.focus({ preventScroll: true });
+      }
       if (current?.type === "traverse" && h !== null && document.activeElement === h) {
         current.focusedHeading = true;
       }

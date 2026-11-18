@@ -136,7 +136,9 @@ function mount(width: number, options: Omit<ListDetailOptions, "signal"> = {}) {
   opener.focus();
   const api = enhanceListDetail(root, { ...options, signal: life.signal });
   const dialog = root.nextElementSibling as HTMLDialogElement;
-  return { root, opener, detail, heading, close, dialog, api };
+  /** The heading now: showing another entry puts a new one in place. */
+  const head = (): HTMLElement => detail.querySelector<HTMLElement>(":scope > header > h2")!;
+  return { root, opener, detail, heading, head, close, dialog, api };
 }
 
 /** A detail opened by a route over a real history entry, as the doc's
@@ -352,7 +354,7 @@ describe("enhanceListDetail", () => {
   });
 
   it("names the entry it shows, and says so on its root when it opens, changes and closes", () => {
-    const { root, heading, api } = mount(1000);
+    const { root, head, api } = mount(1000);
     const said: string[] = [];
     root.addEventListener("detailopen", (e) => {
       const { key, previous } = (e as DetailOpenEvent).detail;
@@ -368,11 +370,24 @@ describe("enhanceListDetail", () => {
     api.show("a");
     api.show("b");
     expect(api.key).toBe("b");
-    expect(document.activeElement).toBe(heading);
+    expect(document.activeElement).toBe(head());
     api.show(null);
     api.show(null);
     expect(api.key).toBe(null);
-    expect(said).toEqual(["open a from null, focus A", "open b from a, focus H2", "close b"]);
+    // b's heading is a new element, so a's left focus with the page.
+    expect(said).toEqual(["open a from null, focus A", "open b from a, focus BODY", "close b"]);
+  });
+
+  it("keeps focus on the heading's new copy when a still docked show of another entry moves none", () => {
+    const { head, api } = mount(1000);
+    api.show("a");
+    const before = head();
+    expect(document.activeElement).toBe(before);
+    const y = scrollY;
+    api.show("b", { still: true });
+    expect(head(), "a new heading element").not.toBe(before);
+    expect(document.activeElement, "focus on the new heading").toBe(head());
+    expect(scrollY).toBe(y);
   });
 
   it("says detailclose after the sheet has closed, and a listener's own focus move stands", async () => {
@@ -1202,8 +1217,8 @@ describe("enhanceListDetail", () => {
       }
       const back = travel === "back" ? 0 : 1;
       expect(s.api.key, "the entry the address names").toBe(`row-${String(back)}`);
-      expect(document.activeElement, "the traversal's show focuses the heading").toBe(s.heading);
-      const h = s.heading.getBoundingClientRect();
+      expect(document.activeElement, "the traversal's show focuses the heading").toBe(s.head());
+      const h = s.head().getBoundingClientRect();
       expect(h.top > -1 && h.bottom < innerHeight + 1, "the heading wholly in view").toBe(true);
       if (then === "press") {
         await pressRow(s, 2);
@@ -1268,6 +1283,14 @@ describe("enhanceListDetail", () => {
     const link = document.createElement("a");
     link.textContent = "Next";
     m.detail.querySelector(".cp-detail-body")!.append(link);
+    m.root.addEventListener(
+      "detailopen",
+      (e) => {
+        const { key } = (e as DetailOpenEvent).detail;
+        m.head().textContent = rows.find((a) => a.hash === `#${key}`)?.textContent ?? "";
+      },
+      { signal: life.signal },
+    );
     const keyOf = (): string | null =>
       /^#row-\d$/.test(location.hash) ? location.hash.slice(1) : null;
     if (answer === "intercept" || answer === "intercept-await") {
@@ -1400,49 +1423,65 @@ describe("enhanceListDetail", () => {
 
   it.each(
     (["hashchange", "intercept", "intercept-await"] as const).flatMap((answer) =>
-      (["back", "back then forward"] as const).map(
+      (["a press", "back", "back then forward"] as const).map(
         (travel) => [`under a ${answer} route, ${travel}`, answer, travel] as const,
       ),
     ),
   )(
-    "moves focus to the heading again when a docked traversal shows another entry, %s",
+    "focuses a new heading named for the entry when a docked show replaces another, %s",
     async (_, answer, travel) => {
       const s = await answered(DOCK, answer);
       await pressShows(s, s.rows[0]!);
       await pressShows(s, s.rows[1]!);
-      expect(document.activeElement).toBe(s.heading);
-      const across = async (step: () => void, key: string): Promise<void> => {
+      expect(document.activeElement).toBe(s.head());
+      const across = async (step: () => Promise<void>, key: string): Promise<void> => {
+        const before = s.head();
         let focused = 0;
-        const count = (): void => {
-          focused += 1;
+        const count = (e: FocusEvent): void => {
+          if (e.target instanceof HTMLHeadingElement && s.detail.contains(e.target)) {
+            focused += 1;
+          }
         };
-        s.heading.addEventListener("focus", count);
+        document.addEventListener("focus", count, { capture: true });
         const shown = opened(s.root);
-        step();
+        await step();
         await shown;
         await nav.transition?.finished.catch(() => undefined);
         await frames(3);
         await task();
-        s.heading.removeEventListener("focus", count);
+        document.removeEventListener("focus", count, { capture: true });
         expect(s.api.key).toBe(key);
-        expect(document.activeElement, "focus on the heading").toBe(s.heading);
-        const h = s.heading.getBoundingClientRect();
+        const after = s.head();
+        expect(after, "a new heading element").not.toBe(before);
+        expect(document.activeElement, "focus on the new heading").toBe(after);
+        await expect.element(after).toHaveAccessibleName(`Row ${key.slice(-1)}`);
+        const h = after.getBoundingClientRect();
         expect(h.top > -1 && h.bottom < innerHeight + 1, "the heading wholly in view").toBe(true);
         // This harness runs in an iframe, where Firefox 159 commits an
         // intercepted traversal twice and runs its handler again, so the
         // heading can take focus back once more there.
-        if (server.browser === "firefox") {
+        if (server.browser === "firefox" && travel !== "a press") {
           expect(focused, "a focus event on the heading").toBeGreaterThanOrEqual(1);
         } else {
           expect(focused, "one focus event on the heading").toBe(1);
         }
       };
-      await across(() => {
+      if (travel === "a press") {
+        await across(async () => {
+          s.rows[2]!.scrollIntoView({ block: "center" });
+          await frames(1);
+          await keys(s.rows[2]!, "{Enter}");
+        }, "row-2");
+        return;
+      }
+      await across(async () => {
         history.back();
+        await Promise.resolve();
       }, "row-0");
       if (travel === "back then forward") {
-        await across(() => {
+        await across(async () => {
           history.forward();
+          await Promise.resolve();
         }, "row-1");
       }
     },
@@ -1467,12 +1506,12 @@ describe("enhanceListDetail", () => {
     await nav.transition?.finished.catch(() => undefined);
     await frames(3);
     await task();
-    expect(document.activeElement, "the traversal focused the heading").toBe(s.heading);
+    expect(document.activeElement, "the traversal focused the heading").toBe(s.head());
     await userEvent.click(text);
     expect(document.activeElement, "the click left focus on the page").toBe(document.body);
     const y = scrollY;
     let focused = 0;
-    s.heading.addEventListener("focus", () => {
+    s.head().addEventListener("focus", () => {
       focused += 1;
     });
     if (after === "a push") {

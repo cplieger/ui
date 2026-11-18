@@ -132,7 +132,6 @@ if (root !== null && list instanceof HTMLUListElement && filters !== null) {
     return OLDER.flat().find((c) => c.id === id);
   };
 
-  const title = document.getElementById("msg-title");
   const kind = document.getElementById("msg-kind");
   const compose = document.getElementById("msg-compose");
   const readOnly = document.getElementById("msg-read-only");
@@ -162,6 +161,8 @@ if (root !== null && list instanceof HTMLUListElement && filters !== null) {
     );
   }
   function render(view: View): void {
+    // list-detail puts a new heading in place for each entry.
+    const title = document.getElementById("msg-title");
     if (title !== null) {
       const mono = view.title.startsWith("/");
       title.replaceChildren(...(mono ? pathParts(view.title) : [view.title]));

@@ -4,7 +4,7 @@
  * preview whose caption offset the nudge stepper sets.
  */
 
-import { enhanceListDetail } from "@cplieger/ui/list-detail";
+import { type DetailOpenEvent, enhanceListDetail } from "@cplieger/ui/list-detail";
 import { enhanceTabs } from "@cplieger/ui/tabs";
 import { enhanceVideo } from "@cplieger/ui/video";
 
@@ -24,11 +24,12 @@ const md = document.getElementById("md");
 const mdTabs = document.getElementById("md-tabs");
 if (md !== null && mdTabs !== null) {
   const rows = [...md.querySelectorAll<HTMLAnchorElement>("a.cp-list-row")];
-  const fill: Record<string, HTMLElement | null> = {
-    title: document.getElementById("md-title"),
-    meta: document.getElementById("md-meta"),
-    episodes: document.getElementById("md-p1"),
-    subtitles: document.getElementById("md-p2"),
+  // Ids, since list-detail puts a new heading in place for each entry.
+  const fill: Record<string, string> = {
+    title: "md-title",
+    meta: "md-meta",
+    episodes: "md-p1",
+    subtitles: "md-p2",
   };
   enhanceTabs(mdTabs);
   const current = (): HTMLAnchorElement | undefined => rows.find((r) => r.hash === location.hash);
@@ -40,6 +41,15 @@ if (md !== null && mdTabs !== null) {
   const detail = enhanceListDetail(md, {
     onDismiss: route.close,
     entry: (key) => rows.find((r) => r.hash === key) ?? null,
+  });
+  md.addEventListener("detailopen", (e) => {
+    const row = rows.find((r) => r.hash === (e as DetailOpenEvent).detail.key);
+    for (const [key, id] of Object.entries(fill)) {
+      const el = document.getElementById(id);
+      if (el !== null) {
+        el.textContent = row?.dataset[key] ?? "";
+      }
+    }
   });
   function render(still: boolean): void {
     const row = current();
@@ -56,11 +66,6 @@ if (md !== null && mdTabs !== null) {
     }
     if (detail.key === row.hash) {
       return;
-    }
-    for (const [key, el] of Object.entries(fill)) {
-      if (el !== null) {
-        el.textContent = row.dataset[key] ?? "";
-      }
     }
     detail.show(row.hash, { still });
   }
