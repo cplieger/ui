@@ -2993,6 +2993,12 @@ describe("css/system.css", () => {
     expect(box(narrow, ".cp-settings-nav").bottom).toBeLessThanOrEqual(
       box(narrow, ".cp-setting").top,
     );
+    narrow.style.inlineSize = "12rem";
+    const strip = narrow.querySelector(".cp-settings-nav > .cp-list") as HTMLElement;
+    strip.scrollLeft = 40;
+    expect(strip.scrollLeft).toBeGreaterThan(0);
+    const nav = narrow.querySelector(".cp-settings-nav") as HTMLElement;
+    expect(nav.scrollWidth).toBe(nav.clientWidth);
   });
 
   it("keeps the save bar and the toasts clear of the bottom bar on a phone", async () => {
@@ -3049,6 +3055,42 @@ describe("css/system.css", () => {
     expect(nav.bottom).toBeLessThanOrEqual(
       (narrow.querySelector(".cp-setting") as Element).getBoundingClientRect().top,
     );
+  });
+
+  it("draws the narrow category select's focus ring whole, cut by no box round it", async () => {
+    theme("light");
+    await page.viewport(400, 800);
+    const el = build(
+      '<div class="cp-settings"><nav class="cp-settings-nav" aria-label="Settings"><ul class="cp-list" data-surface="plain" data-divider="none" data-density="compact">' +
+        '<li><a class="cp-list-row" href="#c" aria-current="location"><span class="cp-cell-stack">Connections</span></a></li></ul>' +
+        '<div class="cp-field"><label class="cp-label" for="cat">Category</label><div class="cp-select"><select class="cp-input" id="cat"><option>Connections</option></select></div></div></nav>' +
+        '<div><div class="cp-setting"><div><label class="cp-label" for="n">Notifications</label></div><input class="cp-switch" id="n" type="checkbox" role="switch"></div></div></div>',
+    );
+    const select = el.querySelector("select") as HTMLSelectElement;
+    select.focus({ focusVisible: true } as FocusOptions);
+    const cs = getComputedStyle(select);
+    expect(cs.outlineStyle).toBe("solid");
+    const ring = parseFloat(cs.outlineWidth) + parseFloat(cs.outlineOffset);
+    const b = select.getBoundingClientRect();
+    const cut: string[] = [];
+    for (let a = select.parentElement; a && a !== el.parentElement; a = a.parentElement) {
+      const st = getComputedStyle(a);
+      if (st.overflowX === "visible" && st.overflowY === "visible") {
+        continue;
+      }
+      const box = a.getBoundingClientRect();
+      const left = box.left + a.clientLeft;
+      const top = box.top + a.clientTop;
+      if (
+        b.left - ring < left ||
+        b.top - ring < top ||
+        b.right + ring > left + a.clientWidth ||
+        b.bottom + ring > top + a.clientHeight
+      ) {
+        cut.push(a.className);
+      }
+    }
+    expect(cut).toEqual([]);
   });
 
   it("puts a setting's error on its own line under the row, the control still at the end", () => {
