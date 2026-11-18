@@ -32,7 +32,7 @@ const LAN: SessionView = {
   ...HERE,
   id: "s3",
   user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/131.0.0.0 Safari/537.36",
-  last_ip: "10.0.0.14",
+  last_ip: "192.0.2.14",
   method: "password",
   last_activity: "2026-11-13T08:00:00Z",
   current: false,

@@ -383,6 +383,39 @@ describe("mountInvite: a second factor first", () => {
     ]);
   });
 
+  it("leaves no step behind when the read after a lapsed ticket is refused, and Retry says why", async () => {
+    const fake = new Fake()
+      .answer(
+        "inviteAcceptPassword",
+        ok({ pending: { ticket: "t1", next: "enrol", methods: ["totp", "passkey"] } }),
+      )
+      .answer("pendingTOTPBegin", ok({ uri: "otpauth://totp/x?secret=JBSWY3DP", text: "JBSWY3DP" }))
+      .answer("pendingTOTPFinish", refuse(401, "auth_token_invalid"));
+    const { panel } = mount(fake);
+    await drawn(panel);
+    await accept(panel);
+    await vi.waitFor(() => {
+      expect(input(panel, "code")).not.toBeNull();
+    });
+    fake.answer("state", refuse(503, "auth_unavailable"));
+    await userEvent.fill(input(panel, "code"), "123456");
+    await userEvent.click(button(panel, "Turn on"));
+    await vi.waitFor(() => {
+      expect(button(panel, "Retry")).toBeDefined();
+    });
+    expect(input(panel, "code")).toBeNull();
+    expect(button(panel, "Register a passkey")).toBeUndefined();
+    expect(button(panel, "Start again")).toBeUndefined();
+    expect(noticeOf(panel)?.querySelector("[data-part='body']")?.textContent).toBe(
+      "This sign-in timed out. Start again. Sign-in is unavailable right now. Try again in a few seconds.",
+    );
+    await userEvent.click(button(panel, "Retry"));
+    await vi.waitFor(() => {
+      expect(input(panel, "password")).not.toBeNull();
+    });
+    expect(noticeOf(panel)?.textContent).toBe("This sign-in timed out. Start again.");
+  });
+
   it("joins at once when the answer is the session", async () => {
     const fake = new Fake().answer("inviteAcceptPassword", ok({ signed_in: signedIn }));
     const { panel, joined } = mount(fake);

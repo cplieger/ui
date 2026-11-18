@@ -16,6 +16,7 @@ import { installTooltips } from "../../overlays/tooltip/tooltip.js";
 import {
   codeOf,
   generic,
+  genericAfter,
   passkeyMiss,
   passwordLengthOf,
   reasonOf,
@@ -251,9 +252,9 @@ export function mountSignIn<C extends SignInClient>(
       ]);
       return state.ok ? { ok: true, data: { state: state.data, support, pending } } : state;
     },
+    // `said` stays for the draw Retry brings.
     refused: (r, again) => {
-      said = undefined;
-      notices.show("danger", generic(r, w).text, retryButton(w["generic.retry"], again));
+      notices.show("danger", genericAfter(said, r, w), retryButton(w["generic.retry"], again));
     },
     draw: ({ state, support, pending }) => {
       const after = said;
@@ -589,7 +590,7 @@ export function mountSignIn<C extends SignInClient>(
       },
       { once: true },
     );
-    body.replaceChildren();
+    part.lend().replaceChildren();
     notices.show(said.tone, said.text, go);
     go.focus();
   };
@@ -768,7 +769,7 @@ export function mountSignIn<C extends SignInClient>(
           access,
           words: w,
           run,
-          body,
+          body: part.lend(),
           notices,
           webauthn,
           username: credentials.username,

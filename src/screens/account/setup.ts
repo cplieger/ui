@@ -15,6 +15,7 @@ import {
   checkLength,
   codeOf,
   generic,
+  genericAfter,
   passwordLengthOf,
   passwordMisfit,
   passwordWords,
@@ -177,9 +178,9 @@ export function mountSetup<C extends SetupClient>(
         ? { ok: true, data: { state: state.data, webauthn: support.webauthn } }
         : state;
     },
+    // `said` stays for the draw Retry brings.
     refused: (r, again) => {
-      said = undefined;
-      notices.show("danger", generic(r, w).text, retryButton(w["generic.retry"], again));
+      notices.show("danger", genericAfter(said, r, w), retryButton(w["generic.retry"], again));
     },
     draw: ({ state: s, webauthn: can }) => {
       const words = said;
@@ -368,7 +369,7 @@ export function mountSetup<C extends SetupClient>(
             access,
             words: w,
             run,
-            body,
+            body: part.lend(),
             notices,
             webauthn,
             username: request.username,
@@ -584,7 +585,7 @@ export function mountSetup<C extends SetupClient>(
     );
     const actions = el("div", "cp-cluster");
     actions.append(add, skip);
-    body.replaceChildren(el("p", undefined, w["setup.offer"]), actions);
+    part.lend().replaceChildren(el("p", undefined, w["setup.offer"]), actions);
     add.focus();
   };
 

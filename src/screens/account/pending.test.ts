@@ -190,6 +190,28 @@ describe("mountSignIn: the second factor", () => {
     expect(input(panel, "password").value).toBe("");
   });
 
+  it("leaves no step behind when the read after a timed-out ticket is refused, and Retry says why", async () => {
+    const fake = new Fake().answer("loginCode", refuse(401, "auth_token_invalid"));
+    const { panel } = await stepped(fake);
+    fake.answer("state", refuse(503, "auth_unavailable"));
+    await userEvent.fill(input(panel, "code"), "111111");
+    await userEvent.click(submit(panel));
+    await vi.waitFor(() => {
+      expect(button(panel, "Retry")).toBeDefined();
+    });
+    expect(input(panel, "code")).toBeNull();
+    expect(button(panel, "Start again")).toBeUndefined();
+    expect(button(panel, "Use a passkey")).toBeUndefined();
+    expect(noticeOf(panel)?.querySelector("[data-part='body']")?.textContent).toBe(
+      "This sign-in timed out. Start again. Sign-in is unavailable right now. Try again in a few seconds.",
+    );
+    await userEvent.click(button(panel, "Retry"));
+    await vi.waitFor(() => {
+      expect(input(panel, "password")).not.toBeNull();
+    });
+    expect(noticeOf(panel)?.textContent).toBe("This sign-in timed out. Start again.");
+  });
+
   it("holds Continue through a rate limit's wait", async () => {
     const fake = new Fake().answer(
       "loginCode",

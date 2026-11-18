@@ -804,6 +804,37 @@ describe("mountSetup: a second factor first", () => {
     });
     expect(input(region, "password")).not.toBeNull();
   });
+
+  it("leaves no step behind when the read after a lapsed ticket is refused, and Retry says why", async () => {
+    const fake = new Fake()
+      .always("state", ok(SETUP))
+      .answer("setupPassword", enrol)
+      .answer("pendingTOTPBegin", ok({ uri: "otpauth://totp/x?secret=JBSWY3DP", text: "JBSWY3DP" }))
+      .answer("pendingTOTPFinish", refuse(401, "auth_token_invalid"));
+    const { region } = mount(fake);
+    await drawn(region);
+    await create(region);
+    await vi.waitFor(() => {
+      expect(input(region, "code")).not.toBeNull();
+    });
+    fake.answer("state", refuse(503, "auth_unavailable"));
+    await userEvent.fill(input(region, "code"), "123456");
+    await userEvent.click(button(region, "Turn on"));
+    await vi.waitFor(() => {
+      expect(button(region, "Retry")).toBeDefined();
+    });
+    expect(input(region, "code")).toBeNull();
+    expect(button(region, "Register a passkey")).toBeUndefined();
+    expect(button(region, "Start again")).toBeUndefined();
+    expect(noticeOf(region)?.querySelector("[data-part='body']")?.textContent).toBe(
+      "This sign-in timed out. Start again. Sign-in is unavailable right now. Try again in a few seconds.",
+    );
+    await userEvent.click(button(region, "Retry"));
+    await vi.waitFor(() => {
+      expect(input(region, "password")).not.toBeNull();
+    });
+    expect(noticeOf(region)?.textContent).toBe("This sign-in timed out. Start again.");
+  });
 });
 
 describe("mountSetup: the password's bounds", () => {

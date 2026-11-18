@@ -63,6 +63,10 @@ export interface Part<T> {
    *  focus goes back to the edit's own opener when it ends. On a name
    *  already being edited it focuses that field. */
   edit(spec: RenameSpec): void;
+  /** Hands `content` to a flow that draws in it itself: the part forgets
+   *  its draw and drops the read in flight, so a refusal after it empties
+   *  `content` and Retry loads afresh. */
+  lend(): HTMLElement;
   /** The data drawn last, undefined before the first draw. */
   drawn(): T | undefined;
 }
@@ -147,7 +151,9 @@ export function screenPart<T>(spec: PartSpec<T>): Part<T> {
       wanted = undefined;
       if (!got.ok) {
         if (drawn === undefined) {
-          spec.content.replaceChildren();
+          redrawKeepingFocus(scope, spec.heading, () => {
+            spec.content.replaceChildren();
+          });
         }
         fail(got, asked);
         return;
@@ -210,6 +216,13 @@ export function screenPart<T>(spec: PartSpec<T>): Part<T> {
     },
     edit: (s) => {
       renames.edit(s);
+    },
+    lend: () => {
+      reads.start();
+      runs += 1;
+      wanted = undefined;
+      drawn = undefined;
+      return spec.content;
     },
     drawn: () => drawn?.data,
   };

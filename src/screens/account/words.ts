@@ -10,7 +10,7 @@ import type { LogEntryView } from "./client.js";
 
 /** The page's address, for words that depend on how it was reached. */
 export interface PageHost {
-  /** `location.hostname`, such as "nas.lan" or "192.168.1.20". */
+  /** `location.hostname`, such as "nas.lan" or "192.0.2.20". */
   readonly hostname: string;
   /** True at an IP address or `localhost`, false at any other name. */
   readonly ipOrLocalhost: boolean;

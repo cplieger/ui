@@ -15,6 +15,7 @@ import {
   checkLength,
   codeOf,
   generic,
+  genericAfter,
   passwordLengthOf,
   passwordMisfit,
   passwordWords,
@@ -148,7 +149,7 @@ export function mountInvite<C extends InviteClient>(
     notices.clear();
     const box = el("div", "cp-empty");
     box.append(glyph("circle-alert"), el("p", undefined, text));
-    body.replaceChildren(box);
+    part.lend().replaceChildren(box);
   };
 
   /** What a write's answer leaves for the next draw to say. */
@@ -169,9 +170,9 @@ export function mountInvite<C extends InviteClient>(
         ? { ok: true, data: { state: state.data, webauthn: support.webauthn } }
         : state;
     },
+    // `said` stays for the draw Retry brings.
     refused: (r, again) => {
-      said = undefined;
-      notices.show("danger", generic(r, w).text, retryButton(w["generic.retry"], again));
+      notices.show("danger", genericAfter(said, r, w), retryButton(w["generic.retry"], again));
     },
     draw: ({ state: s, webauthn: can }) => {
       const words = said;
@@ -337,7 +338,7 @@ export function mountInvite<C extends InviteClient>(
             access,
             words: w,
             run,
-            body,
+            body: part.lend(),
             notices,
             webauthn,
             username: request.username,

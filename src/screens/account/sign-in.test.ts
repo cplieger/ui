@@ -1170,7 +1170,7 @@ describe("mountSignIn: the single sign-on mode", () => {
 });
 
 describe("mountSignIn: a re-read refused once the form is drawn", () => {
-  it("keeps the form and its values under the notice, and Retry draws it again", async () => {
+  it("keeps the form and its values under the notice, and Retry draws it again with why it read", async () => {
     const every = {
       setup_required: false,
       password_login: true,
@@ -1190,10 +1190,15 @@ describe("mountSignIn: a re-read refused once the form is drawn", () => {
     });
     expect(panel.querySelector("form")).not.toBeNull();
     expect(input(panel, "username").value).toBe("mika");
+    expect(noticeOf(panel)?.querySelector("[data-part='body']")?.textContent).toBe(
+      "Password sign-in is turned off. Sign in another way. Sign-in is unavailable right now. Try again in a few seconds.",
+    );
     await userEvent.click(noticeOf(panel)!.querySelector<HTMLElement>("[data-cp-action='retry']")!);
     await vi.waitFor(() => {
       expect(fake.named("state")).toHaveLength(3);
-      expect(noticeOf(panel)).toBeNull();
+      expect(noticeOf(panel)?.textContent).toBe(
+        "Password sign-in is turned off. Sign in another way.",
+      );
     });
     expect(panel.querySelector("form")).not.toBeNull();
   });

@@ -192,6 +192,13 @@ export function generic(r: Refusal, w: AccountWords): Said {
   }
 }
 
+/** `generic`'s words for a refused re-read, after what the step that asked
+ *  for it said, so the person still learns why the step went. */
+export function genericAfter(said: Said | undefined, r: Refusal, w: AccountWords): string {
+  const why = generic(r, w).text;
+  return said === undefined ? why : `${said.text} ${why}`;
+}
+
 /** `generic` for a screen the person reaches signed in, where
  *  `auth_unavailable` is the app's, not sign-in's. */
 export function genericSignedIn(r: Refusal, w: AccountWords): Said {

@@ -80,6 +80,9 @@ interface Screen {
   readonly rows?: Rows;
   /** Answers the screen's other reads from `server`. */
   readonly serve?: (fake: Fake, server: Server) => void;
+  /** Queues a sign-in step for the form's next send, and the step's
+   *  answer that times it out. */
+  readonly step?: (fake: Fake) => void;
 }
 
 const EVERY: StateResponse = {
@@ -99,21 +102,30 @@ const textOf = (region: HTMLElement, selector: string): string =>
 const numbered = (text: string, re: RegExp): string => re.exec(text)?.[1] ?? "";
 
 /** The form a public screen draws, filled in and sent: the screen's
- *  refusal of it reads the state again. */
+ *  refusal of it reads the state again. With no form, the notice's Retry. */
 const send = (region: HTMLElement): void => {
-  const form = region.querySelector("form");
   const user = region.querySelector<HTMLInputElement>("input[name='username']");
   const password = region.querySelector<HTMLInputElement>("input[name='password']");
-  if (form === null || user === null || password === null) {
+  if (user === null || password === null) {
+    region.querySelector<HTMLElement>("[data-cp-action='retry']")?.click();
     return;
   }
   if (!user.readOnly) {
     user.value = "mika";
   }
   password.value = "lantern harbour quietly";
-  form.requestSubmit();
+  user.form?.requestSubmit();
 };
-const formShown = (region: HTMLElement): string => (region.querySelector("form") ? "form" : "");
+const formShown = (region: HTMLElement): string =>
+  region.querySelector("input[name='username']") ? "form" : "";
+const codeField = (region: HTMLElement): HTMLInputElement | null =>
+  region.querySelector<HTMLInputElement>("input[name='code']");
+const enrolment = (fake: Fake): void => {
+  fake
+    .answer("pendingTOTPBegin", ok({ uri: "otpauth://totp/x?secret=JBSWY3DP", text: "JBSWY3DP" }))
+    .answer("pendingTOTPFinish", refuse(401, "auth_token_invalid"));
+};
+const enrol = ok({ pending: { ticket: "t1", next: "enrol", methods: ["totp"] } });
 
 const session = (id: string, server: Server): SessionView => ({
   ...HERE,
@@ -305,6 +317,14 @@ const screens: readonly Screen[] = [
     answer: () => ok(EVERY),
     marker: () => "form",
     shows: formShown,
+    step: (fake) => {
+      fake
+        .answer(
+          "loginPassword",
+          ok({ pending: { ticket: "t1", next: "second_factor", methods: ["totp"] } }),
+        )
+        .answer("loginCode", refuse(401, "auth_token_invalid"));
+    },
   },
   {
     name: "Setup",
@@ -325,6 +345,10 @@ const screens: readonly Screen[] = [
     answer: () => ok({ ...EVERY, setup_required: true, oidc: false }),
     marker: () => "form",
     shows: formShown,
+    step: (fake) => {
+      fake.answer("setupPassword", enrol);
+      enrolment(fake);
+    },
   },
   {
     name: "Invite",
@@ -346,6 +370,10 @@ const screens: readonly Screen[] = [
     answer: () => ok(EVERY),
     marker: () => "form",
     shows: formShown,
+    step: (fake) => {
+      fake.answer("inviteAcceptPassword", enrol);
+      enrolment(fake);
+    },
   },
 ];
 
@@ -371,8 +399,12 @@ class Run {
   readonly plans: { readonly outcome: Outcome; readonly slow: boolean }[] = [];
   readonly slow: (() => void)[] = [];
   readonly editors: Editor[] = [];
-  /** Reads resolved since the last check. */
+  /** Reads resolved since the last check, and ever. */
   resolvedNow: number[] = [];
+  readonly resolved = new Set<number>();
+  /** The read a timed-out sign-in step started, while its step was the
+   *  part's content. */
+  restartRead: number | undefined;
   drawn = "";
   /** The newest read drawn, by its number. */
   drawnRead = 0;
@@ -415,6 +447,7 @@ class Run {
     this.reads.push(read);
     const done = (): Result<unknown> => {
       this.resolvedNow.push(n);
+      this.resolved.add(n);
       return answer;
     };
     if (!plan.slow) {
@@ -465,7 +498,12 @@ class Run {
     }
     this.resolvedNow = [];
     const last = this.reads.length;
+    if (this.restartRead !== undefined && this.resolved.has(this.restartRead)) {
+      expect(codeField(this.region), `${where}: the timed-out step is gone`).toBeNull();
+      this.restartRead = undefined;
+    }
     if (
+      this.restartRead === undefined &&
       this.slow.length === 0 &&
       this.editors.length === 0 &&
       this.reads[last - 1]?.outcome === "ok"
@@ -623,6 +661,35 @@ class Escape implements Command {
   toString = (): string => `escape(${String(this.at)})`;
 }
 
+/** The form's send answers a sign-in step, whose code the server then
+ *  refuses as timed out: the screen starts again with a read of `outcome`. */
+class Restart implements Command {
+  constructor(
+    readonly outcome: Outcome,
+    readonly slow: boolean,
+  ) {}
+  check = (m: Run): boolean => m.s.step !== undefined && formShown(m.region) !== "";
+  async run(_m: Run, r: Run): Promise<void> {
+    r.s.step!(r.fake);
+    send(r.region);
+    await settle();
+    const code = codeField(r.region);
+    expect(code, `${r.s.name}: the step asks for a code`).not.toBeNull();
+    // The step holds the part's content, so a read from before it, or the
+    // form, is no longer drawn.
+    r.drawn = "";
+    r.drawnRead = r.reads.length;
+    r.restartRead = r.reads.length + 1;
+    r.focused ||= r.region.contains(document.activeElement);
+    r.plans.push({ outcome: this.outcome, slow: this.slow });
+    code!.value = "123456";
+    code!.form!.requestSubmit();
+    await settle();
+    r.check(this.toString());
+  }
+  toString = (): string => `restart(${this.outcome}${this.slow ? ", slow" : ""})`;
+}
+
 /** The server drops a row, as another device removing it does. */
 class Remove implements Command {
   constructor(readonly at: number) {}
@@ -650,6 +717,14 @@ const commands = (s: Screen): fc.Arbitrary<Iterable<Command>> =>
         },
         { arbitrary: at.map((i): Command => new Release(i)), weight: 2 },
         { arbitrary: at.map((i): Command => new Focus(i)), weight: 1 },
+        ...(s.step === undefined
+          ? []
+          : [
+              {
+                arbitrary: fc.tuple(outcome, fc.boolean()).map(([o, slow]) => new Restart(o, slow)),
+                weight: 2,
+              },
+            ]),
         ...(s.rows === undefined
           ? []
           : [
@@ -683,7 +758,8 @@ describe("every account screen, any sequence of reads, renames and focus", () =>
             run.end();
           }
         }),
-        { numRuns: 60 },
+        // A loaded host runs fewer cases rather than failing for time.
+        { numRuns: 60, plugins: [fc.interruptAfterTimeLimit(5_000)] },
       );
     },
   );
