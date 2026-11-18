@@ -7,11 +7,10 @@
  * @module
  */
 
-import { until } from "../../core/lifetime/lifetime.js";
-import { measureRoll, roll, rollText } from "../../core/roll/roll.js";
+import { roll, rollText } from "../../core/roll/roll.js";
 
 /** How the button's width follows its words. */
-export type ConfirmWidth = "glide" | "footprint" | "fixed";
+export type ConfirmWidth = "glide" | "fixed";
 
 export interface ConfirmOptions {
   /** The words while the work runs, such as "Saving…". */
@@ -21,12 +20,11 @@ export interface ConfirmOptions {
    *  what it made: it goes from busy straight back to rest. */
   readonly done: string | false;
   /**
-   * `"glide"`: the button glides to each word's width. `"footprint"`: it
-   * keeps the widest word's footprint, so the buttons after it never move.
-   * `"fixed"`: it holds its widest state's width, icon and words, each
-   * state's content centred in it and nothing gliding, as a split button's
-   * main action does so its caret never moves, and a list's Show more. Default: `"fixed"` inside
-   * `.cp-split`, `"footprint"` inside a table's actions cell, else `"glide"`.
+   * `"glide"`: the button glides to each word's width. `"fixed"`: it holds
+   * its widest state's width, icon and words, from the moment it is
+   * enhanced, each state's content centred in it, so nothing beside it
+   * moves. Default: `"fixed"` inside `.cp-split` and a table's actions
+   * cell, else `"glide"`.
    */
   readonly width?: ConfirmWidth;
   /** How long the done state shows before the button returns, in ms. Default 1600. */
@@ -61,20 +59,20 @@ const STATE = "data-cp-state";
 
 const wait = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
-/** Whether the box holding `button` lines its content up at the end. */
-function endAligned(button: HTMLElement): boolean {
-  const box = button.parentElement;
-  if (box === null) {
-    return false;
+/** One state's icon and words, as css/system lays them in a fixed
+ *  button's hidden cell. The words are generated content, so the button's
+ *  text is only the words it shows. */
+function face(button: HTMLElement, icon: string, text: string): HTMLElement {
+  const f = document.createElement("span");
+  const shown = button.querySelector<HTMLElement>(`:scope > .cp-icon${icon}`);
+  if (shown !== null) {
+    const copy = document.createElement("span");
+    copy.className = shown.className;
+    copy.style.cssText = shown.style.cssText;
+    f.append(copy);
   }
-  const cs = getComputedStyle(box);
-  const rtl = cs.direction === "rtl";
-  if (cs.display.includes("flex")) {
-    const j = cs.justifyContent;
-    return j === "end" || j === "flex-end" || j === (rtl ? "left" : "right");
-  }
-  const t = cs.textAlign;
-  return t === "end" || t === (rtl ? "left" : "right");
+  f.dataset["words"] = text;
+  return f;
 }
 
 /**
@@ -94,70 +92,35 @@ export function enhanceConfirm(button: HTMLButtonElement, options: ConfirmOption
   const busyMin = options.busyMin ?? 400;
   const width: ConfirmWidth =
     options.width ??
-    (button.closest(".cp-split") !== null
-      ? "fixed"
-      : button.closest('[data-col="actions"]') !== null
-        ? "footprint"
-        : "glide");
+    (button.closest('.cp-split, [data-col="actions"]') !== null ? "fixed" : "glide");
   button.setAttribute("data-cp-confirm", width);
 
   let rest = rollText(words);
   let cycle = 0;
   let back: ReturnType<typeof setTimeout> | undefined;
 
-  const widest = (): number =>
-    Math.max(
-      ...[rest, busy, ...(done === false ? [] : [done])].map((text) => measureRoll(words, text)),
+  // A fixed button's width is its widest face's, laid out by the browser
+  // in the button's own font and spacing, so no width is measured here and
+  // a late web font, zoom or text spacing changes it with nothing re-run.
+  const faces = width === "fixed" ? document.createElement("span") : null;
+  const lay = (): void => {
+    faces?.replaceChildren(
+      face(button, ":not([data-part])", rest),
+      face(button, '[data-part="busy"]', busy),
+      ...(done === false ? [] : [face(button, '[data-part="done"]', done)]),
     );
-
-  /** The widest state's content, its icon and the gap after it included,
-   *  read from the computed size an icon keeps while it is not shown. */
-  const widestState = (): number => {
-    const gap = Number.parseFloat(getComputedStyle(button).columnGap) || 0;
-    const lead = (selector: string): number => {
-      const icon = button.querySelector(`:scope > .cp-icon${selector}`);
-      return icon === null ? 0 : (Number.parseFloat(getComputedStyle(icon).inlineSize) || 0) + gap;
-    };
-    const states: [string, string][] = [
-      [rest, ":not([data-part])"],
-      [busy, '[data-part="busy"]'],
-      ...(done === false ? [] : ([[done, '[data-part="done"]']] as [string, string][])),
-    ];
-    return Math.max(...states.map(([text, icon]) => measureRoll(words, text) + lead(icon)));
   };
-
-  /** Holds the footprint or the width the mode asks for, around `text`. */
-  const fit = (text: string): void => {
-    if (width === "glide") {
-      return;
-    }
-    if (width === "fixed") {
-      const cs = getComputedStyle(button);
-      const frame = [
-        cs.paddingInlineStart,
-        cs.paddingInlineEnd,
-        cs.borderInlineStartWidth,
-        cs.borderInlineEndWidth,
-      ].reduce((sum, v) => sum + (Number.parseFloat(v) || 0), 0);
-      button.style.minInlineSize = `${String(Math.ceil(widestState() + frame))}px`;
-      return;
-    }
-    const most = widest();
-    const slack = `${String(most - measureRoll(words, text))}px`;
-    // The slack sits away from the edge its container aligns to, so an
-    // end-aligned button, as in a table's actions cell, stays flush there.
-    if (endAligned(button)) {
-      button.style.marginInlineStart = slack;
-    } else {
-      button.style.marginInlineEnd = slack;
-    }
-  };
+  if (faces !== null) {
+    faces.dataset["part"] = "faces";
+    faces.setAttribute("aria-hidden", "true");
+    button.append(faces);
+    lay();
+  }
 
   const toRest = (): void => {
     button.removeAttribute(STATE);
     button.removeAttribute("aria-busy");
     roll(words, rest, { down: true });
-    fit(rest);
     onRest?.();
   };
 
@@ -169,21 +132,7 @@ export function enhanceConfirm(button: HTMLButtonElement, options: ConfirmOption
       button.removeAttribute("aria-busy");
     }
     roll(words, text);
-    fit(text);
   };
-
-  fit(rest);
-  // A web font that loads after this changes every word's width, so the
-  // width held from the fallback font's would be wrong.
-  if (width !== "glide") {
-    document.fonts.addEventListener(
-      "loadingdone",
-      () => {
-        fit(rollText(words));
-      },
-      until(signal),
-    );
-  }
 
   signal?.addEventListener(
     "abort",
@@ -209,6 +158,7 @@ export function enhanceConfirm(button: HTMLButtonElement, options: ConfirmOption
         // Read at the press: a label such as "Grab 3" changes with the
         // selection. During the done state the words are the done words.
         rest = rollText(words);
+        lay();
       }
       button.setAttribute(STATE, "pending");
       let shownAt = -1;
@@ -251,9 +201,9 @@ export function enhanceConfirm(button: HTMLButtonElement, options: ConfirmOption
     },
     setRest(text) {
       rest = text;
+      lay();
       if (!button.hasAttribute(STATE)) {
         roll(words, text);
-        fit(text);
       }
     },
   };

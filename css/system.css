@@ -12032,14 +12032,58 @@ button.cp-figure[aria-expanded="true"]::after {
   transition:
     background-color 600ms var(--cp-ease-out),
     color 600ms var(--cp-ease-out),
-    transform var(--cp-dur-press) var(--cp-ease-out),
-    margin-inline 300ms var(--cp-ease-out);
+    transform var(--cp-dur-press) var(--cp-ease-out);
 }
 
-/* A held width shows each state's content centred in it at once, so the
- * words never slide sideways as they roll. */
+/* A fixed button is as wide as its widest state: every state's icon and
+ * words sit hidden in one cell across the button, and the state on show
+ * sits centred over them between two free tracks. The gap moves onto the
+ * words, because a grid gap would also open beside the empty free tracks,
+ * and words hidden to show the icon alone take their gap with them.
+ * It is always laid out at its widest state's width: Gecko gives an item
+ * spanning free tracks no min-content size, which a table's 1% actions
+ * cell asks for, and a fixed button's words never wrap anyway. */
+.cp-button[data-cp-confirm="fixed"] {
+  display: inline-grid;
+  grid-template-columns: 1fr auto auto 1fr;
+  column-gap: 0;
+  inline-size: max-content;
+}
+
+.cp-button[data-cp-confirm="fixed"] > .cp-icon {
+  grid-area: 1 / 2;
+}
+
 .cp-button[data-cp-confirm="fixed"] > .cp-roll {
+  grid-area: 1 / 3;
   transition: none;
+}
+
+/* The words follow an icon whenever one shows: in every state when the
+ * button has its own, else only while busy or done. */
+[data-cp-confirm="fixed"] > .cp-icon:not([data-part]) ~ .cp-roll,
+.cp-button[data-cp-confirm="fixed"][data-cp-state="busy"] > .cp-roll,
+.cp-button[data-cp-confirm="fixed"][data-cp-state="done"] > .cp-roll {
+  margin-inline-start: var(--cp-space-2);
+}
+
+.cp-button[data-cp-confirm="fixed"] > [data-part="faces"] {
+  display: grid;
+  grid-area: 1 / 1 / 2 / -1;
+  visibility: hidden;
+}
+
+[data-cp-confirm="fixed"] > [data-part="faces"] > * {
+  display: flex;
+  grid-area: 1 / 1;
+  align-items: center;
+  justify-content: center;
+  gap: var(--cp-space-2);
+  white-space: nowrap;
+}
+
+[data-cp-confirm="fixed"] > [data-part="faces"] > ::after {
+  content: attr(data-words);
 }
 
 /* (0,4,1) lifts this over the primary and quiet hover fills, (0,4,0) rules
@@ -12048,7 +12092,7 @@ button.cp-figure[aria-expanded="true"]::after {
 button.cp-button[data-cp-confirm][data-cp-state="done"]:not(:disabled) {
   background: var(--cp-done-paint, var(--cp-done-fill));
   color: oklch(100% 0 0deg);
-  transition-duration: 160ms, 160ms, var(--cp-dur-press), 300ms;
+  transition-duration: 160ms, 160ms, var(--cp-dur-press);
 }
 
 button.cp-button[data-tone="danger"][data-cp-state="done"]:not(:disabled) {

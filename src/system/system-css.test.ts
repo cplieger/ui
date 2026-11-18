@@ -1,6 +1,7 @@
-import { afterEach, beforeEach, describe, expect, it, onTestFinished } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { cdp, page, server, userEvent } from "vitest/browser";
 
+import { enhanceConfirm } from "../buttons/confirm/confirm.js";
 import { installRadioFocus } from "../core/radio-focus/radio-focus.js";
 import { enhanceShareBar } from "../data/share-bar/share-bar.js";
 import { enhanceMeter } from "../data/meter/meter.js";
@@ -3510,6 +3511,181 @@ describe("css/system.css buttons and arrangements", () => {
       expect(joined.getBoundingClientRect().width).toBeCloseTo(parts, 0);
     }
   });
+
+  /** Every word laid out first, so no face a cycle needs loads during it
+   *  and moves the row by itself. */
+  const fontsIn = async (words: string) => {
+    theme("light");
+    build(`<span class="cp-button">${words}</span>`).getBoundingClientRect();
+    await vi.waitFor(() => {
+      expect(document.fonts.status).toBe("loaded");
+    });
+  };
+
+  const faces = (lead: boolean, words: string) =>
+    `<button class="cp-button" data-variant="primary" type="button">${lead ? '<span class="cp-icon"></span>' : ""}<span class="cp-icon" data-part="busy"></span><span class="cp-icon" data-part="done"></span><span class="cp-roll">${words}</span></button>`;
+
+  /** Runs `button`'s cycle `cycles` times and returns every frame's
+   *  reading of `read`. */
+  const everyFrame = async (
+    button: HTMLButtonElement,
+    read: () => string,
+    more: { width?: "fixed"; cycles?: number } = {},
+  ) => {
+    const c = enhanceConfirm(button, {
+      busy: "Grabbing…",
+      done: "Grabbed",
+      busyDelay: 0,
+      busyMin: 500,
+      hold: 600,
+      ...(more.width === undefined ? {} : { width: more.width }),
+    });
+    const seen = new Set<string>();
+    let sampling = true;
+    const sample = () => {
+      seen.add(read());
+      if (sampling) {
+        requestAnimationFrame(sample);
+      }
+    };
+    sample();
+    for (let i = 0; i < (more.cycles ?? 1); i++) {
+      await c.run(() => new Promise((r) => setTimeout(r, 100)));
+      await new Promise((r) => setTimeout(r, 600 + 800));
+    }
+    sampling = false;
+    expect(button.hasAttribute("data-cp-state")).toBe(false);
+    return seen;
+  };
+
+  const box = (e: Element) => {
+    const r = e.getBoundingClientRect();
+    return `${r.left.toFixed(1)} ${r.width.toFixed(1)}`;
+  };
+
+  for (const motion of ["allowed", "reduced"] as const) {
+    for (const lead of [true, false]) {
+      it.skipIf(motion === "reduced" && !emulates)(
+        `holds a fixed button's width and what follows it at every frame of a cycle, ${lead ? "with" : "without"} an icon at rest, motion ${motion}`,
+        async () => {
+          if (motion === "reduced") {
+            await media("prefers-reduced-motion", "reduce");
+          }
+          await fontsIn("Grab Grabbing… Grabbed Small");
+          const el = build(
+            `<div style="display: flex; gap: 8px">${faces(lead, "Grab")}<button class="cp-button" type="button">Small</button></div>`,
+          );
+          const [b, next] = [...el.querySelectorAll("button")] as [HTMLButtonElement, HTMLElement];
+          const seen = await everyFrame(b, () => `${box(b)} | ${box(next)}`, { width: "fixed" });
+          expect([...seen], [...seen].join(" / ")).toHaveLength(1);
+        },
+      );
+    }
+  }
+
+  it("never moves a table's other columns while a row's Grab confirms in its actions cell", async () => {
+    await fontsIn("Grab Grabbing… Grabbed Not the best 33.0 GB");
+    const el = build(
+      `<table class="cp-table"><tbody><tr><td>Delicious in Dungeon</td><td>Not the best</td><td data-col="num">33.0 GB</td><td data-col="actions">${faces(true, "Grab")}</td></tr></tbody></table>`,
+    );
+    const [, verdict, size] = [...el.querySelectorAll("td")] as HTMLElement[];
+    const b = el.querySelector("button") as HTMLButtonElement;
+    const seen = await everyFrame(
+      b,
+      () => `${box(verdict as Element)} | ${box(size as Element)} | ${box(b)}`,
+    );
+    expect([...seen], [...seen].join(" / ")).toHaveLength(1);
+    expect(b.dataset["cpConfirm"]).toBe("fixed");
+  });
+
+  it("holds an icon-only fixed button at its icon's width through a cycle and across 44rem both ways", async () => {
+    await fontsIn("Grab Grabbing… Grabbed");
+    // A narrow rule that shows a row action's icon alone hides its words
+    // and its faces' words together, as docs/buttons/confirm.md asks.
+    const el = build(
+      `<style>@container (width < 44rem) { .t-narrow .cp-button > .cp-roll, .t-narrow .cp-button > [data-part="faces"] > ::after { display: none; } }</style><div class="t-narrow" style="container-type: inline-size; inline-size: 48rem"><span data-col="actions">${faces(true, "Grab")}</span></div>`,
+    );
+    const box = el.querySelector(".t-narrow") as HTMLElement;
+    const b = el.querySelector("button") as HTMLButtonElement;
+    const iconOnly = () => {
+      const cs = getComputedStyle(b);
+      const icon = b.querySelector(".cp-icon") as Element;
+      return (
+        Number.parseFloat(getComputedStyle(icon).inlineSize) +
+        ["paddingInlineStart", "paddingInlineEnd", "borderInlineStartWidth", "borderInlineEndWidth"]
+          .map((k) => Number.parseFloat(cs[k as "paddingInlineStart"]))
+          .reduce((a, v) => a + v, 0)
+      );
+    };
+    box.style.inlineSize = "40rem";
+    const widths = await everyFrame(b, () => b.getBoundingClientRect().width.toFixed(1));
+    expect([...widths], [...widths].join(" / ")).toHaveLength(1);
+    const narrow = b.getBoundingClientRect().width;
+    expect(narrow).toBeCloseTo(iconOnly(), 0);
+    box.style.inlineSize = "48rem";
+    const wide = b.getBoundingClientRect().width;
+    expect(wide).toBeGreaterThan(narrow + 40);
+    box.style.inlineSize = "40rem";
+    expect(b.getBoundingClientRect().width).toBeCloseTo(narrow, 1);
+    box.style.inlineSize = "48rem";
+    expect(b.getBoundingClientRect().width).toBeCloseTo(wide, 1);
+  });
+
+  /** The widest of a fixed button's faces, icon and gap included, from
+   *  words laid out in its own font. */
+  const widestFace = (b: HTMLElement, faces: [string, boolean][]) => {
+    const icon = Number.parseFloat(
+      getComputedStyle(b.querySelector(".cp-icon") as Element).inlineSize,
+    );
+    const gap = Number.parseFloat(
+      getComputedStyle(
+        build('<button class="cp-button" type="button">A</button>').firstElementChild as Element,
+      ).columnGap,
+    );
+    const probe = document.createElement("span");
+    probe.style.whiteSpace = "nowrap";
+    b.append(probe);
+    const widths = faces.map(([words, lead]) => {
+      probe.textContent = words;
+      return probe.getBoundingClientRect().width + (lead ? icon + gap : 0);
+    });
+    probe.remove();
+    return Math.max(...widths);
+  };
+
+  for (const outer of ["its own width", "a 40rem form"] as const) {
+    it(`keeps a split as wide as its widest face and its caret through cycles, inside ${outer}`, async () => {
+      await fontsIn("Grab the best Grabbing… Grabbed");
+      const el = build(
+        `<div class="cp-form"${outer === "a 40rem form" ? ' style="inline-size: 40rem"' : ""}><div class="cp-split" role="group">${faces(true, "Grab the best")}<button class="cp-button" data-variant="primary" type="button" aria-label="More ways to grab"><span class="cp-icon"></span></button></div></div>`,
+      );
+      const split = el.querySelector(".cp-split") as HTMLElement;
+      const [main, caret] = [...split.querySelectorAll("button")] as [
+        HTMLButtonElement,
+        HTMLElement,
+      ];
+      const cs = getComputedStyle(main);
+      const frame = [
+        "paddingInlineStart",
+        "paddingInlineEnd",
+        "borderInlineStartWidth",
+        "borderInlineEndWidth",
+      ].reduce((sum, k) => sum + Number.parseFloat(cs[k as "paddingInlineStart"]), 0);
+      const want =
+        widestFace(main, [
+          ["Grab the best", true],
+          ["Grabbing…", true],
+          ["Grabbed", true],
+        ]) +
+        frame +
+        caret.getBoundingClientRect().width;
+      const widths = await everyFrame(main, () => split.getBoundingClientRect().width.toFixed(1), {
+        cycles: 2,
+      });
+      expect([...widths], [...widths].join(" / ")).toHaveLength(1);
+      expect(split.getBoundingClientRect().width).toBeCloseTo(want, 0);
+    });
+  }
 
   it("joins a group's buttons with one line and rounds only its outer corners", () => {
     theme("light");

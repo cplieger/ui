@@ -99,7 +99,8 @@ describe.each(browsers)("the gallery in %s", (name) => {
           wide: document.documentElement.scrollWidth > document.documentElement.clientWidth,
           unpainted: [...document.querySelectorAll<HTMLElement>(".cp-icon")].filter(
             (i) =>
-              getComputedStyle(i).getPropertyValue("--cp-icon-image") === "" && i.checkVisibility(),
+              getComputedStyle(i).getPropertyValue("--cp-icon-image") === "" &&
+              i.checkVisibility({ visibilityProperty: true }),
           ).length,
         }));
         if (errors.length > 0 || (width === 390 && state.wide) || state.unpainted > 0) {
