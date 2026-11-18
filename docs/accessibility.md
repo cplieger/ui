@@ -57,6 +57,8 @@ These adopted criteria are not fully met yet, and one item is a default the bar 
 - [WCAG 3 2.6.1.4](#2614-no-visual-motion-no-exceptions): The spinners, the loader and the skeleton move for as long as their work runs. The bar requires each to stop within 5 seconds on a whole cycle, at a still frame. Its words keep saying the work runs, and reduced motion keeps its still state. Until then their motion past 5 seconds is a trigger under WCAG 3 2.6.1.5, which the bar meets by removing it, never by a warning. Owed by `feedback/skeleton`, `buttons/button`, `buttons/confirm`, `feedback/state` and `feedback/loader`.
 - [WCAG 3 2.1.5.5, 2.1.5.6, 2.1.6.7, 2.1.6.8, 2.12.4.3 and 2.12.4.4](#2155-caption-language-adjustable): The video bar has play, seek and time only. The bar requires a captions button that turns the track on and off, a choice of captions track and a chapter list from a `chapters` track. Where the engine exposes `audioTracks`, it also requires a choice of audio track. Owed by `media/video`.
 - [WCAG 3 2.1.5.1](#2151-captions-adjustable): The video's `::cue` rule sets the caption colour, background and font, which can override the person's caption settings. The bar requires the person's caption settings to win. Owed by `media/video`.
+- [3.3.2 Labels or instructions](#332-labels-or-instructions): A pair of fields, such as a path mapping, names each field by a hidden label and shows that name only as a placeholder, which goes once the field holds a value. WCAG 3 2.3.5.2 asks the same. The bar requires each field's name to stay on screen as its label. Owed by `forms/pairs`.
+- [WCAG 3 2.12.5.1](#21251-change-of-content-notified): Removing a rule from a sentence editor says nothing, and the save bar's count is not said when it appears or changes. The bar requires a list that loses a member and a count that changes to be said politely. Owed by `forms/rules` and `layout/settings`.
 - [WCAG 3 2.4.1.5](#2415-no-keyboard-conflicts): The palette's Ctrl+K takes the browser's own Ctrl+K on Windows and Linux, and the person cannot change it. The bar requires a stored shortcut map in which the person can change or turn off each shortcut, with a row for each on the settings page. The palette's default stays Ctrl+K, or Command+K on a Mac. Owed by `overlays/palette` and `overlays/keys`.
 
 ## WCAG 2.2 criteria
@@ -447,7 +449,7 @@ A route change sets `<title>` to the screen's name ([Navigation and the URL](des
 
 Level A. Adopted. Met by ui. [Understanding 2.4.3](https://www.w3.org/WAI/WCAG22/Understanding/focus-order.html)
 
-Focus follows the DOM. A modal dialog returns focus to its opener. A route change focuses the new screen's `h1`.
+Focus follows the DOM. A modal dialog returns focus to its opener. A route change focuses the new screen's `h1`. A repaint that hides the focused control, such as a save bar's Discard once nothing waits, moves focus to the first field that held a change, never to the page.
 
 - axe: `tabindex`.
 - Manual: keyboard order and focus after a route change.
@@ -707,15 +709,15 @@ An app's help link, when it has one, sits in the same place on every screen: the
 
 Level A. Adopted. Met by ui. [Understanding 3.3.1](https://www.w3.org/WAI/WCAG22/Understanding/error-identification.html)
 
-A field in error gets `aria-invalid="true"` and a `.cp-field-error` sentence tied by `aria-describedby` while it shows. A hidden error is never in a field's `aria-describedby`, since a screen reader reads a description from hidden text too and the field would say an error it does not have.
+A field in error gets `aria-invalid="true"` and a `.cp-field-error` sentence tied by `aria-describedby` while it shows. A hidden error is never in a field's `aria-describedby`, since a screen reader reads a description from hidden text too and the field would say an error it does not have. A required field is marked `aria-required="true"`, never `required`: Firefox and WebKit read an empty `required` field as an invalid entry before anything is typed, and Firefox keeps it under `aria-invalid="false"`.
 
 - Unit: src/forms/form and src/forms/pairs tests.
-- axe: no field is described by an error it hides, on every page in every state.
+- axe: no field is described by an error it hides, and no empty field is `required` unless the app marked it invalid, on every page in every state.
 - Manual: each form's error flow.
 
 ### 3.3.2 Labels or instructions
 
-Level A. Adopted. Met by ui. [Understanding 3.3.2](https://www.w3.org/WAI/WCAG22/Understanding/labels-or-instructions.html)
+Level A. Adopted, partly met, owed by `forms/pairs`. Met by ui. [Understanding 3.3.2](https://www.w3.org/WAI/WCAG22/Understanding/labels-or-instructions.html)
 
 Every control has a visible label. A toolbar search field's placeholder and name say what it searches.
 
@@ -1130,7 +1132,7 @@ Stricter than 3.2.3: every repeated control keeps its place, not only navigation
 
 ### 2.3.5.2 Interactive element names available
 
-A core requirement. Adopted, stricter than WCAG 2.2. Met by ui. [Draft](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#interactive-element-names-available)
+A core requirement. Adopted, partly met, owed by `forms/pairs`. Met by ui. [Draft](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#interactive-element-names-available)
 
 Stricter than 3.3.2 and 4.1.2 together: every control has a persistent visible label, text or an icon, never only a placeholder or a tooltip, and the same name in the tree. An icon-only control shows its name in a tooltip on hover and focus.
 
@@ -1673,17 +1675,18 @@ The video element lists a file's `chapters` track, when it carries one, as a lis
 
 ### 2.12.5.1 Change of content notified
 
-A core requirement. Adopted, stricter than WCAG 2.2. Met by ui. [Draft](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#change-of-content-notified)
+A core requirement. Adopted, partly met, owed by `forms/rules` and `layout/settings`. Met by ui. [Draft](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#change-of-content-notified)
 
 Stricter than 4.1.3: a meaningful change above the person's place or in a list's size is announced, such as new rows arriving in a feed or a count changing, through `@cplieger/ui/announce`, politely.
 
 - Manual: the long list and log cards (feed, keyed list), the message cards.
+- Unit: a removed row of pairs is said.
 
 ### 2.12.5.2 Change of focus notified
 
 A core requirement. Adopted, stricter than WCAG 2.2. Met by ui. [Draft](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#change-of-focus-notified)
 
-When ui moves focus (2.4.1.8's cases), the new focus is visible and lands on an element with a name, so the screen reader says where it is.
+When ui moves focus (2.4.1.8's cases), the new focus is visible and lands on an element with a name, so the screen reader says where it is. A form's error summary takes focus as a group named by its heading and described by its list, and a document's error notice as a group named by its sentences.
 
 - Manual: the dialog cards, the navigation cards (name and ring at each automatic focus move).
 
