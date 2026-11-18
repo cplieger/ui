@@ -11587,6 +11587,29 @@ button.cp-figure[aria-expanded="true"]::after {
   margin-block: var(--cp-space-1) 0;
   overflow: auto;
   list-style: none;
+  position-try-fallbacks:
+    flip-block,
+    flip-inline,
+    flip-block flip-inline,
+    --cp-listbox-below,
+    --cp-listbox-above;
+}
+
+/* Where the full list fits on neither side, as in a short window or at 400%
+ * zoom, it shrinks into the room under the field, or over it when under is
+ * less than a few options; otherwise it would leave the window or cover the
+ * field. */
+@position-try --cp-listbox-below {
+  position-area: block-end span-inline-end;
+  min-block-size: 6rem;
+  max-block-size: calc(100% - var(--cp-space-1));
+  margin-block: var(--cp-space-1) 0;
+}
+
+@position-try --cp-listbox-above {
+  position-area: block-start span-inline-end;
+  max-block-size: calc(100% - var(--cp-space-1));
+  margin-block: 0 var(--cp-space-1);
 }
 
 .cp-listbox > [role="listbox"] {
