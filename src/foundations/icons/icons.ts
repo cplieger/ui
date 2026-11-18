@@ -153,6 +153,8 @@ export type LucideIconName =
 
 /** A drawing of the package's own, on the same grid and stroke, for a concept Lucide lacks. */
 export type OwnIconName =
+  | "bell-body-filled"
+  | "bell-clapper"
   | "bell-ring-filled"
   | "funnel-filled"
   | "heart-filled"
@@ -312,6 +314,8 @@ export const iconNames: readonly LucideIconName[] = [
 
 /** The package's own drawings' names, sorted; no pinned Lucide release has them. */
 export const ownIconNames: readonly OwnIconName[] = [
+  "bell-body-filled",
+  "bell-clapper",
   "bell-ring-filled",
   "funnel-filled",
   "heart-filled",

@@ -41,6 +41,14 @@
   --cp-icon-image: url("../icons/svg/bell.svg");
 }
 
+:where(.cp) .cp-icon:where([data-cp-icon="bell-body-filled"]) {
+  --cp-icon-image: url("../icons/svg/bell-body-filled.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="bell-clapper"]) {
+  --cp-icon-image: url("../icons/svg/bell-clapper.svg");
+}
+
 :where(.cp) .cp-icon:where([data-cp-icon="bell-ring"]) {
   --cp-icon-image: url("../icons/svg/bell-ring.svg");
 }
