@@ -207,30 +207,51 @@ describe("widthKey", () => {
     ...Array.from({ length: 300 }, (_, i) => (10 + i * 7) * DAY),
   ];
 
-  it.each(["en", "fr", "ru", "pl", "ar", "cy", "ar-EG", "ja"])(
-    "gives durations of one width one key, in %s",
-    (locale) => {
-      const key = widthKey("duration", locale);
-      expect(key).toBeDefined();
-      // Thousands of values per locale: each written once and an expect only
-      // over the misses, so the case stays far inside its timeout under load.
-      const misses: string[] = [];
-      for (const signed of [false, true]) {
-        const write = writer("duration", locale, { signed });
-        const seen = new Map<number, string>();
-        for (const v of [...durations, ...durations.map((d) => -d)]) {
-          const k = key?.(v) ?? Number.NaN;
-          const text = shape(write(v));
-          const s = seen.get(k) ?? text;
-          if (Number.isNaN(k) || text !== s) {
-            misses.push(`${String(signed)} ${String(v)}: ${text} under ${s}'s key`);
-          }
-          seen.set(k, s);
-        }
+  // A duration's key holds its record's largest unit and that count's sign,
+  // so values of one key always share a group: each case checks one group,
+  // and together they make every comparison one pass over all values did.
+  const signed = [...durations, ...durations.map((d) => -d)];
+  const groups = new Map<string, number[]>();
+  for (const v of signed) {
+    const record = durationRecord(v * 1_000);
+    const unit = (["days", "hours", "minutes", "seconds", "milliseconds"] as const).find(
+      (u) => record[u] !== undefined,
+    );
+    const big = unit === undefined ? Number.NaN : (record[unit] ?? Number.NaN);
+    const name = `${big > 0 ? "positive" : big < 0 ? "negative" : "zero"} ${unit ?? "none"}`;
+    groups.set(name, [...(groups.get(name) ?? []), v]);
+  }
+  const locales = ["en", "fr", "ru", "pl", "ar", "cy", "ar-EG", "ja"];
+
+  it("checks every duration in exactly one group", () => {
+    const grouped = [...groups.values()].flat();
+    expect(grouped).toHaveLength(signed.length);
+    expect(new Set(grouped)).toEqual(new Set(signed));
+  });
+
+  it.each(
+    locales.flatMap((locale) =>
+      [false, true].flatMap((sign) =>
+        [...groups.keys()].map((group) => [locale, sign ? "signed" : "unsigned", group] as const),
+      ),
+    ),
+  )("gives durations of one width one key, in %s, %s, %s", (locale, sign, group) => {
+    const key = widthKey("duration", locale);
+    expect(key).toBeDefined();
+    const write = writer("duration", locale, { signed: sign === "signed" });
+    const seen = new Map<number, string>();
+    const misses: string[] = [];
+    for (const v of groups.get(group) ?? []) {
+      const k = key?.(v) ?? Number.NaN;
+      const text = shape(write(v));
+      const s = seen.get(k) ?? text;
+      if (Number.isNaN(k) || text !== s) {
+        misses.push(`${String(v)}: ${text} under ${s}'s key`);
       }
-      expect(misses).toEqual([]);
-    },
-  );
+      seen.set(k, s);
+    }
+    expect(misses).toEqual([]);
+  });
 
   it("keys a duration by its units, each count's digits and plural form, and its sign", () => {
     const key = widthKey("duration", "en");
