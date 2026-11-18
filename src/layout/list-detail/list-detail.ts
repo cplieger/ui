@@ -211,7 +211,7 @@ interface Nav {
    *  touch scroll): a scroll restore can only be the browser's. */
   armed: boolean;
   /** A traversal whose show focused the heading, whatever input followed:
-   *  from then on every input updates `held`. */
+   *  from then on each trusted input other than a modifier key updates `held`. */
   watched: boolean;
   /** Where the reader's focus is since that show: the heading, then what
    *  their last input left focused, null while that is the page. */

@@ -21,6 +21,33 @@ const stamp = (from: boolean, url?: string): void => {
   );
 };
 
+/** Whether following `link` navigates this page: HTML's "get an element's target"
+ *  (https://html.spec.whatwg.org/multipage/semantics.html#get-an-element's-target)
+ *  then "the rules for choosing a navigable"
+ *  (https://html.spec.whatwg.org/multipage/document-sequences.html#the-rules-for-choosing-a-navigable),
+ *  keywords compared ASCII case-insensitively. */
+const navigatesHere = (link: HTMLAnchorElement): boolean => {
+  const target = link.hasAttribute("target")
+    ? (link.getAttribute("target") ?? "")
+    : (document.querySelector("base[target]")?.getAttribute("target") ?? "");
+  if (/[\t\n\r]/.test(target) && target.includes("<")) {
+    return false;
+  }
+  switch (target.replace(/[A-Z]/g, (c) => c.toLowerCase())) {
+    case "":
+    case "_self":
+      return true;
+    case "_top":
+      return window === window.top;
+    case "_parent":
+      return window === window.parent;
+    case "_blank":
+      return false;
+    default:
+      return target === window.name;
+  }
+};
+
 export interface ListRouteOptions {
   /** Whether a fragment, with its `#`, names an entry the page can show. */
   readonly names: (hash: string) => boolean;
@@ -90,9 +117,7 @@ export function routeListDetail(options: ListRouteOptions): ListRoute {
           !(link instanceof HTMLAnchorElement) ||
           !plain ||
           e.defaultPrevented ||
-          // `_self`, in any ASCII case, is the link's own navigable
-          // (https://html.spec.whatwg.org/multipage/document-sequences.html#valid-navigable-target-name-or-keyword).
-          !/^(_self)?$/i.test(link.target) ||
+          !navigatesHere(link) ||
           location.hash === "" ||
           link.href.split("#")[0] !== location.href.split("#")[0]
         ) {

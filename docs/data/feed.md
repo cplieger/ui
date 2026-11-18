@@ -145,7 +145,7 @@ compose.addEventListener("submit", async (e) => {
 ```
 
 - Send stays enabled with empty fields, so a press says what is missing, as every form does.
-- A field the send needs is marked as step 2 of the [forms pattern](../design-patterns.md#forms) asks.
+- A field the send needs carries the mark that step 2 of the [forms pattern](../design-patterns.md#forms) describes.
 - Ctrl+Enter, or Command+Enter on a Mac, sends from the message. Enter alone breaks the line.
 - Append the own entry with `data-state="sending"` as the send starts, so the feed scrolls to it, and keep the text in the fields until the send is done. A failed send leaves the entry failed with Retry, and the text stays.
 

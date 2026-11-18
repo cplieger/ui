@@ -1156,20 +1156,30 @@ describe.each(browsers)("the gallery in %s", (name) => {
     const wired = (tab: Page) =>
       tab.waitForFunction(() => document.querySelector("[data-build]") !== null);
 
+    // Each target names this top-level page, so the press navigates it.
     it.each([
-      ["no target", null],
-      ["target=_SELF", "_SELF"],
+      ["no target", null, null],
+      ["target=_SELF", "_SELF", null],
+      ["target=_top", "_top", null],
+      ["target=_Parent", "_Parent", null],
+      ["target=the window's name", "md-page", "md-page"],
     ] as const)(
       "replaces the entry on a press on another row while one is open, so Close ends on the list, %s",
-      async (_, target) => {
+      async (_, target, name) => {
         const tab = await (browser as Browser).newPage({ viewport: { width: 1280, height: 800 } });
         await tab.goto(`${origin}/index.html`);
         await tab.goto(`${origin}${N}`);
         await wired(tab);
         if (target !== null) {
-          await tab.locator('#md a.cp-list-row[href="#md/mushishi"]').evaluate((a, t) => {
-            a.setAttribute("target", t);
-          }, target);
+          await tab.locator('#md a.cp-list-row[href="#md/mushishi"]').evaluate(
+            (a, [t, n]) => {
+              a.setAttribute("target", t);
+              if (n !== null) {
+                window.name = n;
+              }
+            },
+            [target, name] as const,
+          );
         }
         await press(tab, "#md/frieren");
         await at(tab, `${N}#md/frieren`);
@@ -1199,6 +1209,38 @@ describe.each(browsers)("the gallery in %s", (name) => {
       },
       60_000,
     );
+
+    it("leaves a press on another row to the browser when the page's base opens a new window", async () => {
+      const tab = await (browser as Browser).newPage({ viewport: { width: 1280, height: 800 } });
+      await tab.goto(`${origin}/index.html`);
+      await tab.goto(`${origin}${N}`);
+      await wired(tab);
+      await press(tab, "#md/frieren");
+      await at(tab, `${N}#md/frieren`);
+      const opened = await tab.evaluate(() => {
+        const base = document.createElement("base");
+        base.target = "_blank";
+        document.head.append(base);
+        return history.length;
+      });
+      const popup = tab.waitForEvent("popup", { timeout: 5000 }).catch(() => null);
+      await press(tab, "#md/mushishi");
+      const other = await popup;
+      const url = other === null ? null : new URL(other.url());
+      await other?.close();
+      const stays = await at(tab, `${N}#md/frieren`).catch(() => read(tab));
+      const length = await tab.evaluate(() => history.length);
+      await tab.close();
+      expect({
+        popup: url === null ? null : url.pathname + url.hash,
+        shows: stays.shows,
+        length,
+      }).toEqual({
+        popup: `${N}#md/mushishi`,
+        shows: "Frieren: Beyond Journey's End",
+        length: opened,
+      });
+    }, 60_000);
 
     it("ends on the list on Back after a press on another row while one is open", async () => {
       const tab = await (browser as Browser).newPage({ viewport: { width: 1280, height: 800 } });
@@ -1360,12 +1402,17 @@ describe.each(browsers)("the gallery in %s", (name) => {
     /** Loads Mushishi docked, scrolls the page so the heading's bottom sits
      *  `bottom` px below the band the sticky bar's scroll padding keeps clear,
      *  and presses its open row there. */
-    const pressShown = async (bottom: number) => {
+    const pressShown = async (bottom: number, target?: string) => {
       const tab = await (browser as Browser).newPage({ viewport: { width: 1280, height: 800 } });
       await tab.goto(`${origin}/index.html`);
       await tab.goto(`${origin}${N}#md/mushishi`);
       await wired(tab);
       await at(tab, `${N}#md/mushishi`);
+      if (target !== undefined) {
+        await tab.locator('#md a.cp-list-row[href="#md/mushishi"]').evaluate((a, t) => {
+          a.setAttribute("target", t);
+        }, target);
+      }
       const before = await tab.evaluate((b) => {
         const r = document.getElementById("md-title")?.getBoundingClientRect();
         scrollTo(
@@ -1408,15 +1455,22 @@ describe.each(browsers)("the gallery in %s", (name) => {
       return { before, out, after, address: state.address, shows: state.shows };
     };
 
-    it("keeps history and the page's scroll on a press on the open row, focusing its heading", async () => {
-      // 10px of the heading stays in view.
-      const { before, after, address, shows } = await pressShown(10);
-      expect({ length: after.length, y: after.y, address, shows }).toEqual({
-        ...before,
-        address: `${N}#md/mushishi`,
-        shows: "Mushishi",
-      });
-    }, 60_000);
+    it.each([
+      ["no target", undefined],
+      ["target=_self", "_self"],
+    ] as const)(
+      "keeps history and the page's scroll on a press on the open row, focusing its heading, %s",
+      async (_, target) => {
+        // 10px of the heading stays in view.
+        const { before, after, address, shows } = await pressShown(10, target);
+        expect({ length: after.length, y: after.y, address, shows }).toEqual({
+          ...before,
+          address: `${N}#md/mushishi`,
+          shows: "Mushishi",
+        });
+      },
+      60_000,
+    );
 
     it("brings the heading into view on a press on the open row when none of it is in view", async () => {
       const { before, out, after, address, shows } = await pressShown(-200);
