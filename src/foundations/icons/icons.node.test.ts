@@ -17,13 +17,13 @@ const RELEASE = join(PINNED, "icons");
  *  `ui` size, which a 1x screen still draws solid, where 2 thins to grey. */
 const STROKE = "2.25";
 const SHAPE = /<(?:path|circle|rect|line|polyline|polygon|ellipse)\b[^>]*?\/>/gs;
+const LICENCE = /<!--[^>]*@license[^>]*-->/;
 
 /** A Lucide drawing in the package's style: the same lines, its own stroke, and
  *  one fixed root element, under Lucide's licence line without the release
  *  version, so a lucide-static bump changes only the files whose lines moved. */
 function restyle(lucide: string): string {
-  const banner = /<!-- @license (\S+) v\S+ - (\S+) -->/.exec(lucide);
-  const licence = banner === null ? "" : `<!-- @license ${banner[1]} - ${banner[2]} -->`;
+  const licence = (LICENCE.exec(lucide)?.[0] ?? "").replace(/ v\d\S*/, "");
   const shapes = [...lucide.matchAll(SHAPE)].map((m) => `  ${m[0].replace(/\s+/g, " ")}`);
   return [
     licence,
@@ -182,9 +182,12 @@ describe("the restyle", () => {
 
   it("names the source package and its licence, and writes the same file for any release", async () => {
     const lucide = await readFile(join(RELEASE, "folder.svg"), "utf8");
-    const bumped = lucide.replace(/(@license lucide-static v)[^\s]+/, "$199.0.0");
+    const bumped = lucide.replace(/(?<=@license lucide-static v)\S+/, "99.0.0");
+    const unversioned = lucide.replace(/(?<=@license lucide-static) v\S+/, "");
     expect(bumped).not.toBe(lucide);
+    expect(unversioned).not.toBe(lucide);
     expect(restyle(bumped)).toBe(restyle(lucide));
+    expect(restyle(unversioned)).toBe(restyle(lucide));
     expect(restyle(lucide).split("\n")[0]).toBe("<!-- @license lucide-static - ISC -->");
   });
 });
