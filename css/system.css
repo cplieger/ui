@@ -11805,9 +11805,10 @@ button.cp-figure[aria-expanded="true"]::after {
   font-size: var(--cp-text-sm);
 }
 
-/* Options led by a .cp-cover run edge to edge: the covers stack into one
- * square-cornered strip at the list's start, each beside its title over a
- * line of facts. The list's own clip rounds the strip's two outer corners. */
+/* Options led by a .cp-cover run edge to edge: the covers stack at the
+ * list's start, square-cornered and --cp-option-gap apart, each beside its
+ * title over a line of facts. The list's own clip rounds the first and last
+ * covers' outer corners. */
 .cp-listbox:has([role="option"] > .cp-cover) {
   padding: 0;
 }
