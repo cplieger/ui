@@ -801,6 +801,10 @@ interface Edited {
   readonly rename: string;
   /** The renamed row's Rename… key. */
   readonly key: string;
+  /** The newer list with the renamed row named Desk, and the Tablet
+   *  row's Rename… key. */
+  readonly savedNewer: unknown;
+  readonly tablet: string;
   readonly table: (region: HTMLElement) => string;
 }
 
@@ -835,6 +839,12 @@ const edited: readonly Edited[] = [
     named: (region, name) => rowNamed(region, "[data-part='sessions']", name),
     rename: "renameSession",
     key: "session-rename-s2",
+    savedNewer: ok([
+      HERE,
+      { ...PHONE_SESSION, label: "Desk" },
+      { ...PHONE_SESSION, id: "s3", label: "Tablet" },
+    ]),
+    tablet: "session-rename-s3",
     table: (region) => textOf(region, "[data-part='sessions'] tbody"),
   },
   {
@@ -863,6 +873,8 @@ const edited: readonly Edited[] = [
       }),
     rename: "renamePasskey",
     key: `passkey-rename-${String(PHONE.id)}`,
+    savedNewer: ok([{ ...PHONE, name: "Desk" }, TABLET_PASSKEY]),
+    tablet: `passkey-rename-${String(TABLET_PASSKEY.id)}`,
     table: (region) =>
       passkeyRows(region)
         .map((r) => r.cells[0]?.textContent ?? "")
@@ -882,6 +894,8 @@ const edited: readonly Edited[] = [
     named: (region, name) => rowNamed(region, "[data-part='keys']", name),
     rename: "renameKey",
     key: `key-rename-${String(BACKUP.id)}`,
+    savedNewer: ok([{ ...BACKUP, label: "Desk" }, TABLET_KEY]),
+    tablet: `key-rename-${String(TABLET_KEY.id)}`,
     table: (region) => textOf(region, "[data-part='keys'] tbody"),
   },
 ];
@@ -961,6 +975,34 @@ describe("every account table, Rename… on a name already open", () => {
     await vi.waitFor(() => {
       expect(c.table(region)).toContain("Tablet");
     });
+  });
+});
+
+describe("every account table, two names open, one saved and one closed", () => {
+  it.each(edited)("$name gives focus back to the closed row's own Rename…", async (c) => {
+    const fake = new Fake().always(c.call, c.newer);
+    const { region } = c.mount(fake);
+    await press(await c.row(region), "Rename…");
+    const input = region.querySelector<HTMLInputElement>("tbody input.cp-input")!;
+    await press(await c.named(region, "Tablet"), "Rename…");
+    const tablet = [...region.querySelectorAll<HTMLInputElement>("tbody input.cp-input")].find(
+      (x) => x !== input,
+    )!;
+    fake.always(c.call, c.savedNewer);
+    await userEvent.fill(input, "Desk");
+    await userEvent.keyboard("{Enter}");
+    await vi.waitFor(() => {
+      expect(input.isConnected).toBe(false);
+    });
+    await tick();
+    tablet.focus();
+    await userEvent.keyboard("{Escape}");
+    await vi.waitFor(() => {
+      expect(c.table(region)).toContain("Desk");
+      expect(region.querySelector("tbody input.cp-input")).toBeNull();
+    });
+    await tick();
+    expect(document.activeElement).toBe(control(region, c.tablet));
   });
 });
 

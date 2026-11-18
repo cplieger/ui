@@ -43,7 +43,8 @@ import {
 } from "./dom.js";
 import { setUpFactor, showRecoveryCode } from "./factor.js";
 import { proofWays, withProof } from "./proof.js";
-import { nameRefused, type RenameHold } from "./rename.js";
+import type { Part } from "./part.js";
+import { nameRefused } from "./rename.js";
 import { cycle, holdFor, isHeld, question, retryButton, slot } from "./screen.js";
 import type { Ctx } from "./security.js";
 import type { StepUpAnswer } from "./step-up.js";
@@ -66,14 +67,13 @@ function busyRun<T>(
 }
 
 /** Draws the sign-in methods into `body`, keeping its notice slot; a
- *  passkey's Rename… edits under `renames`, which the caller asks before
- *  drawing again. */
+ *  passkey's Rename… edits under `renames`, the part that draws them. */
 export function drawMethods<C extends SecurityClient>(
   ctx: Ctx<C>,
   body: HTMLElement,
   me: AccountView,
   passkeys: readonly PasskeyView[],
-  renames: RenameHold,
+  renames: Pick<Part<unknown>, "edit">,
 ): void {
   const { w, client, access, has, provider } = ctx;
   const m = me.methods;

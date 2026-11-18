@@ -13,7 +13,6 @@ import { rowActions, rowHead, type Action } from "./actions.js";
 import { codeOf, reasonOf, retryAfter, runes } from "./answer.js";
 import type { KeyCreated, KeyView, Refusal, Result, SecurityClient, TokenView } from "./client.js";
 import { formDialog, type FormDialog } from "./dialogs.js";
-import { redrawKeepingFocus } from "./focus.js";
 import {
   cell,
   cellStack,
@@ -26,14 +25,14 @@ import {
   time,
   uid,
 } from "./dom.js";
-import { NAME_MAX, nameRefused, renameHold } from "./rename.js";
+import { screenPart } from "./part.js";
+import { NAME_MAX, nameRefused } from "./rename.js";
 import {
   duration,
   holdBy,
   holdFor,
   holdForHttps,
   isHeld,
-  latest,
   question,
   retryButton,
   slot,
@@ -164,13 +163,6 @@ export function drawKeys(
   const levelRequired = ctx.scopes?.required === true;
   const initial = ctx.scopes?.initial;
   let list: readonly KeyView[] = [];
-  // Reads overlap: focus, the timer, every key action.
-  const reads = latest(ctx.signal);
-  /** The focus the newest read draws with, whichever read asked for it. */
-  let wanted: string | undefined;
-  /** The notice of the last read that failed, until one succeeds. */
-  let failure: Element | undefined;
-  const renames = renameHold(() => void refresh());
   let timer: ReturnType<typeof setTimeout> | undefined;
   // A past end the server still sent, and the wait before asking again:
   // its clock is behind this one, so the wait doubles rather than polling.
@@ -186,30 +178,23 @@ export function drawKeys(
 
   const labelOf = (k: KeyView): string => (k.label === "" ? w["keys.unnamed"] : k.label);
 
+  // Reads overlap: focus, the timer, every key action.
+  const part = screenPart<readonly KeyView[]>({
+    content,
+    heading,
+    notices,
+    signal: ctx.signal,
+    read: () => calls.list(),
+    refused: (r, again) => {
+      ctx.settle({ kind: "done", result: r }, notices, (x) => unavailable(x, again));
+    },
+    draw: (got) => {
+      list = got;
+      draw();
+    },
+  });
   const refresh = async (focus?: string): Promise<void> => {
-    wanted = focus ?? wanted;
-    await reads.run(
-      () => calls.list(),
-      (got) => {
-        if (got === undefined) {
-          return;
-        }
-        if (renames.held()) {
-          return;
-        }
-        const asked = wanted;
-        wanted = undefined;
-        if (!got.ok) {
-          ctx.settle({ kind: "done", result: got }, notices, (r) => unavailable(r, refresh));
-          failure = notices.shown();
-          return;
-        }
-        notices.drop(failure);
-        failure = undefined;
-        list = got.data;
-        redrawKeepingFocus(content, heading, draw, asked);
-      },
-    );
+    await part.refresh(focus);
   };
 
   /** The soonest previous secret's end, when the row goes Active again. */
@@ -808,7 +793,7 @@ export function drawKeys(
     renameKey: SecurityClient["renameKey"],
   ): void {
     notices.clear();
-    renames.edit({
+    part.edit({
       name: node,
       value: k.label,
       label: w["keys.renameLabel"](labelOf(k)),

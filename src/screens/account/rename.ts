@@ -28,7 +28,7 @@ interface OpenEdit {
   readonly noted: (into: Slot) => void;
 }
 
-interface RenameSpec {
+export interface RenameSpec {
   /** The node showing the name, replaced by the field while it is edited. */
   readonly name: HTMLElement;
   readonly value: string;
@@ -162,7 +162,7 @@ function renameInPlace(spec: RenameSpec): HTMLInputElement {
 
 /** A part's redraws held while one of its names is edited in place, so a
  *  read answering meanwhile neither takes the field away nor moves focus. */
-export interface RenameHold {
+interface RenameHold {
   /** Asked where a read would draw: true while an edit is open, so the
    *  caller skips its redraw and the hold runs `again` once the last edit
    *  ends unsaved. */

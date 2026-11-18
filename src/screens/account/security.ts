@@ -36,7 +36,7 @@ import { checkScopes, drawKeys, type KeyNote, type KeyScopes, type KeysSection }
 import { drawLog, type LogOptions, type SecurityLogScreen } from "./log.js";
 import { drawMethods } from "./methods.js";
 import { drawProfile } from "./profile.js";
-import { renameHold } from "./rename.js";
+import { screenPart } from "./part.js";
 import { runDirect, type AccountAction } from "./run.js";
 import {
   cleanAddress,
@@ -157,6 +157,12 @@ export interface Ctx<C extends SecurityClient> {
 
 const NOT_RUN: Refusal = { ok: false, status: 0, error: "not run" };
 
+/** What Account and security's methods draw from. */
+interface Account {
+  readonly me: AccountView;
+  readonly passkeys: readonly PasskeyView[];
+}
+
 /** Fills `region` with Account and security for the signed-in person. */
 export function mountSecurity<C extends SecurityClient>(
   region: HTMLElement,
@@ -208,19 +214,11 @@ export function mountSecurity<C extends SecurityClient>(
   top.append(session, notices.root);
   region.replaceChildren(top);
 
-  let me: AccountView | undefined;
-  let passkeys: readonly PasskeyView[] = [];
   let ctx: Ctx<C> | undefined;
-  const reads = latest(signal);
-  /** The focus the newest read draws with, whichever read asked for it. */
-  let wanted: string | undefined;
-  /** The notice of the last refresh that failed, until one succeeds. */
-  let failed: HTMLElement | undefined;
+  const loads = latest(signal);
   let sessionsView: SessionsSection | undefined;
   let keysView: KeysSection | undefined;
   let logView: SecurityLogScreen | undefined;
-  // A passkey's Rename… holds the methods' redraw, not the session line's.
-  const renames = renameHold(() => void refresh());
 
   function section(title: string): {
     readonly root: HTMLElement;
@@ -353,46 +351,37 @@ export function mountSecurity<C extends SecurityClient>(
     }
   };
 
+  // A passkey's Rename… holds the methods' redraw, not the session line's.
+  // Both reads draw together: either refused leaves what is drawn.
+  const account = screenPart<Account>({
+    content: methods.body,
+    heading: methods.heading,
+    notices,
+    signal,
+    read: async () => {
+      if (ctx === undefined) {
+        return undefined;
+      }
+      const [got, keys] = await Promise.all([read(() => client.me()), readPasskeys()]);
+      if (!got.ok) {
+        return got;
+      }
+      return keys.ok ? { ok: true, data: { me: got.data, passkeys: keys.data } } : keys;
+    },
+    refused: (r, again) => {
+      refusedRead(r, again);
+    },
+    took: (got) => {
+      drawSession(got.me);
+    },
+    draw: (got) => {
+      if (ctx !== undefined && anyMethod) {
+        drawMethods(ctx, methods.body, got.me, got.passkeys, account);
+      }
+    },
+  });
   const refresh = async (focus?: string): Promise<void> => {
-    wanted = focus ?? wanted;
-    await reads.run(
-      () => Promise.all([read(() => client.me()), readPasskeys()]),
-      ([got, keys]) => {
-        const c = ctx;
-        if (c === undefined) {
-          return;
-        }
-        const asked = wanted;
-        wanted = undefined;
-        // Both reads draw together: either refused leaves what is drawn.
-        if (!got.ok) {
-          refusedRead(got, () => refresh(asked));
-          return;
-        }
-        if (!keys.ok) {
-          refusedRead(keys, () => refresh(asked));
-          return;
-        }
-        notices.drop(failed);
-        failed = undefined;
-        const m = got.data;
-        me = m;
-        passkeys = keys.data;
-        drawSession(m);
-        if (anyMethod && renames.held()) {
-          wanted = asked;
-        } else if (anyMethod) {
-          redrawKeepingFocus(
-            methods.body,
-            methods.heading,
-            () => {
-              drawMethods(c, methods.body, m, keys.data, renames);
-            },
-            asked,
-          );
-        }
-      },
-    );
+    await account.refresh(focus);
   };
 
   const readPasskeys = (): Promise<Result<readonly PasskeyView[]>> =>
@@ -403,7 +392,7 @@ export function mountSecurity<C extends SecurityClient>(
   const refusedRead = (r: Refusal, again: () => unknown): void => {
     if (!signedOut(r)) {
       const said = genericSignedIn(r, w);
-      failed = notices.show(said.tone, said.text, retryButton(w["generic.retry"], again));
+      notices.show(said.tone, said.text, retryButton(w["generic.retry"], again));
     }
   };
 
@@ -419,7 +408,7 @@ export function mountSecurity<C extends SecurityClient>(
   // first copies' focus, timer and popstate listeners running.
   const load = async (): Promise<void> => {
     region.setAttribute("aria-busy", "true");
-    const current = reads.start();
+    const current = loads.start();
     const skeleton = skeletonTiming(() => {
       redrawKeepingFocus(top, lead, () => {
         top.replaceChildren(session, notices.root, sketch());
@@ -462,8 +451,8 @@ export function mountSecurity<C extends SecurityClient>(
       refusedRead(state, start);
       return;
     }
-    me = got.data;
-    passkeys = keys?.ok === true ? keys.data : [];
+    const me = got.data;
+    const passkeys = keys?.ok === true ? keys.data : [];
     if (has("passkeys") && support.webauthn) {
       void access.sendSignals(client);
     }
@@ -493,13 +482,12 @@ export function mountSecurity<C extends SecurityClient>(
       settle,
       refresh,
     };
-    drawSession(me);
     if (has("profile")) {
       drawProfile(ctx, profile.body, me);
       top.append(profile.root);
     }
+    account.show({ me, passkeys });
     if (anyMethod) {
-      drawMethods(ctx, methods.body, me, passkeys, renames);
       top.append(methods.root);
     }
     if (has("sessions")) {
@@ -543,7 +531,7 @@ export function mountSecurity<C extends SecurityClient>(
       top.append(logPart.root);
     }
     if (keys !== undefined && !keys.ok) {
-      refusedRead(keys, () => refresh());
+      account.failed(keys);
     }
     const said = returned();
     if (said !== undefined) {

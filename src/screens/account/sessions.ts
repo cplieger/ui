@@ -13,9 +13,9 @@ import { codeOf } from "./answer.js";
 import type { Refusal, SecurityClient, SessionView } from "./client.js";
 import { deviceName } from "./device.js";
 import { actionButton, cell, cellStack, clockAt, el, stateMark, table } from "./dom.js";
-import { redrawKeepingFocus } from "./focus.js";
-import { nameRefused, renameHold } from "./rename.js";
-import { cycle, latest, question, read, retryButton, slot } from "./screen.js";
+import { screenPart } from "./part.js";
+import { nameRefused } from "./rename.js";
+import { cycle, question, read, retryButton, slot } from "./screen.js";
 import type { Ctx } from "./security.js";
 
 export interface SessionsSection {
@@ -36,34 +36,22 @@ export function drawSessions<C extends SecurityClient>(
   content.dataset["part"] = "sessions";
   body.replaceChildren(notices.root, content);
   let list: readonly SessionView[] = [];
-  const reads = latest(ctx.signal);
-  /** The focus the newest read draws with, whichever read asked for it. */
-  let wanted: string | undefined;
-  /** The notice of the last read that failed, until one succeeds. */
-  let failure: Element | undefined;
-  const renames = renameHold(() => void refresh());
-
+  const part = screenPart<readonly SessionView[]>({
+    content,
+    heading,
+    notices,
+    signal: ctx.signal,
+    read: () => read(() => client.sessions()),
+    refused: (r, again) => {
+      ctx.settle({ kind: "done", result: r }, notices, (x) => unavailable(x, again));
+    },
+    draw: (got) => {
+      list = order(got);
+      draw();
+    },
+  });
   const refresh = async (focus?: string): Promise<void> => {
-    wanted = focus ?? wanted;
-    await reads.run(
-      () => read(() => client.sessions()),
-      (got) => {
-        if (renames.held()) {
-          return;
-        }
-        const asked = wanted;
-        wanted = undefined;
-        if (!got.ok) {
-          ctx.settle({ kind: "done", result: got }, notices, (r) => unavailable(r, refresh));
-          failure = notices.shown();
-          return;
-        }
-        notices.drop(failure);
-        failure = undefined;
-        list = order(got.data);
-        redrawKeepingFocus(content, heading, draw, asked);
-      },
-    );
+    await part.refresh(focus);
   };
 
   /** Offers Retry on `auth_unavailable`, the one answer worth repeating. */
@@ -171,7 +159,7 @@ export function drawSessions<C extends SecurityClient>(
 
   function rename(s: SessionView, node: HTMLElement, opener: HTMLElement): void {
     notices.clear();
-    renames.edit({
+    part.edit({
       name: node,
       value: s.label ?? "",
       label: w["sessions.renameLabel"](deviceName(s, w)),
