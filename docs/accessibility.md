@@ -425,7 +425,7 @@ As 2.3.1, with no threshold allowance.
 
 Level AAA. Adopted, partly met, owed by `buttons/filter-chip`, `forms/file` and `forms/tokens`. Met by ui. [Understanding 2.3.3](https://www.w3.org/WAI/WCAG22/Understanding/animation-from-interactions.html)
 
-Under `prefers-reduced-motion: reduce` presses do not scale, springs ease out at the short duration, dialogs and added rows only fade and reordered items move at once ([Motion](design.md#motion)). Fades are not motion animation under this criterion. A choice's pill lands at once, and a confirming button's footprint holds still in both settings. A filter chip's check and the drop zone's icon keep their full length under reduced motion, and a chosen value typed again only shakes, so under reduced motion nothing shows it.
+Under `prefers-reduced-motion: reduce` presses do not scale, springs ease out at the short duration, dialogs and added rows only fade and reordered items move at once ([Motion](design.md#motion)). Fades are not motion animation under this criterion. A choice's pill lands at once, and a confirming button held at one width keeps its width and its neighbours still in both settings. A filter chip's check and the drop zone's icon keep their full length under reduced motion, and a chosen value typed again only shakes, so under reduced motion nothing shows it.
 
 - Unit: reduced-motion tests in src/system.
 - Manual: reduced motion per gallery card.

@@ -47,12 +47,12 @@ button.addEventListener("click", async () => {
 | Option | Default | What it does |
 | --- | --- | --- |
 | `busy`, `done` | | The words while the work runs and once it is done. `done: false` is for a button whose success replaces it, such as Create in a dialog that then shows what it made: busy, then straight back to rest. |
-| `width` | see below | `"glide"` follows each word's width. `"footprint"` keeps the widest word's footprint, so the buttons beside it never move, at load, through a cycle and under reduced motion: the button hugs its word, and the slack sits on the side away from the edge its container aligns to, so in an end-aligned cell it stays flush with the end. `"fixed"` holds the widest state's width, its icon and words together, and shows each state's content centred in it with no glide, so nothing beside it moves and its words only roll up and down. |
+| `width` | see below | `"glide"` follows each word's width. `"fixed"` is as wide as its widest state, icon and words, from the moment it is enhanced, and shows each state's content centred in it, so nothing beside it moves at any frame of a cycle, under reduced motion too, and its words only roll up and down. |
 | `hold` | `1600` | How long the done state shows, in ms. |
 | `busyDelay`, `busyMin` | `150`, `400` | When the busy state starts, and how long it lasts once it shows, in ms. |
 | `onRest` | none | Runs each time the button is back at rest after a run, done, failed or ended by `signal`, such as for a save bar that leaves then. A run started during the done state goes on without a rest, so `onRest` waits for it. |
 | `signal` | none | Aborting it puts the button back at rest and ends the cycle. |
 
-The width defaults to `"fixed"` inside a `.cp-split`, so the caret never moves, and [load-more](../data/load-more.md) asks for it, to `"footprint"` in a table's `data-col="actions"` cell, and to `"glide"` elsewhere. A held width or footprint is measured again, at once, each time the page's web fonts finish loading, so a button enhanced before its font arrived does not keep the fallback font's width.
+The width defaults to `"fixed"` inside a `.cp-split`, so the caret never moves, and in a table's `data-col="actions"` cell, so the other columns never move; [load-more](../data/load-more.md) asks for it too, and it is `"glide"` elsewhere. A fixed button lays every state's icon and words in one hidden cell across it, and the browser sizes the button from that cell, so a web font that loads late, zoom and text spacing change its width with no script measuring. Change a fixed button's rest words through `setRest`, or before a press: its hidden cell takes the words on the button at each press.
 
 In a split button, the action grows over its caret while it works, and the split turns green as one shape. See [Components](../design-components.md).
