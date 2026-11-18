@@ -26,30 +26,93 @@ const SYSTEM_DIR = join(import.meta.dirname, "..", "docs", "system");
 const SYSTEM_SCREENS = readdirSync(SYSTEM_DIR).filter((file) => file.endsWith(".html"));
 
 /** Runs in the page: the id of each aria-required control whose `.cp-field`
- *  shows no "Required" in a `.cp-help` line or a label, as the forms
- *  pattern's step 2 asks. A mark counts when it renders larger than a pixel
- *  while its control renders; a hidden control needs only the mark's text. */
-const requiredWithoutMark = (): string[] =>
-  [...document.querySelectorAll<HTMLElement>('[aria-required="true"]')]
+ *  shows neither form of the forms pattern's step 2 mark, a `.cp-help` reading
+ *  "Required." or a label holding "(Required)". The word counts when its own
+ *  text box, cut by each clipping box up to the field and by the page's scroll
+ *  area, is over a pixel each way, with no visually hidden, invisible,
+ *  transparent, clip-path or clip element between it and the field. A hidden
+ *  control needs only the mark's text. */
+const requiredWithoutMark = (): string[] => {
+  const shown = (mark: Element, word: string, field: Element): boolean => {
+    const walker = document.createTreeWalker(mark, NodeFilter.SHOW_TEXT);
+    for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
+      const at = (node.nodeValue ?? "").indexOf(word);
+      const parent = node.parentElement;
+      if (at < 0 || parent === null) {
+        continue;
+      }
+      const chain: Element[] = [];
+      for (let el: Element | null = parent; el !== null; el = el.parentElement) {
+        chain.push(el);
+        if (el === field) {
+          break;
+        }
+      }
+      const cut = chain.some((el) => {
+        const style = getComputedStyle(el);
+        return (
+          el.matches(".cp-visually-hidden") || style.clipPath !== "none" || style.clip !== "auto"
+        );
+      });
+      if (cut || !parent.checkVisibility({ visibilityProperty: true, opacityProperty: true })) {
+        continue;
+      }
+      const root = document.documentElement;
+      const start =
+        getComputedStyle(root).direction === "rtl" ? root.clientWidth - root.scrollWidth : 0;
+      const range = document.createRange();
+      range.setStart(node, at);
+      range.setEnd(node, at + word.length);
+      for (const rect of range.getClientRects()) {
+        let [left, top] = [Math.max(rect.left, start - scrollX), Math.max(rect.top, -scrollY)];
+        let right = Math.min(rect.right, start + root.scrollWidth - scrollX);
+        let bottom = Math.min(rect.bottom, root.scrollHeight - scrollY);
+        for (const el of chain) {
+          const style = getComputedStyle(el);
+          if (style.display === "inline") {
+            continue;
+          }
+          const box = el.getBoundingClientRect();
+          if (style.overflowX !== "visible") {
+            left = Math.max(left, box.left + el.clientLeft);
+            right = Math.min(right, box.left + el.clientLeft + el.clientWidth);
+          }
+          if (style.overflowY !== "visible") {
+            top = Math.max(top, box.top + el.clientTop);
+            bottom = Math.min(bottom, box.top + el.clientTop + el.clientHeight);
+          }
+        }
+        if (right - left > 1 && bottom - top > 1) {
+          return true;
+        }
+      }
+    }
+    return false;
+  };
+  return [...document.querySelectorAll<HTMLElement>('[aria-required="true"]')]
     .filter((control) => {
       const field = control.closest(".cp-field");
       if (field === null) {
         return true;
       }
-      const labels = [...((control as Partial<HTMLInputElement>).labels ?? [])];
-      const marks = [
-        ...field.querySelectorAll<HTMLElement>(".cp-help, .cp-label"),
-        ...labels,
-      ].filter((mark) => /\bRequired\b/.test(mark.textContent));
+      const marks: [Element, string][] = [
+        ...[...field.querySelectorAll(".cp-help")]
+          .filter((help) => help.textContent.trim() === "Required.")
+          .map((help): [Element, string] => [help, "Required."]),
+        ...[
+          ...((control as Partial<HTMLInputElement>).labels ?? []),
+          ...field.querySelectorAll(".cp-label"),
+        ]
+          .filter((label) => label.textContent.includes("(Required)"))
+          .map((label): [Element, string] => [label, "(Required)"]),
+      ];
       if (!control.checkVisibility()) {
         return marks.length === 0;
       }
-      return !marks.some((mark) => {
-        const box = mark.getBoundingClientRect();
-        return mark.checkVisibility() && box.width > 1 && box.height > 1;
-      });
+      return !marks.some(([mark, word]) => shown(mark, word, field));
     })
     .map((control) => (control.id !== "" ? control.id : control.outerHTML));
+};
 
 let out = "";
 let origin = "";
@@ -1501,10 +1564,18 @@ describe.each(browsers)("the gallery in %s", (name) => {
       <div class="cp-field"><label for="e">E</label><input id="e" aria-required="true"><span class="cp-help" style="position:absolute;width:1px;height:1px;overflow:hidden">Required.</span></div>
       <label for="f">F</label><input id="f" aria-required="true">
       <div class="cp-field" hidden><label for="g">G</label><input id="g" aria-required="true"><span class="cp-help">Required.</span></div>
-      <div class="cp-field"><label for="h">H</label><input id="h" aria-required="false"></div>`);
+      <div class="cp-field"><label for="h">H</label><input id="h" aria-required="false"></div>
+      <div class="cp-field"><label for="i">I <span class="cp-visually-hidden">(Required)</span></label><input id="i" aria-required="true"><span class="cp-help">From the provider.</span></div>
+      <div class="cp-field"><label for="j">J</label><input id="j" aria-required="true"><span class="cp-help" style="visibility:hidden">Required.</span></div>
+      <div class="cp-field"><label for="k">K</label><input id="k" aria-required="true"><span class="cp-help" style="opacity:0">Required.</span></div>
+      <div class="cp-field"><label for="l">L</label><input id="l" aria-required="true"><span class="cp-help" style="position:absolute;left:-9999px">Required.</span></div>
+      <div class="cp-field"><label for="m">M</label><input id="m" aria-required="true"><span class="cp-help" style="display:block;clip-path:inset(50%)">Required.</span></div>
+      <div class="cp-field"><label for="n">N</label><input id="n" aria-required="true"><span class="cp-help">Not Required.</span></div>
+      <div class="cp-field"><label for="o">O</label><input id="o" aria-required="true"><span class="cp-help" style="position:absolute;clip:rect(0 0 0 0)">Required.</span></div>
+      <div class="cp-field"><label class="cp-label" for="p">P <span>(Required)</span></label><input id="p" aria-required="true"></div>`);
     const missing = await tab.evaluate(requiredWithoutMark);
     await tab.close();
-    expect(missing).toEqual(["c", "d", "e", "f"]);
+    expect(missing).toEqual(["c", "d", "e", "f", "i", "j", "k", "l", "m", "n", "o"]);
   }, 60_000);
 
   it.each([...pageNames, ...templateNames])(
