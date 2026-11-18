@@ -292,9 +292,9 @@ Nothing is wider than a 320px window and nothing is clipped. A data table wider 
 
 Level AA. Adopted. Met by ui. [Understanding 1.4.11](https://www.w3.org/WAI/WCAG22/Understanding/non-text-contrast.html)
 
-A boundary holds 3:1 on steps 1 to 3 (4.5:1 under `prefers-contrast: more`), and the focus ring is the accent's step 9. Series slots hold 3:1 on every surface, and in forced colours every control keeps a system-colour border.
+A boundary holds 3:1 on steps 1 to 3 (4.5:1 under `prefers-contrast: more`), and the focus ring is the accent's step 9. Series slots hold 3:1 on every surface, and in forced colours every control keeps a system-colour border and rings in the system's highlight, a checkbox, a radio, a switch and a range too, which keep their own colours there.
 
-- Unit: boundary and series contrast tests.
+- Unit: boundary and series contrast tests, and the forced-colours ring of the controls that keep their own colours.
 - Manual: forced colours and a contrast check per gallery card.
 
 ### 1.4.12 Text spacing
@@ -532,9 +532,9 @@ As 2.4.11 with no part hidden: the page scrolls a focused control clear of every
 
 Level AAA. Adopted. Met by ui. [Understanding 2.4.13](https://www.w3.org/WAI/WCAG22/Understanding/focus-appearance.html)
 
-The ring is a solid 2px outline at a 2px offset, so its area exceeds a 2px perimeter of the control, in the accent's step 9, which holds 3:1 against every surface at every hue and chroma. On the header the ring takes the shell's ink, because the light shell is the accent's own fill. Inside a split button, whose fill is the ring's colour, focus rings the whole split outside its shape and marks the focused part with an inset ring in the split's ink.
+The ring is a solid 2px outline at a 2px offset, so its area exceeds a 2px perimeter of the control, in the accent's step 9, which holds 3:1 against every surface at every hue and chroma. On the header the ring takes the shell's ink, because the light shell is the accent's own fill. Inside a split button, whose fill is the ring's colour, focus rings the whole split outside its shape and marks the focused part with an inset ring in the split's ink. A date or time field rings while focus is in it, because WebKit focuses one of its parts and the field never matches `:focus-visible`.
 
-- Unit: the ring's 3:1 on every surface, on the header and inside a split button, src/system/system-css.test.ts.
+- Unit: the ring's 3:1 on every surface, on the header and inside a split button, and a date or time field's ring with focus in a part, src/system/system-css.test.ts.
 - Manual: ring width and its contrast against adjacent colours from a clipped screenshot per focus stop.
 
 ### 2.5.1 Pointer gestures
@@ -707,9 +707,10 @@ An app's help link, when it has one, sits in the same place on every screen: the
 
 Level A. Adopted. Met by ui. [Understanding 3.3.1](https://www.w3.org/WAI/WCAG22/Understanding/error-identification.html)
 
-A field in error gets `aria-invalid="true"` and a `.cp-field-error` sentence tied by `aria-describedby`.
+A field in error gets `aria-invalid="true"` and a `.cp-field-error` sentence tied by `aria-describedby` while it shows. A hidden error is never in a field's `aria-describedby`, since a screen reader reads a description from hidden text too and the field would say an error it does not have.
 
-- Unit: src/forms/form tests.
+- Unit: src/forms/form and src/forms/pairs tests.
+- axe: no field is described by an error it hides, on every page in every state.
 - Manual: each form's error flow.
 
 ### 3.3.2 Labels or instructions
@@ -791,7 +792,7 @@ Native elements first. A custom widget has its APG role, its name, and each stat
 
 Level AA. Adopted, partly met, owed by `feedback/toast`. Met by ui. [Understanding 4.1.3](https://www.w3.org/WAI/WCAG22/Understanding/status-messages.html)
 
-`@cplieger/ui/announce`, Copy and the header status speak through live regions that exist before their text arrives. Only a blocking problem uses `role="alert"`. A toast is inserted as a live region already holding its words.
+`@cplieger/ui/announce`, Copy and the header status speak through live regions that exist before their text arrives. Only a blocking problem uses `role="alert"`. A range's output repeats the slider's value, so it is silenced (`aria-live="off"`) and the slider says its value once, in the output's words. A toast is inserted as a live region already holding its words.
 
 - axe: `aria-allowed-role` and `aria-required-attr` on the regions.
 - Manual: a live-region observer and the AT-SPI events.
