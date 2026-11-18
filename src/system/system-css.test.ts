@@ -117,19 +117,15 @@ const media = (name: string, value: string) =>
   cdp().send("Emulation.setEmulatedMedia", { features: [{ name, value }] });
 
 // Firefox and WebKit take no media emulation from a browser test, so there
-// the linked sheet's own reduced-motion blocks are switched on in place,
-// keeping their place in the cascade, and a script's matchMedia agrees.
-async function reduceMotion(): Promise<void> {
-  if (emulates) {
-    await media("prefers-reduced-motion", "reduce");
-    return;
-  }
+// the linked sheet's own blocks for a feature are switched on in place,
+// keeping their place in the cascade.
+function switchOn(on: RegExp, off: RegExp): void {
   const flip = (rules: CSSRuleList) => {
     for (const rule of rules) {
       if (rule instanceof CSSMediaRule) {
         rule.media.mediaText = rule.media.mediaText
-          .replaceAll(/\(prefers-reduced-motion:\s*reduce\)/g, "(min-width: 0px)")
-          .replaceAll(/\(prefers-reduced-motion:\s*no-preference\)/g, "(max-width: -1px)");
+          .replaceAll(on, "(min-width: 0px)")
+          .replaceAll(off, "(max-width: -1px)");
       }
       if ("cssRules" in rule) {
         flip(rule.cssRules as CSSRuleList);
@@ -137,12 +133,31 @@ async function reduceMotion(): Promise<void> {
     }
   };
   flip((sheet.sheet as CSSStyleSheet).cssRules);
+}
+
+async function reduceMotion(): Promise<void> {
+  if (emulates) {
+    await media("prefers-reduced-motion", "reduce");
+    return;
+  }
+  switchOn(/\(prefers-reduced-motion:\s*reduce\)/g, /\(prefers-reduced-motion:\s*no-preference\)/g);
+  // A script's matchMedia agrees with the switched sheet.
   const real = matchMedia.bind(window);
   vi.stubGlobal("matchMedia", (q: string) =>
     q.includes("prefers-reduced-motion")
       ? ({ matches: q.includes("reduce"), media: q } as MediaQueryList)
       : real(q),
   );
+}
+
+// Forced colours the same way. Out of a real forced mode, Firefox and WebKit
+// show what the sheet's forced-colours blocks set, never the palette itself.
+async function forceColours(): Promise<void> {
+  if (emulates) {
+    await media("forced-colors", "active");
+    return;
+  }
+  switchOn(/\(forced-colors:\s*active\)/g, /\(forced-colors:\s*none\)/g);
 }
 
 const theme = (t: "light" | "dark") => {
@@ -2759,6 +2774,97 @@ describe("css/system.css", () => {
     const cs = getComputedStyle(sw);
     expect(cs.borderStyle).toBe("solid");
     expect(cs.backgroundColor).not.toBe(getComputedStyle(sw, "::after").backgroundColor);
+  });
+
+  it("rings a checkbox, a radio, a switch and a range in the system's highlight in forced colours", async () => {
+    theme("light");
+    await forceColours();
+    const el = build(
+      '<button type="button">Before</button><input class="cp-checkbox" type="checkbox" aria-label="Notify"><input class="cp-radio" type="radio" aria-label="Prefer"><input class="cp-switch" type="checkbox" role="switch" aria-label="Nightly"><input class="cp-range" type="range" aria-label="Seeders">',
+    );
+    const probe = host("");
+    probe.style.color = "Highlight";
+    const highlight = getComputedStyle(probe).color;
+    (el.querySelector("button") as HTMLButtonElement).focus();
+    const rings: string[] = [];
+    for (const c of el.querySelectorAll("input")) {
+      await userEvent.keyboard("{Tab}");
+      expect(document.activeElement).toBe(c);
+      rings.push(`${c.className} ${getComputedStyle(c).outlineColor}`);
+    }
+    expect(rings).toEqual(
+      ["cp-checkbox", "cp-radio", "cp-switch", "cp-range"].map((c) => `${c} ${highlight}`),
+    );
+  });
+
+  it("gives a stepper's number a finger's target on the coarse tier, the stepper one control tall", async () => {
+    theme("light");
+    root.dataset["pointer"] = "coarse";
+    const el = build(
+      '<div class="cp-stepper" role="group" aria-label="Parallel checks"><button class="cp-button" data-variant="quiet" type="button" aria-label="Fewer"><span class="cp-icon" data-cp-icon="minus" aria-hidden="true"></span></button><input type="number" min="1" max="8" value="3" aria-label="Parallel checks"><button class="cp-button" data-variant="quiet" type="button" aria-label="More"><span class="cp-icon" data-cp-icon="plus" aria-hidden="true"></span></button></div>',
+    );
+    const stepper = el.querySelector(".cp-stepper") as HTMLElement;
+    const input = el.querySelector("input") as HTMLInputElement;
+    const box = input.getBoundingClientRect();
+    expect([box.width >= 44, box.height >= 44]).toEqual([true, true]);
+    expect(stepper.getBoundingClientRect().height).toBe(44);
+    // A press on the number's edge still lands on the number.
+    expect(document.elementFromPoint(box.left + box.width / 2, box.top + 0.5)).toBe(input);
+    expect(document.elementFromPoint(box.left + box.width / 2, box.bottom - 0.5)).toBe(input);
+  });
+
+  it("keeps a stepper's edge, turning it to the ring's colour while its number has focus", async () => {
+    theme("light");
+    const el = build(
+      '<button type="button">Before</button><div class="cp-stepper" role="group" aria-label="Parallel checks"><button class="cp-button" data-variant="quiet" type="button" aria-label="Fewer">-</button><input type="number" value="3" aria-label="Parallel checks"><button class="cp-button" data-variant="quiet" type="button" aria-label="More">+</button></div>',
+    );
+    const stepper = el.querySelector(".cp-stepper") as HTMLElement;
+    const edge = () => {
+      const after = getComputedStyle(stepper, "::after");
+      const own = getComputedStyle(stepper);
+      return after.content === "none" ? own.borderTopColor : after.borderTopColor;
+    };
+    const probe = host("");
+    probe.style.color = "var(--cp-border-strong)";
+    expect(edge()).toBe(getComputedStyle(probe).color);
+    (el.querySelector("button") as HTMLButtonElement).focus();
+    await userEvent.keyboard("{Tab}{Tab}");
+    expect(document.activeElement).toBe(el.querySelector("input"));
+    expect(edge()).toBe(getComputedStyle(stepper).outlineColor);
+  });
+
+  it("rings a date or a time field while focus is in one of its parts", async () => {
+    theme("light");
+    const el = build(
+      '<button type="button">Before</button><input class="cp-input" type="date" value="2026-11-15" aria-label="Pause until"><input class="cp-input" type="time" value="03:00" aria-label="Nightly check at">',
+    );
+    const [date, time] = [...el.querySelectorAll("input")] as [HTMLInputElement, HTMLInputElement];
+    (el.querySelector("button") as HTMLButtonElement).focus();
+    const rings: string[] = [];
+    for (const field of [date, time]) {
+      for (let i = 0; i < 8 && document.activeElement !== field; i++) {
+        await userEvent.keyboard("{Tab}");
+      }
+      expect(document.activeElement).toBe(field);
+      rings.push(`${field.type} ${getComputedStyle(field).outlineStyle}`);
+    }
+    expect(rings).toEqual(["date solid", "time solid"]);
+  });
+
+  it("shows a pointer over a choice row with its own field only where a press acts", () => {
+    theme("light");
+    const el = build(
+      '<fieldset class="cp-choices"><legend>Run checks</legend><div class="cp-choice"><input class="cp-radio" type="radio" name="c" id="t-every" checked><span class="cp-choice-field"><label for="t-every">Every</label><input class="cp-input" type="number" value="30" aria-label="Minutes between checks"><label for="t-every">minutes</label></span></div><label class="cp-choice"><input class="cp-radio" type="radio" name="c"><span>Only when triggered</span></label></fieldset>',
+    );
+    const cursor = (e: Element | null) => getComputedStyle(e as Element).cursor;
+    const [field, plain] = [...el.querySelectorAll(".cp-choice")];
+    const [every, unit] = [...(field as Element).querySelectorAll("label")];
+    expect([cursor(field as Element), cursor(every as Element), cursor(unit as Element)]).toEqual([
+      "auto",
+      "pointer",
+      "pointer",
+    ]);
+    expect(cursor(plain as Element)).toBe("pointer");
   });
 
   it("fills the chosen segment and rings it when its radio has keyboard focus", async () => {

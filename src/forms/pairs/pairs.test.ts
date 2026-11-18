@@ -16,7 +16,7 @@ function pairs(): { box: HTMLElement; list: HTMLUListElement; add: HTMLButtonEle
   // Static test markup, never caller text.
   box.setHTMLUnsafe(
     '<ul class="cp-pairs"><li>' +
-      '<div class="cp-field"><label for="from-1">From</label><input class="cp-input" id="from-1" value="/tv" aria-describedby="from-1-error" aria-invalid="true"><span class="cp-field-error" id="from-1-error">Start with /</span></div>' +
+      '<div class="cp-field"><label for="from-1">From</label><input class="cp-input" id="from-1" value="/tv" aria-describedby="from-help-1 from-1-error" aria-invalid="true"><span class="cp-help" id="from-help-1">As Sonarr sees it</span><span class="cp-field-error" id="from-1-error">Start with /</span></div>' +
       '<div class="cp-field"><input class="cp-input" id="to-1" value="/media/tv" aria-label="To"></div>' +
       '<button type="button" data-remove-pair aria-label="Remove this mapping">x</button></li></ul>' +
       '<button type="button" data-add-pair>Add a mapping</button>',
@@ -38,7 +38,9 @@ describe("enhancePairs", () => {
     const row = list.lastElementChild as HTMLElement;
     const from = row.querySelector("input") as HTMLInputElement;
     expect([from.id, from.value, from.hasAttribute("aria-invalid")]).toEqual(["from-2", "", false]);
-    expect(from.getAttribute("aria-describedby")).toBe("from-2-error");
+    // A description is read from hidden text too, so the new row's field
+    // names its help and not the error it hides.
+    expect(from.getAttribute("aria-describedby")).toBe("from-help-2");
     expect(row.querySelector("label")?.htmlFor).toBe("from-2");
     expect((row.querySelector(".cp-field-error") as HTMLElement).hidden).toBe(true);
     expect(document.activeElement).toBe(from);

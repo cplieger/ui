@@ -3,18 +3,28 @@
  * alone set, such as a zoom, a button that resets it. */
 .cp-stepper {
   --cp-chart-surface: var(--cp-surface-raised);
+  --cp-stepper-edge: var(--cp-border-strong);
 
   position: relative;
   display: inline-flex;
   align-items: stretch;
   inline-size: fit-content;
   max-inline-size: 100%;
-  /* Border-box: the border sits inside the control height, and stays
-   * visible behind a button's hover fill, which an inset shadow would not. */
   block-size: var(--cp-control-h);
-  border: var(--cp-line-w) solid var(--cp-border-strong);
   border-radius: var(--cp-radius-control);
   background: var(--cp-surface-raised);
+}
+
+/* The edge is drawn over the parts, not as the stepper's border: a border
+ * would take the number below the control height, short of a finger's
+ * target, and a button's hover fill would cover an inset shadow. */
+.cp-stepper:not([data-variant="nudge"])::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: var(--cp-line-w) solid var(--cp-stepper-edge);
+  border-radius: inherit;
+  pointer-events: none;
 }
 
 .cp-field > .cp-stepper {
@@ -27,11 +37,11 @@
 
 .cp-stepper:not([data-variant]) > .cp-button {
   min-block-size: 0;
-  border-radius: calc(var(--cp-radius-control) - var(--cp-line-w));
 }
 
 .cp-stepper > input:not(.cp-input) {
   inline-size: 4ch;
+  min-inline-size: var(--cp-hit-min);
   border: 0;
   outline: none;
   background: transparent;
@@ -59,7 +69,8 @@
 
 /* Focus on its number rings the whole stepper, as a focused field is. */
 .cp-stepper:has(> input:not(.cp-input):focus-visible) {
-  border-color: var(--cp-focus-ring);
+  --cp-stepper-edge: var(--cp-focus-ring);
+
   outline: var(--cp-focus-w) solid var(--cp-focus-ring);
   outline-offset: var(--cp-focus-offset);
 }
@@ -82,14 +93,6 @@
   color: transparent;
 }
 
-/* Under a finger, each button's target reaches the tier's minimum in
- * height, which the border inside the control height takes from it. */
-:root[data-pointer="coarse"] .cp-stepper > .cp-button::after {
-  content: "";
-  position: absolute;
-  inset: calc((100% - var(--cp-hit-min)) / 2) 0;
-}
-
 @media (forced-colors: active) {
   .cp-stepper:has(> input:not(.cp-input):focus-visible) {
     outline-color: Highlight;
@@ -103,7 +106,6 @@
   align-items: center;
   gap: var(--cp-space-1);
   block-size: auto;
-  border: 0;
   background: none;
 }
 

@@ -105,8 +105,22 @@ export function enhancePairs(box: HTMLElement, options: PairsOptions = {}): void
       f.removeAttribute("aria-invalid");
       f.removeAttribute("data-cp-error");
     }
+    const errors = new Set<string>();
     for (const e of row.querySelectorAll<HTMLElement>(".cp-field-error")) {
       e.hidden = true;
+      errors.add(e.id);
+    }
+    // A description is read from hidden text too, so a field names its
+    // error only while it shows, as showError writes it.
+    for (const f of row.querySelectorAll<HTMLElement>("[aria-describedby]")) {
+      const ids = (f.getAttribute("aria-describedby") ?? "")
+        .split(/\s+/)
+        .filter((t) => t !== "" && !errors.has(t));
+      if (ids.length > 0) {
+        f.setAttribute("aria-describedby", ids.join(" "));
+      } else {
+        f.removeAttribute("aria-describedby");
+      }
     }
     row.setAttribute(ADDED, "");
     return row;

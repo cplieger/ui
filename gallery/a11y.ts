@@ -716,9 +716,29 @@ const statePass = (state: State): Pass => ({
     const tab = await open(browser, url, state);
     report.add(await check(tab, rulesOf(state)), label(state));
     report.svgText(await svgText(tab, state), label(state));
+    const hidden = await hiddenErrors(tab);
+    if (hidden.length > 0) {
+      report.fail(`a field described by the error it hides, ${label(state)}`, hidden);
+    }
     await tab.close();
   },
 });
+
+/** Each field whose `aria-describedby` names a hidden `.cp-field-error`. A
+ *  description is read from hidden text too (accname 1.2, step 2A), so such
+ *  a field says its error while it has none. */
+async function hiddenErrors(tab: Page): Promise<string[]> {
+  return tab.evaluate(() =>
+    [...document.querySelectorAll("[aria-describedby]")].flatMap((field) =>
+      (field.getAttribute("aria-describedby") ?? "").split(/\s+/).flatMap((id) => {
+        const error = id === "" ? null : document.getElementById(id);
+        return error?.classList.contains("cp-field-error") === true && error.hidden
+          ? [`#${field.id} names #${id}`]
+          : [];
+      }),
+    ),
+  );
+}
 
 /** Each round of the page's closed `details` opened, in `state`. */
 const detailsPass = (state: State): Pass => ({
@@ -1116,6 +1136,22 @@ export function selfTest(browser: () => Browser): void {
       expect(run.unrun).toEqual([]);
       expect(part.unrun).toEqual(PAGE_LEVEL);
       expect(run.violations.map((v) => v.id)).toEqual(["button-name"]);
+    },
+  );
+
+  it(
+    "finds a field described by an error it hides, and no other",
+    { timeout: 60_000 },
+    async () => {
+      const tab = await browser().newPage();
+      await tab.setContent(
+        `${PAGE}<input id="f" aria-label="Name" aria-describedby="f-help f-error"><span id="f-help">Help</span>` +
+          '<span class="cp-field-error" id="f-error" hidden>Enter a name</span>' +
+          '<input id="g" aria-label="Host" aria-describedby="g-error"><span class="cp-field-error" id="g-error">Shown</span>' +
+          '<input id="h" aria-label="Note" aria-describedby="h-help"><span id="h-help" hidden>Hidden help</span></main></html>',
+      );
+      expect(await hiddenErrors(tab)).toEqual(["#f names #f-error"]);
+      await tab.close();
     },
   );
 

@@ -101,4 +101,10 @@
   .cp-switch:disabled::after {
     background: GrayText;
   }
+
+  /* forced-color-adjust: none keeps the accent ring too, so the ring is
+   * set to the system's highlight here. */
+  .cp-switch:focus-visible {
+    outline-color: Highlight;
+  }
 }

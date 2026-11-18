@@ -72,7 +72,7 @@
   <section class="g-section" id="choice">
     <h2>Choices</h2>
     <div class="g-grid">
-      <div class="card">
+      <div class="card" data-new>
         <h2>Checkboxes</h2>
         <fieldset class="cp-choices">
           <legend class="cp-label">Notify me when</legend>
@@ -83,7 +83,7 @@
         </fieldset>
         <footer>"All of these" shows a dash when some are on. The whole row is the label.</footer>
       </div>
-      <div class="card">
+      <div class="card" data-new>
         <h2>Radio group</h2>
         <fieldset class="cp-choices">
           <legend class="cp-label">Prefer releases from</legend>
@@ -93,16 +93,16 @@
         </fieldset>
         <footer>A circle that fills with the accent; its dot springs in. Arrow keys move the choice, as native radios do.</footer>
       </div>
-      <div class="card">
+      <div class="card" data-new>
         <h2>A choice with its own field</h2>
         <fieldset class="cp-choices">
           <legend class="cp-label">Run checks</legend>
-          <div class="cp-choice"><input class="cp-radio" type="radio" name="cadence" id="cad-every" checked aria-labelledby="cad-every-l cad-min cad-every-u"><span class="cp-choice-field"><label id="cad-every-l" for="cad-every">Every</label><input class="cp-input" id="cad-min" type="number" min="5" value="30" aria-label="Minutes between checks"><span id="cad-every-u">minutes</span></span></div>
+          <div class="cp-choice"><input class="cp-radio" type="radio" name="cadence" id="cad-every" checked aria-labelledby="cad-every-l cad-min cad-every-u"><span class="cp-choice-field"><label id="cad-every-l" for="cad-every">Every</label><input class="cp-input" id="cad-min" type="number" min="5" value="30" aria-label="Minutes between checks"><label id="cad-every-u" for="cad-every">minutes</label></span></div>
           <label class="cp-choice"><input class="cp-radio" type="radio" name="cadence"><span>Only when triggered<small>From Sonarr's webhook or the Run button</small></span></label>
         </fieldset>
         <footer>The number is live only while its choice is; focusing it chooses it, and it is never disabled while it has focus.</footer>
       </div>
-      <div class="card">
+      <div class="card" data-new>
         <h2>Switches and segments</h2>
         <div class="cp-form">
           <div class="cp-setting"><div><label class="cp-label" for="f-sw1">Check every night</label><span class="cp-help">At 03:00, when nobody is watching.</span></div><input class="cp-switch" id="f-sw1" type="checkbox" role="switch" checked></div>
@@ -124,7 +124,7 @@
   <section class="g-section" id="numbers">
     <h2>Numbers, ranges and dates</h2>
     <div class="g-grid">
-      <div class="card">
+      <div class="card" data-new>
         <h2>Stepper and range</h2>
         <div class="cp-form">
           <div class="cp-field"><span class="cp-label" id="f-step-label">Parallel checks</span><div class="cp-stepper" role="group" aria-labelledby="f-step-label"><button class="cp-button" data-variant="quiet" type="button" data-step="-1" aria-label="Fewer"><span class="cp-icon" data-cp-icon="minus" aria-hidden="true"></span></button><input type="number" min="1" max="8" value="3" aria-labelledby="f-step-label"><button class="cp-button" data-variant="quiet" type="button" data-step="1" aria-label="More"><span class="cp-icon" data-cp-icon="plus" aria-hidden="true"></span></button></div></div>
@@ -132,11 +132,11 @@
         </div>
         <footer>A stepper for a small count, as wide as its buttons and number; a range when the exact number matters less than the feel, as wide as its column. The track fills to the thumb, which grows while held.</footer>
       </div>
-      <div class="card">
+      <div class="card" data-new>
         <h2>Signed decimal with nudges</h2>
         <div class="cp-field"><label class="cp-label" for="nudge-1" id="nudge-1-l">Offset, in seconds</label><div class="cp-stepper" data-variant="nudge" role="group" aria-labelledby="nudge-1-l"><button class="cp-button" type="button" data-step="-10" data-cp-tip="1 second earlier">−1 s</button><button class="cp-button" type="button" data-step="-1" data-cp-tip="0.1 seconds earlier">−0.1 s</button><input class="cp-input" id="nudge-1" value="+1.25" inputmode="decimal" data-min="-60" data-max="60" data-step="0.1" aria-describedby="nudge-help"><button class="cp-button" type="button" data-step="1" data-cp-tip="0.1 seconds later">+0.1 s</button><button class="cp-button" type="button" data-step="10" data-cp-tip="1 second later">+1 s</button><button class="cp-button" data-variant="quiet" type="button" data-reset="0">Reset</button></div><span class="cp-help" id="nudge-help">Arrow keys move 0.1&nbsp;s, with Shift 1&nbsp;s.</span></div>
       </div>
-      <div class="card">
+      <div class="card" data-new>
         <h2>Date and time</h2>
         <div class="cp-form">
           <div class="cp-field"><label class="cp-label" for="f-date">Pause until</label><input class="cp-input" id="f-date" type="date" value="2026-11-15"></div>
@@ -148,14 +148,14 @@
         </div>
         <footer>Native, so each platform's own picker and keyboard come with it. On its own, a date or a time fits its value; side by side in a row, fields share the row and fill it.</footer>
       </div>
-      <div class="card">
+      <div class="card" data-new>
         <h2>Date range</h2>
         <fieldset class="cp-choices" data-range>
           <legend class="cp-label">Activity between</legend>
           <div class="cp-segmented" role="radiogroup" aria-label="Quick ranges"><label><input type="radio" name="range-preset" value="1">Today</label><label><input type="radio" name="range-preset" value="7" checked>7 days</label><label><input type="radio" name="range-preset" value="30">30 days</label><label><input type="radio" name="range-preset" value="all">Any time</label></div>
           <div class="cp-form">
             <div class="cp-field"><label class="cp-label" for="f-from">From</label><input class="cp-input" id="f-from" type="date"></div>
-            <div class="cp-field"><label class="cp-label" for="f-to">To</label><input class="cp-input" id="f-to" type="date" aria-describedby="f-range-error"><span class="cp-field-error" id="f-range-error" hidden><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span>The end comes before the start.</span></div>
+            <div class="cp-field"><label class="cp-label" for="f-to">To</label><input class="cp-input" id="f-to" type="date"><span class="cp-field-error" id="f-to-error" hidden><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span>The end comes before the start.</span></div>
           </div>
         </fieldset>
         <footer>Two native dates and the ranges people use most. A quick range fills both dates, Any time from the first day there is data for; typing a date clears the quick range. An end before the start is an error on the end. Every library has a range picker; here the platform's own calendar does the picking.</footer>
@@ -310,12 +310,12 @@
         </form>
         <footer>Press Add source with the fields empty: a summary at the top links each field that needs a fix, and focus moves to it. Typed values stay.</footer>
       </div>
-      <div class="card g-wide">
+      <div class="card g-wide" data-new>
         <h2>Pairs of fields</h2>
         <div data-pairs>
           <span class="cp-label" id="pm-l">Path mappings</span>
           <ul class="cp-pairs" aria-labelledby="pm-l">
-            <li><div class="cp-field"><input class="cp-input" id="pm-from-1" aria-label="Sonarr's path" placeholder="Sonarr's path" value="/tv" aria-describedby="pm-from-1-error"><span class="cp-field-error" id="pm-from-1-error" hidden><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span>Start with /</span></div><span class="cp-icon" data-cp-icon="arrow-right" aria-hidden="true"></span><div class="cp-field"><input class="cp-input" id="pm-to-1" aria-label="This app's path" placeholder="This app's path" value="/media/tv" aria-describedby="pm-to-1-error"><span class="cp-field-error" id="pm-to-1-error" hidden><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span>Start with /</span></div><button class="cp-button" data-variant="quiet" type="button" data-remove-pair aria-label="Remove this mapping" data-cp-tip="Remove this mapping"><span class="cp-icon" data-cp-icon="x" aria-hidden="true"></span></button></li>
+            <li><div class="cp-field"><input class="cp-input" id="pm-from-1" aria-label="Sonarr's path" placeholder="Sonarr's path" value="/tv"><span class="cp-field-error" id="pm-from-1-error" hidden><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span>Start with /</span></div><span class="cp-icon" data-cp-icon="arrow-right" aria-hidden="true"></span><div class="cp-field"><input class="cp-input" id="pm-to-1" aria-label="This app's path" placeholder="This app's path" value="/media/tv"><span class="cp-field-error" id="pm-to-1-error" hidden><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span>Start with /</span></div><button class="cp-button" data-variant="quiet" type="button" data-remove-pair aria-label="Remove this mapping" data-cp-tip="Remove this mapping"><span class="cp-icon" data-cp-icon="x" aria-hidden="true"></span></button></li>
           </ul>
           <div class="g-gap-top"><button class="cp-button" data-size="sm" type="button" data-add-pair><span class="cp-icon" data-cp-icon="plus" aria-hidden="true"></span>Add a mapping</button></div>
         </div>
