@@ -244,12 +244,21 @@ export function enhanceKeyedList(container: Body, options: KeyedListOptions): Ke
   };
 
   // The first row drawn, never a heading, shapes every skeleton even after
-  // it leaves the window, until its key leaves the list. A data-row shape
-  // is not kept: a loaded row replaces it.
-  let model: { readonly key: string; readonly el: HTMLElement } | undefined;
+  // it leaves the window. Once its key leaves the list it is retired but
+  // still shapes them, until a row of the new keys is drawn, so a removal
+  // never resizes the skeletons. A data-row shape is not kept: a loaded
+  // row replaces it.
+  let model: { readonly key: string; readonly el: HTMLElement; retired: boolean } | undefined;
   let shape: HTMLElement | undefined;
   const shapes = (el: HTMLElement): boolean =>
     table || el.querySelector(":scope > .cp-list-row") !== null;
+  const adopt = (key: string, el: HTMLElement): void => {
+    model = { key, el, retired: false };
+    shape = undefined;
+    blank = undefined;
+    loading.clear();
+    stale = true;
+  };
 
   const setKeys = (next: KeyedListKeys, total: number | undefined): void => {
     const index = new Map<string, number>();
@@ -266,13 +275,7 @@ export function enhanceKeyedList(container: Body, options: KeyedListOptions): Ke
     at = index;
     of = total ?? of;
     if (model !== undefined && !index.has(model.key)) {
-      model = undefined;
-      shape = undefined;
-      blank = undefined;
-      for (const el of loading.values()) {
-        el.remove();
-      }
-      loading.clear();
+      model.retired = true;
     }
     for (const key of slots.keys()) {
       if (!index.has(key)) {
@@ -333,9 +336,6 @@ export function enhanceKeyedList(container: Body, options: KeyedListOptions): Ke
       drawn.set(key, el);
       keyOf.set(el, key);
       sizes?.observe(el);
-      if (model === undefined && shapes(el)) {
-        model = { key, el };
-      }
     }
     return el;
   };
@@ -356,10 +356,6 @@ export function enhanceKeyedList(container: Body, options: KeyedListOptions): Ke
   const skeleton = (i: number): HTMLElement => {
     let el = loading.get(i);
     if (el === undefined) {
-      if (model === undefined) {
-        const first = [...drawn].find(([, row]) => shapes(row));
-        model = first === undefined ? undefined : { key: first[0], el: first[1] };
-      }
       if (shape === undefined && model !== undefined) {
         shape = shaped(model.el);
       }
@@ -529,6 +525,23 @@ export function enhanceKeyedList(container: Body, options: KeyedListOptions): Ke
         el.remove();
       }
     }
+    const order = [...wanted].sort((a, b) => a - b);
+    // Rows are drawn before any skeleton, so a row that replaces a missing
+    // or retired model shapes this pass's skeletons.
+    let first: { readonly key: string; readonly el: HTMLElement } | undefined;
+    for (const i of order) {
+      const key = keys[i];
+      if (key === undefined) {
+        continue;
+      }
+      const el = rowFor(key, i);
+      if (first === undefined && shapes(el)) {
+        first = { key, el };
+      }
+    }
+    if (first !== undefined && (model === undefined || model.retired)) {
+      adopt(first.key, first.el);
+    }
     const want: HTMLElement[] = [];
     const rows: { el: HTMLElement; i: number }[] = [];
     const tops = sumsOf();
@@ -562,7 +575,7 @@ export function enhanceKeyedList(container: Body, options: KeyedListOptions): Ke
       }
       want.push(el);
     };
-    for (const i of [...wanted].sort((a, b) => a - b)) {
+    for (const i of order) {
       fill(next, i);
       const key = keys[i];
       const el = key === undefined ? skeleton(i) : rowFor(key, i);

@@ -1,7 +1,7 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { installAnnouncer } from "../../feedback/announce/announce.js";
-import { enhanceKeyedList, type KeyedListOptions } from "./keyed-list.js";
+import { enhanceKeyedList, type KeyedListKeys, type KeyedListOptions } from "./keyed-list.js";
 
 let life = new AbortController();
 let sheet: HTMLLinkElement;
@@ -469,7 +469,9 @@ describe("enhanceKeyedList", () => {
     expect(Math.abs(panel.scrollHeight - height)).toBeLessThan(1);
   });
 
-  it("takes its skeletons' shape anew once update() swaps in rows of another shape", async () => {
+  /** A scrolling table whose rows keyed `c…` hold a cover and two lines,
+   *  and whose other rows hold one link. */
+  function mixedTable(keys: KeyedListKeys) {
     const panel = document.createElement("div");
     panel.style.blockSize = "15rem";
     panel.style.inlineSize = "40rem";
@@ -496,12 +498,63 @@ describe("enhanceKeyedList", () => {
       tr.insertCell().textContent = "33.0 GB";
       return tr;
     };
+    const list = enhanceKeyedList(body, { keys, row: anyRow, signal: life.signal });
+    const skeletons = () => [
+      ...body.querySelectorAll<HTMLTableRowElement>(":scope > tr[data-skeleton]"),
+    ];
+    return { panel, body, list, skeletons };
+  }
+
+  it("keeps its skeletons' shape when update() drops the first row while the window holds none", async () => {
+    const { panel, body, list, skeletons } = mixedTable([
+      ...keysOf(40).map((k) => `c${k}`),
+      ...Array<undefined>(960),
+    ]);
+    await frames();
+    const cover = rows(body)[1]?.getBoundingClientRect().height;
+    const pitch = pitchOf(body);
+    await scrollTo(panel, 200 * pitch);
+    await scrollTo(panel, 600 * pitch);
+    expect(rows(body)).toHaveLength(0);
+    const height = panel.scrollHeight;
+    list.update([...keysOf(39, 1).map((k) => `c${k}`), ...Array<undefined>(961)]);
+    await frames();
+    await frames();
+    expect(skeletons().length).toBeGreaterThan(0);
+    for (const tr of skeletons()) {
+      expect(tr.getBoundingClientRect().height).toBe(cover);
+      expect(tr.querySelectorAll(".cp-title-cell > .cp-skeleton")).toHaveLength(1);
+    }
+    expect(Math.abs(panel.scrollHeight - height)).toBeLessThan(1);
+  });
+
+  it("takes its skeletons' shape from a row still drawn once update() drops the first row", async () => {
+    const { panel, body, list, skeletons } = mixedTable([
+      "ct0",
+      ...keysOf(39, 1),
+      ...Array<undefined>(960),
+    ]);
+    await frames();
+    const plain = rows(body)[2]?.getBoundingClientRect().height;
+    await scrollTo(panel, 38 * pitchOf(body));
+    expect(rows(body).length).toBeGreaterThan(0);
+    expect(skeletons().length).toBeGreaterThan(0);
+    expect(body.querySelector("tr[data-skeleton] .cp-title-cell")).not.toBeNull();
+    const drawn = rows(body);
+    list.update([...keysOf(39, 1), ...Array<undefined>(961)]);
+    await frames();
+    await frames();
+    expect(rows(body).filter((tr) => drawn.includes(tr)).length).toBeGreaterThan(0);
+    expect(skeletons().length).toBeGreaterThan(0);
+    for (const tr of skeletons()) {
+      expect(tr.getBoundingClientRect().height).toBe(plain);
+      expect(tr.querySelector(".cp-title-cell")).toBeNull();
+    }
+  });
+
+  it("takes its skeletons' shape anew once update() swaps in rows of another shape", async () => {
     const tail = Array<undefined>(960);
-    const list = enhanceKeyedList(body, {
-      keys: [...keysOf(40).map((k) => `c${k}`), ...tail],
-      row: anyRow,
-      signal: life.signal,
-    });
+    const { panel, body, list } = mixedTable([...keysOf(40).map((k) => `c${k}`), ...tail]);
     await frames();
     const cover = rows(body)[1]?.getBoundingClientRect().height;
     await scrollTo(panel, 200 * pitchOf(body));
