@@ -12209,9 +12209,24 @@ button.cp-button[data-tone="danger"][data-cp-state="done"]:not(:disabled) {
  * step 11), and a change plays its data-motion. data-kind is a preset of
  * both: pin is the accent and drop, favourite its own red and beat, theme
  * the ink it sits on and turn. */
+/* Registered so it animates; not inherited, so it stays on the drawing it
+ * moves. */
+@property --cp-toggle-clapper {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+/* WebKit's macOS UA pads a button 2px over 3px (Source/WebCore/css/html.css,
+ * https://github.com/WebKit/WebKit/blob/main/Source/WebCore/css/html.css),
+ * which centres an 18px icon half a pixel high, and a drawing that turns
+ * from a half pixel blurs on a 1x screen. 1px both ways is what Blink and
+ * Gecko already give. */
 .cp-toggle {
   --cp-toggle-on: currentcolor;
   --cp-toggle-ink: currentcolor;
+
+  padding-block: 1px;
 }
 
 /* A preset is (0,1,0) and a toggle's own data-tone or data-motion (0,2,0),
@@ -12249,6 +12264,40 @@ button.cp-button[data-tone="danger"][data-cp-state="done"]:not(:disabled) {
   --cp-toggle-hint: var(--cp-toggle-on);
   --cp-toggle-in: cp-toggle-beat 1100ms var(--cp-ease-out);
   --cp-toggle-out: none;
+}
+
+/* Ring: tints under a mouse, swings once from its crown as it turns on.
+ * Both animations end at 900ms, since the first animationend ends the
+ * motion for both. */
+.cp-toggle[data-motion="ring"] {
+  --cp-toggle-lift: none;
+  --cp-toggle-hint: var(--cp-toggle-on);
+  --cp-toggle-in: cp-toggle-ring 900ms, cp-toggle-clapper 900ms;
+  --cp-toggle-out: none;
+}
+
+/* The pivot is the crown, 2 of 24 units down. The identity rotate keeps
+ * the stacking context the same at rest and in motion. */
+.cp-toggle[data-motion="ring"] > .cp-icon {
+  transform-origin: 50% calc(100% * 2 / 24);
+  rotate: 0deg;
+}
+
+/* The on bell is two layers, the filled body and the clapper, which at
+ * rest draw bell-ring-filled less its sound arcs. The clapper's ball hangs
+ * 18 of 24 units below the pivot, so a swing of --cp-toggle-clapper
+ * shifts its layer by sin and 1 - cos of the angle times that reach. The
+ * shift is an offset because each layer fills its square span. */
+.cp-toggle[data-motion="ring"] > .cp-icon[data-part="on"] {
+  --cp-toggle-reach: calc(var(--cp-icon-size, var(--cp-icon-ui)) * 18 / 24);
+
+  mask-image: url("../icons/svg/bell-body-filled.svg"), url("../icons/svg/bell-clapper.svg");
+  mask-position:
+    0 0,
+    calc(sin(var(--cp-toggle-clapper)) * -1 * var(--cp-toggle-reach))
+      calc((cos(var(--cp-toggle-clapper)) - 1) * var(--cp-toggle-reach));
+  mask-repeat: no-repeat;
+  mask-size: contain;
 }
 
 /* Turn: the drawing now shown turns over into place, both ways. */
@@ -12368,6 +12417,95 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
 
   100% {
     scale: 1;
+  }
+}
+
+/* Struck out on --cp-ease-out, then five half swings, each a move between
+ * two places, to rest. The curves are the tokens' values written out: every
+ * engine reads var() in a keyframe's timing function as ease
+ * (https://issues.chromium.org/issues/479982201; Gecko and WebKit too). */
+@keyframes cp-toggle-ring {
+  0% {
+    rotate: 0deg;
+    animation-timing-function: cubic-bezier(0.2, 0, 0, 1);
+  }
+
+  12% {
+    rotate: 16deg;
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  30% {
+    rotate: -12deg;
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  47% {
+    rotate: 8deg;
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  63% {
+    rotate: -5deg;
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  78% {
+    rotate: 2.5deg;
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  90% {
+    rotate: -1deg;
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  100% {
+    rotate: 0deg;
+  }
+}
+
+/* The clapper relative to the body: the other way, each extreme 4% behind
+ * the body's, at about 70% of its angle. */
+@keyframes cp-toggle-clapper {
+  0% {
+    --cp-toggle-clapper: 0deg;
+
+    animation-timing-function: cubic-bezier(0.2, 0, 0, 1);
+  }
+
+  16% {
+    --cp-toggle-clapper: -11deg;
+
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  34% {
+    --cp-toggle-clapper: 8deg;
+
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  51% {
+    --cp-toggle-clapper: -5.5deg;
+
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  67% {
+    --cp-toggle-clapper: 3.5deg;
+
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  82% {
+    --cp-toggle-clapper: -1.5deg;
+
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  100% {
+    --cp-toggle-clapper: 0deg;
   }
 }
 
@@ -12677,6 +12815,14 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
 
 :where(.cp) .cp-icon:where([data-cp-icon="bell"]) {
   --cp-icon-image: url("../icons/svg/bell.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="bell-body-filled"]) {
+  --cp-icon-image: url("../icons/svg/bell-body-filled.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="bell-clapper"]) {
+  --cp-icon-image: url("../icons/svg/bell-clapper.svg");
 }
 
 :where(.cp) .cp-icon:where([data-cp-icon="bell-ring"]) {
