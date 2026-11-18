@@ -310,6 +310,155 @@ describe("mountSignIn: the second factor", () => {
   });
 });
 
+/** Long enough for an answer released now to reach the screen: a confirm
+ *  cycle whose busy state showed holds it 400 ms. */
+const handedOn = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 600));
+
+/** Presses Start again and waits for the form, typing into its password. */
+async function startAgain(panel: HTMLElement): Promise<HTMLInputElement> {
+  await userEvent.click(button(panel, "Start again"));
+  await vi.waitFor(() => {
+    expect(input(panel, "password")).not.toBeNull();
+  });
+  const password = input(panel, "password");
+  await userEvent.fill(password, "typing");
+  return password;
+}
+
+describe("mountSignIn: the form's passkey answering after its password led to a step", () => {
+  it("says no miss over the step", async () => {
+    // No autofill request, so the button's is the only passkey call.
+    const fake = new Fake()
+      .always("passkeySupport", { webauthn: true, conditional: false })
+      .answer("signInWithPasskey", { kind: "timeout" });
+    const release = fake.hold("signInWithPasskey");
+    fake.answer("loginPassword", pending());
+    const { panel } = mount(fake, {
+      run: (_n, work) => work(),
+      navigate: () => undefined,
+      next: "/feed",
+    });
+    await drawn(panel);
+    await userEvent.click(button(panel, "Sign in with a passkey"));
+    await signIn(panel);
+    await vi.waitFor(() => {
+      expect(input(panel, "code")).not.toBeNull();
+    });
+    release();
+    await handedOn();
+    expect(noticeOf(panel)).toBeNull();
+    expect(input(panel, "code")).not.toBeNull();
+  });
+
+  it("still signs in with the passkey", async () => {
+    const fake = new Fake().always("passkeySupport", { webauthn: true, conditional: false });
+    const release = fake.hold("signInWithPasskey");
+    fake.answer("loginPassword", pending());
+    const went: string[] = [];
+    const { panel } = mount(fake, {
+      run: (_n, work) => work(),
+      navigate: (url) => {
+        went.push(url);
+      },
+      next: "/feed",
+    });
+    await drawn(panel);
+    await userEvent.click(button(panel, "Sign in with a passkey"));
+    await signIn(panel);
+    await vi.waitFor(() => {
+      expect(input(panel, "code")).not.toBeNull();
+    });
+    release();
+    await vi.waitFor(() => {
+      expect(went).toEqual(["/feed"]);
+    });
+  });
+});
+
+describe("mountSignIn: a step's answer that lands after Start again", () => {
+  it("shows no rate limit's wait over the form", async () => {
+    const fake = new Fake().answer(
+      "loginCode",
+      refuse(429, "auth_rate_limited", undefined, { "Retry-After": "30" }),
+    );
+    const { panel } = await stepped(fake);
+    const release = fake.hold("loginCode");
+    await userEvent.fill(input(panel, "code"), "111111");
+    await userEvent.click(submit(panel));
+    const password = await startAgain(panel);
+    release();
+    await handedOn();
+    expect(noticeOf(panel)).toBeNull();
+    expect(input(panel, "password")).toBe(password);
+    expect(submit(panel).getAttribute("aria-disabled")).toBeNull();
+  });
+
+  it("draws no next step over the form being typed in", async () => {
+    const fake = new Fake().answer(
+      "loginCode",
+      pending({ ticket: "t2", next: "enrol", methods: ["passkey"] }),
+    );
+    const { panel } = await stepped(fake);
+    const release = fake.hold("loginCode");
+    await userEvent.fill(input(panel, "code"), "111111");
+    await userEvent.click(submit(panel));
+    const password = await startAgain(panel);
+    release();
+    await handedOn();
+    expect(input(panel, "password")).toBe(password);
+    expect(password.value).toBe("typing");
+    expect(panel.querySelector("h2")).toBeNull();
+  });
+
+  it("shows no failure of the authenticator key's read over the form", async () => {
+    const fake = new Fake().answer("pendingTOTPBegin", refuse(503, "auth_unavailable"));
+    const release = fake.hold("pendingTOTPBegin");
+    const { panel } = await stepped(fake, pending({ next: "enrol", methods: ["totp", "passkey"] }));
+    const password = await startAgain(panel);
+    release();
+    await handedOn();
+    expect(noticeOf(panel)).toBeNull();
+    expect(input(panel, "password")).toBe(password);
+  });
+
+  it("takes no passkey's answer once the person started again", async () => {
+    const fake = new Fake().answer("loginSecondPasskey", {
+      kind: "answered",
+      result: { pending: { ticket: "t2", next: "enrol", methods: ["passkey"] } },
+    });
+    const { panel } = await stepped(fake);
+    const release = fake.hold("loginSecondPasskey");
+    await userEvent.click(button(panel, "Use a passkey"));
+    const password = await startAgain(panel);
+    release();
+    await handedOn();
+    expect(input(panel, "password")).toBe(password);
+    expect(panel.querySelector("h2")).toBeNull();
+    expect(noticeOf(panel)).toBeNull();
+  });
+
+  it("still shows the recovery code a late answer carries, its only showing, and stays on the form", async () => {
+    const fake = new Fake().answer(
+      "loginRecoveryCode",
+      ok({ signed_in: { ...signedIn, recovery_code: "WXYZ2345EFGH6789" } }),
+    );
+    const { panel, went } = await stepped(fake);
+    const release = fake.hold("loginRecoveryCode");
+    await userEvent.click(button(panel, "Use your recovery code"));
+    await userEvent.fill(input(panel, "recovery_code"), "M9XRTB4HNW6P7KQ2");
+    await userEvent.click(submit(panel));
+    const password = await startAgain(panel);
+    release();
+    const shown = await dialogOf("Your recovery code");
+    expect(shown.querySelector(".cp-code code")?.textContent).toBe("WXYZ-2345-EFGH-6789");
+    await userEvent.click(shown.querySelector("input[type='checkbox']") as HTMLInputElement);
+    await userEvent.click(button(shown, "Continue"));
+    await handedOn();
+    expect(went).toEqual([]);
+    expect(input(panel, "password")).toBe(password);
+  });
+});
+
 describe("mountSignIn: the recovery code", () => {
   it("groups the code in fours as typed and sends it normalised", async () => {
     const fake = new Fake();

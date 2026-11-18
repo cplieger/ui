@@ -356,6 +356,8 @@ export function mountInvite<C extends InviteClient>(
             restart: (said) => {
               void load(said);
             },
+            // After `lend`, whose loan it ends.
+            loan: part.life(),
             ...life,
           },
           step,

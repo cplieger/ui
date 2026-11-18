@@ -62,6 +62,13 @@ interface Rows {
   readonly heading: string;
 }
 
+interface Step {
+  /** Queues the answers that draw the step's code field. */
+  readonly enter: (fake: Fake) => void;
+  /** The call the step's code form sends. */
+  readonly call: string;
+}
+
 interface Screen {
   readonly name: string;
   /** The read whose answers the property varies. */
@@ -80,9 +87,8 @@ interface Screen {
   readonly rows?: Rows;
   /** Answers the screen's other reads from `server`. */
   readonly serve?: (fake: Fake, server: Server) => void;
-  /** Queues a sign-in step for the form's next send, and the step's
-   *  answer that times it out. */
-  readonly step?: (fake: Fake) => void;
+  /** A sign-in step the form's next send enters, asking for a code. */
+  readonly step?: Step;
 }
 
 const EVERY: StateResponse = {
@@ -120,12 +126,19 @@ const formShown = (region: HTMLElement): string =>
   region.querySelector("input[name='username']") ? "form" : "";
 const codeField = (region: HTMLElement): HTMLInputElement | null =>
   region.querySelector<HTMLInputElement>("input[name='code']");
-const enrolment = (fake: Fake): void => {
-  fake
-    .answer("pendingTOTPBegin", ok({ uri: "otpauth://totp/x?secret=JBSWY3DP", text: "JBSWY3DP" }))
-    .answer("pendingTOTPFinish", refuse(401, "auth_token_invalid"));
-};
-const enrol = ok({ pending: { ticket: "t1", next: "enrol", methods: ["totp"] } });
+/** The enrolment a first password's `entry` answers under a second-factor
+ *  rule, drawn with its authenticator key. */
+const enrolment = (entry: string): Step => ({
+  enter: (fake) => {
+    fake
+      .answer(entry, ok({ pending: { ticket: "t1", next: "enrol", methods: ["totp"] } }))
+      .answer(
+        "pendingTOTPBegin",
+        ok({ uri: "otpauth://totp/x?secret=JBSWY3DP", text: "JBSWY3DP" }),
+      );
+  },
+  call: "pendingTOTPFinish",
+});
 
 const session = (id: string, server: Server): SessionView => ({
   ...HERE,
@@ -144,6 +157,11 @@ const passkey = (id: string, server: Server): PasskeyView => ({
   id: Number(id),
   name: server.names.get(id) ?? id,
 });
+/** A held code's late answers: a step no other command enters, and a
+ *  rate limit's wait. */
+const LATE_STEP = ok({ pending: { ticket: "t2", next: "set_credential", methods: ["password"] } });
+const LATE_WAIT = refuse(429, "auth_rate_limited", undefined, { "Retry-After": "30" });
+
 const listed = <T>(server: Server, make: (id: string, server: Server) => T): T[] =>
   [...server.present].map((id) => make(id, server));
 
@@ -317,13 +335,14 @@ const screens: readonly Screen[] = [
     answer: () => ok(EVERY),
     marker: () => "form",
     shows: formShown,
-    step: (fake) => {
-      fake
-        .answer(
+    step: {
+      enter: (fake) => {
+        fake.answer(
           "loginPassword",
           ok({ pending: { ticket: "t1", next: "second_factor", methods: ["totp"] } }),
-        )
-        .answer("loginCode", refuse(401, "auth_token_invalid"));
+        );
+      },
+      call: "loginCode",
     },
   },
   {
@@ -345,10 +364,7 @@ const screens: readonly Screen[] = [
     answer: () => ok({ ...EVERY, setup_required: true, oidc: false }),
     marker: () => "form",
     shows: formShown,
-    step: (fake) => {
-      fake.answer("setupPassword", enrol);
-      enrolment(fake);
-    },
+    step: enrolment("setupPassword"),
   },
   {
     name: "Invite",
@@ -370,10 +386,7 @@ const screens: readonly Screen[] = [
     answer: () => ok(EVERY),
     marker: () => "form",
     shows: formShown,
-    step: (fake) => {
-      fake.answer("inviteAcceptPassword", enrol);
-      enrolment(fake);
-    },
+    step: enrolment("inviteAcceptPassword"),
   },
 ];
 
@@ -509,6 +522,16 @@ class Run {
       this.reads[last - 1]?.outcome === "ok"
     ) {
       expect(now, `${where}: the newest read, answered, is drawn`).toBe(this.s.marker(last));
+    }
+    if (this.s.step !== undefined) {
+      // Only an abandoned step's late answer could draw these.
+      expect(
+        this.region.querySelector("input[name='new_password']"),
+        `${where}: no step of an attempt that ended`,
+      ).toBeNull();
+      expect(this.region.textContent, `${where}: no wait of an attempt that ended`).not.toMatch(
+        /Too many attempts/,
+      );
     }
     for (const e of this.editors) {
       expect(e.input.isConnected, `${where}: the field renaming ${e.id} stays`).toBe(true);
@@ -661,6 +684,26 @@ class Escape implements Command {
   toString = (): string => `escape(${String(this.at)})`;
 }
 
+/** Enters the screen's sign-in step from the form's send. */
+async function enter(r: Run): Promise<HTMLInputElement> {
+  r.s.step!.enter(r.fake);
+  send(r.region);
+  await settle();
+  const code = codeField(r.region);
+  expect(code, `${r.s.name}: the step asks for a code`).not.toBeNull();
+  r.focused ||= r.region.contains(document.activeElement);
+  return code!;
+}
+
+/** The step hands the part's content back, so a read from before it, or
+ *  the form, is no longer drawn, and the next read draws the form again. */
+function handedBack(r: Run, outcome: Outcome, slow: boolean): void {
+  r.drawn = "";
+  r.drawnRead = r.reads.length;
+  r.restartRead = r.reads.length + 1;
+  r.plans.push({ outcome, slow });
+}
+
 /** The form's send answers a sign-in step, whose code the server then
  *  refuses as timed out: the screen starts again with a read of `outcome`. */
 class Restart implements Command {
@@ -670,24 +713,48 @@ class Restart implements Command {
   ) {}
   check = (m: Run): boolean => m.s.step !== undefined && formShown(m.region) !== "";
   async run(_m: Run, r: Run): Promise<void> {
-    r.s.step!(r.fake);
-    send(r.region);
-    await settle();
-    const code = codeField(r.region);
-    expect(code, `${r.s.name}: the step asks for a code`).not.toBeNull();
-    // The step holds the part's content, so a read from before it, or the
-    // form, is no longer drawn.
-    r.drawn = "";
-    r.drawnRead = r.reads.length;
-    r.restartRead = r.reads.length + 1;
-    r.focused ||= r.region.contains(document.activeElement);
-    r.plans.push({ outcome: this.outcome, slow: this.slow });
-    code!.value = "123456";
-    code!.form!.requestSubmit();
+    const code = await enter(r);
+    r.fake.answer(r.s.step!.call, refuse(401, "auth_token_invalid"));
+    handedBack(r, this.outcome, this.slow);
+    code.value = "123456";
+    code.form!.requestSubmit();
     await settle();
     r.check(this.toString());
   }
   toString = (): string => `restart(${this.outcome}${this.slow ? ", slow" : ""})`;
+}
+
+/** The step's code is sent and held, the person presses Start again, and
+ *  the code's answer is released later, in any order with the reads: the
+ *  next step of another kind, or a rate limit's wait. */
+class StartAgain implements Command {
+  constructor(
+    readonly late: "step" | "wait",
+    readonly outcome: Outcome,
+    readonly slow: boolean,
+  ) {}
+  check = (m: Run): boolean => m.s.step !== undefined && formShown(m.region) !== "";
+  async run(_m: Run, r: Run): Promise<void> {
+    const code = await enter(r);
+    const call = r.s.step!.call;
+    // Bound to this call, so a later attempt's call never takes it.
+    const late = Promise.withResolvers<Result<unknown>>();
+    r.fake.answer(call, () => late.promise);
+    const release = (): void => {
+      late.resolve(this.late === "step" ? LATE_STEP : LATE_WAIT);
+    };
+    code.value = "123456";
+    code.form!.requestSubmit();
+    await settle();
+    handedBack(r, this.outcome, this.slow);
+    [...r.region.querySelectorAll<HTMLElement>("button")]
+      .find((b) => b.textContent === "Start again")!
+      .click();
+    r.slow.push(release);
+    await settle();
+    r.check(this.toString());
+  }
+  toString = (): string => `startAgain(${this.late}, ${this.outcome}${this.slow ? ", slow" : ""})`;
 }
 
 /** The server drops a row, as another device removing it does. */
@@ -722,6 +789,12 @@ const commands = (s: Screen): fc.Arbitrary<Iterable<Command>> =>
           : [
               {
                 arbitrary: fc.tuple(outcome, fc.boolean()).map(([o, slow]) => new Restart(o, slow)),
+                weight: 2,
+              },
+              {
+                arbitrary: fc
+                  .tuple(fc.constantFrom("step" as const, "wait" as const), outcome, fc.boolean())
+                  .map(([late, o, slow]) => new StartAgain(late, o, slow)),
                 weight: 2,
               },
             ]),

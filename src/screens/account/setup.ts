@@ -380,6 +380,8 @@ export function mountSetup<C extends SetupClient>(
             restart: (said) => {
               void load(said);
             },
+            // After `lend`, whose loan it ends.
+            loan: part.life(),
             ...life,
           },
           answer.data,
@@ -539,7 +541,17 @@ export function mountSetup<C extends SetupClient>(
     const add = actionButton(w["setup.offerAdd"], { icon: "key-round", primary: true });
     const skip = el("button", "cp-button", w["setup.offerSkip"]);
     skip.type = "button";
-    skip.addEventListener("click", done, life);
+    // Skip ends the offer, so a passkey answering after it only shows the
+    // recovery code it carries.
+    const offer = new AbortController();
+    skip.addEventListener(
+      "click",
+      () => {
+        offer.abort();
+        done();
+      },
+      life,
+    );
     const confirm = enhanceConfirm(add, {
       busy: w["setup.offerBusy"],
       done: w["setup.offerDone"],
@@ -558,18 +570,23 @@ export function mountSetup<C extends SetupClient>(
             return;
           }
           const outcome: RegisterOutcome | null = got.answer;
-          if (outcome === null) {
-            notices.show("danger", w["generic.server"]);
-          } else if (outcome.kind === "registered") {
+          const left = (): boolean => ended() || offer.signal.aborted;
+          if (outcome?.kind === "registered") {
             if (outcome.recovery_code === undefined) {
-              done();
+              if (!left()) {
+                done();
+              }
             } else {
               void showRecoveryCode(outcome.recovery_code, w, signal).then(() => {
-                if (!ended()) {
+                if (!left()) {
                   done();
                 }
               });
             }
+          } else if (left()) {
+            return;
+          } else if (outcome === null) {
+            notices.show("danger", w["generic.server"]);
           } else if (outcome.kind !== "failed") {
             ceremonyRefused(outcome.kind);
           } else if (typeof outcome.error === "string") {

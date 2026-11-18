@@ -83,20 +83,13 @@ const shape = (region: HTMLElement): string =>
  *  refuses reads the state again. The later sends go at once, before the
  *  sketch of the read the first one started can take the form's place. */
 function sender(region: HTMLElement, username: string, password: string): () => Promise<void> {
-  let filled = false;
-  return async () => {
-    if (!filled) {
-      filled = true;
-      await userEvent.fill(
-        region.querySelector<HTMLInputElement>("input[name='username']")!,
-        username,
-      );
-      await userEvent.fill(
-        region.querySelector<HTMLInputElement>("input[name='password']")!,
-        password,
-      );
-    }
+  // Set, not typed: typing both fields can outlast a waitFor on a loaded
+  // host, and the form reads only the values.
+  return () => {
+    region.querySelector<HTMLInputElement>("input[name='username']")!.value = username;
+    region.querySelector<HTMLInputElement>("input[name='password']")!.value = password;
     region.querySelector("form")!.requestSubmit();
+    return Promise.resolve();
   };
 }
 

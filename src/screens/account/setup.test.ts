@@ -728,6 +728,64 @@ describe("mountSetup: the recovery code after the passkey offer", () => {
   });
 });
 
+describe("mountSetup: the passkey offer, skipped", () => {
+  it("goes on once when a passkey answers after Skip, still showing its recovery code", async () => {
+    const fake = new Fake().answer("state", ok(SETUP)).answer("registerPasskey", {
+      kind: "registered",
+      recovery_code: "M9XRTB4HNW6P7KQ2",
+    });
+    const release = fake.hold("registerPasskey");
+    let done = 0;
+    const { region } = mount(fake, {
+      offerPasskey: () => true,
+      onDone: () => {
+        done += 1;
+      },
+    });
+    await drawn(region);
+    await create(region);
+    await vi.waitFor(() => {
+      expect(button(region, "Add a passkey")).toBeDefined();
+    });
+    await userEvent.click(button(region, "Add a passkey"));
+    // Pressed at once: Add a passkey's busy words move Skip under a pointer.
+    button(region, "Skip").click();
+    expect(done).toBe(1);
+    release();
+    expect(await savedCode()).toBe("M9XR-TB4H-NW6P-7KQ2");
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(done).toBe(1);
+  });
+
+  it("says nothing of a passkey that failed after Skip", async () => {
+    const fake = new Fake()
+      .answer("state", ok(SETUP))
+      .answer("registerPasskey", { kind: "verification-failed" });
+    const release = fake.hold("registerPasskey");
+    let done = 0;
+    const { region } = mount(fake, {
+      offerPasskey: () => true,
+      onDone: () => {
+        done += 1;
+      },
+    });
+    await drawn(region);
+    await create(region);
+    await vi.waitFor(() => {
+      expect(button(region, "Add a passkey")).toBeDefined();
+    });
+    await userEvent.click(button(region, "Add a passkey"));
+    // Pressed at once: Add a passkey's busy words move Skip under a pointer.
+    button(region, "Skip").click();
+    expect(done).toBe(1);
+    release();
+    // Past the 400 ms a confirm cycle's shown busy state holds an answer.
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    expect(noticeOf(region)?.textContent ?? "").not.toContain("passkey");
+    expect(done).toBe(1);
+  });
+});
+
 describe("mountSetup: a second factor first", () => {
   const enrol = ok({ pending: { ticket: "t1", next: "enrol", methods: ["totp", "passkey"] } });
 
@@ -789,6 +847,30 @@ describe("mountSetup: a second factor first", () => {
     });
     expect(input(region, "password")).not.toBeNull();
     expect(fake.named("storePasswordCredential")).toHaveLength(0);
+  });
+
+  it("shows no failure of the authenticator key's read once the person started again", async () => {
+    const fake = new Fake()
+      .always("state", ok(SETUP))
+      .answer("setupPassword", enrol)
+      .answer("pendingTOTPBegin", refuse(503, "auth_unavailable"));
+    const release = fake.hold("pendingTOTPBegin");
+    const { region } = mount(fake);
+    await drawn(region);
+    await create(region);
+    await vi.waitFor(() => {
+      expect(button(region, "Start again")).toBeDefined();
+    });
+    await userEvent.click(button(region, "Start again"));
+    await vi.waitFor(() => {
+      expect(input(region, "password")).not.toBeNull();
+    });
+    const password = input(region, "password");
+    release();
+    // Past the 400 ms a confirm cycle's shown busy state holds an answer.
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    expect(noticeOf(region)).toBeNull();
+    expect(input(region, "password")).toBe(password);
   });
 
   it("says over the form that the setup timed out when the ticket lapsed", async () => {

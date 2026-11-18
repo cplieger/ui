@@ -67,6 +67,9 @@ export interface Part<T> {
    *  its draw and drops the read in flight, so a refusal after it empties
    *  `content` and Retry loads afresh. */
   lend(): HTMLElement;
+  /** Aborts once `content` is drawn again, emptied or lent, or the part's
+   *  signal ends: what a draw or a loan starts runs on it. */
+  life(): AbortSignal;
   /** The data drawn last, undefined before the first draw. */
   drawn(): T | undefined;
 }
@@ -84,6 +87,11 @@ export function screenPart<T>(spec: PartSpec<T>): Part<T> {
   let wanted: string | null | undefined;
   let drawn: { readonly data: T } | undefined;
   let failure: Element | undefined;
+  let drawing = new AbortController();
+  const handOn = (): void => {
+    drawing.abort();
+    drawing = new AbortController();
+  };
   // The read a hold owes draws with no carried request, so focus stays on
   // the opener the ended edit gave it back to.
   const renames = renameHold(() => {
@@ -99,6 +107,7 @@ export function screenPart<T>(spec: PartSpec<T>): Part<T> {
       scope,
       spec.heading,
       () => {
+        handOn();
         spec.draw(data);
       },
       asked,
@@ -152,6 +161,7 @@ export function screenPart<T>(spec: PartSpec<T>): Part<T> {
       if (!got.ok) {
         if (drawn === undefined) {
           redrawKeepingFocus(scope, spec.heading, () => {
+            handOn();
             spec.content.replaceChildren();
           });
         }
@@ -183,6 +193,7 @@ export function screenPart<T>(spec: PartSpec<T>): Part<T> {
       () => {
         if (runs === mine && drawn === undefined) {
           redrawKeepingFocus(scope, spec.heading, () => {
+            handOn();
             spec.content.replaceChildren(sketch());
           });
         }
@@ -222,8 +233,11 @@ export function screenPart<T>(spec: PartSpec<T>): Part<T> {
       runs += 1;
       wanted = undefined;
       drawn = undefined;
+      handOn();
       return spec.content;
     },
+    life: () =>
+      spec.signal === undefined ? drawing.signal : AbortSignal.any([drawing.signal, spec.signal]),
     drawn: () => drawn?.data,
   };
 }

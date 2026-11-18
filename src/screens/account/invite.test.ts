@@ -357,6 +357,72 @@ describe("mountInvite: single sign-on", () => {
 });
 
 describe("mountInvite: a second factor first", () => {
+  it("keeps the step it hands its panel to when a read started before it is slow", async () => {
+    const fake = new Fake()
+      .answer("inviteAcceptPassword", refuse(403, "auth_https_required"))
+      .answer(
+        "inviteAcceptPassword",
+        ok({ pending: { ticket: "t1", next: "enrol", methods: ["totp"] } }),
+      )
+      .answer(
+        "pendingTOTPBegin",
+        ok({ uri: "otpauth://totp/x?secret=JBSWY3DP", text: "JBSWY3DP" }),
+      );
+    const { panel } = mount(fake);
+    await drawn(panel);
+    // The re-read the refusal starts stays out, and the person sends the
+    // form again at once, inside the load's first 150 ms.
+    const stalled = Promise.withResolvers<unknown>();
+    fake.answer("state", () => {
+      setTimeout(() => {
+        panel.querySelector("form")?.requestSubmit();
+      }, 0);
+      return stalled.promise;
+    });
+    await accept(panel);
+    await vi.waitFor(() => {
+      expect(input(panel, "code")).not.toBeNull();
+    });
+    const code = input(panel, "code");
+    // Past the 150 ms after which a slow load sketches an empty part.
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    expect(input(panel, "code")).toBe(code);
+    expect(panel.querySelector(".cp-skeleton")).toBeNull();
+    stalled.resolve(ok(EVERY));
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(input(panel, "code")).toBe(code);
+  });
+
+  it("shows no rate limit's wait from the authenticator key's read once the person started again", async () => {
+    const fake = new Fake()
+      .answer(
+        "inviteAcceptPassword",
+        ok({ pending: { ticket: "t1", next: "enrol", methods: ["totp", "passkey"] } }),
+      )
+      .answer(
+        "pendingTOTPBegin",
+        refuse(429, "auth_rate_limited", undefined, { "Retry-After": "30" }),
+      );
+    const release = fake.hold("pendingTOTPBegin");
+    const { panel } = mount(fake);
+    await drawn(panel);
+    await accept(panel);
+    await vi.waitFor(() => {
+      expect(button(panel, "Start again")).toBeDefined();
+    });
+    await userEvent.click(button(panel, "Start again"));
+    await vi.waitFor(() => {
+      expect(input(panel, "password")).not.toBeNull();
+    });
+    const password = input(panel, "password");
+    release();
+    // Past the 400 ms a confirm cycle's shown busy state holds an answer.
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    expect(noticeOf(panel)).toBeNull();
+    expect(input(panel, "password")).toBe(password);
+    expect(button(panel, "Create account").getAttribute("aria-disabled")).toBeNull();
+  });
+
   it("continues into the sign-in's own enrolment, and joins once it finishes", async () => {
     const fake = new Fake()
       .answer(

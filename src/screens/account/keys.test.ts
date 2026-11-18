@@ -547,6 +547,9 @@ describe("mountSecurity: Rename, Rotate and Revoke", () => {
     const { region } = mount(fake, { parts: [...KEY_PARTS] });
     const row = await keyRow(region, "backup script");
     expect(stateOf(row)).toMatch(/^Retiring until /);
+    // The read at the end answers only once Rename… is open, however long
+    // opening it takes.
+    const release = fake.hold("keys");
     await press(row, "Rename…");
     await vi.waitFor(
       () => {
@@ -554,6 +557,8 @@ describe("mountSecurity: Rename, Rotate and Revoke", () => {
       },
       { timeout: 5000 },
     );
+    release();
+    await new Promise((resolve) => setTimeout(resolve, 50));
     expect(stateOf(row)).toMatch(/^Retiring until /);
     await userEvent.keyboard("{Escape}");
     await vi.waitFor(async () => {

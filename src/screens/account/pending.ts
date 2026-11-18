@@ -59,6 +59,9 @@ export interface PendingContext<C extends PendingClient> {
   readonly finish: (signedIn: SignedIn) => void;
   /** Back to the sign-in form, saying why. */
   readonly restart: (said?: Said) => void;
+  /** Ends when the screen takes `body` back to draw in it. */
+  readonly loan?: AbortSignal;
+  /** The screen's own life. */
   readonly signal?: AbortSignal;
 }
 
@@ -84,12 +87,22 @@ export function continueSignIn<C extends PendingClient>(
   x: PendingContext<C>,
   answer: SignInOutcome,
 ): void {
-  const { client, access, words: w, notices, signal } = x;
-  const life = signal === undefined ? {} : { signal };
+  const { client, access, words: w, notices } = x;
+  // A restart hands `x.body` back to the screen, so it ends the attempt:
+  // every listener, timer and answer of it runs on `signal`.
+  const over = new AbortController();
+  const signal = AbortSignal.any(
+    [over.signal, x.loan, x.signal].filter((s): s is AbortSignal => s !== undefined),
+  );
+  const life = { signal };
   let current: Pending | undefined;
   let hold: Hold | undefined;
   const held = (): boolean => hold?.active() === true;
-  const ended = (): boolean => signal?.aborted === true;
+  const ended = (): boolean => signal.aborted;
+  const restart = (said?: Said): void => {
+    over.abort();
+    x.restart(said);
+  };
 
   const can = (p: Pending, m: PendingMethod): boolean => {
     switch (p.next) {
@@ -120,13 +133,28 @@ export function continueSignIn<C extends PendingClient>(
     }
   };
 
+  const recoveryOf = (a: Answer): string | undefined =>
+    "pending" in a
+      ? undefined
+      : "waiting_approval" in a
+        ? a.recovery_code
+        : a.signed_in.recovery_code;
+
+  /** Takes a step's answer; once the attempt ended, only the recovery
+   *  code it carries is shown, as that answer is the code's one showing. */
   const took = async (a: Answer): Promise<void> => {
+    const code = recoveryOf(a);
+    if (ended()) {
+      if (code !== undefined) {
+        await showRecoveryCode(code, w, x.signal);
+      }
+      return;
+    }
     if ("pending" in a) {
       notices.clear();
       show(a.pending);
       return;
     }
-    const code = "waiting_approval" in a ? a.recovery_code : a.signed_in.recovery_code;
     if (code !== undefined) {
       await showRecoveryCode(code, w, signal);
     }
@@ -134,7 +162,7 @@ export function continueSignIn<C extends PendingClient>(
       return;
     }
     if ("waiting_approval" in a) {
-      x.restart({ tone: "neutral", text: w["pending.waiting"] });
+      restart({ tone: "neutral", text: w["pending.waiting"] });
     } else {
       x.finish(a.signed_in);
     }
@@ -148,7 +176,7 @@ export function continueSignIn<C extends PendingClient>(
     }
     const p = { ...current, methods: current.methods.filter((m) => m !== method) };
     if (runnable(p).length === 0) {
-      x.restart(said);
+      restart(said);
       return;
     }
     show(p);
@@ -169,7 +197,7 @@ export function continueSignIn<C extends PendingClient>(
     const reason = reasonOf(r);
     switch (codeOf(r)) {
       case "auth_token_invalid":
-        x.restart({ tone: "warning", text: w["pending.timedOut"] });
+        restart({ tone: "warning", text: w["pending.timedOut"] });
         return;
       case "auth_bad_request":
         mark(at.input, at.format ?? w["generic.server"], "danger");
@@ -227,7 +255,7 @@ export function continueSignIn<C extends PendingClient>(
         return;
       case "auth_forbidden":
         if (reason === "no_usable_method") {
-          x.restart({ tone: "danger", text: w["signIn.noUsableMethod"] });
+          restart({ tone: "danger", text: w["signIn.noUsableMethod"] });
           return;
         }
         notices.show("danger", generic(r, w).text);
@@ -256,10 +284,16 @@ export function continueSignIn<C extends PendingClient>(
       () => attempt(name, call),
       (a) => a?.ok === true && !("pending" in a.data),
     );
-    if (got === undefined || ended()) {
+    if (got === undefined) {
       return;
     }
     const a = got.answer;
+    if (ended()) {
+      if (a?.ok === true) {
+        await took(a.data);
+      }
+      return;
+    }
     if (a === null) {
       notices.show("danger", w["generic.server"]);
     } else if (a.ok) {
@@ -297,10 +331,16 @@ export function continueSignIn<C extends PendingClient>(
           () => attempt(name, ceremony),
           (o) => o?.kind === "answered" && !("pending" in o.result),
         ).then(async (got) => {
-          if (got === undefined || ended()) {
+          if (got === undefined) {
             return;
           }
           const o = got.answer;
+          if (ended()) {
+            if (o?.kind === "answered") {
+              await took(o.result);
+            }
+            return;
+          }
           if (o === null) {
             notices.show("danger", w["generic.server"]);
           } else if (o.kind === "answered") {
@@ -330,7 +370,7 @@ export function continueSignIn<C extends PendingClient>(
 
   const startAgain = (): HTMLButtonElement =>
     quiet(w["pending.startAgain"], () => {
-      x.restart();
+      restart();
     });
 
   /** A form of one field and its submit; `send` runs on a valid value. */
@@ -570,6 +610,7 @@ export function continueSignIn<C extends PendingClient>(
     const into = slotForKey;
     into.setAttribute("aria-busy", "true");
     void attempt("auth.enrol_totp", () => read(() => begin({ ticket: p.ticket }))).then((begun) => {
+      // A method dropped meanwhile redraws this attempt without `into`.
       if (ended() || current !== p) {
         return;
       }
@@ -624,7 +665,7 @@ export function continueSignIn<C extends PendingClient>(
     hold = undefined;
     const methods = runnable(p);
     if (methods.length === 0) {
-      x.restart({ tone: "danger", text: w["signIn.noUsableMethod"] });
+      restart({ tone: "danger", text: w["signIn.noUsableMethod"] });
       return;
     }
     switch (p.next) {

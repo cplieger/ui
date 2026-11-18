@@ -778,6 +778,8 @@ export function mountSignIn<C extends SignInClient>(
           restart: (said) => {
             void load(said);
           },
+          // After `lend`, whose loan it ends.
+          loan: part.life(),
           ...life,
         },
         stepOf(answer.data),
@@ -902,6 +904,7 @@ export function mountSignIn<C extends SignInClient>(
         notices.clear();
         // The browser runs one passkey request at a time.
         stopConditional();
+        const drawn = part.life();
         void cycle(
           confirm,
           () => attempt("auth.sign_in_passkey", () => access.signInWithPasskey(client)),
@@ -911,6 +914,11 @@ export function mountSignIn<C extends SignInClient>(
             return;
           }
           const outcome = got.answer;
+          // A sign-in is taken whatever is drawn; a miss is said only over
+          // the form that asked, never over a step the form handed on to.
+          if (outcome?.kind !== "signed-in" && drawn.aborted) {
+            return;
+          }
           if (outcome === null) {
             notices.show("danger", w["generic.server"]);
           } else if (outcome.kind === "signed-in") {
