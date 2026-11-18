@@ -1550,10 +1550,8 @@ describe("enhanceListDetail", () => {
       s.detail.querySelector(".cp-detail-body")!.append(text);
       await pressShows(s, s.rows[0]!);
       await pressShows(s, s.rows[1]!);
-      let loaded!: () => void;
-      load = new Promise((r) => {
-        loaded = r;
-      });
+      const { promise, resolve: loaded } = Promise.withResolvers<undefined>();
+      load = promise;
       let focused = 0;
       const count = (e: FocusEvent): void => {
         if (e.target instanceof HTMLHeadingElement && s.detail.contains(e.target)) {
@@ -1571,7 +1569,7 @@ describe("enhanceListDetail", () => {
       await userEvent.click(text);
       expect(document.activeElement, "the click left focus on the page").toBe(document.body);
       const y = scrollY;
-      loaded();
+      loaded(undefined);
       await transition?.finished.catch(() => undefined);
       await frames(3);
       await task();
