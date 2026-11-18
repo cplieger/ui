@@ -31,3 +31,11 @@
     animation: none;
   }
 }
+
+/* Forced colours drop the fill, which would leave an empty region with
+ * nothing on screen saying it loads. */
+@media (forced-colors: active) {
+  .cp-skeleton {
+    background: GrayText;
+  }
+}

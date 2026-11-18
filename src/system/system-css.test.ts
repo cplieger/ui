@@ -4686,6 +4686,17 @@ describe("css/system.css feedback and steps", () => {
     const el = build(BUSY);
     expect(runs(el).map((a) => a.animationName)).toEqual([]);
   });
+
+  it("draws a skeleton's lines in GrayText in forced colours", async () => {
+    await forceColours();
+    theme("light");
+    const el = build('<div class="cp-skeleton"></div>');
+    const gray = host("");
+    gray.style.backgroundColor = "GrayText";
+    expect(getComputedStyle(el.firstElementChild as Element).backgroundColor).toBe(
+      getComputedStyle(gray).backgroundColor,
+    );
+  });
 });
 
 describe("css/system.css lists, feeds and counts", () => {

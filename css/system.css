@@ -10701,6 +10701,14 @@ button.cp-figure[aria-expanded="true"]::after {
   }
 }
 
+/* Forced colours drop the fill, which would leave an empty region with
+ * nothing on screen saying it loads. */
+@media (forced-colors: active) {
+  .cp-skeleton {
+    background: GrayText;
+  }
+}
+
 /* Empty state: what belongs here and the one action that fills it. */
 .cp-empty {
   display: grid;
