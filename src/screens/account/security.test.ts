@@ -693,6 +693,21 @@ describe("mountSecurity: the authenticator app", () => {
     expect(document.querySelector("dialog")).toBeNull();
   });
 
+  it("says how long to wait when the server is too busy to start the setup", async () => {
+    const fake = offered(unset).answer(
+      "beginTOTP",
+      refuse(429, "auth_rate_limited", undefined, { "Retry-After": "30" }),
+    );
+    const { region } = mount(fake);
+    await ready(region);
+    await press(rowOf(region, "Authenticator app"), "Set up an authenticator app");
+    await vi.waitFor(() => {
+      expect(noticeOf(region)).toBe("Too many attempts. Try again in 0:30.");
+    });
+    expect(document.querySelector("dialog")).toBeNull();
+    expect(fake.named("finishTOTP")).toHaveLength(0);
+  });
+
   it("closes the setup on a password removed in another tab meanwhile, with Set a password… in reach", async () => {
     const fake = offered(unset)
       .always("me", ok(noPassword))

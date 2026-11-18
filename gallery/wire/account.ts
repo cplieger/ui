@@ -195,7 +195,7 @@ const ENROL: Required<Pick<PendingClient, "pendingTOTPBegin" | "pendingTOTPFinis
 
 const ceremony = async (): Promise<PendingPasskeyOutcome> => {
   await wait(900);
-  return { kind: "answered", answer: { signed_in: SIGNED_IN } };
+  return { kind: "answered", result: { signed_in: SIGNED_IN } };
 };
 
 function fake(script: Script): { readonly client: Demo; readonly access: SignInAccess<Demo> } {
@@ -1206,7 +1206,7 @@ function account(
         ...methods,
       },
       can_link_oidc: true,
-      sso_governed: false,
+      sso_only: false,
       session: {
         method: "passkey",
         auth_time: new Date().toISOString(),
@@ -2011,7 +2011,7 @@ function everyKeyOf(): KeyView[] {
   return [
     {
       id: 12,
-      owner: "mika",
+      username: "mika",
       label: "ci",
       prefix: "rt_ci3",
       suffix: "q2Z",
@@ -2021,7 +2021,7 @@ function everyKeyOf(): KeyView[] {
     },
     {
       id: 14,
-      owner: "mika",
+      username: "mika",
       label: "nightly",
       prefix: "rt_n8k",
       suffix: "Lw4",
@@ -2032,7 +2032,7 @@ function everyKeyOf(): KeyView[] {
     },
     {
       id: 21,
-      owner: "alice",
+      username: "alice",
       label: "backup script",
       prefix: "rt_b7a",
       suffix: "m0P",

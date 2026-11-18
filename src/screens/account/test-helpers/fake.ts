@@ -39,6 +39,7 @@ import type {
   SignedIn,
   StateResponse,
   StepUpAccess,
+  StepUpChoice,
   StepUpClient,
   StepUpResult,
   TemporaryPasswordResponse,
@@ -95,7 +96,7 @@ export function meWith(
     user: { id: 1, username: "mika", role: "admin" },
     methods: { ...holdsAll, ...methods },
     can_link_oidc: false,
-    sso_governed: false,
+    sso_only: false,
     session: SESSION,
     ...rest,
   };
@@ -294,9 +295,9 @@ export class Fake {
       }),
     ],
     ["pendingTOTPFinish", ok({ signed_in: signedIn })],
-    ["loginSecondPasskey", { kind: "answered", answer: { signed_in: signedIn } }],
-    ["loginSetPasskey", { kind: "answered", answer: { signed_in: signedIn } }],
-    ["pendingPasskey", { kind: "answered", answer: { signed_in: signedIn } }],
+    ["loginSecondPasskey", { kind: "answered", result: { signed_in: signedIn } }],
+    ["loginSetPasskey", { kind: "answered", result: { signed_in: signedIn } }],
+    ["pendingPasskey", { kind: "answered", result: { signed_in: signedIn } }],
     ["adminUsers", ok([])],
     ["adminUpdateUser", (id: number) => ok({ ...ALICE_USER, id })],
     ["adminDeleteUser", ok(undefined)],
@@ -381,9 +382,8 @@ export class Fake {
       : next;
   }
 
-  /** `@cplieger/access`'s `withStepUp` as the pinned release runs it, plus
-   *  the authenticator code; the passkey's browser step answers
-   *  `passkeyAssertion`. */
+  /** `@cplieger/access`'s `withStepUp` as the pinned release runs it; the
+   *  passkey's browser step answers `passkeyAssertion`. */
   async #withStepUp<T>(
     c: FakeClient,
     action: () => Promise<Result<T>>,
@@ -406,7 +406,18 @@ export class Fake {
     if (!me.ok) {
       return { kind: "step-up-failed", error: me };
     }
-    const choice = await o.prompt(me.data.methods);
+    const { methods } = me.data;
+    const offered: StepUpChoice[] = ["passkey", "oidc"];
+    if (methods.password_step_up !== false) {
+      offered.unshift("password");
+    }
+    if (methods.totp?.usable === true) {
+      offered.push("totp");
+    }
+    const choice = await o.prompt(methods);
+    if (choice !== "cancel" && !offered.includes(choice)) {
+      return { kind: "cancelled" };
+    }
     switch (choice) {
       case "cancel":
         return { kind: "cancelled" };
@@ -419,7 +430,7 @@ export class Fake {
         return res.ok ? retry() : { kind: "step-up-failed", error: res };
       }
       case "totp": {
-        const code = (await o.code?.()) ?? null;
+        const code = await o.code();
         if (code === null) {
           return { kind: "cancelled" };
         }
@@ -469,8 +480,8 @@ export class Fake {
         call<Result<SignInOutcome>>("loginRecoveryCode", [ticket, code]),
       loginSetPassword: (ticket, password) =>
         call<Result<SignInOutcome>>("loginSetPassword", [ticket, password]),
-      pendingTOTPBegin: (ticket) =>
-        call<Result<{ readonly uri: string; readonly text: string }>>("pendingTOTPBegin", [ticket]),
+      pendingTOTPBegin: (r) =>
+        call<Result<{ readonly uri: string; readonly text: string }>>("pendingTOTPBegin", [r]),
       pendingTOTPFinish: (ticket, code) =>
         call<Result<{ readonly signed_in: SignedIn }>>("pendingTOTPFinish", [ticket, code]),
       setupPassword: (r) => call<Result<PasswordAnswer>>("setupPassword", [r]),

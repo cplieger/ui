@@ -588,8 +588,14 @@ describe("mountUsers", () => {
   });
 });
 
-const CI: KeyView = { ...BACKUP, id: 12, label: "ci", owner: "mika", scopes: ["manage_users"] };
-const NIGHTLY: KeyView = { ...BACKUP, id: 14, label: "nightly", owner: "mika", parent_key_id: 12 };
+const CI: KeyView = { ...BACKUP, id: 12, label: "ci", username: "mika", scopes: ["manage_users"] };
+const NIGHTLY: KeyView = {
+  ...BACKUP,
+  id: 14,
+  label: "nightly",
+  username: "mika",
+  parent_key_id: 12,
+};
 const BOT: UserView = { ...ALICE_USER, id: 5, username: "bot", key_lineage: [12, 14] };
 const KAI: UserView = { ...ALICE_USER, id: 6, username: "kai", key_lineage: [9] };
 const FROM_ADMIN: TokenView = {
@@ -627,6 +633,23 @@ describe("mountUsers, who a key reached", () => {
     expect(crumbs.querySelector("a")?.getAttribute("href")).toMatch(/[?&]key=12$/);
     const kai = await rowOf(region, "kai");
     expect(kai.querySelector("nav.cp-crumbs a")?.textContent).toBe("revoked key 9");
+  });
+
+  it("names each key's owner from the username the every-account list carries", async () => {
+    const fake = people(ME, BOT, KAI)
+      .always("adminKeys", ok([CI, { ...NIGHTLY, username: "alice" }]))
+      .always("adminTokens", ok([]));
+    const { region } = mount(fake);
+    const keys = await section(region, "admin-keys");
+    const owners = await vi.waitFor(() => {
+      const heads = [...keys.querySelectorAll("thead th")].map((th) => th.textContent);
+      const at = heads.indexOf("Belongs to");
+      expect(at, heads.join()).toBeGreaterThan(-1);
+      const rows = [...keys.querySelectorAll<HTMLTableRowElement>("tbody tr")];
+      expect(rows).toHaveLength(2);
+      return rows.map((r) => r.cells[at]?.textContent);
+    });
+    expect(owners).toEqual(["mika", "alice"]);
   });
 
   it("names a key it could not read the list of, never calling it revoked", async () => {
@@ -669,7 +692,7 @@ describe("mountUsers, who a key reached", () => {
 
   it("names a new key once the keys table's read answers after the whole read", async () => {
     const late = Promise.withResolvers<unknown>();
-    const NEW: KeyView = { ...BACKUP, id: 99, label: "agent", owner: "mika" };
+    const NEW: KeyView = { ...BACKUP, id: 99, label: "agent", username: "mika" };
     const LEO: UserView = { ...ALICE_USER, id: 7, username: "leo", key_lineage: [99] };
     const fake = reached();
     const { region, screen } = mount(fake);

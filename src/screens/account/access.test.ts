@@ -44,7 +44,12 @@ export function hostPasses(client: access.AuthClient, answer: ApiResult<number>)
 
 it("finds every function the screens call in the access module", () => {
   const called = [
+    "loginSecondPasskey",
+    "loginSetPasskey",
+    "looksLikeTemporaryPassword",
+    "passkeyProof",
     "passkeySupport",
+    "pendingPasskey",
     "readOIDCReturn",
     "oidcSignInURL",
     "registerPasskey",

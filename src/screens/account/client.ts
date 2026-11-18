@@ -93,7 +93,9 @@ export interface WaitingApproval {
 /** What a passkey step of a pending sign-in ends with: the server's
  *  answer, or why the browser gave none. */
 export type PendingPasskeyOutcome =
-  { readonly kind: "answered"; readonly answer: SignInOutcome | WaitingApproval } | PasskeyMiss;
+  | { readonly kind: "answered"; readonly result: SignInOutcome | WaitingApproval }
+  | PasskeyMiss
+  | RegisterMiss;
 
 export type PasskeySignInOutcome =
   | { readonly kind: "signed-in"; readonly result: SignedIn }
@@ -132,9 +134,9 @@ export interface PendingClient {
   loginCode?(ticket: string, code: string): Promise<Result<SignInOutcome>>;
   loginRecoveryCode?(ticket: string, code: string): Promise<Result<SignInOutcome>>;
   loginSetPassword?(ticket: string, password: string): Promise<Result<SignInOutcome>>;
-  pendingTOTPBegin?(
-    ticket: string,
-  ): Promise<Result<{ readonly uri: string; readonly text: string }>>;
+  pendingTOTPBegin?(r: {
+    readonly ticket: string;
+  }): Promise<Result<{ readonly uri: string; readonly text: string }>>;
   pendingTOTPFinish?(
     ticket: string,
     code: string,
@@ -281,8 +283,6 @@ export interface AccountView extends MeView {
   /** The identity provider manages this person's sign-in, so their
    *  local methods are dormant. */
   readonly sso_only?: boolean;
-  /** The older name of `sso_only`, read when that is absent. */
-  readonly sso_governed?: boolean;
   /** An owner keeps every local method. */
   readonly owner?: boolean;
   readonly session: SessionNow;
@@ -324,7 +324,7 @@ export interface StepUpCallbacks {
   prompt(methods: MethodsView): Promise<StepUpChoice>;
   readonly password: () => Promise<string | null>;
   /** A code from the authenticator app. */
-  readonly code?: () => Promise<string | null>;
+  readonly code: () => Promise<string | null>;
   /** A fresh sign-in for a plain session. */
   readonly signInAgain?: () => Promise<boolean>;
   readonly redirect?: string;
@@ -333,6 +333,9 @@ export interface StepUpCallbacks {
 
 /** A passkey assertion that did not confirm the person. */
 export type PasskeyMiss = Exclude<PasskeySignInOutcome, { kind: "signed-in" }>;
+
+/** A passkey registration that bound nothing. */
+export type RegisterMiss = Exclude<RegisterOutcome, { kind: "registered" }>;
 
 export type StepUpResult<T> =
   | { readonly kind: "done"; readonly result: Result<T> }
@@ -434,7 +437,7 @@ export interface KeyView {
   /** The key that minted this one, when a key did. */
   readonly parent_key_id?: number;
   /** On the every-account list: the username of the key's owner. */
-  readonly owner?: string;
+  readonly username?: string;
 }
 
 /** `createKey` and `rotateKey`'s answer: the plaintext, shown once. */

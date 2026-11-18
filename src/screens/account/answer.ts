@@ -7,7 +7,13 @@
 
 import type { Tone } from "../../foundations/icons/glyph.js";
 import { showError } from "../../forms/form/form.js";
-import type { PasskeyMiss, PasswordLength, Refusal, StateResponse } from "./client.js";
+import type {
+  PasskeyMiss,
+  PasswordLength,
+  Refusal,
+  RegisterMiss,
+  StateResponse,
+} from "./client.js";
 import type { AccountWords } from "./words.js";
 
 /** What a screen shows for an answer: a notice's tone and words. */
@@ -137,13 +143,19 @@ export function passwordWords(r: Refusal, w: AccountWords, length: PasswordLengt
   }
 }
 
-/** The words for a passkey ceremony that confirmed no one, the server's
- *  refusal for the caller to word, or undefined for a prompt the person
- *  closed. */
-export function passkeyMiss(outcome: PasskeyMiss, w: AccountWords): Said | Refusal | undefined {
+/** The words for a passkey ceremony that confirmed or bound no one, the
+ *  server's refusal for the caller to word, or undefined for a prompt the
+ *  person closed. */
+export function passkeyMiss(
+  outcome: PasskeyMiss | RegisterMiss,
+  w: AccountWords,
+): Said | Refusal | undefined {
   switch (outcome.kind) {
     case "cancelled":
       return undefined;
+    case "duplicate":
+    case "not-discoverable":
+      return { tone: "warning", text: w[`register.${outcome.kind}`] };
     case "timeout":
     case "ceremony-expired":
     case "unknown-credential":

@@ -355,7 +355,7 @@ describe("mountSignIn: the recovery code", () => {
       expect(panel.querySelector("svg.cp-qr")).not.toBeNull();
     });
     expect(panel.querySelector(".cp-code code")?.textContent).toBe("JBSW Y3DP EHPK 3PXP");
-    expect(fake.named("pendingTOTPBegin")[0]?.args).toEqual(["t2"]);
+    expect(fake.named("pendingTOTPBegin")[0]?.args).toEqual([{ ticket: "t2" }]);
     expect(document.activeElement).toBe(input(panel, "code"));
     expect(button(panel, "Register a passkey")).toBeDefined();
     await userEvent.fill(input(panel, "code"), "123456");
@@ -501,6 +501,20 @@ describe("mountSignIn: choosing a credential after a temporary password", () => 
       expect(went).toEqual(["/feed"]);
     });
     expect(fake.named("pendingPasskey")[0]?.args[1]).toBe("t2");
+  });
+
+  it("words a passkey the authenticator already holds and keeps the enrolment", async () => {
+    const fake = new Fake().answer("pendingPasskey", { kind: "duplicate" });
+    const { panel, went } = await stepped(
+      fake,
+      pending({ ticket: "t2", next: "enrol", methods: ["passkey"] }),
+    );
+    await userEvent.click(button(panel, "Register a passkey"));
+    await vi.waitFor(() => {
+      expect(noticeOf(panel)?.textContent).toBe("That passkey is already on your account.");
+    });
+    expect(panel.querySelector("h2")?.textContent).toBe("Set up a second factor");
+    expect(went).toEqual([]);
   });
 });
 

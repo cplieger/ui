@@ -84,7 +84,7 @@ export function drawMethods<C extends SecurityClient>(
   }
   const notices = slot(notes);
   const plain = !me.session.secure;
-  const dormant = (me.sso_only ?? me.sso_governed ?? false) && me.owner !== true;
+  const dormant = me.sso_only === true && me.owner !== true;
   const ways = proofWays(m, access, { webauthn: ctx.webauthn, secure: !plain, has });
   const needsProof = m.second_factor_held === true;
   const lockOf = (method: string): boolean =>

@@ -758,7 +758,7 @@ describe("mountSetup: a second factor first", () => {
     await vi.waitFor(() => {
       expect(region.querySelector("svg.cp-qr")).not.toBeNull();
     });
-    expect(fake.named("pendingTOTPBegin")[0]?.args).toEqual(["t1"]);
+    expect(fake.named("pendingTOTPBegin")[0]?.args).toEqual([{ ticket: "t1" }]);
     expect(fake.named("storePasswordCredential")).toHaveLength(0);
     await userEvent.fill(input(region, "code"), "123456");
     await userEvent.click(button(region, "Turn on"));

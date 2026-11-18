@@ -363,7 +363,7 @@ describe("mountInvite: a second factor first", () => {
         "inviteAcceptPassword",
         ok({ pending: { ticket: "t1", next: "enrol", methods: ["passkey"] } }),
       )
-      .answer("pendingPasskey", { kind: "answered", answer: { signed_in: signedIn } });
+      .answer("pendingPasskey", { kind: "answered", result: { signed_in: signedIn } });
     const { panel, joined } = mount(fake);
     await drawn(panel);
     await accept(panel);

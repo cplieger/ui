@@ -36,6 +36,7 @@ export type {
   ProofOutcome,
   Readiness,
   Refusal,
+  RegisterMiss,
   RegisterOutcome,
   Result,
   SSOMode,

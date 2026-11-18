@@ -477,7 +477,7 @@ export function drawKeys(
     }
     cells.push(head);
     if (admin !== undefined) {
-      const owner = cell(k.owner ?? "");
+      const owner = cell(k.username ?? "");
       owner.dataset["priority"] = "mid";
       cells.push(owner);
     }

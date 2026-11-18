@@ -507,6 +507,22 @@ describe("stepUp: a passkey and single sign-on", () => {
     expect(d.open).toBe(true);
   });
 
+  it("says how long to wait when the server is too busy to start a passkey", async () => {
+    const fake = new Fake().answer(
+      "stepUpPasskeyBegin",
+      refuse(429, "auth_rate_limited", undefined, { "Retry-After": "30" }),
+    );
+    start(fake);
+    const d = await dialogOf();
+    await userEvent.click(button(d, "Use a passkey"));
+    await vi.waitFor(() => {
+      expect(noticeOf(d)).toBe("Too many attempts. Try again in 0:30.");
+    });
+    expect(d.open).toBe(true);
+    expect(fake.named("passkeyAssertion")).toHaveLength(0);
+    expect(fake.named("stepUpPasskeyFinish")).toHaveLength(0);
+  });
+
   it("leaves for the provider with the host's return path, and never runs the action again", async () => {
     const { fake, sent, went, answer } = start(new Fake(), [recent], {
       redirect: "/settings/account?confirm=revoke-key-12",

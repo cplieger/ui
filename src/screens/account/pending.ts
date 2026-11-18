@@ -295,7 +295,7 @@ export function continueSignIn<C extends PendingClient>(
         void cycle(
           confirm,
           () => attempt(name, ceremony),
-          (o) => o?.kind === "answered" && !("pending" in o.answer),
+          (o) => o?.kind === "answered" && !("pending" in o.result),
         ).then(async (got) => {
           if (got === undefined || ended()) {
             return;
@@ -304,7 +304,7 @@ export function continueSignIn<C extends PendingClient>(
           if (o === null) {
             notices.show("danger", w["generic.server"]);
           } else if (o.kind === "answered") {
-            await took(o.answer);
+            await took(o.result);
           } else {
             const said = passkeyMiss(o, w);
             if (said !== undefined && "ok" in said) {
@@ -569,7 +569,7 @@ export function continueSignIn<C extends PendingClient>(
     }
     const into = slotForKey;
     into.setAttribute("aria-busy", "true");
-    void attempt("auth.enrol_totp", () => read(() => begin(p.ticket))).then((begun) => {
+    void attempt("auth.enrol_totp", () => read(() => begin({ ticket: p.ticket }))).then((begun) => {
       if (ended() || current !== p) {
         return;
       }
