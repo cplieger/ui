@@ -1,11 +1,13 @@
-/* Skeleton: the shape of what is coming, with a slow opacity beat that stops
- * under reduced motion. @cplieger/ui/skeleton decides when it shows. */
+/* Skeleton: the shape of what is coming, with a slow opacity beat that runs
+ * out and back twice and rests at full opacity (--cp-skeleton-dur owns the
+ * 5-second limit), and stops under reduced motion.
+ * @cplieger/ui/skeleton decides when it shows. */
 .cp-skeleton {
   display: block;
   block-size: 0.75em;
   border-radius: var(--cp-radius-control);
   background: var(--cp-fill-hover);
-  animation: cp-skeleton var(--cp-skeleton-dur) var(--cp-ease-move) infinite alternate;
+  animation: cp-skeleton var(--cp-skeleton-dur) var(--cp-ease-move) 2 alternate;
 }
 
 /* Lines that stand for text: a heading is short, and a paragraph's last

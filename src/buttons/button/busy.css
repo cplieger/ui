@@ -4,7 +4,7 @@
 }
 
 :where(.cp) .cp-icon[data-cp-icon="spinner-arc"] {
-  animation: cp-spin 0.8s linear infinite;
+  animation: var(--cp-spin);
 }
 
 @keyframes cp-spin {

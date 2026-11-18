@@ -114,6 +114,8 @@ for (const start of document.querySelectorAll<HTMLButtonElement>("[data-progress
         setTimeout(step, 260);
       } else {
         wrap.dataset["state"] = "done";
+        // The green bar and its check are seen, never heard.
+        announce("Check finished.");
       }
     };
     step();

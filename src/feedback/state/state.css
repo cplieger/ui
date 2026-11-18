@@ -50,7 +50,7 @@
 
 .cp-state[data-cp-state="busy"]::before {
   content: "";
-  animation: cp-spin 0.8s linear infinite;
+  animation: var(--cp-spin);
 }
 
 .cp-state[data-cp-state="done"] {

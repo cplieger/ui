@@ -2571,6 +2571,12 @@
   );
   --cp-dur-spring: 520ms;
   --cp-press-scale: 0.97;
+  /* A busy indicator rests within 5 seconds, on the frame it started from,
+   * while aria-busy and its words keep saying the work runs (WCAG 3 draft
+   * 2.6.1.4, https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#no-visual-motion-no-exceptions):
+   * six 0.8s turns end upright at 4.8s, and the skeleton's beat runs out and
+   * back twice, so it stays at 2.5s or less. */
+  --cp-spin: cp-spin 0.8s linear 6;
   --cp-skeleton-dur: 1.6s;
 }
 
@@ -5547,7 +5553,7 @@ textarea.cp-input {
 
 .cp-state[data-cp-state="busy"]::before {
   content: "";
-  animation: cp-spin 0.8s linear infinite;
+  animation: var(--cp-spin);
 }
 
 .cp-state[data-cp-state="done"] {
@@ -10661,14 +10667,16 @@ button.cp-figure[aria-expanded="true"]::after {
   }
 }
 
-/* Skeleton: the shape of what is coming, with a slow opacity beat that stops
- * under reduced motion. @cplieger/ui/skeleton decides when it shows. */
+/* Skeleton: the shape of what is coming, with a slow opacity beat that runs
+ * out and back twice and rests at full opacity (--cp-skeleton-dur owns the
+ * 5-second limit), and stops under reduced motion.
+ * @cplieger/ui/skeleton decides when it shows. */
 .cp-skeleton {
   display: block;
   block-size: 0.75em;
   border-radius: var(--cp-radius-control);
   background: var(--cp-fill-hover);
-  animation: cp-skeleton var(--cp-skeleton-dur) var(--cp-ease-move) infinite alternate;
+  animation: cp-skeleton var(--cp-skeleton-dur) var(--cp-ease-move) 2 alternate;
 }
 
 /* Lines that stand for text: a heading is short, and a paragraph's last
@@ -12133,7 +12141,7 @@ button.cp-figure[aria-expanded="true"]::after {
 }
 
 :where(.cp) .cp-icon[data-cp-icon="spinner-arc"] {
-  animation: cp-spin 0.8s linear infinite;
+  animation: var(--cp-spin);
 }
 
 @keyframes cp-spin {
@@ -12212,7 +12220,7 @@ button.cp-button[data-tone="danger"][data-cp-state="done"]:not(:disabled) {
 
 .cp-button[data-cp-state="busy"] > .cp-icon[data-part="busy"] {
   display: inline-block;
-  animation: cp-spin 0.8s linear infinite;
+  animation: var(--cp-spin);
 }
 
 .cp-button[data-cp-state="done"] > .cp-icon[data-part="done"] {

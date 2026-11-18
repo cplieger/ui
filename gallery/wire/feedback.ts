@@ -45,6 +45,8 @@ for (const region of document.querySelectorAll<HTMLElement>("#stale-region")) {
         checked.dateTime = new Date().toISOString();
         enhanceRelativeTime(checked);
       }
+      // The line leaving the panel's edge is seen, never heard.
+      announce("Refreshed.");
     },
     words: {
       refreshFailed: (reason, at) =>

@@ -50,7 +50,7 @@ button.cp-button[data-tone="danger"][data-cp-state="done"]:not(:disabled) {
 
 .cp-button[data-cp-state="busy"] > .cp-icon[data-part="busy"] {
   display: inline-block;
-  animation: cp-spin 0.8s linear infinite;
+  animation: var(--cp-spin);
 }
 
 .cp-button[data-cp-state="done"] > .cp-icon[data-part="done"] {

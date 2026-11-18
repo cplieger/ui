@@ -4629,6 +4629,63 @@ describe("css/system.css feedback and steps", () => {
       "cp-twirl-loop",
     );
   });
+
+  // WCAG 3 draft 2.6.1.4: a busy indicator stops moving within 5 seconds,
+  // on a whole cycle, so it rests on the frame it started from.
+  const BUSY =
+    '<span class="cp-icon" data-cp-icon="spinner-arc" aria-hidden="true"></span>' +
+    '<button class="cp-button" type="button" data-cp-state="busy" aria-busy="true"><span class="cp-icon" data-cp-icon="spinner-arc" data-part="busy" aria-hidden="true"></span>Saving…</button>' +
+    '<span class="cp-state" data-cp-state="busy">Uploading…</span>' +
+    '<div class="cp-skeleton"></div>';
+  const runs = (el: HTMLElement) =>
+    el.getAnimations({ subtree: true }).filter((a): a is CSSAnimation => a instanceof CSSAnimation);
+
+  it("rests every busy indicator within 5 seconds, on a whole cycle", () => {
+    theme("light");
+    const el = build(BUSY);
+    const found = runs(el).map((a) => {
+      const t = a.effect?.getComputedTiming();
+      return {
+        name: a.animationName,
+        whole:
+          a.animationName === "cp-skeleton"
+            ? t?.direction === "alternate" && Number(t.iterations) % 2 === 0
+            : Number.isInteger(t?.iterations),
+        within: Number(t?.endTime) <= 5000,
+      };
+    });
+    expect(found).toEqual([
+      ...Array.from({ length: 3 }, () => ({ name: "cp-spin", whole: true, within: true })),
+      { name: "cp-skeleton", whole: true, within: true },
+    ]);
+  });
+
+  it("ends each busy indicator on the frame it started from", () => {
+    theme("light");
+    const el = build(BUSY);
+    for (const a of runs(el)) {
+      a.pause();
+      a.currentTime = Number(a.effect?.getComputedTiming().endTime) - 1;
+    }
+    const turn = (style: CSSStyleDeclaration) => {
+      const [cos = Number.NaN, sin = Number.NaN] =
+        /matrix\(([^)]*)\)/.exec(style.transform)?.[1]?.split(",").map(Number) ?? [];
+      return Math.round((Math.atan2(sin, cos) * 180) / Math.PI) + 0;
+    };
+    const state = el.querySelector(".cp-state") as HTMLElement;
+    expect([
+      ...[...el.querySelectorAll(".cp-icon")].map((i) => turn(getComputedStyle(i))),
+      turn(getComputedStyle(state, "::before")),
+      Number(getComputedStyle(el.querySelector(".cp-skeleton") as Element).opacity),
+    ]).toEqual([0, 0, 0, expect.closeTo(1, 2)]);
+  });
+
+  it("holds every busy indicator still under reduced motion", async () => {
+    await reduceMotion();
+    theme("light");
+    const el = build(BUSY);
+    expect(runs(el).map((a) => a.animationName)).toEqual([]);
+  });
 });
 
 describe("css/system.css lists, feeds and counts", () => {
