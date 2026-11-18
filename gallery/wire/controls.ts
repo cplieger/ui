@@ -3,6 +3,7 @@
  * on the library's modules.
  */
 
+import { announce } from "@cplieger/ui/announce";
 import { ask } from "@cplieger/ui/ask";
 import { closeDialog } from "@cplieger/ui/dialog";
 import { enhanceDisclosure } from "@cplieger/ui/disclosure";
@@ -188,6 +189,9 @@ for (const form of document.querySelectorAll<HTMLFormElement>("form[data-unsaved
       load();
     } else if (notice !== null) {
       notice.hidden = false;
+      // A save elsewhere moves nothing under the person, so its notice is
+      // said where they are.
+      announce(notice.querySelector(":scope > span:not(.cp-icon)")?.textContent ?? "");
     }
   });
 }

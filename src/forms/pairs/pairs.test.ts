@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { userEvent } from "vitest/browser";
 
+import { installAnnouncer } from "../../feedback/announce/announce.js";
 import { enhancePairs } from "./pairs.js";
 
 let life = new AbortController();
@@ -58,6 +59,35 @@ describe("enhancePairs", () => {
     expect(document.activeElement?.id).toBe("from-2");
     await userEvent.click(list.querySelector("[data-remove-pair]") as HTMLButtonElement);
     expect(document.activeElement).toBe(add);
+  });
+
+  it("says a removed row by its values, or by the app's words", async () => {
+    installAnnouncer({ signal: life.signal });
+    const said = () => document.querySelector('[aria-live="polite"]')?.textContent;
+    const { box, list, add } = pairs();
+    let gone: readonly string[] = [];
+    enhancePairs(box, { signal: life.signal });
+    await userEvent.click(add);
+    await userEvent.click(list.querySelector("[data-remove-pair]") as HTMLButtonElement);
+    await expect.poll(said).toBe("/tv, /media/tv removed");
+    await userEvent.click(list.querySelector("[data-remove-pair]") as HTMLButtonElement);
+    await expect.poll(said).toBe("Row removed");
+    life.abort();
+    life = new AbortController();
+    installAnnouncer({ signal: life.signal });
+    const other = pairs();
+    enhancePairs(other.box, {
+      words: {
+        removed: (values) => {
+          gone = values;
+          return "Mapping removed";
+        },
+      },
+      signal: life.signal,
+    });
+    await userEvent.click(other.list.querySelector("[data-remove-pair]") as HTMLButtonElement);
+    await expect.poll(said).toBe("Mapping removed");
+    expect(gone).toEqual(["/tv", "/media/tv"]);
   });
 
   it("puts its rows and their values back on the form's reset, and tells the host", async () => {

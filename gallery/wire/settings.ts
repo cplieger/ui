@@ -82,7 +82,7 @@ const sourceForm = source?.closest("form");
 if (source !== null && sourceForm !== null && sourceForm !== undefined) {
   sourceForm.addEventListener("submit", (e) => {
     e.preventDefault();
-    const errors = [...sourceForm.querySelectorAll<Control>("[required]")]
+    const errors = [...sourceForm.querySelectorAll<Control>("[aria-required='true']")]
       .filter(
         (f) => f.value.trim() === "" || (f.type === "url" && !/^https?:\/\/\S+/.test(f.value)),
       )

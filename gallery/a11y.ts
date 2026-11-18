@@ -720,6 +720,10 @@ const statePass = (state: State): Pass => ({
     if (hidden.length > 0) {
       report.fail(`a field described by the error it hides, ${label(state)}`, hidden);
     }
+    const empty = await emptyRequired(tab);
+    if (empty.length > 0) {
+      report.fail(`a field read as invalid before anything was typed, ${label(state)}`, empty);
+    }
     await tab.close();
   },
 });
@@ -737,6 +741,23 @@ async function hiddenErrors(tab: Page): Promise<string[]> {
           : [];
       }),
     ),
+  );
+}
+
+/** Each empty field marked `required` that the app has not marked invalid.
+ *  Firefox and WebKit read a field failing a native constraint as invalid
+ *  entry, and Firefox does even under `aria-invalid="false"`, so an empty
+ *  `required` field says an error before the person typed anything; a
+ *  required field is marked `aria-required="true"` instead. */
+async function emptyRequired(tab: Page): Promise<string[]> {
+  return tab.evaluate(() =>
+    [
+      ...document.querySelectorAll<HTMLInputElement>(
+        "input[required], select[required], textarea[required]",
+      ),
+    ]
+      .filter((f) => f.validity.valueMissing && f.getAttribute("aria-invalid") !== "true")
+      .map((f) => (f.id === "" ? f.outerHTML.slice(0, 80) : `#${f.id}`)),
   );
 }
 
@@ -1151,6 +1172,24 @@ export function selfTest(browser: () => Browser): void {
           '<input id="h" aria-label="Note" aria-describedby="h-help"><span id="h-help" hidden>Hidden help</span></main></html>',
       );
       expect(await hiddenErrors(tab)).toEqual(["#f names #f-error"]);
+      await tab.close();
+    },
+  );
+
+  it(
+    "finds an empty required field the app has not marked, and no other",
+    { timeout: 60_000 },
+    async () => {
+      const tab = await browser().newPage();
+      await tab.setContent(
+        `${PAGE}<form novalidate><input id="a" aria-label="A" required>` +
+          '<input id="b" aria-label="B" required value="typed">' +
+          '<input id="c" aria-label="C" aria-required="true">' +
+          '<input id="d" aria-label="D" required aria-invalid="true">' +
+          '<select id="e" aria-label="E" required><option value="">Choose</option></select>' +
+          '<textarea id="f" aria-label="F" required aria-invalid="false"></textarea></form></main></html>',
+      );
+      expect(await emptyRequired(tab)).toEqual(["#a", "#e", "#f"]);
       await tab.close();
     },
   );

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 
 import { enhancePairs } from "../pairs/pairs.js";
@@ -1030,5 +1030,78 @@ describe("guardChanges: in a dialog", () => {
     await userEvent.click(link);
     expect([question(), seen]).toEqual([null, ["router"]]);
     expect(await guard.leave()).toBe(true);
+  });
+});
+
+describe("guardChanges: focus a paint hides", () => {
+  const BAR =
+    '<div class="cp-field"><label for="name">Name</label><input id="name" name="name" value="Tracker"></div>' +
+    '<div class="cp-field" id="part"><label for="every">Check every</label><input id="every" name="every" value="30"></div>' +
+    '<div class="cp-savebar" hidden><button type="reset">Discard</button><button type="submit">Save changes</button></div>';
+
+  /** A form whose save bar shows only while a change waits, as an app
+   *  paints it from the guard. */
+  function painted(): {
+    f: HTMLFormElement;
+    bar: HTMLElement;
+    guard: ReturnType<typeof guardChanges>;
+  } {
+    const f = form(BAR);
+    const bar = get<HTMLElement>(f, ".cp-savebar");
+    const guard = guardChanges(f, {
+      onChange: (changes) => {
+        bar.hidden = changes.length === 0;
+      },
+      signal: life.signal,
+    });
+    f.addEventListener("submit", () => {
+      guard.saved();
+    });
+    return { f, bar, guard };
+  }
+
+  it("moves focus from Discard, hidden once nothing waits, to the first field that held a change", async () => {
+    const { f, bar } = painted();
+    await userEvent.type(get(f, "#every"), "5");
+    expect(bar.hidden).toBe(false);
+    await userEvent.click(get(f, '[type="reset"]'));
+    await vi.waitFor(() => {
+      expect(bar.hidden).toBe(true);
+    });
+    expect(document.activeElement).toBe(get(f, "#every"));
+  });
+
+  it("moves focus from Save changes, hidden once saved, to the first field that held a change", async () => {
+    const { f, bar } = painted();
+    await userEvent.type(get(f, "#every"), "5");
+    await userEvent.click(get(f, '[type="submit"]'));
+    expect(bar.hidden).toBe(true);
+    expect(document.activeElement).toBe(get(f, "#every"));
+  });
+
+  it("moves focus to the form's first field when no field that held a change shows", async () => {
+    const { f, bar } = painted();
+    await userEvent.type(get(f, "#every"), "5");
+    get<HTMLElement>(f, "#part").hidden = true;
+    await userEvent.click(get(f, '[type="reset"]'));
+    await vi.waitFor(() => {
+      expect(bar.hidden).toBe(true);
+    });
+    expect(document.activeElement).toBe(get(f, "#name"));
+  });
+
+  it("leaves focus on a control the paint keeps shown", async () => {
+    const f = form(BAR);
+    const bar = get<HTMLElement>(f, ".cp-savebar");
+    bar.hidden = false;
+    const painted: number[] = [];
+    guardChanges(f, { onChange: (c) => painted.push(c.length), signal: life.signal });
+    await userEvent.type(get(f, "#every"), "5");
+    const discard = get<HTMLButtonElement>(f, '[type="reset"]');
+    await userEvent.click(discard);
+    await vi.waitFor(() => {
+      expect(painted).toEqual([1, 0]);
+    });
+    expect(document.activeElement).toBe(discard);
   });
 });
