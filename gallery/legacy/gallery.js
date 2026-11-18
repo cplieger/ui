@@ -28,10 +28,10 @@ const reduced = () =>
   root.dataset.motion === "reduced" ||
   (root.dataset.motion !== "full" && matchMedia("(prefers-reduced-motion: reduce)").matches);
 
-// Pointer tier: a copy of @cplieger/ui/pointer. A hovering fine pointer
-// beside a touchscreen (an iPad on a Magic Keyboard) wins the first guess,
-// a press sets its pointer's tier, and a mouse or trackpad that only moves
-// sets fine.
+// Pointer tier: a copy of @cplieger/ui/pointer and @cplieger/ui/pointer/follow.
+// A hovering fine pointer beside a touchscreen (an iPad on a Magic Keyboard)
+// wins the first guess, a press sets its pointer's tier, and a mouse or
+// trackpad that only moves sets fine.
 const mq = (q) => matchMedia(q).matches;
 root.dataset.pointer =
   mq("(any-pointer: fine)") && mq("(any-hover: hover)") ? "fine" : mq("(any-pointer: coarse)") || navigator.maxTouchPoints > 0 ? "coarse" : "fine";

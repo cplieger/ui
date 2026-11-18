@@ -12,7 +12,8 @@ import { guardChanges } from "@cplieger/ui/form";
 import { createHeaderStatus } from "@cplieger/ui/header-status";
 import { createIcons } from "@cplieger/ui/icons";
 import { enhancePill } from "@cplieger/ui/pill";
-import { applyPointerTier, installPointerTier } from "@cplieger/ui/pointer";
+import { applyPointerTier } from "@cplieger/ui/pointer";
+import { installPointerTier } from "@cplieger/ui/pointer/follow";
 import { enhanceSettings } from "@cplieger/ui/settings";
 
 applyPointerTier();
