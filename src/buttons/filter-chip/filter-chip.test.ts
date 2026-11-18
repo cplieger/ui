@@ -228,7 +228,8 @@ describe("filter chip", () => {
     chip.setAttribute("data-cp-pressed", "");
     const running = [chip, check].flatMap((el) => el.getAnimations());
     expect(running.length, "the press starts transitions").toBeGreaterThan(0);
-    // WCAG 2.2 2.3.3; motion.css shortens every movement to --cp-dur-short.
+    // The check's inline-size and margin use --cp-dur-medium, which
+    // motion.css sets to --cp-dur-short under reduced motion.
     const short = Number.parseFloat(getComputedStyle(root).getPropertyValue("--cp-dur-short"));
     expect(short).toBe(160);
     for (const a of running) {

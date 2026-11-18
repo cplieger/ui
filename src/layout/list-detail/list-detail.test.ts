@@ -1,5 +1,5 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { server, userEvent } from "vitest/browser";
 
 import { installDialogs } from "../../overlays/dialog/dialog.js";
 import {
@@ -1428,9 +1428,14 @@ describe("enhanceListDetail", () => {
         expect(document.activeElement, "focus on the heading").toBe(s.heading);
         const h = s.heading.getBoundingClientRect();
         expect(h.top > -1 && h.bottom < innerHeight + 1, "the heading wholly in view").toBe(true);
-        // Firefox's second focus reset on an awaited intercepted traversal
-        // adds one, which the module answers by focusing the heading again.
-        expect(focused, "a focus event on the heading").toBeGreaterThanOrEqual(1);
+        // This harness runs in an iframe, where Firefox 159 commits an
+        // intercepted traversal twice and runs its handler again, so the
+        // heading can take focus back once more there.
+        if (server.browser === "firefox") {
+          expect(focused, "a focus event on the heading").toBeGreaterThanOrEqual(1);
+        } else {
+          expect(focused, "one focus event on the heading").toBe(1);
+        }
       };
       await across(() => {
         history.back();
@@ -1442,6 +1447,49 @@ describe("enhanceListDetail", () => {
       }
     },
   );
+
+  it.each(
+    (["intercept", "intercept-await"] as const).flatMap((answer) =>
+      (["a same-URL state stamp", "a push"] as const).map(
+        (after) => [`under an ${answer} route, then ${after}`, answer, after] as const,
+      ),
+    ),
+  )("leaves focus on the page once a docked traversal has ended, %s", async (_, answer, after) => {
+    const s = await answered(DOCK, answer);
+    const text = document.createElement("p");
+    text.textContent = "Notes on the entry";
+    s.detail.querySelector(".cp-detail-body")!.append(text);
+    await pressShows(s, s.rows[0]!);
+    await pressShows(s, s.rows[1]!);
+    const shown = opened(s.root);
+    history.back();
+    await shown;
+    await nav.transition?.finished.catch(() => undefined);
+    await frames(3);
+    await task();
+    expect(document.activeElement, "the traversal focused the heading").toBe(s.heading);
+    await userEvent.click(text);
+    expect(document.activeElement, "the click left focus on the page").toBe(document.body);
+    const y = scrollY;
+    let focused = 0;
+    s.heading.addEventListener("focus", () => {
+      focused += 1;
+    });
+    if (after === "a push") {
+      history.pushState(history.state, "", "#notes");
+    } else {
+      history.replaceState(
+        { ...(history.state as Record<string, unknown> | null), scroll: y },
+        "",
+        location.href,
+      );
+    }
+    await frames(3);
+    await task();
+    expect(document.activeElement, "focus still on the page").toBe(document.body);
+    expect(focused, "no focus event on the heading").toBe(0);
+    expect(scrollY, "the page where the reader left it").toBe(y);
+  });
 
   it.each([
     ["docked, a link at the top", DOCK, "link"],

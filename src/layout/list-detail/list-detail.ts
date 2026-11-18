@@ -268,9 +268,6 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
    *  never clears it, so a route that awaits before it shows on Back still
    *  reads the traversal. */
   let lastType: NavigationType | null = null;
-  /** The intercepted traversal whose show focused the heading, until the
-   *  next navigation. */
-  let traversed: Nav | null = null;
   /** Counts opens and closes, so an exit that ends after the next open
    *  leaves the detail where it is. */
   let turn = 0;
@@ -577,7 +574,6 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
       const h = heading();
       if (current?.type === "traverse" && h !== null && document.activeElement === h) {
         current.focusedHeading = true;
-        traversed = current.intercepted ? current : null;
       }
     },
   };
@@ -697,7 +693,6 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
         // A route stamping the entry's state while it handles a navigation.
         return;
       }
-      traversed = null;
       current = {
         type: e.navigationType,
         hashChange: e.hashChange,
@@ -748,13 +743,21 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
   navigation?.addEventListener(
     "navigatesuccess",
     () => {
+      const n = current;
       settled();
-      // Firefox 159 ends an intercepted traversal whose handler awaits with a
-      // second navigatesuccess, and resets focus to the body before it, as
-      // if nothing had taken focus
+      // In a nested browsing context, Firefox 159 commits an intercepted
+      // traversal twice and runs its handler again, and a run that focuses
+      // nothing leaves focus to the reset; only the traversal still in
+      // progress takes the heading back
       // (https://html.spec.whatwg.org/multipage/nav-history-apis.html#potentially-reset-the-focus).
       const h = heading();
-      if (traversed !== null && shown !== null && h !== null && isPage(document.activeElement)) {
+      if (
+        n?.intercepted === true &&
+        n.focusedHeading &&
+        shown !== null &&
+        h !== null &&
+        isPage(document.activeElement)
+      ) {
         refocus(h);
       }
     },
