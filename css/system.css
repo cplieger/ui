@@ -5514,13 +5514,62 @@ th[aria-sort="descending"] > .cp-sort::after {
   padding-block: var(--cp-cover-inset);
 }
 
+/* The title and its line keep a fixed budget, one line each, two for the
+ * title once the table is narrow, so every row is one height known before
+ * its data and a loading row (skeletonRow) can match it. The full title
+ * stays in the link's name and on the page it opens. */
 .cp-title-cell > .cp-cell-stack {
+  grid-template-rows: 1lh 1lh;
+  grid-template-columns: minmax(0, 1fr);
   padding-block: 0;
 }
 
-.cp-title-cell > .cp-cover {
+.cp-title-cell > .cp-cell-stack > :first-child {
+  display: -webkit-box;
+  max-inline-size: 100%;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+}
+
+.cp-title-cell > .cp-cell-stack > :nth-child(2) {
+  max-inline-size: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cp-title-cell > :is(.cp-cover, .cp-skeleton) {
   flex: none;
   inline-size: var(--cp-cover-row-w);
+}
+
+.cp-title-cell > .cp-skeleton {
+  block-size: auto;
+  aspect-ratio: 2 / 3;
+}
+
+.cp-table tr[data-skeleton] > td > .cp-skeleton {
+  inline-size: 70%;
+}
+
+.cp-table tr[data-skeleton] .cp-cell-stack {
+  flex: 1;
+  justify-items: stretch;
+}
+
+tr[data-skeleton] .cp-title-cell > .cp-cell-stack > :first-child {
+  display: grid;
+  align-content: start;
+}
+
+.cp-table tr[data-skeleton] .cp-cell-stack .cp-skeleton {
+  margin-block: calc((1lh - 0.75em) / 2);
+}
+
+.cp-title-cell > .cp-cell-stack > .cp-skeleton:last-child {
+  inline-size: 50%;
 }
 
 .cp-title-cell > .cp-cover > .cp-icon {
@@ -5712,6 +5761,29 @@ th[aria-sort="descending"] > .cp-sort::after {
 
 @container (width < 44rem) {
   .cp-table [data-priority="mid"] {
+    display: none;
+  }
+
+  /* The title cell is the column that gives, so the table fits its box.
+   * Contained, the stack adds no width to the column; it fills what the
+   * other columns leave. */
+  .cp-title-cell > .cp-cell-stack {
+    flex: 1;
+    contain: inline-size;
+    grid-template-rows: 2lh 1lh;
+  }
+
+  .cp-title-cell > .cp-cell-stack > :first-child {
+    -webkit-line-clamp: 2;
+  }
+
+  /* A row's worded action keeps only its icon; its aria-label names it,
+   * and it presses by its fill as an icon-only button does. */
+  :where(.cp-table [data-col="actions"]) .cp-button[aria-label]:has(> .cp-icon) {
+    --cp-press-scale: 1;
+  }
+
+  :where(.cp-table [data-col="actions"]) .cp-button[aria-label]:has(> .cp-icon) > :not(.cp-icon) {
     display: none;
   }
 }
@@ -8087,10 +8159,6 @@ div.cp-list-foot {
 
 .cp-table tbody tr[data-part="spacer"][aria-hidden]:last-child > td {
   border-block-end: 0;
-}
-
-.cp-table tbody tr[data-skeleton] .cp-skeleton {
-  inline-size: 70%;
 }
 
 /* The spinner @cplieger/ui/load-more gives its button, drawn here so a

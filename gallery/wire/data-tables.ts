@@ -10,7 +10,7 @@ import { enhanceDisclosure } from "@cplieger/ui/disclosure";
 import { enhanceMenu } from "@cplieger/ui/menu";
 import { skeletonTiming } from "@cplieger/ui/skeleton";
 import { createStateHistory } from "@cplieger/ui/state-history";
-import { enhanceBatchBar, enhanceRowDetail, enhanceSort } from "@cplieger/ui/table";
+import { enhanceBatchBar, enhanceRowDetail, enhanceSort, skeletonRow } from "@cplieger/ui/table";
 import { toast } from "@cplieger/ui/toast";
 
 const all = <E extends Element>(selector: string, root: ParentNode = document): E[] => [
@@ -112,8 +112,11 @@ for (const row of all<HTMLElement>(".cp-active-filters[data-count]")) {
 // Show loading stands for a load of 1.4 seconds: the skeleton, then the rows.
 for (const button of all<HTMLButtonElement>("button[data-load]")) {
   const table = document.getElementById(button.dataset["load"] ?? "");
-  const body = table instanceof HTMLTableElement ? table.tBodies[0] : undefined;
-  if (table === null || body === undefined) {
+  if (!(table instanceof HTMLTableElement)) {
+    continue;
+  }
+  const body = table.tBodies[0];
+  if (body === undefined) {
     continue;
   }
   button.addEventListener("click", () => {
@@ -121,20 +124,10 @@ for (const button of all<HTMLButtonElement>("button[data-load]")) {
       return;
     }
     const rows = [...body.rows];
-    const columns = rows[0]?.cells.length ?? 0;
+    const bones = skeletonRow(table);
     table.setAttribute("aria-busy", "true");
     const load = skeletonTiming(() => {
-      body.replaceChildren(
-        ...rows.map(() => {
-          const tr = document.createElement("tr");
-          for (let i = 0; i < columns; i++) {
-            const bone = document.createElement("span");
-            bone.className = "cp-skeleton";
-            tr.insertCell().append(bone);
-          }
-          return tr;
-        }),
-      );
+      body.replaceChildren(...rows.map(() => bones.cloneNode(true)));
     });
     setTimeout(() => {
       load.commit(() => {
