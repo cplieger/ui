@@ -211,6 +211,8 @@ export function mountSecurity<C extends SecurityClient>(
   // them asked for.
   let reads = 0;
   let wanted: string | undefined;
+  /** The notice of the last refresh that failed, until one succeeds. */
+  let failed: HTMLElement | undefined;
   let sessionsView: SessionsSection | undefined;
   let keysView: KeysSection | undefined;
   let logView: SecurityLogScreen | undefined;
@@ -358,10 +360,18 @@ export function mountSecurity<C extends SecurityClient>(
     if (!got.ok) {
       if (!signedOut(got)) {
         const said = generic(got, w);
-        notices.show(said.tone, said.text, retryButton());
+        failed = notices.show(
+          said.tone,
+          said.text,
+          retryButton(() => refresh(asked)),
+        );
       }
       return;
     }
+    if (failed?.isConnected === true) {
+      notices.clear();
+    }
+    failed = undefined;
     me = got.data;
     passkeys = keys;
     drawSession(me);
@@ -381,13 +391,24 @@ export function mountSecurity<C extends SecurityClient>(
     return got.ok ? got.data : passkeys;
   };
 
-  const retryButton = (): HTMLButtonElement => {
+  /** A Retry that runs `again`, the read that failed. */
+  const retryButton = (again: () => Promise<void>): HTMLButtonElement => {
     const retry = el("button", "cp-button", w["generic.retry"]);
     retry.type = "button";
-    retry.addEventListener("click", () => void load(), { once: true });
+    retry.addEventListener("click", () => void again(), { once: true });
     return retry;
   };
 
+  // The first read, while it runs: a refresh waits for it, since the
+  // sections it mounts exist only once it commits.
+  let loading: Promise<void> | undefined;
+  const start = (): Promise<void> =>
+    (loading ??= load().finally(() => {
+      loading = undefined;
+    }));
+
+  // Runs only while no section is mounted: a second mount would leave the
+  // first copies' focus, timer and popstate listeners running.
   const load = async (): Promise<void> => {
     notices.clear();
     region.setAttribute("aria-busy", "true");
@@ -410,7 +431,7 @@ export function mountSecurity<C extends SecurityClient>(
       if (!got.ok) {
         if (!signedOut(got)) {
           const said = generic(got, w);
-          notices.show(said.tone, said.text, retryButton());
+          notices.show(said.tone, said.text, retryButton(start));
         }
         return;
       }
@@ -529,9 +550,16 @@ export function mountSecurity<C extends SecurityClient>(
     }
   };
 
-  void load();
+  void start();
   return {
     refresh: async () => {
+      while (loading !== undefined) {
+        await loading;
+      }
+      if (ctx === undefined) {
+        await start();
+        return;
+      }
       await Promise.all([
         refresh(),
         sessionsView?.refresh(),

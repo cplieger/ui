@@ -130,6 +130,8 @@ export function mountAccessSettings<C extends AccessSettingsClient>(
 
   let current: SSOMode = "alongside";
   let asked = 0;
+  // Only the newest of overlapping loads draws.
+  let loads = 0;
 
   const guarded = <T>(
     work: () => Promise<Result<T>>,
@@ -190,11 +192,14 @@ export function mountAccessSettings<C extends AccessSettingsClient>(
   async function load(): Promise<void> {
     notices.clear();
     region.setAttribute("aria-busy", "true");
+    const mine = ++loads;
     const skeleton = skeletonTiming(() => {
-      content.replaceChildren(sketch());
+      if (mine === loads) {
+        content.replaceChildren(sketch());
+      }
     }, life);
     const [state, me] = await Promise.all([read(() => client.state()), read(() => client.me())]);
-    if (signal?.aborted === true) {
+    if (mine !== loads || signal?.aborted === true) {
       skeleton.cancel();
       return;
     }

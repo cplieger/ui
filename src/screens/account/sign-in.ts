@@ -230,12 +230,17 @@ export function mountSignIn<C extends SignInClient>(
     }
   };
 
+  // Only the newest of overlapping loads draws.
+  let loads = 0;
   const load = async (after?: Said): Promise<void> => {
     stopConditional();
     notices.clear();
     panel.setAttribute("aria-busy", "true");
+    const mine = ++loads;
     const skeleton = skeletonTiming(() => {
-      body.replaceChildren(sketch());
+      if (mine === loads) {
+        body.replaceChildren(sketch());
+      }
     }, life);
     const [state, support, pending] = await Promise.all([
       options.state === undefined || opened
@@ -244,7 +249,7 @@ export function mountSignIn<C extends SignInClient>(
       access.passkeySupport(),
       linking ? read(readPending) : Promise.resolve(undefined),
     ]);
-    if (signal?.aborted === true) {
+    if (mine !== loads || signal?.aborted === true) {
       skeleton.cancel();
       return;
     }

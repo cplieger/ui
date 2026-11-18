@@ -97,9 +97,19 @@ export function samePath(value: string | null): string | undefined {
     return undefined;
   }
   // The parser drops tabs and line breaks and reads a backslash as a slash,
-  // so "/\t/host" leaves the origin: only the parsed URL is trusted.
+  // so "/\t/host" leaves the origin. Dot segments and backslashes can also
+  // normalise to a scheme-relative path ("/.//host" parses here with the
+  // pathname "//host", which a later navigation reads as another host), so
+  // the normalised path is what is checked, again.
   const url = new URL(value, location.origin);
-  return url.origin === location.origin ? url.pathname + url.search + url.hash : undefined;
+  if (url.origin !== location.origin) {
+    return undefined;
+  }
+  const path = url.pathname + url.search + url.hash;
+  if (path.startsWith("//") || new URL(path, location.origin).origin !== location.origin) {
+    return undefined;
+  }
+  return path;
 }
 
 /** Removes the single sign-on outcome and the arrival from the address

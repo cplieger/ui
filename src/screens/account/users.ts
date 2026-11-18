@@ -204,6 +204,12 @@ export function mountUsers<C extends UsersClient>(
   // the newest answer of the whole read and the keys table's own.
   let reads = 0;
   let keyReads = 0;
+  /** Whether `keys` is the server's whole list, so a key missing from it
+   *  is revoked; false while no keys read has answered. */
+  let keysKnown = false;
+  /** The focus the newest refresh draws with: a control's
+   *  `data-cp-action`, null for the heading. */
+  let wanted: string | null | undefined;
 
   function part(title: string): {
     readonly root: HTMLElement;
@@ -332,7 +338,8 @@ export function mountUsers<C extends UsersClient>(
 
   /** Reads the viewer, the app's state, the people and, as mounted, the
    *  keys and invites that name them; false on a failure, which it shows.
-   *  A failed keys or invites read leaves those out. */
+   *  A failed invites read leaves them out; a failed keys read keeps the
+   *  last list, no longer known whole. */
   const readAll = async (): Promise<boolean> => {
     reads += 1;
     const mine = reads;
@@ -350,6 +357,7 @@ export function mountUsers<C extends UsersClient>(
       return false;
     }
     if (!me.ok || !users.ok) {
+      wanted = undefined;
       content.replaceChildren();
       failed(me.ok ? (users as Refusal) : me);
       return false;
@@ -357,7 +365,10 @@ export function mountUsers<C extends UsersClient>(
     viewer = me.data;
     list = users.data;
     if (keysMine === keyReads) {
-      keys = keyList?.ok === true ? keyList.data : [];
+      if (keyList?.ok === true) {
+        keys = keyList.data;
+      }
+      keysKnown = keyList?.ok === true;
     }
     tokens = tokenList?.ok === true ? tokenList.data : [];
     mode = state.ok ? (state.data.sso ?? "alongside") : "alongside";
@@ -384,18 +395,28 @@ export function mountUsers<C extends UsersClient>(
     skeleton.commit(() => {
       region.removeAttribute("aria-busy");
       if (got) {
-        draw();
+        redraw();
       }
     });
   };
 
-  async function refresh(focus?: string): Promise<void> {
-    if (!(await readAll())) {
-      return;
-    }
+  /** Draws the newest read, then moves focus as its refresh asked. */
+  function redraw(): void {
+    const asked = wanted;
+    wanted = undefined;
     draw();
-    if (focus === undefined || !focusAction(root, focus)) {
+    if (asked === null || (asked !== undefined && !focusAction(root, asked))) {
       h.focus();
+    }
+  }
+
+  /** Reads again and redraws. `focus` names the control to focus after
+   *  it, null or a gone control the heading; with no `focus`, focus stays
+   *  where it is. */
+  async function refresh(focus?: string | null): Promise<void> {
+    wanted = focus === undefined ? wanted : focus;
+    if (await readAll()) {
+      redraw();
     }
   }
 
@@ -403,14 +424,14 @@ export function mountUsers<C extends UsersClient>(
   function follow(id: number | undefined, replace = false): void {
     filter = id;
     onQuery(paramsOf(id), replace);
-    void refresh();
+    void refresh(null);
   }
 
   function show(search: string): void {
     const next = keyOf(search);
     if (next !== filter) {
       filter = next;
-      void refresh();
+      void refresh(null);
     }
   }
 
@@ -428,7 +449,7 @@ export function mountUsers<C extends UsersClient>(
   const keyLabel = (id: number): string => {
     const k = keys.find((x) => x.id === id);
     if (k === undefined) {
-      return has("admin-keys") ? w["keys.revokedParent"](id) : w["users.keyName"](id);
+      return keysKnown ? w["keys.revokedParent"](id) : w["users.keyName"](id);
     }
     return k.label === "" ? w["keys.unnamed"] : k.label;
   };
@@ -623,6 +644,7 @@ export function mountUsers<C extends UsersClient>(
           const got = await client.adminKeys();
           if (got.ok && mine === keyReads) {
             keys = got.data;
+            keysKnown = true;
           }
           return got;
         },
@@ -635,7 +657,7 @@ export function mountUsers<C extends UsersClient>(
           invites: () => tokens,
           revoked: async () => {
             if (await readAll()) {
-              draw();
+              redraw();
             }
           },
         },

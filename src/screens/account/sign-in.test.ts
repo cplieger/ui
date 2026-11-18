@@ -277,21 +277,40 @@ describe("mountSignIn: password", () => {
     expect(fake.named("storePasswordCredential")[0]?.args).toEqual(["mika", "lantern harbour"]);
   });
 
-  it.each(["//evil.example/x", "/\\evil.example", "/\t/evil.example", "https://evil.example/"])(
-    "goes home for a next of %j, which leaves the origin",
-    async (next) => {
-      const navigate = vi.fn<(url: string) => void>();
-      const { panel } = mount(new Fake(), {
-        navigate,
-        search: `?${new URLSearchParams({ next }).toString()}`,
-      });
-      await drawn(panel);
-      await signIn(panel);
-      await vi.waitFor(() => {
-        expect(navigate).toHaveBeenCalledWith("/");
-      });
-    },
-  );
+  it.each([
+    "//evil.example/x",
+    "/\\evil.example",
+    "/\t/evil.example",
+    "https://evil.example/",
+    "/.//evil.example",
+    "/foo/..//evil.example",
+    "/%2e//evil.example",
+    "/.\\/evil.example",
+  ])("goes home for a next of %j, which leaves the origin", async (next) => {
+    const navigate = vi.fn<(url: string) => void>();
+    const { panel } = mount(new Fake(), {
+      navigate,
+      search: `?${new URLSearchParams({ next }).toString()}`,
+    });
+    await drawn(panel);
+    await signIn(panel);
+    await vi.waitFor(() => {
+      expect(navigate).toHaveBeenCalledWith("/");
+    });
+  });
+
+  it("keeps a next's query and fragment on this origin", async () => {
+    const navigate = vi.fn<(url: string) => void>();
+    const { panel } = mount(new Fake(), {
+      navigate,
+      search: `?${new URLSearchParams({ next: "/feed?x=1#a" }).toString()}`,
+    });
+    await drawn(panel);
+    await signIn(panel);
+    await vi.waitFor(() => {
+      expect(navigate).toHaveBeenCalledWith("/feed?x=1#a");
+    });
+  });
 
   it("tells the host when a passkey may have been copied", async () => {
     const onSignedIn = vi.fn();

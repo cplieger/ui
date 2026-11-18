@@ -155,18 +155,23 @@ export function mountSetup<C extends SetupClient>(
     }
   };
 
+  // Only the newest of overlapping loads draws.
+  let loads = 0;
   /** Draws the screen from `state()`, saying `said` over it. */
   const load = async (said?: Said): Promise<void> => {
     notices.clear();
     region.setAttribute("aria-busy", "true");
+    const mine = ++loads;
     const skeleton = skeletonTiming(() => {
-      body.replaceChildren(sketch());
+      if (mine === loads) {
+        body.replaceChildren(sketch());
+      }
     }, life);
     const [state, support] = await Promise.all([
       read(() => client.state()),
       access.passkeySupport(),
     ]);
-    if (signal?.aborted === true) {
+    if (mine !== loads || signal?.aborted === true) {
       skeleton.cancel();
       return;
     }

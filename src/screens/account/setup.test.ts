@@ -508,6 +508,38 @@ describe("mountSetup: creating the account", () => {
       expect(region.querySelector(".cp-empty")?.textContent).toContain("This app needs HTTPS.");
     });
   });
+
+  it("draws the newest state when two re-reads answer out of order", async () => {
+    const late = Promise.withResolvers<unknown>();
+    const fake = new Fake()
+      .answer(
+        "state",
+        ok(SETUP),
+        () => late.promise,
+        ok({
+          ...SETUP,
+          secure: false,
+          password_login: false,
+          https_required: ["password", "setup"],
+        }),
+      )
+      .always("setupPassword", refuse(403, "auth_https_required"));
+    const { region } = mount(fake);
+    await drawn(region);
+    await create(region);
+    await vi.waitFor(() => {
+      expect(fake.named("state")).toHaveLength(2);
+    });
+    (region.querySelector("form") as HTMLFormElement).requestSubmit();
+    await vi.waitFor(() => {
+      expect(region.querySelector(".cp-empty")?.textContent).toContain("This app needs HTTPS.");
+    });
+    late.resolve(ok(SETUP));
+    // The older read settles on microtasks; a task tick lets it draw.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(region.querySelector(".cp-empty")?.textContent).toContain("This app needs HTTPS.");
+    expect(region.querySelector("form")).toBeNull();
+  });
 });
 
 describe("mountSetup: with a passkey", () => {

@@ -8,7 +8,7 @@ import { afterEach, beforeEach, expect, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 
 import type { AccountAction } from "../run.js";
-import { mountSecurity, type SecurityOptions } from "../security.js";
+import { mountSecurity, type SecurityOptions, type SecurityScreen } from "../security.js";
 import { Fake, type FakeClient } from "./fake.js";
 
 let life = new AbortController();
@@ -53,6 +53,7 @@ export interface Mounted {
   readonly region: HTMLElement;
   readonly ran: AccountAction[];
   readonly went: string[];
+  readonly screen: SecurityScreen;
 }
 
 /** Mounts the screen on `fake`, recording every write's name and every
@@ -62,7 +63,7 @@ export function mount(fake = new Fake(), options: Options = {}): Mounted {
   document.body.append(region);
   const ran: AccountAction[] = [];
   const went: string[] = [];
-  mountSecurity(region, {
+  const screen = mountSecurity(region, {
     client: fake.client,
     access: fake.access(),
     app: "Release tracker",
@@ -78,7 +79,7 @@ export function mount(fake = new Fake(), options: Options = {}): Mounted {
     signal: life.signal,
     ...options,
   });
-  return { fake, region, ran, went };
+  return { fake, region, ran, went, screen };
 }
 
 const shown = (el: Element): boolean => el.closest("[hidden]") === null;

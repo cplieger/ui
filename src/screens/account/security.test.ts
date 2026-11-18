@@ -95,6 +95,43 @@ describe("mountSecurity: the screen", () => {
     expect(fake.named("me")).toHaveLength(2);
   });
 
+  it("draws the account its host's refresh read, when the refresh came during the first read", async () => {
+    const fake = new Fake().answer(
+      "me",
+      ok(meWith({}, { user: { id: 1, username: "old", role: "admin" } })),
+      ok(meWith()),
+    );
+    const release = fake.hold("me");
+    const { region, screen } = mount(fake);
+    const refreshed = screen.refresh();
+    release();
+    await refreshed;
+    expect(region.querySelector("[data-part='session']")?.textContent).toBe(
+      "Signed in as mika with a passkey.",
+    );
+    expect(region.querySelectorAll("table.cp-table").length).toBeGreaterThan(1);
+  });
+
+  it("retries a failed refresh by reading the account again, mounting nothing twice", async () => {
+    const fake = new Fake().answer("me", ok(meWith()), refuse(503, "auth_unavailable"));
+    const { region, screen } = mount(fake);
+    await ready(region);
+    await vi.waitFor(() => {
+      expect(fake.named("keys")).toHaveLength(1);
+    });
+    await screen.refresh();
+    await userEvent.click(button(region, "Retry"));
+    await vi.waitFor(() => {
+      expect(fake.named("me")).toHaveLength(3);
+      expect(noticeOf(region)).toBe("");
+    });
+    const before = fake.named("keys").length;
+    window.dispatchEvent(new FocusEvent("focus"));
+    await vi.waitFor(() => {
+      expect(fake.named("keys")).toHaveLength(before + 1);
+    });
+  });
+
   it("ends the screen when the session is gone, saying why", async () => {
     const reasons: string[] = [];
     const fake = new Fake().answer("me", refuse(401, "auth_session_expired", "transport_changed"));

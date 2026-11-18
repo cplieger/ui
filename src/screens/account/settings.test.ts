@@ -33,11 +33,15 @@ const owned = (sso: "alongside" | "for_linked" | "only" = "alongside"): Fake =>
     )
     .always("me", ok(meWith({}, { owner: true, single_user: false })));
 
-function mount(fake: Fake): { readonly region: HTMLElement; readonly ran: AccountAction[] } {
+function mount(fake: Fake): {
+  readonly region: HTMLElement;
+  readonly ran: AccountAction[];
+  readonly refresh: () => Promise<void>;
+} {
   const region = document.createElement("div");
   document.body.append(region);
   const ran: AccountAction[] = [];
-  mountAccessSettings(region, {
+  const screen = mountAccessSettings(region, {
     client: fake.client,
     access: fake.access(),
     app: "Release tracker",
@@ -48,7 +52,7 @@ function mount(fake: Fake): { readonly region: HTMLElement; readonly ran: Accoun
     },
     navigate: () => undefined,
   });
-  return { region, ran };
+  return { region, ran, refresh: () => screen.refresh() };
 }
 
 const radios = (region: HTMLElement): Promise<HTMLInputElement[]> =>
@@ -366,6 +370,31 @@ describe("mountAccessSettings", () => {
     const https = ids.map((id) => document.getElementById(id)?.textContent ?? "");
     expect(https[1]).toBe("Needs HTTPS. Open Release tracker over HTTPS.");
     expect(fake.named("adminSSOReadiness")).toHaveLength(0);
+  });
+
+  it("draws the newer of two loads when the older answers last", async () => {
+    const stored = (sso: "alongside" | "only"): unknown =>
+      ok({
+        setup_required: false,
+        password_login: true,
+        passkeys: true,
+        oidc: true,
+        sso,
+        secure: true,
+        https_required: [],
+      });
+    const late = Promise.withResolvers<unknown>();
+    const fake = owned().answer("state", () => late.promise, stored("only"));
+    const { region, refresh } = mount(fake);
+    await vi.waitFor(() => {
+      expect(fake.named("state")).toHaveLength(1);
+    });
+    await refresh();
+    late.resolve(stored("alongside"));
+    // The older load settles on microtasks; a task tick lets it draw.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const checked = (await radios(region)).find((r) => r.checked);
+    expect(checked?.value).toBe("only");
   });
 
   it("ends the screen when the session is gone", async () => {

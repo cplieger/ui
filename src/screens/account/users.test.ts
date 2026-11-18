@@ -169,6 +169,53 @@ describe("mountUsers", () => {
     expect(region.textContent).not.toContain("alice");
   });
 
+  it("leaves focus where it is when the host refreshes", async () => {
+    const outside = document.createElement("input");
+    document.body.append(outside);
+    const fake = people(ME, ALICE_USER);
+    const { region, screen } = mount(fake);
+    await rowOf(region, "alice");
+    outside.focus();
+    await screen.refresh();
+    expect(fake.named("adminUsers")).toHaveLength(2);
+    expect(document.activeElement).toBe(outside);
+  });
+
+  it("returns focus to the edited row when a newer read answers for its save", async () => {
+    const late = Promise.withResolvers<unknown>();
+    const fake = people(ME, ALICE_USER);
+    const { region, screen } = mount(fake);
+    await press(await rowOf(region, "alice"), "Edit…");
+    const d = await dialogOf("Edit alice");
+    await userEvent.selectOptions(d.querySelector("select")!, "admin");
+    fake.answer("adminUsers", () => late.promise);
+    await userEvent.click(button(d, "Save"));
+    await vi.waitFor(() => {
+      expect(fake.named("adminUsers")).toHaveLength(2);
+    });
+    await screen.refresh();
+    const alice = await rowOf(region, "alice");
+    await vi.waitFor(() => {
+      expect(alice.contains(document.activeElement)).toBe(true);
+    });
+    late.resolve(ok([ME, ALICE_USER]));
+  });
+
+  it("keeps the newest answer drawn while an older load waits past the sketch's delay", async () => {
+    const late = Promise.withResolvers<unknown>();
+    const fake = people(ME, ALICE_USER).answer("adminUsers", () => late.promise);
+    const { region, screen } = mount(fake);
+    await screen.refresh();
+    await rowOf(region, "alice");
+    // Past the skeleton's 150 ms show delay, while the first load waits.
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    expect(region.querySelector(".cp-skeleton")).toBeNull();
+    late.resolve(ok([ME]));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(region.querySelector(".cp-skeleton")).toBeNull();
+    await rowOf(region, "alice");
+  });
+
   it("offers an owner every action, and nothing on their own row but Remove owner", async () => {
     const { region } = mount(people(ME, ALICE_USER));
     expect(actions(await rowOf(region, "mika"))).toEqual(["Remove owner"]);
@@ -582,6 +629,44 @@ describe("mountUsers, who a key reached", () => {
     expect(kai.querySelector("nav.cp-crumbs a")?.textContent).toBe("revoked key 9");
   });
 
+  it("names a key it could not read the list of, never calling it revoked", async () => {
+    const fake = reached().answer("adminKeys", refuse(503, "auth_unavailable"));
+    const { region } = mount(fake);
+    const bot = await rowOf(region, "bot");
+    expect([...bot.querySelectorAll("nav.cp-crumbs a")].map((a) => a.textContent)).toEqual([
+      "key 12",
+      "key 14",
+    ]);
+    expect((await rowOf(region, "kai")).querySelector("nav.cp-crumbs a")?.textContent).toBe(
+      "key 9",
+    );
+  });
+
+  it("keeps the keys table's newer list over an older whole read's", async () => {
+    const late = Promise.withResolvers<unknown>();
+    const fake = reached();
+    const { region, screen } = mount(fake);
+    const keys = await section(region, "admin-keys");
+    await vi.waitFor(() => {
+      expect(keys.textContent).toContain("nightly");
+    });
+    const before = fake.named("adminKeys").length;
+    fake.answer("adminKeys", () => late.promise);
+    const refreshing = screen.refresh();
+    await vi.waitFor(() => {
+      expect(fake.named("adminKeys")).toHaveLength(before + 1);
+    });
+    fake.always("adminKeys", ok([{ ...CI, label: "deploy" }, NIGHTLY]));
+    window.dispatchEvent(new FocusEvent("focus"));
+    await vi.waitFor(() => {
+      expect(keys.textContent).toContain("deploy");
+    });
+    late.resolve(ok([CI, NIGHTLY]));
+    await refreshing;
+    const bot = await rowOf(region, "bot");
+    expect(bot.querySelector("nav.cp-crumbs a")?.textContent).toBe("deploy");
+  });
+
   it("filters by a key in place, asking the server, and Show all users drops it", async () => {
     const fake = reached();
     const queries: string[] = [];
@@ -593,6 +678,7 @@ describe("mountUsers, who a key reached", () => {
       expect(region.querySelector("h2")?.textContent).toBe("Users reached through ci");
     });
     expect(queries).toEqual(["key=12"]);
+    expect(document.activeElement).toBe(region.querySelector("h2"));
     expect(fake.named("adminUsers").at(-1)?.args).toEqual([{ key: 12 }]);
     const invites = await section(region, "invites");
     expect(invites.querySelectorAll("tbody tr")).toHaveLength(1);
