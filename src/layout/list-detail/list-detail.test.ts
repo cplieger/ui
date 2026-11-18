@@ -1233,6 +1233,216 @@ describe("enhanceListDetail", () => {
     },
   );
 
+  /** How a route answers a new address: it hides at once and shows the
+   *  entry in the same task or 50 ms later, as a route that fetches first;
+   *  it shows in `hashchange`; or it shows in an `intercept()` handler, at
+   *  once or after an await. */
+  type Answer = "fetch-now" | "fetch-late" | "hashchange" | "intercept" | "intercept-await";
+
+  /** Three row links a window and a half apart, `#row-0` to `#row-2`, a link
+   *  in the detail, and a route answering their addresses as `answer` says.
+   *  `entry` finds a row only `withEntry`. */
+  async function answered(width: number, answer: Answer, withEntry = true) {
+    history.replaceState(history.state, "", "#list");
+    const rows = [0, 1, 2].map((i) => {
+      const a = document.createElement("a");
+      a.href = `#row-${String(i)}`;
+      a.textContent = `Row ${String(i)}`;
+      return a;
+    });
+    const m = mount(width, {
+      entry: (key) => (withEntry ? (rows.find((a) => a.hash === `#${key}`) ?? null) : null),
+    });
+    m.opener.remove();
+    document.documentElement.style.overflowAnchor = "none";
+    const list = document.createElement("ul");
+    for (const a of rows) {
+      const li = document.createElement("li");
+      li.style.marginBlockEnd = "150vh";
+      li.append(a);
+      list.append(li);
+    }
+    const column = document.createElement("div");
+    column.append(list);
+    m.root.prepend(column);
+    const link = document.createElement("a");
+    link.textContent = "Next";
+    m.detail.querySelector(".cp-detail-body")!.append(link);
+    const keyOf = (): string | null =>
+      /^#row-\d$/.test(location.hash) ? location.hash.slice(1) : null;
+    if (answer === "intercept" || answer === "intercept-await") {
+      nav.addEventListener(
+        "navigate",
+        (e) => {
+          if (e.hashChange && e.canIntercept) {
+            e.intercept({
+              handler: async () => {
+                if (answer === "intercept-await") {
+                  await task();
+                }
+                const key = keyOf();
+                if (key !== m.api.key) {
+                  m.api.show(key);
+                }
+              },
+            });
+          }
+        },
+        { signal: life.signal },
+      );
+    } else {
+      addEventListener(
+        "hashchange",
+        () => {
+          const key = keyOf();
+          if (key === m.api.key) {
+            return;
+          }
+          if (answer === "hashchange") {
+            m.api.show(key);
+            return;
+          }
+          m.api.show(null);
+          if (key !== null && answer === "fetch-now") {
+            m.api.show(key);
+          } else if (key !== null) {
+            setTimeout(() => {
+              m.api.show(key);
+            }, 50);
+          }
+        },
+        { signal: life.signal },
+      );
+    }
+    return { ...m, rows, link };
+  }
+
+  /** Presses `a` where the reader scrolled to it, and waits for its show. */
+  const pressShows = async (
+    s: { root: HTMLElement; dialog: HTMLDialogElement },
+    a: HTMLElement,
+  ): Promise<void> => {
+    a.scrollIntoView({ block: "center" });
+    await frames(1);
+    const shown = opened(s.root);
+    await keys(a, "{Enter}");
+    await shown;
+    await played(s.dialog);
+  };
+
+  it.each(
+    [DOCK, SHEET].flatMap((w) =>
+      (["fetch-now", "fetch-late"] as const).flatMap((answer) =>
+        (["route", "close"] as const).map(
+          (then) => [`${where(w)}, ${answer}, then ${then}`, w, answer, then] as const,
+        ),
+      ),
+    ),
+  )(
+    "after a link in the detail to another entry under a route that hides first, %s, ends on that entry's row",
+    async (_, width, answer, then) => {
+      const s = await answered(width, answer);
+      await pressShows(s, s.rows[0]!);
+      s.link.href = "#row-1";
+      const shown = opened(s.root);
+      await keys(s.link, "{Enter}");
+      await shown;
+      await played(s.dialog);
+      expect(s.api.key).toBe("row-1");
+      const done = closed(s.root);
+      if (then === "close") {
+        await keys(s.close, "{Enter}");
+      } else {
+        s.api.show(null);
+      }
+      await done;
+      await exited(s.dialog);
+      expect(document.activeElement, "on the shown entry's row").toBe(s.rows[1]);
+      const r = s.rows[1]!.getBoundingClientRect();
+      expect(r.bottom > 0 && r.top < innerHeight, "in view").toBe(true);
+      const a = s.rows[0]!.getBoundingClientRect();
+      expect(a.bottom <= 0 || a.top >= innerHeight, "the page not at the first row").toBe(true);
+    },
+  );
+
+  it.each(["fetch-now", "fetch-late"] as const)(
+    "after a press on another row docked under a route that hides first, %s, ends on that row",
+    async (answer) => {
+      const s = await answered(DOCK, answer);
+      await pressShows(s, s.rows[0]!);
+      await pressShows(s, s.rows[1]!);
+      expect(s.api.key).toBe("row-1");
+      const done = closed(s.root);
+      s.api.show(null);
+      await done;
+      expect(document.activeElement).toBe(s.rows[1]);
+    },
+  );
+
+  it.each([
+    ["docked", DOCK],
+    ["in the sheet", SHEET],
+  ] as const)(
+    "returns focus to the opener after the same entry is shown again as it hides, %s",
+    async (_, width) => {
+      const s = await answered(width, "hashchange", false);
+      await pressShows(s, s.rows[1]!);
+      s.api.show(null);
+      s.api.show("row-1");
+      await played(s.dialog);
+      const done = closed(s.root);
+      s.api.show(null);
+      await done;
+      await exited(s.dialog);
+      expect(document.activeElement, "the opener, not the list's first link").toBe(s.rows[1]);
+    },
+  );
+
+  it.each(
+    (["hashchange", "intercept", "intercept-await"] as const).flatMap((answer) =>
+      (["back", "back then forward"] as const).map(
+        (travel) => [`under a ${answer} route, ${travel}`, answer, travel] as const,
+      ),
+    ),
+  )(
+    "moves focus to the heading again when a docked traversal shows another entry, %s",
+    async (_, answer, travel) => {
+      const s = await answered(DOCK, answer);
+      await pressShows(s, s.rows[0]!);
+      await pressShows(s, s.rows[1]!);
+      expect(document.activeElement).toBe(s.heading);
+      const across = async (step: () => void, key: string): Promise<void> => {
+        let focused = 0;
+        const count = (): void => {
+          focused += 1;
+        };
+        s.heading.addEventListener("focus", count);
+        const shown = opened(s.root);
+        step();
+        await shown;
+        await nav.transition?.finished.catch(() => undefined);
+        await frames(3);
+        await task();
+        s.heading.removeEventListener("focus", count);
+        expect(s.api.key).toBe(key);
+        expect(document.activeElement, "focus on the heading").toBe(s.heading);
+        const h = s.heading.getBoundingClientRect();
+        expect(h.top > -1 && h.bottom < innerHeight + 1, "the heading wholly in view").toBe(true);
+        // Firefox's second focus reset on an awaited intercepted traversal
+        // adds one, which the module answers by focusing the heading again.
+        expect(focused, "a focus event on the heading").toBeGreaterThanOrEqual(1);
+      };
+      await across(() => {
+        history.back();
+      }, "row-0");
+      if (travel === "back then forward") {
+        await across(() => {
+          history.forward();
+        }, "row-1");
+      }
+    },
+  );
+
   it.each([
     ["docked, a link at the top", DOCK, "link"],
     ["in the sheet, a link at the top", SHEET, "link"],

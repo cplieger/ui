@@ -254,6 +254,11 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
   /** What had focus when a show of the shown key that was not Back or
    *  Forward came, so it never names another entry's row. */
   let opener: Element | null = null;
+  /** The key the last hide hid and where it put focus, until the next show:
+   *  focus the module moved is not the reader's, so a show of another entry
+   *  right after it, as from a route that hides while it fetches, records
+   *  no opener. */
+  let returned: { readonly key: string; readonly el: Element | null } | null = null;
   /** The hide whose focus and `detailclose` wait for the sheet's exit in
    *  script to end: the page stays inert until the dialog closes. */
   let pending: Hidden | null = null;
@@ -263,6 +268,9 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
    *  never clears it, so a route that awaits before it shows on Back still
    *  reads the traversal. */
   let lastType: NavigationType | null = null;
+  /** The intercepted traversal whose show focused the heading, until the
+   *  next navigation. */
+  let traversed: Nav | null = null;
   /** Counts opens and closes, so an exit that ends after the next open
    *  leaves the detail where it is. */
   let turn = 0;
@@ -304,7 +312,7 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
 
   /** Puts the shown detail where the box's width says. A move between the
    *  dock and the sheet is not an open, so it plays no motion. */
-  const place = (opening: boolean, still = false): void => {
+  const place = (opening: boolean, still = false, another = false): void => {
     if (!opening && at === "dialog" && !dialog.open) {
       // Closed outside the module, its close event still queued: that
       // event dismisses, and reopening here would strand the route.
@@ -325,8 +333,16 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
     const want = root.getBoundingClientRect().width >= dockAt * remPx() ? "dock" : "dialog";
     const focusing = opening && !(still && want === "dock");
     if (want === at && (want === "dock" || dialog.open)) {
+      const h = heading();
+      if (focusing && another && h !== null && document.activeElement === h) {
+        // Focusing the focused heading fires no focus event, so a screen
+        // reader would not hear the new entry, and an intercepted
+        // navigation would see no focus change and reset focus to the body
+        // (https://html.spec.whatwg.org/multipage/nav-history-apis.html#focus-changed-during-ongoing-navigation).
+        h.blur();
+      }
       if (focusing) {
-        refocus(heading());
+        refocus(h);
       }
       return;
     }
@@ -469,6 +485,7 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
         }, 0);
       }
     }
+    returned = { key: h.key, el: to === null ? null : document.activeElement };
     fireClose(h.key);
   };
 
@@ -526,6 +543,8 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
       // reached included.
       const traversing = current?.type === "traverse" || lastType === "traverse";
       let was = document.activeElement;
+      let placed = returned;
+      returned = null;
       if (previous === null) {
         turn += 1;
         const leaving = pending;
@@ -534,6 +553,7 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
           // A show during the sheet's exit stands where that hide would
           // have put focus.
           was = focusTarget(leaving)?.el ?? null;
+          placed = { key: leaving.key, el: was };
           fireClose(leaving.key);
         }
         detail.hidden = false;
@@ -545,17 +565,19 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
       if (key !== previous || traversing) {
         opener = null;
       }
-      if (!traversing && !isPage(was) && !detail.contains(was) && !dialog.contains(was)) {
+      const mine = placed !== null && placed.key !== key && was === placed.el;
+      if (!traversing && !mine && !isPage(was) && !detail.contains(was) && !dialog.contains(was)) {
         opener = was;
       }
       shown = key;
       if (key !== previous) {
         root.dispatchEvent(new CustomEvent("detailopen", { detail: { key, previous } }));
       }
-      place(true, opts.still === true);
+      place(true, opts.still === true, key !== previous);
       const h = heading();
       if (current?.type === "traverse" && h !== null && document.activeElement === h) {
         current.focusedHeading = true;
+        traversed = current.intercepted ? current : null;
       }
     },
   };
@@ -675,6 +697,7 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
         // A route stamping the entry's state while it handles a navigation.
         return;
       }
+      traversed = null;
       current = {
         type: e.navigationType,
         hashChange: e.hashChange,
@@ -722,7 +745,21 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
       end(current);
     }
   };
-  navigation?.addEventListener("navigatesuccess", settled, listen);
+  navigation?.addEventListener(
+    "navigatesuccess",
+    () => {
+      settled();
+      // Firefox 159 ends an intercepted traversal whose handler awaits with a
+      // second navigatesuccess, and resets focus to the body before it, as
+      // if nothing had taken focus
+      // (https://html.spec.whatwg.org/multipage/nav-history-apis.html#potentially-reset-the-focus).
+      const h = heading();
+      if (traversed !== null && shown !== null && h !== null && isPage(document.activeElement)) {
+        refocus(h);
+      }
+    },
+    listen,
+  );
   navigation?.addEventListener("navigateerror", settled, listen);
   addEventListener(
     "popstate",
