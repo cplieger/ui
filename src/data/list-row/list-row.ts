@@ -103,7 +103,10 @@ function bones(from: Element | null | undefined, fallback: number): HTMLElement[
     from == null
       ? fallback
       : [...from.children].filter((el) => !(el instanceof HTMLElement && el.hidden)).length;
-  const lines = shown === 0 && from != null && from.textContent.trim() !== "" ? 1 : shown;
+  const bare =
+    from != null &&
+    [...from.childNodes].some((n) => n.nodeType === Node.TEXT_NODE && n.nodeValue?.trim() !== "");
+  const lines = shown === 0 && bare ? 1 : shown;
   return Array.from({ length: lines }, () => bone());
 }
 

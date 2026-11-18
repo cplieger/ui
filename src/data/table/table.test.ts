@@ -632,6 +632,29 @@ describe("skeletonRow", () => {
     expect(bones.cells[2]?.querySelector(":scope > .cp-skeleton")).not.toBeNull();
   });
 
+  it("places a head cell spanning down from a row above in its column", () => {
+    const t = document.createElement("table");
+    t.className = "cp-table";
+    t.innerHTML =
+      '<thead><tr><th rowspan="2" data-col="select">Pick</th><th colspan="2">Release</th>' +
+      '<th rowspan="2" data-col="num" data-priority="low">Size</th></tr>' +
+      '<tr><th>Title</th><th data-priority="mid">Verdict</th></tr></thead>' +
+      '<tbody><tr><td data-col="select">x</td>' +
+      '<td><div class="cp-title-cell"><span class="cp-cover" aria-hidden="true"></span><div class="cp-cell-stack"><a href="#t">Frieren</a><span class="cp-meta">TV</span></div></div></td>' +
+      '<td data-priority="mid">Not the best</td><td data-col="num">33.0</td></tr></tbody>';
+    build("").append(t);
+    const bones = skeletonRow(t);
+    expect([...bones.cells].map((c) => [c.dataset["col"], c.dataset["priority"]])).toEqual([
+      ["select", undefined],
+      [undefined, undefined],
+      [undefined, "mid"],
+      ["num", "low"],
+    ]);
+    expect(bones.cells[1]?.querySelectorAll(".cp-title-cell > .cp-skeleton")).toHaveLength(1);
+    expect(bones.cells[2]?.querySelector(":scope > .cp-skeleton")).not.toBeNull();
+    expect(bones.cells[3]?.querySelector(":scope > .cp-skeleton")).not.toBeNull();
+  });
+
   it("takes the shapes from a given row out of the document", () => {
     const t = table("", "");
     const loaded = table("", ROWS).tBodies[0]?.rows[0] as HTMLTableRowElement;

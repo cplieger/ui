@@ -323,6 +323,19 @@ describe("skeletonListRow", () => {
     expect(row.querySelectorAll(':scope > [data-part="end"] > .cp-skeleton')).toHaveLength(1);
   });
 
+  it("gives an end whose children are all hidden no bar, and its bare text beside them one", () => {
+    const end = (inner: string): number => {
+      const ul = listOf(
+        "",
+        `<li><div class="cp-list-row"><span class="cp-cell-stack"><a href="#t">Mushishi</a></span><span data-part="end">${inner}</span></div></li>`,
+      );
+      const row = skeletonListRow(ul).firstElementChild as HTMLElement;
+      return row.querySelectorAll(':scope > [data-part="end"] > .cp-skeleton').length;
+    };
+    expect(end("<span hidden>2 new</span>")).toBe(0);
+    expect(end("<span hidden>2 new</span> 3 of 26 episodes")).toBe(1);
+  });
+
   it("reads the row's shape from data-row when the list has no rows yet", () => {
     const tall = listOf("data-density=tall", "");
     tall.dataset["row"] = "media";

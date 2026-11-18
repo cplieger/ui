@@ -62,6 +62,33 @@ function cellAt(row: HTMLTableRowElement, column: number): HTMLTableCellElement 
   return undefined;
 }
 
+/** Per body column, the head cell over it in the last head row, a cell
+ *  spanning columns taken once. A tr's `cells` lacks a cell spanning
+ *  down from a row above, so the head is laid out as a grid. */
+function headCells(head: HTMLTableSectionElement): HTMLTableCellElement[] {
+  const rows = [...head.rows];
+  const grid: (HTMLTableCellElement | undefined)[][] = rows.map(() => []);
+  rows.forEach((tr, r) => {
+    let c = 0;
+    for (const cell of tr.cells) {
+      while (grid[r]?.[c] !== undefined) {
+        c += 1;
+      }
+      const down = cell.rowSpan === 0 ? rows.length - r : Math.min(cell.rowSpan, rows.length - r);
+      for (const line of grid.slice(r, r + down)) {
+        for (let k = c; k < c + cell.colSpan; k += 1) {
+          line[k] = cell;
+        }
+      }
+      c += cell.colSpan;
+    }
+  });
+  const last = grid.at(-1) ?? [];
+  return last.filter(
+    (cell, i): cell is HTMLTableCellElement => cell !== undefined && cell !== last[i - 1],
+  );
+}
+
 /**
  * A row in the shape of `table`'s loaded rows, so it keeps their height:
  * per head column, a cover and lines, two lines or a bar, with the head's
@@ -78,8 +105,10 @@ export function skeletonRow(
     [...table.tBodies]
       .flatMap((body) => [...body.rows])
       .find((r) => r.matches(":not([data-skeleton], [data-part])"));
-  const nearest = table.tHead === null ? undefined : [...table.tHead.rows].at(-1);
-  const heads = [...(nearest?.cells ?? loaded?.cells ?? [])];
+  const heads =
+    table.tHead !== null && table.tHead.rows.length > 0
+      ? headCells(table.tHead)
+      : [...(loaded?.cells ?? [])];
   const declared = table.dataset["row"];
   const lead = heads.findIndex((th) => th.dataset["col"] === undefined);
   const row = document.createElement("tr");

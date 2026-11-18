@@ -469,6 +469,56 @@ describe("enhanceKeyedList", () => {
     expect(Math.abs(panel.scrollHeight - height)).toBeLessThan(1);
   });
 
+  it("takes its skeletons' shape anew once update() swaps in rows of another shape", async () => {
+    const panel = document.createElement("div");
+    panel.style.blockSize = "15rem";
+    panel.style.inlineSize = "40rem";
+    panel.style.overflowY = "auto";
+    const table = document.createElement("table");
+    table.className = "cp-table";
+    const head = table.createTHead().insertRow();
+    for (const text of ["Title", "Size"]) {
+      const th = document.createElement("th");
+      th.textContent = text;
+      head.append(th);
+    }
+    const body = table.createTBody();
+    body.dataset["virtual"] = "";
+    panel.append(table);
+    document.body.append(panel);
+    const anyRow = (key: string): HTMLTableRowElement => {
+      const tr = document.createElement("tr");
+      tr.dataset["key"] = key;
+      tr.insertCell().innerHTML = key.startsWith("c")
+        ? `<div class="cp-title-cell"><span class="cp-cover" aria-hidden="true"></span>` +
+          `<div class="cp-cell-stack"><a href="#${key}">Title ${key}</a><span class="cp-meta">TV, 2024</span></div></div>`
+        : `<a href="#${key}">Copy ${key}</a>`;
+      tr.insertCell().textContent = "33.0 GB";
+      return tr;
+    };
+    const tail = Array<undefined>(960);
+    const list = enhanceKeyedList(body, {
+      keys: [...keysOf(40).map((k) => `c${k}`), ...tail],
+      row: anyRow,
+      signal: life.signal,
+    });
+    await frames();
+    const cover = rows(body)[1]?.getBoundingClientRect().height;
+    await scrollTo(panel, 200 * pitchOf(body));
+    expect(body.querySelector("tr[data-skeleton] .cp-title-cell")).not.toBeNull();
+    list.update([...keysOf(40).map((k) => `p${k}`), ...tail]);
+    await scrollTo(panel, 0);
+    const plain = rows(body)[1]?.getBoundingClientRect().height;
+    expect(plain).not.toBe(cover);
+    await scrollTo(panel, 600 * pitchOf(body));
+    const skeletons = [...body.querySelectorAll<HTMLTableRowElement>(":scope > tr[data-skeleton]")];
+    expect(skeletons.length).toBeGreaterThan(0);
+    for (const tr of skeletons) {
+      expect(tr.getBoundingClientRect().height).toBe(plain);
+      expect(tr.querySelector(".cp-title-cell")).toBeNull();
+    }
+  });
+
   it("throws a TypeError for a skeleton in a table body outside a table", () => {
     const body = document.createElement("tbody");
     document.body.append(body);
