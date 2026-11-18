@@ -44,10 +44,10 @@ These adopted criteria are not fully met yet, and one item is a default the bar 
 
 - [1.4.6 Contrast (enhanced)](#146-contrast-enhanced): Secondary text and ink on a solid hold 7:1 only when the operating system asks for more contrast, and not every platform offers that setting. The bar requires a contrast choice in the page, beside the theme choice, with three values: follow the system, more and standard. More applies what `prefers-contrast: more` applies, and standard overrides a system that asks for more. Owed by `foundations/colour` and `core/theme`.
 - [1.4.8 Visual presentation](#148-visual-presentation): The criterion is met through its Note 1, since the person's own paragraph spacing applies. The bar asks more of ui's default: prose paragraphs are 33.7px top to top at the 14px body size, 2.41 times the font size, and the bar requires at least 2.5 times, a paragraph gap of at least 0.95em. Owed by `content/prose`.
-- [2.5.5 Target size (enhanced)](#255-target-size-enhanced): A mouse user gets 32px controls and 24px targets and cannot ask for 44px. The bar requires a stored choice of larger targets, with the values follow the device and larger, that gives every control the touch sizes while hover keeps working. On the touch sizes each icon segment stays 36px wide and a Copy button attached to its machine text is 42px tall, and the bar requires 44px. Owed by `core/theme`, `core/pointer`, `forms/segmented` and `forms/copy`.
-- [2.3.3 Animation from interactions](#233-animation-from-interactions): Under reduced motion a filter chip's check still grows for 220ms and the drop zone's icon still moves for 300ms. The bar requires every glide to take the short duration. Owed by `buttons/filter-chip` and `forms/file`.
+- [2.5.5 Target size (enhanced)](#255-target-size-enhanced): A mouse user gets 32px controls and 24px targets and cannot ask for 44px. The bar requires a stored choice of larger targets, with the values follow the device and larger, that gives every control the touch sizes while hover keeps working. On the touch sizes each icon segment stays 36px wide a Copy button attached to its machine text is 42px tall and a chosen value's remove button is 40px, and the bar requires 44px. Owed by `core/theme`, `core/pointer`, `forms/segmented`, `forms/copy` and `forms/tokens`.
+- [2.3.3 Animation from interactions](#233-animation-from-interactions): Under reduced motion a filter chip's check still grows for 220ms and the drop zone's icon still moves for 300ms. A chosen value typed again only shakes, so under reduced motion nothing shows it was refused. The bar requires every glide to take the short duration and every cue to have a still form. Owed by `buttons/filter-chip`, `forms/file` and `forms/tokens`.
 - [2.4.6 Headings and labels](#246-headings-and-labels): A stepper whose value is a button that resets it, such as a zoom, names that button only by its value, so pressing 90% gives 100% with nothing saying so. The bar requires the button to say what it does, in a tip the description carries, such as Reset to 100%. Owed by `forms/stepper`.
-- [4.1.3 Status messages](#413-status-messages): A toast is put in the page as a live region that already holds its words, which some browser and screen-reader pairings do not speak. The bar requires a toast's words to reach a live region that was already in the page, once. Owed by `feedback/toast`.
+- [4.1.3 Status messages](#413-status-messages): A toast is put in the page as a live region that already holds its words, which some browser and screen-reader pairings do not speak. A field of chosen values drops a value typed again with nothing said. The bar requires a toast's words to reach a live region that was already in the page, once, and the refusal to be said. Owed by `feedback/toast` and `forms/tokens`.
 - [2.5.8 Target size (minimum)](#258-target-size-minimum): When a feed row wraps its lines, its summary is one line tall and under 24px from the row's other targets. In a context panel's list, links one word long sit on consecutive lines under 24px apart. The bar requires each target to be 24px, or to keep 24px of spacing from the next. Owed by `data/feed` and `layout/context-panel`.
 - [2.5.3 Label in name](#253-label-in-name): The account button is named Account while it shows the person's initials, so a voice user who says the initials reaches nothing. WCAG 3 2.3.5.5 asks the same. The bar requires the name to contain the visible words, or the initials to be hidden from the name as a picture of the person. Owed by `navigation/account`.
 - [4.1.2 Name, role, value](#412-name-role-value): A list row's cut line takes focus so a keyboard and a tap reach its full text, but it is a `span` with no role, which a screen reader announces as nothing. WCAG 3 2.3.5.6 and 2.12.1.1 ask the same. A key shown for copying takes focus as a scroll region with no role and no name, even when it fits. The bar requires each focus stop to have a role and a name: the cut line becomes a button named by the whole line, and the key takes focus only while it overflows, as a region named by its field's label. Owed by `data/list-row` and `forms/copy`.
@@ -282,7 +282,7 @@ As 1.4.5. ui ships no image of text except the wordmark's logotype.
 
 Level AA. Adopted. Met by ui. [Understanding 1.4.10](https://www.w3.org/WAI/WCAG22/Understanding/reflow.html)
 
-Nothing is wider than a 320px window and nothing is clipped. A data table wider than its panel scrolls inside its own focusable region (two-dimensional content, the criterion's exception).
+Nothing is wider than a 320px window and nothing is clipped. A combobox's list too tall for either side of its field shrinks into the room under or over it and scrolls. A data table wider than its panel scrolls inside its own focusable region (two-dimensional content, the criterion's exception).
 
 - Unit: the 320px tests in src/system/system-css.test.ts.
 - Manual: 320x256 and 640x360 per page.
@@ -418,9 +418,9 @@ As 2.3.1, with no threshold allowance.
 
 ### 2.3.3 Animation from interactions
 
-Level AAA. Adopted, partly met, owed by `buttons/filter-chip` and `forms/file`. Met by ui. [Understanding 2.3.3](https://www.w3.org/WAI/WCAG22/Understanding/animation-from-interactions.html)
+Level AAA. Adopted, partly met, owed by `buttons/filter-chip`, `forms/file` and `forms/tokens`. Met by ui. [Understanding 2.3.3](https://www.w3.org/WAI/WCAG22/Understanding/animation-from-interactions.html)
 
-Under `prefers-reduced-motion: reduce` presses do not scale, springs ease out at the short duration, dialogs and added rows only fade and reordered items move at once ([Motion](design.md#motion)). Fades are not motion animation under this criterion. A choice's pill lands at once, and a confirming button's footprint holds still in both settings. A filter chip's check and the drop zone's icon keep their full length under reduced motion.
+Under `prefers-reduced-motion: reduce` presses do not scale, springs ease out at the short duration, dialogs and added rows only fade and reordered items move at once ([Motion](design.md#motion)). Fades are not motion animation under this criterion. A choice's pill lands at once, and a confirming button's footprint holds still in both settings. A filter chip's check and the drop zone's icon keep their full length under reduced motion, and a chosen value typed again only shakes, so under reduced motion nothing shows it.
 
 - Unit: reduced-motion tests in src/system.
 - Manual: reduced motion per gallery card.
@@ -572,7 +572,7 @@ No ui element responds to device or body motion.
 
 ### 2.5.5 Target size (enhanced)
 
-Level AAA. Adopted, partly met, owed by `core/theme`, `core/pointer`, `forms/segmented` and `forms/copy`. Met by ui. [Understanding 2.5.5](https://www.w3.org/WAI/WCAG22/Understanding/target-size-enhanced.html)
+Level AAA. Adopted, partly met, owed by `core/theme`, `core/pointer`, `forms/segmented`, `forms/copy` and `forms/tokens`. Met by ui. [Understanding 2.5.5](https://www.w3.org/WAI/WCAG22/Understanding/target-size-enhanced.html)
 
 On the coarse tier targets are 44px at least, except an icon segment, which stays 36px wide, and a Copy button attached to its machine text, 42px tall. On the fine tier controls are 32px and targets 24px at least. The tier follows the last real pointer, so a mouse user with a tremor gets 32px. The person's own choice of large targets is in [Where ui falls short](#where-ui-falls-short).
 
@@ -790,9 +790,9 @@ Native elements first. A custom widget has its APG role, its name, and each stat
 
 ### 4.1.3 Status messages
 
-Level AA. Adopted, partly met, owed by `feedback/toast`. Met by ui. [Understanding 4.1.3](https://www.w3.org/WAI/WCAG22/Understanding/status-messages.html)
+Level AA. Adopted, partly met, owed by `feedback/toast` and `forms/tokens`. Met by ui. [Understanding 4.1.3](https://www.w3.org/WAI/WCAG22/Understanding/status-messages.html)
 
-`@cplieger/ui/announce`, Copy and the header status speak through live regions that exist before their text arrives. Only a blocking problem uses `role="alert"`. A range's output repeats the slider's value, so it is silenced (`aria-live="off"`) and the slider says its value once, in the output's words. A toast is inserted as a live region already holding its words.
+`@cplieger/ui/announce`, Copy and the header status speak through live regions that exist before their text arrives. Only a blocking problem uses `role="alert"`. A range's output repeats the slider's value, so it is silenced (`aria-live="off"`) and the slider says its value once, in the output's words. A toast is inserted as a live region already holding its words, and a value typed again into a field of chosen values is dropped with nothing said.
 
 - axe: `aria-allowed-role` and `aria-required-attr` on the regions.
 - Manual: a live-region observer and the AT-SPI events.
