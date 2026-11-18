@@ -497,7 +497,7 @@ export function mountSecurity<C extends SecurityClient>(
     }
     if (has("keys")) {
       keysView = drawKeys(ctx, keysPart.body, keysPart.heading, {
-        list: () => client.keys(),
+        list: () => read(() => client.keys()),
         revoke: (id) => client.revokeKey(id),
         own: {
           create: (r) => client.createKey(r),

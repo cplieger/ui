@@ -693,6 +693,56 @@ describe("mountUsers, who a key reached", () => {
     expect(leo.querySelector("nav.cp-crumbs a")?.textContent).toBe("agent");
   });
 
+  it("never draws the keys table's older read once a newer whole read took the keys", async () => {
+    const late = Promise.withResolvers<unknown>();
+    const fake = reached();
+    const { region, screen } = mount(fake);
+    const keys = await section(region, "admin-keys");
+    await vi.waitFor(() => {
+      expect(keys.textContent).toContain("nightly");
+    });
+    const before = fake.named("adminKeys").length;
+    fake.answer("adminKeys", () => late.promise);
+    window.dispatchEvent(new FocusEvent("focus"));
+    await vi.waitFor(() => {
+      expect(fake.named("adminKeys")).toHaveLength(before + 1);
+    });
+    fake
+      .always("adminKeys", ok([{ ...CI, label: "deploy" }, NIGHTLY]))
+      .answer("adminUsers", refuse(503, "auth_unavailable"));
+    await screen.refresh();
+    late.resolve(ok([{ ...CI, label: "stale" }, NIGHTLY]));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(keys.textContent).toContain("nightly");
+    expect(keys.textContent).not.toContain("stale");
+  });
+
+  it("ends with the keys table naming the keys the people rows name", async () => {
+    const late = Promise.withResolvers<unknown>();
+    const fake = reached();
+    const { region, screen } = mount(fake);
+    const keys = await section(region, "admin-keys");
+    await vi.waitFor(() => {
+      expect(keys.textContent).toContain("nightly");
+    });
+    const before = fake.named("adminKeys").length;
+    fake.answer("adminKeys", () => late.promise);
+    window.dispatchEvent(new FocusEvent("focus"));
+    await vi.waitFor(() => {
+      expect(fake.named("adminKeys")).toHaveLength(before + 1);
+    });
+    fake.always("adminKeys", ok([{ ...CI, label: "deploy" }, NIGHTLY]));
+    await screen.refresh();
+    late.resolve(ok([{ ...CI, label: "stale" }, NIGHTLY]));
+    await vi.waitFor(() => {
+      expect(keys.textContent).toContain("deploy");
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(keys.textContent).not.toContain("stale");
+    const bot = await rowOf(region, "bot");
+    expect(bot.querySelector("nav.cp-crumbs a")?.textContent).toBe("deploy");
+  });
+
   it("stops calling a key revoked once the keys table's own read is refused", async () => {
     const fake = reached();
     const { region } = mount(fake);

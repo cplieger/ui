@@ -458,8 +458,10 @@ export function drawLog(
     const ascending =
       view.after !== undefined || (view.before === undefined && view.order === "oldest");
     const skeleton = skeletonTiming(() => {
-      if (entries.length === 0) {
-        content.replaceChildren(sketch());
+      if (current() && entries.length === 0) {
+        redrawKeepingFocus(content, title, () => {
+          content.replaceChildren(sketch());
+        });
       }
     }, ctx.life);
     const [got] = await Promise.all([

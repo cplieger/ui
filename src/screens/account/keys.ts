@@ -35,7 +35,6 @@ import {
   isHeld,
   latest,
   question,
-  read,
   retryButton,
   slot,
 } from "./screen.js";
@@ -106,7 +105,9 @@ export type KeysCtx = Pick<
 
 /** The calls a keys table makes. */
 export interface KeyCalls {
-  list(): Promise<Result<readonly KeyView[]>>;
+  /** Answers undefined when a newer read of the same keys took over,
+   *  which the table takes as no change; never rejects. */
+  list(): Promise<Result<readonly KeyView[]> | undefined>;
   revoke(id: number): Promise<Result<void>>;
   /** The person's own keys: Create key…, Rename… and Rotate…. */
   readonly own?: {
@@ -190,8 +191,11 @@ export function drawKeys(
   const refresh = async (focus?: string): Promise<void> => {
     wanted = focus ?? wanted;
     await reads.run(
-      () => read(() => calls.list()),
+      () => calls.list(),
       (got) => {
+        if (got === undefined) {
+          return;
+        }
         if (editing) {
           skipped = true;
           return;

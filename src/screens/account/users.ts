@@ -666,7 +666,7 @@ export function mountUsers<C extends UsersClient>(
       {
         list: async () => {
           const got = read(() => client.adminKeys());
-          await keyReads.run(
+          const taken = await keyReads.run(
             () => got,
             (answer) => {
               const me = viewer;
@@ -677,7 +677,7 @@ export function mountUsers<C extends UsersClient>(
               }
             },
           );
-          return got;
+          return taken ? got : undefined;
         },
         revoke: (id) => client.adminRevokeKey(id),
         admin: {

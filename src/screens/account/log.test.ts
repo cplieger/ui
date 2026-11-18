@@ -372,6 +372,30 @@ describe("mountSecurityLog: its states", () => {
     expect(seqs(await rows(region))).toEqual([1]);
   });
 
+  it.each([
+    ["a refusal", refuse(503, "auth_unavailable"), "[data-part='notice'] .cp-notice"],
+    ["an empty page", server([]), ".cp-empty"],
+  ])(
+    "keeps what a newer load drew, %s, when an older load answers past the sketch's delay",
+    async (_name, answer, drawn) => {
+      const late = Promise.withResolvers<unknown>();
+      const fake = new Fake().answer("adminSecurityLog", () => late.promise, answer);
+      const { region } = mount(fake);
+      const kind = region.querySelector<HTMLSelectElement>("select")!;
+      kind.value = "signed_in";
+      kind.dispatchEvent(new Event("change"));
+      await vi.waitFor(() => {
+        expect(region.querySelector(drawn)).not.toBeNull();
+      });
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      late.resolve(server([entry(1)])());
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(region.querySelector(drawn)).not.toBeNull();
+      expect(region.querySelector(".cp-skeleton")).toBeNull();
+      expect(region.querySelector("tbody tr")).toBeNull();
+    },
+  );
+
   it("words a kind the server does not know, and a refusal to a non-admin", async () => {
     const fake = new Fake()
       .answer("adminSecurityLog", refuse(400, "auth_bad_request", "log_kind"))
