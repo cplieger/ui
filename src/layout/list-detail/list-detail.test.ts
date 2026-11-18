@@ -1256,8 +1256,16 @@ describe("enhanceListDetail", () => {
 
   /** Three row links a window and a half apart, `#row-0` to `#row-2`, a link
    *  in the detail, and a route answering their addresses as `answer` says.
-   *  `entry` finds a row only `withEntry`. */
-  async function answered(width: number, answer: Answer, withEntry = true) {
+   *  `entry` finds a row only `withEntry`. An `intercept()` handler awaits
+   *  `loads` after its show, as a route that shows and then loads; with
+   *  `scroll: "manual"` it keeps the browser from restoring a traversal's
+   *  scroll once it settles. */
+  async function answered(
+    width: number,
+    answer: Answer,
+    withEntry = true,
+    { loads, scroll }: { loads?: () => Promise<void>; scroll?: NavigationScrollBehavior } = {},
+  ) {
     history.replaceState(history.state, "", "#list");
     const rows = [0, 1, 2].map((i) => {
       const a = document.createElement("a");
@@ -1299,6 +1307,7 @@ describe("enhanceListDetail", () => {
         (e) => {
           if (e.hashChange && e.canIntercept) {
             e.intercept({
+              ...(scroll === undefined ? {} : { scroll }),
               handler: async () => {
                 if (answer === "intercept-await") {
                   await task();
@@ -1307,6 +1316,7 @@ describe("enhanceListDetail", () => {
                 if (key !== m.api.key) {
                   m.api.show(key);
                 }
+                await loads?.();
               },
             });
           }
@@ -1529,6 +1539,49 @@ describe("enhanceListDetail", () => {
     expect(focused, "no focus event on the heading").toBe(0);
     expect(scrollY, "the page where the reader left it").toBe(y);
   });
+
+  it.each(["intercept", "intercept-await"] as const)(
+    "leaves focus where the reader clicks while a docked traversal's route still loads, under an %s route that shows first",
+    async (answer) => {
+      let load = Promise.resolve();
+      const s = await answered(DOCK, answer, true, { loads: () => load, scroll: "manual" });
+      const text = document.createElement("p");
+      text.textContent = "Notes on the entry";
+      s.detail.querySelector(".cp-detail-body")!.append(text);
+      await pressShows(s, s.rows[0]!);
+      await pressShows(s, s.rows[1]!);
+      let loaded!: () => void;
+      load = new Promise((r) => {
+        loaded = r;
+      });
+      let focused = 0;
+      const count = (e: FocusEvent): void => {
+        if (e.target instanceof HTMLHeadingElement && s.detail.contains(e.target)) {
+          focused += 1;
+        }
+      };
+      document.addEventListener("focus", count, { capture: true });
+      const shown = opened(s.root);
+      history.back();
+      await shown;
+      await frames(3);
+      const transition = nav.transition;
+      expect(transition, "the route still loads").not.toBeNull();
+      expect(document.activeElement, "the show focused the heading").toBe(s.head());
+      await userEvent.click(text);
+      expect(document.activeElement, "the click left focus on the page").toBe(document.body);
+      const y = scrollY;
+      loaded();
+      await transition?.finished.catch(() => undefined);
+      await frames(3);
+      await task();
+      document.removeEventListener("focus", count, { capture: true });
+      expect(s.api.key).toBe("row-0");
+      expect(document.activeElement, "focus where the reader left it").toBe(document.body);
+      expect(focused, "the show's one focus event on the heading").toBe(1);
+      expect(scrollY, "the page where the reader left it").toBe(y);
+    },
+  );
 
   it.each([
     ["docked, a link at the top", DOCK, "link"],

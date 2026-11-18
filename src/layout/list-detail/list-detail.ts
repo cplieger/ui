@@ -205,6 +205,9 @@ interface Nav {
   intercepted: boolean;
   /** A traversal whose show focused the detail's heading. */
   focusedHeading: boolean;
+  /** Its show focused the heading and the reader has pressed nothing since,
+   *  so focus on the page can only be the browser's reset. */
+  armed: boolean;
 }
 
 /** What a hide hands `focusOnHide`, read at the hide: a modal sheet keeps
@@ -563,9 +566,9 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
       let kept = false;
       const old = heading();
       if (previous !== null && key !== previous && old !== null) {
-        // A new node for the new entry: focus that stays on one node is no
-        // focus change to assistive technology, which then never hears the
-        // new name
+        // A new node for the new entry: focusing the node that already has
+        // focus fires no focus event, so assistive technology is not told
+        // focus moved
         // (https://github.com/chromium/chromium/blob/72e0b76845fa247601dae14b39702de2c28451d6/ui/accessibility/platform/browser_accessibility_manager.cc#L225-L233),
         // and an intercepted navigation would reset focus to the body
         // (https://html.spec.whatwg.org/multipage/nav-history-apis.html#focus-changed-during-ongoing-navigation).
@@ -582,6 +585,7 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
       }
       if (current?.type === "traverse" && h !== null && document.activeElement === h) {
         current.focusedHeading = true;
+        current.armed = true;
       }
     },
   };
@@ -709,6 +713,7 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
         committed: false,
         intercepted: false,
         focusedHeading: false,
+        armed: false,
       };
     },
     listen,
@@ -756,12 +761,13 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
       // In a nested browsing context, Firefox 159 commits an intercepted
       // traversal twice and runs its handler again, and a run that focuses
       // nothing leaves focus to the reset; only the traversal still in
-      // progress takes the heading back
+      // progress takes the heading back, and only until the reader presses
+      // anything, whose own focus move stands
       // (https://html.spec.whatwg.org/multipage/nav-history-apis.html#potentially-reset-the-focus).
       const h = heading();
       if (
         n?.intercepted === true &&
-        n.focusedHeading &&
+        n.armed &&
         shown !== null &&
         h !== null &&
         isPage(document.activeElement)
@@ -772,6 +778,13 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
     listen,
   );
   navigation?.addEventListener("navigateerror", settled, listen);
+  const disarm = (e: Event): void => {
+    if (e.isTrusted && current !== null) {
+      current.armed = false;
+    }
+  };
+  document.addEventListener("pointerdown", disarm, until(signal, true));
+  document.addEventListener("keydown", disarm, until(signal, true));
   addEventListener(
     "popstate",
     () => {
