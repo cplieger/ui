@@ -90,7 +90,9 @@ export function routeListDetail(options: ListRouteOptions): ListRoute {
           !(link instanceof HTMLAnchorElement) ||
           !plain ||
           e.defaultPrevented ||
-          link.target !== "" ||
+          // `_self`, in any ASCII case, is the link's own navigable
+          // (https://html.spec.whatwg.org/multipage/document-sequences.html#valid-navigable-target-name-or-keyword).
+          !/^(_self)?$/i.test(link.target) ||
           location.hash === "" ||
           link.href.split("#")[0] !== location.href.split("#")[0]
         ) {

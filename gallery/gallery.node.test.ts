@@ -1063,37 +1063,49 @@ describe.each(browsers)("the gallery in %s", (name) => {
     const wired = (tab: Page) =>
       tab.waitForFunction(() => document.querySelector("[data-build]") !== null);
 
-    it("replaces the entry on a press on another row while one is open, so Close ends on the list", async () => {
-      const tab = await (browser as Browser).newPage({ viewport: { width: 1280, height: 800 } });
-      await tab.goto(`${origin}/index.html`);
-      await tab.goto(`${origin}${N}`);
-      await wired(tab);
-      await press(tab, "#md/frieren");
-      await at(tab, `${N}#md/frieren`);
-      const opened = await tab.evaluate(() => history.length);
-      await press(tab, "#md/mushishi");
-      const second = await at(tab, `${N}#md/mushishi`).catch(() => read(tab));
-      const replaced = await tab.evaluate(() => history.length);
-      await closeDetail(tab);
-      const closed = await at(tab, N).catch(() => read(tab));
-      const length = await tab.evaluate(() => history.length);
-      await tab.goForward();
-      const forward = await at(tab, `${N}#md/mushishi`).catch(() => read(tab));
-      await tab.close();
-      expect({ second: second.shows, replaced, closed, length, forward: forward.shows }).toEqual({
-        second: "Mushishi",
-        replaced: opened,
-        closed: {
-          address: N,
-          shows: "nothing",
-          current: [],
-          focus: "#md/mushishi",
-          app: undefined,
-        },
-        length: opened,
-        forward: "Mushishi",
-      });
-    }, 60_000);
+    it.each([
+      ["no target", null],
+      ["target=_SELF", "_SELF"],
+    ] as const)(
+      "replaces the entry on a press on another row while one is open, so Close ends on the list, %s",
+      async (_, target) => {
+        const tab = await (browser as Browser).newPage({ viewport: { width: 1280, height: 800 } });
+        await tab.goto(`${origin}/index.html`);
+        await tab.goto(`${origin}${N}`);
+        await wired(tab);
+        if (target !== null) {
+          await tab.locator('#md a.cp-list-row[href="#md/mushishi"]').evaluate((a, t) => {
+            a.setAttribute("target", t);
+          }, target);
+        }
+        await press(tab, "#md/frieren");
+        await at(tab, `${N}#md/frieren`);
+        const opened = await tab.evaluate(() => history.length);
+        await press(tab, "#md/mushishi");
+        const second = await at(tab, `${N}#md/mushishi`).catch(() => read(tab));
+        const replaced = await tab.evaluate(() => history.length);
+        await closeDetail(tab);
+        const closed = await at(tab, N).catch(() => read(tab));
+        const length = await tab.evaluate(() => history.length);
+        await tab.goForward();
+        const forward = await at(tab, `${N}#md/mushishi`).catch(() => read(tab));
+        await tab.close();
+        expect({ second: second.shows, replaced, closed, length, forward: forward.shows }).toEqual({
+          second: "Mushishi",
+          replaced: opened,
+          closed: {
+            address: N,
+            shows: "nothing",
+            current: [],
+            focus: "#md/mushishi",
+            app: undefined,
+          },
+          length: opened,
+          forward: "Mushishi",
+        });
+      },
+      60_000,
+    );
 
     it("ends on the list on Back after a press on another row while one is open", async () => {
       const tab = await (browser as Browser).newPage({ viewport: { width: 1280, height: 800 } });

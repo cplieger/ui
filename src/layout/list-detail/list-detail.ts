@@ -210,8 +210,11 @@ interface Nav {
    *  reader since (a press, a key that moves focus or scroll, a wheel or a
    *  touch scroll): a scroll restore can only be the browser's. */
   armed: boolean;
+  /** A traversal whose show focused the heading, whatever input followed:
+   *  from then on every input updates `held`. */
+  watched: boolean;
   /** Where the reader's focus is since that show: the heading, then what
-   *  their last input left focused, null once it left focus on the page. */
+   *  their last input left focused, null while that is the page. */
   held: Part | null;
 }
 
@@ -596,6 +599,7 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
       }
       if (current?.type === "traverse" && h !== null && document.activeElement === h) {
         current.armed = true;
+        current.watched = true;
         current.held = h;
       }
     },
@@ -726,6 +730,7 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
         commits: 0,
         settles: 0,
         armed: false,
+        watched: false,
         held: null,
       };
     },
@@ -795,8 +800,24 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
   navigation?.addEventListener("navigatesuccess", settled, listen);
   navigation?.addEventListener("navigateerror", settled, listen);
   /** Keys that move neither focus nor scroll, as a screen reader's Control
-   *  that stops speech. */
-  const idle = new Set(["Shift", "Control", "Alt", "Meta", "AltGraph", "CapsLock"]);
+   *  that stops speech: UI Events' modifier keys
+   *  (https://www.w3.org/TR/uievents-key/#keys-modifier). */
+  const idle = new Set([
+    "Alt",
+    "AltGraph",
+    "CapsLock",
+    "Control",
+    "Fn",
+    "FnLock",
+    "Meta",
+    "NumLock",
+    "ScrollLock",
+    "Shift",
+    "Symbol",
+    "SymbolLock",
+    "Hyper",
+    "Super",
+  ]);
   const disarm = (e: Event): void => {
     if (!e.isTrusted || current === null) {
       return;
@@ -809,7 +830,7 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
     // The input's own focus move has run by the next task.
     setTimeout(() => {
       const now = document.activeElement;
-      if (current === n && n.held !== null) {
+      if (current === n && n.watched) {
         n.held = isPart(now) && !isPage(now) ? now : null;
       }
     }, 0);

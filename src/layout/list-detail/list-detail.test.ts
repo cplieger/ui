@@ -1657,9 +1657,18 @@ describe("enhanceListDetail", () => {
 
   it.each(
     (["intercept", "intercept-await"] as const).flatMap((answer) =>
-      (["wheel", "PageDown", "Control", "Shift", "Tab", "a synthetic pointerdown"] as const).map(
-        (input) => [`${input}, under an ${answer} route`, answer, input] as const,
-      ),
+      (
+        [
+          "wheel",
+          "PageDown",
+          "Control",
+          "Shift",
+          "NumLock",
+          "Tab",
+          "a click on text, then Tab",
+          "a synthetic pointerdown",
+        ] as const
+      ).map((input) => [`${input}, under an ${answer} route`, answer, input] as const),
     ),
   )(
     "leaves the reader's own input standing while a docked traversal's route still loads, %s",
@@ -1695,6 +1704,7 @@ describe("enhanceListDetail", () => {
           break;
         case "Control":
         case "Shift":
+        case "NumLock":
           await userEvent.keyboard(`{${input}}`);
           scrollTo(0, scrollY + 1500);
           break;
@@ -1702,6 +1712,16 @@ describe("enhanceListDetail", () => {
           await userEvent.keyboard("{Tab}");
           expect(document.activeElement, "Tab moved to the detail's next control").toBe(s.close);
           break;
+        case "a click on text, then Tab": {
+          const text = document.createElement("p");
+          text.textContent = "A line to read";
+          s.close.before(text);
+          await userEvent.click(text);
+          expect(document.activeElement, "the click left focus on the page").toBe(document.body);
+          await userEvent.keyboard("{Tab}");
+          expect(document.activeElement, "Tab moved to the next control").toBe(s.close);
+          break;
+        }
         case "a synthetic pointerdown":
           s.head().dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
           scrollTo(0, scrollY + 1500);
@@ -1722,7 +1742,7 @@ describe("enhanceListDetail", () => {
         expect(scrollY, "the page where the reader scrolled it").toBe(y);
         expect(document.activeElement, "focus still on the heading").toBe(s.head());
         repaired(focused);
-      } else if (input === "Tab") {
+      } else if (input === "Tab" || input === "a click on text, then Tab") {
         expect(document.activeElement, "focus where the reader moved it").toBe(s.close);
         expect(focused, "the show's one focus event on the heading").toBe(1);
       } else {
