@@ -41,7 +41,7 @@ export interface ListDetail {
   readonly key: string | null;
   /** With a key, shows the detail, docked or in its sheet, and focuses its
    *  heading, a new copy of it when another entry was shown (look it up to
-   *  fill it). The same key again only focuses the heading, scrolling only
+   *  fill or focus it). The same key again only focuses the heading, scrolling only
    *  when it is entirely out of view or under the page's scroll padding.
    *  With null, hides it. Focus the reader moved out of the detail stays;
    *  otherwise it ends where the fragment navigation the hide comes during
