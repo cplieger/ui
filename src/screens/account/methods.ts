@@ -44,7 +44,7 @@ import {
 import { setUpFactor, showRecoveryCode } from "./factor.js";
 import { proofWays, withProof } from "./proof.js";
 import { nameRefused, type RenameHold } from "./rename.js";
-import { cycle, holdFor, isHeld, question, slot } from "./screen.js";
+import { cycle, holdFor, isHeld, question, retryButton, slot } from "./screen.js";
 import type { Ctx } from "./security.js";
 import type { StepUpAnswer } from "./step-up.js";
 
@@ -753,7 +753,7 @@ export function drawMethods<C extends SecurityClient>(
       label: w["passkeys.renameLabel"](k.name),
       button: opener,
       words: w,
-      save: async (name) => {
+      save: async (name, edit) => {
         const a = await ctx.write("auth.passkey_rename", w["security.recent"], () =>
           client.renamePasskey(k.id, { name }),
         );
@@ -770,8 +770,22 @@ export function drawMethods<C extends SecurityClient>(
         if (said !== undefined) {
           return said;
         }
-        renames.release();
-        ctx.settle(a, notices);
+        const code = codeOf(a.result);
+        if (code === "auth_not_found" || code === "auth_method_not_locked") {
+          edit.close();
+        }
+        ctx.settle(a, notices, (r) => {
+          if (codeOf(r) !== "auth_unavailable") {
+            return undefined;
+          }
+          notices.show(
+            "danger",
+            w["generic.unavailable"],
+            retryButton(w["generic.retry"], edit.retry),
+          );
+          return null;
+        });
+        edit.noted(notices);
         return false;
       },
       ended: (saved) => {

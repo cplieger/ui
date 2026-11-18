@@ -814,7 +814,7 @@ export function drawKeys(
       label: w["keys.renameLabel"](labelOf(k)),
       button: opener,
       words: w,
-      save: async (name) => {
+      save: async (name, edit) => {
         const a = await ctx.write("auth.api_key_rename", w["security.recent"], () =>
           renameKey(k.id, { name }),
         );
@@ -834,12 +834,11 @@ export function drawKeys(
         if (said !== undefined) {
           return said;
         }
-        renames.release();
-        ctx.settle(a, notices, (r) =>
-          refused(r, () => {
-            opener.click();
-          }),
-        );
+        if (codeOf(a.result) === "auth_not_found") {
+          edit.close();
+        }
+        ctx.settle(a, notices, (r) => refused(r, edit.retry));
+        edit.noted(notices);
         return false;
       },
       ended: (saved) => {

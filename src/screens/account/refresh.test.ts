@@ -795,6 +795,10 @@ interface Edited {
     readonly refresh: () => Promise<void>;
   };
   readonly row: (region: HTMLElement) => Promise<HTMLElement>;
+  /** The row named `name`. */
+  readonly named: (region: HTMLElement, name: string) => Promise<HTMLElement>;
+  /** The rename call. */
+  readonly rename: string;
   /** The renamed row's Rename… key. */
   readonly key: string;
   readonly table: (region: HTMLElement) => string;
@@ -828,6 +832,8 @@ const edited: readonly Edited[] = [
       return { region, refresh: () => screen.refresh() };
     },
     row: (region) => rowNamed(region, "[data-part='sessions']", "Phone"),
+    named: (region, name) => rowNamed(region, "[data-part='sessions']", name),
+    rename: "renameSession",
     key: "session-rename-s2",
     table: (region) => textOf(region, "[data-part='sessions'] tbody"),
   },
@@ -847,6 +853,15 @@ const edited: readonly Edited[] = [
         expect(row).toBeDefined();
         return row!;
       }),
+    named: (region, name) =>
+      vi.waitFor(() => {
+        const row = passkeyRows(region).find(
+          (r) => r.cells[0]?.textContent.startsWith(name) === true,
+        );
+        expect(row, name).toBeDefined();
+        return row!;
+      }),
+    rename: "renamePasskey",
     key: `passkey-rename-${String(PHONE.id)}`,
     table: (region) =>
       passkeyRows(region)
@@ -864,6 +879,8 @@ const edited: readonly Edited[] = [
       return { region, refresh: () => screen.refresh() };
     },
     row: (region) => rowNamed(region, "[data-part='keys']", BACKUP.label),
+    named: (region, name) => rowNamed(region, "[data-part='keys']", name),
+    rename: "renameKey",
     key: `key-rename-${String(BACKUP.id)}`,
     table: (region) => textOf(region, "[data-part='keys'] tbody"),
   },
@@ -917,5 +934,206 @@ describe("every account table, a refresh while Rename… is open", () => {
     await vi.waitFor(() => {
       expect(document.activeElement).toBe(control(region, c.key));
     });
+  });
+});
+
+describe("every account table, Rename… on a name already open", () => {
+  it.each(edited)("$name keeps one field, with focus in it", async (c) => {
+    const fake = new Fake().always(c.call, c.first);
+    const { region } = c.mount(fake);
+    const row = await c.row(region);
+    await press(row, "Rename…");
+    await press(row, "Rename…");
+    const fields = region.querySelectorAll<HTMLInputElement>("tbody input.cp-input");
+    expect(fields).toHaveLength(1);
+    expect(document.activeElement).toBe(fields[0]);
+  });
+
+  it.each(edited)("$name draws a newer list once Escape closes the field", async (c) => {
+    const fake = new Fake().answer(c.call, c.first).always(c.call, c.newer);
+    const { region, refresh } = c.mount(fake);
+    const row = await c.row(region);
+    await press(row, "Rename…");
+    await press(row, "Rename…");
+    await userEvent.keyboard("{Escape}");
+    expect(region.querySelector("tbody input.cp-input")).toBeNull();
+    await refresh();
+    await vi.waitFor(() => {
+      expect(c.table(region)).toContain("Tablet");
+    });
+  });
+});
+
+describe("every account table, a rename the server refused", () => {
+  /** Opens Rename… on the row, types Desk and sends it to a refusal. */
+  const refused = async (
+    c: Edited,
+    fake: Fake,
+  ): Promise<{ region: HTMLElement; refresh: () => Promise<void>; input: HTMLInputElement }> => {
+    fake.answer(c.rename, refuse(503, "auth_unavailable"));
+    const { region, refresh } = c.mount(fake);
+    await press(await c.row(region), "Rename…");
+    const input = region.querySelector<HTMLInputElement>("tbody input.cp-input")!;
+    await userEvent.fill(input, "Desk");
+    await userEvent.keyboard("{Enter}");
+    await vi.waitFor(() => {
+      expect(noticeOf(region)).toBe(
+        "The app cannot do this right now. Try again in a few seconds.",
+      );
+    });
+    return { region, refresh, input };
+  };
+
+  it.each(edited)("$name keeps the field, its text and focus through a refresh", async (c) => {
+    const fake = new Fake().answer(c.call, c.first).always(c.call, c.newer);
+    const { region, refresh, input } = await refused(c, fake);
+    await refresh();
+    await tick();
+    expect(input.isConnected).toBe(true);
+    expect(input.value).toBe("Desk");
+    expect(document.activeElement).toBe(input);
+    expect(c.table(region)).not.toContain("Tablet");
+  });
+
+  it.each(edited)("$name keeps another row's open field held", async (c) => {
+    const fake = new Fake().answer(c.call, c.newer).always(c.call, c.first);
+    fake.answer(c.rename, refuse(503, "auth_unavailable"));
+    const { region, refresh } = c.mount(fake);
+    await press(await c.named(region, "Tablet"), "Rename…");
+    const tablet = region.querySelector<HTMLInputElement>("tbody input.cp-input")!;
+    await userEvent.fill(tablet, "Den");
+    await press(await c.row(region), "Rename…");
+    const input = [...region.querySelectorAll<HTMLInputElement>("tbody input.cp-input")].find(
+      (x) => x !== tablet,
+    )!;
+    await userEvent.fill(input, "Desk");
+    await userEvent.keyboard("{Enter}");
+    await vi.waitFor(() => {
+      expect(fake.named(c.rename)).toHaveLength(1);
+      expect(input.readOnly).toBe(false);
+    });
+    await userEvent.keyboard("{Escape}");
+    await refresh();
+    await tick();
+    expect(tablet.isConnected).toBe(true);
+    expect(tablet.value).toBe("Den");
+  });
+
+  it.each(edited)("$name sends the typed name again on Retry", async (c) => {
+    const fake = new Fake().always(c.call, c.first);
+    const { region } = await refused(c, fake);
+    fake.always(c.call, c.saved);
+    await userEvent.click(region.querySelector<HTMLElement>("[data-cp-action='retry']")!);
+    await vi.waitFor(() => {
+      expect(fake.named(c.rename)).toHaveLength(2);
+      expect(c.table(region)).toContain("Desk");
+      expect(region.querySelector("tbody input.cp-input")).toBeNull();
+    });
+    expect(fake.named(c.rename).at(-1)?.args.at(-1)).toEqual({ name: "Desk" });
+    expect(noticeOf(region)).toBe("");
+    await vi.waitFor(() => {
+      expect(document.activeElement).toBe(control(region, c.key));
+    });
+  });
+});
+
+interface PartlyRefused {
+  readonly name: string;
+  /** The read refused once, beside reads that succeed. */
+  readonly call: string;
+  readonly fake?: () => Fake;
+  readonly mount: (fake: Fake) => HTMLElement;
+  /** What the screen draws once every read succeeded. */
+  readonly shown: string;
+  readonly shows: (region: HTMLElement) => string;
+}
+
+const passkeyTable = (region: HTMLElement): string =>
+  passkeyRows(region)
+    .map((r) => r.cells[0]?.textContent ?? "")
+    .join();
+const peopleRows = (region: HTMLElement): string =>
+  among(textOf(region, "[data-part='users'] tbody"), "mika");
+
+const partial: readonly PartlyRefused[] = [
+  {
+    name: "Account and security, its passkeys",
+    call: "passkeys",
+    fake: () => new Fake().always("me", ok(meWith({ passkey_count: 2 }))),
+    mount: (fake) => mountAccount(fake, { parts: ["passkeys"] }).region,
+    shown: "Phone",
+    shows: passkeyTable,
+  },
+  {
+    name: "Account and security, the app's state",
+    call: "state",
+    mount: (fake) => mountAccount(fake, { parts: ["passkeys"] }).region,
+    shown: "Phone",
+    shows: passkeyTable,
+  },
+  {
+    name: "Users, the app's state",
+    call: "state",
+    fake: () => new Fake().always("me", ok(owner)).always("adminUsers", ok([ME])),
+    mount: (fake) => usersOn(fake).region,
+    shown: "mika",
+    shows: peopleRows,
+  },
+  {
+    name: "Users, the invites",
+    call: "adminTokens",
+    fake: () => new Fake().always("me", ok(owner)).always("adminUsers", ok([ME])),
+    mount: (fake) => usersOn(fake).region,
+    shown: "mika",
+    shows: peopleRows,
+  },
+  {
+    name: "Access settings, the app's state",
+    call: "state",
+    fake: () => new Fake().always("me", ok(owner)),
+    mount: (fake) => settingsOn(fake).region,
+    shown: "alongside",
+    shows: (region) =>
+      region.querySelector<HTMLInputElement>("input[type='radio']:checked")?.value ?? "",
+  },
+];
+
+describe("every account screen, one of its first reads refused", () => {
+  it.each(partial)("$name shows the notice, and Retry draws the screen", async (c) => {
+    const fake = (c.fake?.() ?? new Fake()).answer(c.call, refuse(503, "auth_unavailable"));
+    const region = c.mount(fake);
+    await vi.waitFor(() => {
+      expect(noticeOf(region)).toBe(
+        "The app cannot do this right now. Try again in a few seconds.",
+      );
+    });
+    expect(c.shows(region)).not.toBe(c.shown);
+    await userEvent.click(region.querySelector<HTMLElement>("[data-cp-action='retry']")!);
+    await vi.waitFor(() => {
+      expect(c.shows(region)).toBe(c.shown);
+    });
+    expect(noticeOf(region)).toBe("");
+  });
+});
+
+describe("Account and security, a refresh with one of its reads refused", () => {
+  it("keeps the notice until both reads succeed, and what is drawn under it", async () => {
+    const fake = new Fake().always("me", ok(meWith({ passkey_count: 2 })));
+    const { region, screen } = mountAccount(fake, { parts: ["passkeys"] });
+    await vi.waitFor(() => {
+      expect(passkeyTable(region)).toBe("Phone");
+    });
+    const unavailable = "The app cannot do this right now. Try again in a few seconds.";
+    fake.answer("me", refuse(503, "auth_unavailable"));
+    await screen.refresh();
+    expect(noticeOf(region)).toBe(unavailable);
+    fake.answer("passkeys", refuse(503, "auth_unavailable"));
+    fake.always("passkeys", ok([PHONE, TABLET_PASSKEY]));
+    await screen.refresh();
+    expect(noticeOf(region)).toBe(unavailable);
+    expect(passkeyTable(region)).toBe("Phone");
+    await screen.refresh();
+    expect(noticeOf(region)).toBe("");
+    expect(passkeyTable(region)).toBe("Phone,Tablet");
   });
 });

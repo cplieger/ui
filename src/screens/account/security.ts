@@ -364,22 +364,20 @@ export function mountSecurity<C extends SecurityClient>(
         }
         const asked = wanted;
         wanted = undefined;
+        // Both reads draw together: either refused leaves what is drawn.
         if (!got.ok) {
-          if (!signedOut(got)) {
-            const said = genericSignedIn(got, w);
-            failed = notices.show(
-              said.tone,
-              said.text,
-              retryButton(w["generic.retry"], () => refresh(asked)),
-            );
-          }
+          refusedRead(got, () => refresh(asked));
+          return;
+        }
+        if (!keys.ok) {
+          refusedRead(keys, () => refresh(asked));
           return;
         }
         notices.drop(failed);
         failed = undefined;
         const m = got.data;
         me = m;
-        passkeys = keys;
+        passkeys = keys.data;
         drawSession(m);
         if (anyMethod && renames.held()) {
           wanted = asked;
@@ -388,7 +386,7 @@ export function mountSecurity<C extends SecurityClient>(
             methods.body,
             methods.heading,
             () => {
-              drawMethods(c, methods.body, m, keys, renames);
+              drawMethods(c, methods.body, m, keys.data, renames);
             },
             asked,
           );
@@ -397,12 +395,16 @@ export function mountSecurity<C extends SecurityClient>(
     );
   };
 
-  const readPasskeys = async (): Promise<readonly PasskeyView[]> => {
-    if (!has("passkeys")) {
-      return [];
+  const readPasskeys = (): Promise<Result<readonly PasskeyView[]>> =>
+    has("passkeys") ? read(() => client.passkeys()) : Promise.resolve({ ok: true, data: [] });
+
+  /** Shows why a read failed, with Retry running `again`, unless the
+   *  session is gone. */
+  const refusedRead = (r: Refusal, again: () => unknown): void => {
+    if (!signedOut(r)) {
+      const said = genericSignedIn(r, w);
+      failed = notices.show(said.tone, said.text, retryButton(w["generic.retry"], again));
     }
-    const got = await read(() => client.passkeys());
-    return got.ok ? got.data : passkeys;
   };
 
   // The first read, while it runs: a refresh waits for it, since the
@@ -428,7 +430,7 @@ export function mountSecurity<C extends SecurityClient>(
       read(() => client.me()),
       access.passkeySupport(),
     ]);
-    const keys = got.ok ? await readPasskeys() : [];
+    const keys = got.ok ? await readPasskeys() : undefined;
     if (!current()) {
       skeleton.cancel();
       return;
@@ -444,21 +446,24 @@ export function mountSecurity<C extends SecurityClient>(
   const mount = (
     state: Result<StateResponse>,
     got: Result<AccountView>,
-    keys: readonly PasskeyView[],
+    keys: Result<readonly PasskeyView[]> | undefined,
     support: { readonly webauthn: boolean },
   ): void => {
     region.removeAttribute("aria-busy");
     notices.clear();
     top.replaceChildren(session, notices.root);
+    // The app's state decides which methods are offered: without it the
+    // screen would draw as if some were off.
     if (!got.ok) {
-      if (!signedOut(got)) {
-        const said = genericSignedIn(got, w);
-        notices.show(said.tone, said.text, retryButton(w["generic.retry"], start));
-      }
+      refusedRead(got, start);
+      return;
+    }
+    if (!state.ok) {
+      refusedRead(state, start);
       return;
     }
     me = got.data;
-    passkeys = keys;
+    passkeys = keys?.ok === true ? keys.data : [];
     if (has("passkeys") && support.webauthn) {
       void access.sendSignals(client);
     }
@@ -475,9 +480,9 @@ export function mountSecurity<C extends SecurityClient>(
       navigate,
       redirect,
       usableHere,
-      httpsOrigin: state.ok ? httpsOriginOf(state.data.https_origin) : undefined,
-      appTotp: state.ok && state.data.totp === true,
-      passwordLength: passwordLengthOf(state.ok ? state.data : undefined),
+      httpsOrigin: httpsOriginOf(state.data.https_origin),
+      appTotp: state.data.totp === true,
+      passwordLength: passwordLengthOf(state.data),
       webauthn: support.webauthn,
       plain: !me.session.secure,
       scopes: options.scopes,
@@ -536,6 +541,9 @@ export function mountSecurity<C extends SecurityClient>(
         logPart.heading,
       );
       top.append(logPart.root);
+    }
+    if (keys !== undefined && !keys.ok) {
+      refusedRead(keys, () => refresh());
     }
     const said = returned();
     if (said !== undefined) {

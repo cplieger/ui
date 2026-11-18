@@ -457,6 +457,57 @@ describe("mountSecurityLog: refresh", () => {
     });
   });
 
+  it("says nothing of a burst whose newest page the server refused", async () => {
+    const log = range(1, 2);
+    let burst = false;
+    const fake = new Fake().always("adminSecurityLog", (q: LogQuery = {}) =>
+      burst && q.after === undefined ? refuse(503, "auth_unavailable") : server(log)(q),
+    );
+    const { region, refresh } = mount(fake, { limit: 2 });
+    expect(seqs(await rows(region))).toEqual([2, 1]);
+    log.push(...range(3, 30));
+    burst = true;
+    await refresh();
+    expect(asked(fake).at(-1)).toEqual({ limit: 2 });
+    await vi.waitFor(() => {
+      expect(noticeText(region)).toBe(
+        "The app cannot do this right now. Try again in a few seconds.",
+      );
+    });
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    expect(said("polite")).not.toContain("new entries");
+    expect(seqs(await rows(region))).toEqual([2, 1]);
+  });
+
+  it("says nothing of a burst whose newest page a Kind change replaced", async () => {
+    const log = [...range(1, 2)];
+    const late = Promise.withResolvers<undefined>();
+    let burst = false;
+    const fake = new Fake().always("adminSecurityLog", async (q: LogQuery = {}) => {
+      if (burst && q.after === undefined && q.kinds === undefined) {
+        await late.promise;
+      }
+      return server(log)(q);
+    });
+    const { region, refresh } = mount(fake, { limit: 2 });
+    expect(seqs(await rows(region))).toEqual([2, 1]);
+    log.push(...range(3, 30), entry(31, { kind: "signed_in", class: "session" }));
+    burst = true;
+    const done = refresh();
+    await vi.waitFor(() => {
+      expect(asked(fake).at(-1)).toEqual({ limit: 2 });
+    });
+    await userEvent.selectOptions(region.querySelector<HTMLSelectElement>("select")!, "signed_in");
+    await vi.waitFor(async () => {
+      expect(seqs(await rows(region))).toEqual([31]);
+    });
+    late.resolve(undefined);
+    await done;
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    expect(said("polite")).not.toContain("new entries");
+    expect(seqs(await rows(region))).toEqual([31]);
+  });
+
   it("oldest first, adds new entries under the last page", async () => {
     const log = range(1, 3);
     const fake = new Fake().always("adminSecurityLog", server(log));

@@ -178,7 +178,7 @@ export function drawSessions<C extends SecurityClient>(
       clearable: { placeholder: deviceName({ ...s, label: "" }, w) },
       button: opener,
       words: w,
-      save: async (name) => {
+      save: async (name, edit) => {
         const a = await ctx.write("auth.session_rename", w["security.recent"], () =>
           client.renameSession(s.id, { name }),
         );
@@ -195,14 +195,11 @@ export function drawSessions<C extends SecurityClient>(
         if (said !== undefined) {
           return said;
         }
-        renames.release();
-        ctx.settle(a, notices, (r) =>
-          gone(r) === null
-            ? null
-            : unavailable(r, () => {
-                opener.click();
-              }),
-        );
+        if (codeOf(a.result) === "auth_not_found") {
+          edit.close();
+        }
+        ctx.settle(a, notices, (r) => (gone(r) === null ? null : unavailable(r, edit.retry)));
+        edit.noted(notices);
         return false;
       },
       ended: (saved) => {

@@ -357,8 +357,7 @@ export function mountUsers<C extends UsersClient>(
 
   /** Reads the viewer, the app's state, the people and, as mounted, the
    *  keys and invites that name them; false on a failure, which it shows.
-   *  A failed invites read leaves them out; a failed keys read keeps the
-   *  last list, no longer known whole. */
+   *  A failed keys read keeps the last list, no longer known whole. */
   const readAll = async (current = reads.start()): Promise<boolean> => {
     const key = filter;
     const [state, me, users, tokenList] = await Promise.all([
@@ -371,20 +370,20 @@ export function mountUsers<C extends UsersClient>(
     if (!current()) {
       return false;
     }
-    if (!me.ok || !users.ok) {
+    if (!me.ok || !users.ok || !state.ok || tokenList?.ok === false) {
       wanted = undefined;
       drawn = false;
       redrawKeepingFocus(root, h, () => {
         content.replaceChildren();
-        failed(me.ok ? (users as Refusal) : me);
+        failed(!me.ok ? me : !users.ok ? users : !state.ok ? state : (tokenList as Refusal));
       });
       return false;
     }
     viewer = me.data;
     list = users.data;
-    tokens = tokenList?.ok === true ? tokenList.data : [];
-    mode = state.ok ? (state.data.sso ?? "alongside") : "alongside";
-    httpsOrigin = state.ok ? httpsOriginOf(state.data.https_origin) : undefined;
+    tokens = tokenList?.data ?? [];
+    mode = state.data.sso ?? "alongside";
+    httpsOrigin = httpsOriginOf(state.data.https_origin);
     return true;
   };
 

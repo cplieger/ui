@@ -309,7 +309,7 @@ export function drawLog(
   // Every read of the log, a load or a refresh: the newest started draws.
   const loads = latest(signal);
   /** The newest read's end while it runs. */
-  let reading: Promise<void> | undefined;
+  let reading: Promise<unknown> | undefined;
   /** The refresh the calls made during a read share. */
   let queued: Promise<void> | undefined;
   /** Whether the last load drew a page; until one does, a refresh loads. */
@@ -460,7 +460,7 @@ export function drawLog(
     list.toSorted((a, b) => (view.order === "newest" ? b.seq - a.seq : a.seq - b.seq));
 
   /** Makes `work` the newest read, which a refresh waits for. */
-  const track = (work: Promise<void>): Promise<void> => {
+  const track = <T>(work: Promise<T>): Promise<T> => {
     reading = work;
     void work.then(() => {
       if (reading === work) {
@@ -470,9 +470,10 @@ export function drawLog(
     return work;
   };
 
-  const load = (focus: boolean): Promise<void> => track(loadPage(focus));
+  /** True when it drew the page it read. */
+  const load = (focus: boolean): Promise<boolean> => track(loadPage(focus));
 
-  const loadPage = async (focus: boolean): Promise<void> => {
+  const loadPage = async (focus: boolean): Promise<boolean> => {
     const current = loads.start();
     body.setAttribute("aria-busy", "true");
     const ascending =
@@ -494,22 +495,25 @@ export function drawLog(
     ]);
     if (!current()) {
       skeleton.cancel();
-      return;
+      return false;
     }
+    let ok = false;
     skeleton.commit(() => {
       redrawKeepingFocus(
         body,
         title,
         () => {
-          shown(got, ascending);
+          ok = shown(got, ascending);
         },
         got.ok && focus ? null : undefined,
       );
     });
+    return ok;
   };
 
-  /** Draws a page the log read, or why it could not. */
-  const shown = (got: Result<SecurityLogView>, ascending: boolean): void => {
+  /** Draws a page the log read, or why it could not; true when it drew
+   *  that page. */
+  const shown = (got: Result<SecurityLogView>, ascending: boolean): boolean => {
     body.removeAttribute("aria-busy");
     drawn = got.ok;
     if (!got.ok) {
@@ -517,19 +521,20 @@ export function drawLog(
         content.replaceChildren();
       }
       refused(got);
-      return;
+      return false;
     }
     notices.clear();
     const page = got.data.entries;
     if (page.length === 0 && (view.before !== undefined || view.after !== undefined)) {
       void go(first(view), { replace: true });
-      return;
+      return false;
     }
     const full = page.length >= limit;
     past = ascending ? view.after !== undefined : full;
     future = ascending ? full : view.before !== undefined;
     entries = ordered(page);
     draw(got.data);
+    return true;
   };
 
   const go = async (
@@ -815,8 +820,9 @@ export function drawLog(
       return;
     }
     if (more && view.order === "newest") {
-      await load(false);
-      announce(w["log.arrived"](fresh.length));
+      if (await load(false)) {
+        announce(w["log.arrived"](fresh.length));
+      }
       return;
     }
     const known = new Set(entries.map((e) => e.seq));

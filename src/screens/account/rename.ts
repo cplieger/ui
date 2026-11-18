@@ -9,11 +9,24 @@ import { clearError, showError } from "../../forms/form/form.js";
 import { codeOf, reasonOf, runes } from "./answer.js";
 import type { Refusal } from "./client.js";
 import { el } from "./dom.js";
+import type { Slot } from "./screen.js";
 import type { AccountWords } from "./words.js";
 
 /** A display name, a passkey's name and a key's label: one line of at
  *  most this many characters (access `maxDisplayRunes`). */
 export const NAME_MAX = 128;
+
+/** The edit a save runs in, which its refusal arms end or repeat. */
+interface OpenEdit {
+  /** Ends the edit unsaved, as Escape does, for an answer that reads the
+   *  table again. */
+  readonly close: () => void;
+  /** Saves the field's current value again, as Enter does, for Retry. */
+  readonly retry: () => void;
+  /** Takes the notice `into` shows now as this edit's: it goes once the
+   *  edit saves again or ends. */
+  readonly noted: (into: Slot) => void;
+}
 
 interface RenameSpec {
   /** The node showing the name, replaced by the field while it is edited. */
@@ -29,12 +42,12 @@ interface RenameSpec {
   readonly words: AccountWords;
   /** Saves `value`: undefined once saved, the words of the refusal to
    *  show on the field, or false to keep the field as it is. */
-  readonly save: (value: string) => Promise<string | false | undefined>;
+  readonly save: (value: string, edit: OpenEdit) => Promise<string | false | undefined>;
   /** Runs once the edit ends, `saved` when the new name was stored. */
   readonly ended: (saved: boolean) => void;
 }
 
-function renameInPlace(spec: RenameSpec): void {
+function renameInPlace(spec: RenameSpec): HTMLInputElement {
   const w = spec.words;
   const box = el("div");
   const input = el("input", "cp-input");
@@ -52,10 +65,71 @@ function renameInPlace(spec: RenameSpec): void {
   input.select();
 
   let saving = false;
+  let open = true;
+  let note: { readonly into: Slot; readonly box: Element | undefined } | undefined;
+  const unnote = (): void => {
+    note?.into.drop(note.box);
+    note = undefined;
+  };
   const end = (saved: boolean): void => {
+    if (!open) {
+      return;
+    }
+    open = false;
     box.replaceWith(spec.name);
     spec.button.focus();
+    unnote();
     spec.ended(saved);
+  };
+  const edit: OpenEdit = {
+    close: () => {
+      end(false);
+    },
+    retry: () => {
+      if (open) {
+        input.focus();
+        submit();
+      }
+    },
+    noted: (into) => {
+      note = { into, box: into.shown() };
+    },
+  };
+  const submit = (): void => {
+    if (saving) {
+      return;
+    }
+    const value = input.value.trim();
+    if (value === spec.value) {
+      end(false);
+      return;
+    }
+    if (value === "" && spec.clearable === undefined) {
+      showError(input, w["rename.empty"]);
+      return;
+    }
+    if (runes(value) > NAME_MAX) {
+      showError(input, w["rename.tooLong"](NAME_MAX));
+      return;
+    }
+    unnote();
+    saving = true;
+    input.readOnly = true;
+    input.setAttribute("aria-busy", "true");
+    void spec.save(value, edit).then((refused) => {
+      saving = false;
+      input.readOnly = false;
+      input.removeAttribute("aria-busy");
+      if (refused === undefined) {
+        end(true);
+      } else if (open) {
+        if (refused !== false) {
+          showError(input, refused);
+        }
+        input.focus();
+        input.select();
+      }
+    });
   };
   input.addEventListener("input", () => {
     clearError(input);
@@ -78,41 +152,12 @@ function renameInPlace(spec: RenameSpec): void {
       }
       return;
     }
-    if (e.key !== "Enter" || saving) {
-      return;
+    if (e.key === "Enter") {
+      e.preventDefault();
+      submit();
     }
-    e.preventDefault();
-    const value = input.value.trim();
-    if (value === spec.value) {
-      end(false);
-      return;
-    }
-    if (value === "" && spec.clearable === undefined) {
-      showError(input, w["rename.empty"]);
-      return;
-    }
-    if (runes(value) > NAME_MAX) {
-      showError(input, w["rename.tooLong"](NAME_MAX));
-      return;
-    }
-    saving = true;
-    input.readOnly = true;
-    input.setAttribute("aria-busy", "true");
-    void spec.save(value).then((refused) => {
-      saving = false;
-      input.readOnly = false;
-      input.removeAttribute("aria-busy");
-      if (refused === undefined) {
-        end(true);
-      } else if (box.isConnected) {
-        if (refused !== false) {
-          showError(input, refused);
-        }
-        input.focus();
-        input.select();
-      }
-    });
   });
+  return input;
 }
 
 /** A part's redraws held while one of its names is edited in place, so a
@@ -122,16 +167,15 @@ export interface RenameHold {
    *  caller skips its redraw and the hold runs `again` once the last edit
    *  ends unsaved. */
   held(): boolean;
-  /** `renameInPlace` under the hold. */
+  /** `renameInPlace` under the hold; on a name already being edited, it
+   *  focuses that field instead. */
   edit(spec: RenameSpec): void;
-  /** Lets redraws through while the field stays open, for a refusal whose
-   *  answer redraws the part. */
-  release(): void;
 }
 
 /** A hold whose `again` reads the part again for a read it held back. */
 export function renameHold(again: () => void): RenameHold {
-  const open = new Set<object>();
+  // One field per name node: while it is open the node is out of the page.
+  const open = new Map<HTMLElement, HTMLInputElement>();
   // A read was held back since the last one that drew.
   let owed = false;
   return {
@@ -140,12 +184,16 @@ export function renameHold(again: () => void): RenameHold {
       return owed;
     },
     edit(spec) {
-      const mine = {};
-      open.add(mine);
-      renameInPlace({
+      const field = open.get(spec.name);
+      if (field !== undefined) {
+        field.focus();
+        field.select();
+        return;
+      }
+      const input = renameInPlace({
         ...spec,
         ended: (saved) => {
-          open.delete(mine);
+          open.delete(spec.name);
           const missed = owed && open.size === 0;
           if (missed) {
             owed = false;
@@ -156,9 +204,7 @@ export function renameHold(again: () => void): RenameHold {
           }
         },
       });
-    },
-    release() {
-      open.clear();
+      open.set(spec.name, input);
     },
   };
 }
