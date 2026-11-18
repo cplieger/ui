@@ -82,23 +82,23 @@
         </div>
         <footer>The state of a thing in its row or field: its tone's glyph and its word, here a setting's. A test or a task says the state of its own work with data-cp-state, and the stylesheet draws the glyph: the spinner while it runs, a check once it is done, a cross once it failed. Press Test connection twice to see both answers. A label that travels with the thing is a chip.</footer>
       </div>
-      <div class="card g-wide">
+      <div class="card g-wide" data-new>
         <h2>An item's own work</h2>
         <ul class="cp-list" aria-label="Subtitles to upload">
-          <li><div class="cp-list-row"><span class="cp-icon" data-cp-icon="file-text" aria-hidden="true"></span><span class="cp-cell-stack"><span class="cp-truncate cp-mono">Frieren.S01E04.en.ass</span><small>41 KB</small></span><span data-part="end"><span class="cp-state" data-cp-state="done">Uploaded</span></span></div></li>
-          <li><div class="cp-list-row" tabindex="-1" data-work-retry data-done-line="38 KB"><span class="cp-icon" data-cp-icon="file-text" aria-hidden="true"></span><span class="cp-cell-stack"><span class="cp-truncate cp-mono">Frieren.S01E05.en.ass</span><small>The server did not answer.</small></span><span data-part="end"><span class="cp-state" data-cp-state="failed">Not uploaded</span></span><button class="cp-button" data-size="sm" type="button" aria-label="Retry Frieren.S01E05.en.ass"><span class="cp-icon" data-cp-icon="refresh-cw" aria-hidden="true"></span><span class="cp-icon" data-cp-icon="spinner-arc" data-part="busy" aria-hidden="true"></span><span class="cp-roll">Retry</span></button></div></li>
-          <li><div class="cp-list-row"><span class="cp-icon" data-cp-icon="file-text" aria-hidden="true"></span><span class="cp-cell-stack"><span class="cp-truncate cp-mono">Frieren.S01E06.en.ass</span><small>Larger than 10 MB, the most the server takes.</small></span><span data-part="end"><span class="cp-state" data-cp-state="failed">Not uploaded</span></span></div></li>
+          <li><div class="cp-list-row"><span class="cp-icon" data-cp-icon="file-text" aria-hidden="true"></span><span class="cp-cell-stack"><span class="cp-mono">Frieren.S01E04.en.ass</span><small>41 KB</small></span><span data-part="end"><span class="cp-state" data-cp-state="done">Uploaded</span></span></div></li>
+          <li><div class="cp-list-row" tabindex="-1" role="group" aria-labelledby="work-5-name work-5-state" data-work-retry data-done-line="38 KB"><span class="cp-icon" data-cp-icon="file-text" aria-hidden="true"></span><span class="cp-cell-stack"><span class="cp-mono" id="work-5-name">Frieren.S01E05.en.ass</span><small>The server did not answer.</small></span><span data-part="end"><span class="cp-state" data-cp-state="failed" id="work-5-state">Not uploaded</span></span><button class="cp-button" data-size="sm" type="button" aria-label="Retry Frieren.S01E05.en.ass"><span class="cp-icon" data-cp-icon="refresh-cw" aria-hidden="true"></span><span class="cp-icon" data-cp-icon="spinner-arc" data-part="busy" aria-hidden="true"></span><span class="cp-roll">Retry</span></button></div></li>
+          <li><div class="cp-list-row"><span class="cp-icon" data-cp-icon="file-text" aria-hidden="true"></span><span class="cp-cell-stack"><span class="cp-mono">Frieren.S01E06.en.ass</span><small>Larger than 10 MB, the most the server takes.</small></span><span data-part="end"><span class="cp-state" data-cp-state="failed">Not uploaded</span></span></div></li>
         </ul>
         <footer>An upload, a send or a check says where its own work is with data-cp-state, and the stylesheet draws the glyph: busy, done, or failed with the reason on the row's second line. A failed item has one small action, Retry, which turns busy while the work runs again; the reason stays until the answer, and Retry leaves once the work is done. A failure that would fail the same way again, such as a file over the limit, has no Retry. Press Retry twice: it fails once more, then the file uploads.</footer>
       </div>
-      <div class="card">
+      <div class="card" data-new>
         <h2>Live dot, badges, times</h2>
         <div class="cp-form">
           <span class="g-row-inline"><span class="cp-dot" data-tone="success" data-live data-dot-demo></span><span>Checking now</span><span class="cp-dot" data-tone="neutral"></span>Idle<button class="cp-button" data-variant="quiet" data-size="sm" type="button" data-dot-next>Next state</button></span>
           <span class="g-row-inline">Releases <span class="cp-badge">12<span class="cp-visually-hidden"> new</span></span> Activity <span class="cp-badge" data-variant="quiet">3<span class="cp-visually-hidden"> new</span></span></span>
           <span>Last full check <time data-ago="420" data-style="long"></time>, the next one <time data-ago="-1500" data-style="long"></time></span>
         </div>
-        <footer>A live state pulses twice as it turns live: press Next state twice. A relative time shows the exact one on hover and keeps its words current.</footer>
+        <footer>A live state pulses twice as it turns live, and its new words are announced: press Next state twice. A relative time shows the exact one on hover and keeps its words current.</footer>
       </div>
     </div>
   </section>

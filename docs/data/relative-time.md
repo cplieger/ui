@@ -38,6 +38,7 @@ formatRelative(at, { now: start, locale: "fr", style: "long" }); // "dans 25 min
 - The words come from `Intl.RelativeTimeFormat`, so every locale reads its own. `long` lets the locale name the nearest day ("yesterday", "tomorrow"). `short` and `narrow` always give a number, because a compact form reads as one.
 - The unit is the largest that fits: a minute, an hour, a day, a week, a month of 30 days or a year of 365 days, each rounded to the nearest whole one. A unit takes over half a smaller unit before the smaller count would reach it. So a time 59 and a half minutes old reads "1 hour ago", never "60 minutes ago", and one 346 days old reads "last year", never "12 months ago".
 - The exact time is `Intl.DateTimeFormat` with `dateStyle: "medium"` and `timeStyle: "short"`, in the same locale.
+- The time carries `aria-live="off"`, so its own rewrites are not said again when it sits inside a live region, such as a banner's "Last seen 40 minutes ago". The time is still read whole when its region changes.
 
 ## Keeping current
 

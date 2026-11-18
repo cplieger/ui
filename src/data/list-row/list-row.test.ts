@@ -246,3 +246,57 @@ describe("markKept", () => {
     expect(ul.querySelector("[data-kept]")).toBeNull();
   });
 });
+
+describe("a row that holds its own action", () => {
+  /** A failed upload's row, its Retry beside the state, in a list `width` wide. */
+  function retryRow(width: string): {
+    readonly body: HTMLElement;
+    readonly retry: HTMLButtonElement;
+  } {
+    const ul = list();
+    ul.style.inlineSize = width;
+    const row = ul.querySelector<HTMLElement>(".cp-list-row");
+    const body = row?.querySelector<HTMLElement>(".cp-cell-stack");
+    if (row == null || body == null) {
+      throw new Error("no row");
+    }
+    const lead = document.createElement("span");
+    lead.className = "cp-icon";
+    lead.dataset["cpIcon"] = "file-text";
+    const end = document.createElement("span");
+    end.dataset["part"] = "end";
+    end.innerHTML = '<span class="cp-state" data-cp-state="failed">Not uploaded</span>';
+    const retry = document.createElement("button");
+    retry.className = "cp-button";
+    retry.type = "button";
+    retry.dataset["size"] = "sm";
+    retry.innerHTML =
+      '<span class="cp-icon" data-cp-icon="refresh-cw"></span><span class="cp-roll">Retry</span>';
+    row.prepend(lead);
+    row.append(end, retry);
+    return { body, retry };
+  }
+
+  it("moves its state and action under the words when they leave the words no room", () => {
+    const { body, retry } = retryRow("13rem");
+    expect(body.getBoundingClientRect().width).toBeGreaterThanOrEqual(4 * 16 - 1);
+    const roll = retry.querySelector(".cp-roll");
+    expect(roll?.scrollWidth).toBeLessThanOrEqual(roll?.clientWidth ?? 0);
+    expect(retry.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+      body.getBoundingClientRect().bottom - 1,
+    );
+    expect(retry.getBoundingClientRect().right).toBeCloseTo(
+      (body.closest(".cp-list-row") as HTMLElement).getBoundingClientRect().right - 16,
+      0,
+    );
+  });
+
+  it("keeps them on the words' line when the row has room", () => {
+    const { body, retry } = retryRow("40rem");
+    const line = (el: Element): number => {
+      const r = el.getBoundingClientRect();
+      return r.top + r.height / 2;
+    };
+    expect(line(retry)).toBeCloseTo(line(body), 0);
+  });
+});

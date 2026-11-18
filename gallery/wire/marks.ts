@@ -41,7 +41,7 @@ for (const row of document.querySelectorAll<HTMLElement>("[data-work-retry]")) {
   if (retry === null || state === null || reason === null) {
     continue;
   }
-  const name = row.querySelector(".cp-truncate")?.textContent ?? "";
+  const name = row.querySelector(".cp-cell-stack > :first-child")?.textContent ?? "";
   const cycle = enhanceConfirm(retry, { busy: "Retrying…", done: false });
   let fails = true;
   const upload = (): Promise<void> =>
