@@ -29,12 +29,13 @@ Two attributes make any kind of toggle:
 - `data-motion` is how a change moves:
   - `drop`: a mouse over it lifts the drawing 2px. Turning on carries it up and down past its rest as if into a board, and turning off lifts it out.
   - `beat`: a mouse over it tints the drawing in its tone, and turning on beats it once.
+  - `ring`: for a bell. A mouse over it tints the drawing in its tone, and turning on swings the bell once from its crown, its clapper swinging against it. Its on drawing is `bell-ring-filled`, which it paints as two layers, `bell-body-filled` and `bell-clapper`, so at rest it shows the filled bell without its sound arcs.
   - `turn`: the drawing now shown turns over into place, both ways.
 
   Without one, a change does not move. Under reduced motion, no motion plays and nothing lifts.
 
 ```html
-<button class="cp-button cp-toggle" data-variant="quiet" data-tone="accent" data-motion="beat" aria-pressed="false" type="button">
+<button class="cp-button cp-toggle" data-variant="quiet" data-tone="accent" data-motion="ring" aria-pressed="false" type="button">
   <span class="cp-icon" data-cp-icon="bell" aria-hidden="true"></span>
   <span class="cp-icon" data-cp-icon="bell-ring-filled" data-part="on" aria-hidden="true"></span>
   Notify me
