@@ -1398,6 +1398,68 @@ describe("css/system.css", () => {
     }
   });
 
+  it("keeps a stepper's width and its plus in place as its value shortens", () => {
+    theme("light");
+    for (const tier of ["fine", "coarse"]) {
+      root.dataset["pointer"] = tier;
+      const el = build(
+        '<div class="cp-stepper" role="group" aria-label="Zoom"><button class="cp-button" data-variant="quiet" type="button" aria-label="Zoom out">-</button><button class="cp-button cp-stepper-value" data-variant="quiet" type="button">100%</button><button class="cp-button" data-variant="quiet" type="button" aria-label="Zoom in">+</button></div>',
+      );
+      const stepper = el.querySelector(".cp-stepper") as HTMLElement;
+      const value = el.querySelector(".cp-stepper-value") as HTMLElement;
+      const plus = stepper.lastElementChild as HTMLElement;
+      const at = (text: string): string => {
+        value.textContent = text;
+        const box = stepper.getBoundingClientRect();
+        return `${String(box.width)} ${String(plus.getBoundingClientRect().x - box.x)}`;
+      };
+      const full = at("100%");
+      expect(at("75%")).toBe(full);
+      expect(at("5%")).toBe(full);
+      expect(at("100%")).toBe(full);
+    }
+  });
+
+  it("draws a signed stepper with steps of several sizes as the zoom stepper is drawn", () => {
+    theme("light");
+    root.dataset["pointer"] = "fine";
+    const el = build(
+      '<div class="cp-stepper" id="zoom" role="group" aria-label="Zoom"><button class="cp-button" data-variant="quiet" type="button" aria-label="Zoom out">-</button><button class="cp-button cp-stepper-value" data-variant="quiet" type="button">100%</button><button class="cp-button" data-variant="quiet" type="button" aria-label="Zoom in">+</button></div>' +
+        '<div class="cp-field"><label class="cp-label" for="offset">Offset, in seconds</label><div class="cp-stepper" id="offset-bar" role="group"><button class="cp-button" data-variant="quiet" type="button" data-step="-10">−1 s</button><button class="cp-button" data-variant="quiet" type="button" data-step="-1">−0.1 s</button><input id="offset" value="+1.25" inputmode="decimal" data-min="-60" data-max="60" data-step="0.1"><button class="cp-button" data-variant="quiet" type="button" data-step="1">+0.1 s</button><button class="cp-button" data-variant="quiet" type="button" data-step="10">+1 s</button><button class="cp-button" data-variant="quiet" type="button" data-reset="0">Reset</button></div></div>',
+    );
+    const zoom = el.querySelector("#zoom") as HTMLElement;
+    const bar = el.querySelector("#offset-bar") as HTMLElement;
+    const input = el.querySelector("#offset") as HTMLInputElement;
+    const look = (s: HTMLElement): string => {
+      const edge = getComputedStyle(s);
+      const b = s.querySelector(".cp-button") as HTMLElement;
+      return [
+        edge.borderTopWidth,
+        edge.borderTopStyle,
+        edge.borderTopColor,
+        getComputedStyle(s).borderTopLeftRadius,
+        String(s.getBoundingClientRect().height),
+        String(b.getBoundingClientRect().height),
+        getComputedStyle(b).backgroundColor,
+      ].join(" ");
+    };
+    expect(look(bar)).toBe(look(zoom));
+    const type = (v: Element): string => {
+      const cs = getComputedStyle(v);
+      return [cs.fontFamily, cs.fontSize, cs.fontWeight, cs.fontVariantNumeric, cs.color].join(" ");
+    };
+    expect(type(input)).toBe(type(zoom.querySelector(".cp-stepper-value") as Element));
+    // Its widest value, a sign, two digits, a point and two decimals, fits
+    // the one width every value keeps.
+    const width = input.getBoundingClientRect().width;
+    for (const v of ["−60.00", "+1.25", "0.00", "−0.10"]) {
+      input.value = v;
+      expect(input.getBoundingClientRect().width).toBe(width);
+      expect(input.scrollWidth <= input.clientWidth).toBe(true);
+    }
+    expect(input.labels?.[0]?.textContent).toBe("Offset, in seconds");
+  });
+
   it("shows a saved secret's Saved part or its field, never both", () => {
     theme("light");
     const el = build(

@@ -4,7 +4,7 @@
  * `max`, and the number rolls to its new value, up as it grows and down as
  * it shrinks. A button at the end it cannot pass reads as unavailable. Its
  * field can instead be text that shows a sign, such as "+1.25", with
- * buttons of several sizes and a Reset.
+ * buttons of several sizes, and a Reset beside it.
  * @module
  */
 
@@ -41,8 +41,9 @@ const ROLLING = "data-cp-rolling";
  * many steps a press moves: `"-1"` for the minus, `"1"` for the plus. A
  * text `<input>` takes its range and step from `data-min`, `data-max` and
  * `data-step` and steps on Up and Down. Shift moves ten steps in either field.
- * A `data-reset` button sets the field to that attribute's value, else the
- * markup's. A change fires `input` and `change` and is said through announce.
+ * A `data-reset` button outside the stepper whose `aria-controls` is the
+ * field's id sets the field to that attribute's value, else the markup's. A
+ * change fires `input` and `change` and is said through announce.
  */
 export function enhanceStepper(stepper: HTMLElement, options: StepperOptions = {}): void {
   const { signal } = options;
@@ -162,7 +163,7 @@ export function enhanceStepper(stepper: HTMLElement, options: StepperOptions = {
     "click",
     (e) => {
       const t = e.target instanceof Element ? e.target : null;
-      const b = t?.closest("button[data-step], button[data-reset]");
+      const b = t?.closest("button[data-step]");
       if (
         !(b instanceof HTMLButtonElement) ||
         !stepper.contains(b) ||
@@ -170,15 +171,26 @@ export function enhanceStepper(stepper: HTMLElement, options: StepperOptions = {
       ) {
         return;
       }
-      const reset = b.dataset["reset"];
-      move(
-        reset === undefined
-          ? Number(b.dataset["step"])
-          : { to: reset === "" ? input.defaultValue : reset },
-      );
+      move(Number(b.dataset["step"]));
     },
     listen,
   );
+  const resets =
+    input.id === ""
+      ? []
+      : document.querySelectorAll<HTMLButtonElement>(
+          `button[data-reset][aria-controls="${CSS.escape(input.id)}"]`,
+        );
+  for (const b of resets) {
+    b.addEventListener(
+      "click",
+      () => {
+        const to = b.dataset["reset"] ?? "";
+        move({ to: to === "" ? input.defaultValue : to });
+      },
+      listen,
+    );
+  }
   input.addEventListener(
     "keydown",
     (e) => {
