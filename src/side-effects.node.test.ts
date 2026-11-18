@@ -52,6 +52,7 @@ const PURE = [
   "/panel",
   "/pill",
   "/pointer",
+  "/pointer/follow",
   "/popconfirm",
   "/press",
   "/proposal",

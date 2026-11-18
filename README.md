@@ -74,10 +74,11 @@ toast({ kind: "success", title: "Source added" });
 | `@cplieger/ui/icons` | Lucide's lines in the package's own stroke, a few drawings of its own, and the factory that paints them |
 | `@cplieger/ui/templates/*` | whole screens in plain HTML on the stylesheet, each region named, on npm only: see [Page templates](templates/README.md) |
 | `@cplieger/ui/<module>` | one component's script |
+| `@cplieger/ui/pointer/follow` | the pointer tier's listeners, kept apart so the pre-paint script loads `@cplieger/ui/pointer` alone |
 
 ## API
 
-Each module is one subpath, grouped here by what it is for:
+Each module is one subpath, and [pointer](docs/core/pointer.md) two, grouped here by what it is for:
 
 - Overlays: [dialog](docs/overlays/dialog.md), [ask](docs/overlays/ask.md), [anchor](docs/overlays/anchor.md), [menu](docs/overlays/menu.md), [palette](docs/overlays/palette.md), [panel](docs/overlays/panel.md), [popconfirm](docs/overlays/popconfirm.md), [select-panel](docs/overlays/select-panel.md) and [tooltip](docs/overlays/tooltip.md).
 - Feedback: [toast](docs/feedback/toast.md), [announce](docs/feedback/announce.md), [skeleton](docs/feedback/skeleton.md), [loading-region](docs/feedback/loading-region.md), [proposal](docs/feedback/proposal.md), [batch-report](docs/feedback/batch-report.md), [jobs](docs/feedback/jobs.md), [outcome](docs/feedback/outcome.md) and [chip](docs/feedback/chip.md).

@@ -42,7 +42,7 @@
         </div>
         <footer>A fixed part of the value sits beside the field, outside what you type.</footer>
       </div>
-      <div class="card" data-new>
+      <div class="card">
         <h2>A secret's state</h2>
         <div class="cp-form">
           <div class="cp-set-elsewhere"><strong>Sonarr API key</strong><span class="cp-state" data-tone="success"><span class="cp-icon" data-cp-icon="circle-check" aria-hidden="true"></span>Set</span><span class="cp-chip" data-tone="neutral">from <code class="cp-mono">SONARR_API_KEY</code></span></div>
@@ -174,7 +174,7 @@
         </div>
         <footer>The whole area is the file input's label, so a press anywhere opens the picker; a drag over it lifts the icon. The files taken are a compact list, each row its glyph, its name and its size.</footer>
       </div>
-      <div class="card" data-new>
+      <div class="card">
         <h2>Upload with limits</h2>
         <button class="cp-button" type="button" commandfor="d-upload" command="show-modal"><span class="cp-icon" data-cp-icon="upload" aria-hidden="true"></span>Add a file…</button>
         <ul class="cp-list" data-density="compact" id="up-list" aria-label="Uploaded files"></ul>
@@ -207,7 +207,7 @@
         </div>
         <footer>Each term pops in and shrinks away; a term already there shakes instead of doubling.</footer>
       </div>
-      <div class="card">
+      <div class="card" data-new>
         <h2>Pick from suggestions</h2>
         <div class="cp-field">
           <label class="cp-label" for="f-langs">Subtitle languages, in order</label>
@@ -225,7 +225,7 @@
         </div>
         <footer>The combobox pattern: the list narrows as you type, Alt+Down opens it whole, arrows move through it and Enter takes one. A language already chosen leaves the list, and the list holds only real languages, so there is no free text. Three is the limit here, and the field says so.</footer>
       </div>
-      <div class="card">
+      <div class="card" data-new>
         <h2>Tags, with new ones</h2>
         <div class="cp-field">
           <label class="cp-label" for="f-tags">Tags</label>
@@ -241,7 +241,7 @@
         </div>
         <footer>Like the language picker, and each tag says how many entries carry it. Words that match no tag end the list with Add “…”, so Enter takes a match first and a new tag only when nothing matches. Five is the limit.</footer>
       </div>
-      <div class="card">
+      <div class="card" data-new>
         <h2>Recipients, some away</h2>
         <div class="cp-field">
           <label class="cp-label" for="f-recipients">To</label>
@@ -345,7 +345,7 @@
   <section class="g-section" id="settings-parts">
     <h2>Settings parts</h2>
     <div class="g-grid">
-      <div class="card g-wide" data-new>
+      <div class="card g-wide">
         <h2>Categories and unsaved changes</h2>
         <div class="cp-settings">
           <nav class="cp-settings-nav" aria-label="Settings">
@@ -382,7 +382,7 @@
         <div class="cp-cluster g-gap-top"><a class="cp-button" data-size="sm" href="overlays.html">Go to Overlays</a><button class="cp-button" data-size="sm" type="button" data-elsewhere="sc-form">Save on another device</button></div>
         <footer>Change a setting: the bar counts what waits, and each category holding a change gets a dot, which a narrow screen's select reads as "Checks, unsaved changes". Discard puts the saved values back. Save changes keeps the bar while it says Saving… and Saved, then counts again, so a change typed during the save still waits. While a change waits, Go to Overlays asks first. Save on another device saves a 1 hour check there: with nothing changed here it loads at once; with changes waiting, the notice's button takes it in and keeps yours.</footer>
       </div>
-      <div class="card g-wide" data-new>
+      <div class="card g-wide">
         <h2>Errors across sections</h2>
         <div class="cp-settings" data-categories>
           <nav class="cp-settings-nav" aria-label="Settings with errors">
@@ -418,7 +418,7 @@
         <iframe class="g-phone" src="frame-settings.html" title="Settings at a phone's width" data-frame></iframe>
         <footer>Below 48rem the categories become a select above the form, made from the same links, and the category in view is the one it shows. A change from the arrow keys waits for Enter, so the page never moves under the keys. With no script the links stay, in a row that scrolls.</footer>
       </div>
-      <div class="card g-wide" data-new>
+      <div class="card g-wide">
         <h2>A value set elsewhere</h2>
         <div class="cp-panel">
           <div class="cp-setting"><div><span class="cp-label">Listen port</span><span class="cp-help">Changes only at startup: edit config.yaml and restart subflux.</span></div><div class="cp-set-elsewhere"><code class="cp-mono">8080</code><span class="cp-chip" data-tone="neutral">from config.yaml</span></div></div>
@@ -428,7 +428,7 @@
         </div>
         <footer>The value stands where the control would, readable and selectable, with a chip naming where it is set and one sentence on how to change it. There is no field, so nothing looks editable and nothing is disabled. A secret shows its state, never its value.</footer>
       </div>
-      <div class="card g-wide" data-new>
+      <div class="card g-wide">
         <h2>A restart pending</h2>
         <form class="cp-form">
           <div class="cp-notice" data-tone="warning"><strong><span class="cp-icon" data-cp-icon="rotate-ccw" aria-hidden="true"></span>2 saved changes wait for a restart</strong><ul><li>Authentication turns off at the next restart.</li><li>The listen port moves from 8080 to 8443 at the next restart.</li></ul><small>Restart subflux to apply them.</small></div>
@@ -439,7 +439,7 @@
         </form>
         <footer>A notice with reasons at the top of the settings, one line per saved change that waits, each saying what happens and in which direction. It stays while any change waits, and blocks nothing.</footer>
       </div>
-      <div class="card" data-new>
+      <div class="card">
         <h2>Several from a fixed set</h2>
         <fieldset class="cp-choices" id="sp-codecs">
           <legend class="cp-label" id="sp-codecs-l">Ignored embedded formats</legend>

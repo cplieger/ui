@@ -11630,10 +11630,26 @@ button.cp-figure[aria-expanded="true"]::after {
  * option its own way. */
 :is(.cp-menu, .cp-listbox, .cp-select-panel, .cp-palette) {
   --cp-option-h: var(--cp-control-h-sm);
+  --cp-option-gap: calc(var(--cp-space-1) / 2);
 }
 
 :root[data-pointer="coarse"] :is(.cp-menu, .cp-listbox, .cp-select-panel, .cp-palette) {
   --cp-option-h: var(--cp-control-h);
+}
+
+/* What holds the rows lays them out with a gap, not margins, so two lit
+ * rows never touch and each row's hit area stays its own height. */
+.cp-menu,
+.cp-menu [role="group"],
+.cp-listbox[role="listbox"],
+:is(.cp-listbox, .cp-select-panel, .cp-palette) [role="listbox"] {
+  display: grid;
+  gap: var(--cp-option-gap);
+}
+
+/* A closed popover's display, which the grid above would otherwise show. */
+:is(.cp-menu, .cp-listbox)[popover]:not(:popover-open) {
+  display: none;
 }
 
 :is(.cp-menu, .cp-listbox, .cp-select-panel, .cp-palette) :is([role^="menuitem"], [role="option"]) {
@@ -11727,8 +11743,9 @@ button.cp-figure[aria-expanded="true"]::after {
   -webkit-touch-callout: none;
 }
 
+/* The gap on each side plus this margin keep the line --cp-space-1 clear. */
 .cp-menu hr {
-  margin: var(--cp-space-1) 0;
+  margin: calc(var(--cp-space-1) - var(--cp-option-gap)) 0;
   border: 0;
   border-block-start: var(--cp-line-w) solid var(--cp-line);
 }
