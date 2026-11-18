@@ -877,3 +877,27 @@ describe("pageHost", () => {
     });
   }
 });
+
+describe("mountSetup: a re-read refused once the form is drawn", () => {
+  it("keeps the form and its values under the notice, and Retry draws it again", async () => {
+    const fake = new Fake()
+      .answer("state", ok(SETUP), refuse(503, "auth_unavailable"), ok(SETUP))
+      .answer("setupPassword", refuse(403, "auth_https_required"));
+    const { region } = mount(fake);
+    await drawn(region);
+    await create(region);
+    await vi.waitFor(() => {
+      expect(noticeOf(region)?.querySelector("[data-cp-action='retry']")).not.toBeNull();
+    });
+    expect(region.querySelector("form")).not.toBeNull();
+    expect(input(region, "username").value).toBe("mika");
+    await userEvent.click(
+      noticeOf(region)!.querySelector<HTMLElement>("[data-cp-action='retry']")!,
+    );
+    await vi.waitFor(() => {
+      expect(fake.named("state")).toHaveLength(3);
+      expect(noticeOf(region)).toBeNull();
+    });
+    expect(region.querySelector("form")).not.toBeNull();
+  });
+});

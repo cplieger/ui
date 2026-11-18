@@ -9,7 +9,6 @@
 
 import { enhanceConfirm, type Confirm } from "../../buttons/confirm/confirm.js";
 import { installAnnouncer } from "../../feedback/announce/announce.js";
-import { skeletonTiming } from "../../feedback/skeleton/skeleton.js";
 import { clearError, reportErrors, type FieldError } from "../../forms/form/form.js";
 import { enhanceReveal } from "../../forms/secret/secret.js";
 import { enhanceDisclosure } from "../../navigation/disclosure/disclosure.js";
@@ -37,18 +36,9 @@ import type {
   StateResponse,
 } from "./client.js";
 import { glyph } from "../../foundations/icons/glyph.js";
-import { headingOr, redrawKeepingFocus } from "./focus.js";
-import {
-  actionButton,
-  el,
-  field,
-  heading,
-  line,
-  notice,
-  passwordField,
-  sketch,
-  uid,
-} from "./dom.js";
+import { headingOr } from "./focus.js";
+import { screenPart } from "./part.js";
+import { actionButton, el, field, heading, line, notice, passwordField, uid } from "./dom.js";
 import { adminLinkForm, createSection, lapsed, linkRefused, type LinkContext } from "./link.js";
 import { continueSignIn, stepOf } from "./pending.js";
 import { runDirect, type AccountAction } from "./run.js";
@@ -60,7 +50,6 @@ import {
   needsHttps,
   partsOf,
   plainLines,
-  latest,
   nextPath,
   read,
   retryButton,
@@ -121,6 +110,14 @@ export interface SignInOptions<C extends SignInClient> extends ScreenOptions {
  *  field, as its only use, a line saying it works only over HTTPS, or not
  *  at all. */
 type Temporary = "switch" | "only" | "https" | "none";
+
+/** What the screen draws from. */
+interface Loaded {
+  readonly state: StateResponse;
+  readonly support: { readonly webauthn: boolean; readonly conditional: boolean };
+  /** The pending link's read, while the screen links an identity. */
+  readonly pending: Result<PendingLinkView> | undefined;
+}
 
 interface Methods {
   readonly password: boolean;
@@ -235,50 +232,49 @@ export function mountSignIn<C extends SignInClient>(
     }
   };
 
-  const loads = latest(signal);
-  const load = async (after?: Said): Promise<void> => {
+  /** What a write's answer leaves for the next draw to say. */
+  let said: Said | undefined;
+  const part = screenPart<Loaded>({
+    content: body,
+    scope: stack,
+    heading: lead,
+    busy: panel,
+    notices,
+    signal,
+    read: async () => {
+      const [state, support, pending] = await Promise.all([
+        options.state === undefined || opened
+          ? read(() => client.state())
+          : Promise.resolve({ ok: true as const, data: options.state }),
+        access.passkeySupport(),
+        linking ? read(readPending) : Promise.resolve(undefined),
+      ]);
+      return state.ok ? { ok: true, data: { state: state.data, support, pending } } : state;
+    },
+    refused: (r, again) => {
+      said = undefined;
+      notices.show("danger", generic(r, w).text, retryButton(w["generic.retry"], again));
+    },
+    draw: ({ state, support, pending }) => {
+      const after = said;
+      said = undefined;
+      drawState(state, support, pending, after);
+    },
+  });
+  /** Reads `state()` and draws the screen from it, saying `next` over it. */
+  const load = (next?: Said): Promise<boolean> => {
     stopConditional();
-    panel.setAttribute("aria-busy", "true");
-    const current = loads.start();
-    const skeleton = skeletonTiming(() => {
-      if (current()) {
-        redrawKeepingFocus(body, lead, () => {
-          body.replaceChildren(sketch());
-        });
-      }
-    }, life);
-    const [state, support, pending] = await Promise.all([
-      options.state === undefined || opened
-        ? read(() => client.state())
-        : Promise.resolve({ ok: true as const, data: options.state }),
-      access.passkeySupport(),
-      linking ? read(readPending) : Promise.resolve(undefined),
-    ]);
-    if (!current()) {
-      skeleton.cancel();
-      return;
-    }
-    skeleton.commit(() => {
-      redrawKeepingFocus(stack, lead, () => {
-        drawState(state, support, pending, after);
-      });
-    });
+    said = next;
+    return part.load();
   };
 
   const drawState = (
-    state: Result<StateResponse>,
-    support: { readonly webauthn: boolean; readonly conditional: boolean },
+    s: StateResponse,
+    support: Loaded["support"],
     pending: Result<PendingLinkView> | undefined,
     after: Said | undefined,
   ): void => {
-    panel.removeAttribute("aria-busy");
     notices.clear();
-    if (!state.ok) {
-      body.replaceChildren();
-      notices.show("danger", generic(state, w).text, retryButton(w["generic.retry"], load));
-      return;
-    }
-    const s = state.data;
     webauthn = support.webauthn;
     transport = transportOf(s);
     passwordLength = passwordLengthOf(s);

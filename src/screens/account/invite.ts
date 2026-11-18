@@ -8,7 +8,6 @@
 
 import { enhanceConfirm, type Confirm } from "../../buttons/confirm/confirm.js";
 import { installAnnouncer } from "../../feedback/announce/announce.js";
-import { skeletonTiming } from "../../feedback/skeleton/skeleton.js";
 import { clearError, reportErrors, type FieldError } from "../../forms/form/form.js";
 import { enhanceReveal } from "../../forms/secret/secret.js";
 import { installTooltips } from "../../overlays/tooltip/tooltip.js";
@@ -31,10 +30,12 @@ import type {
   Refusal,
   Result,
   SignedIn,
+  StateResponse,
 } from "./client.js";
 import { glyph } from "../../foundations/icons/glyph.js";
-import { actionButton, el, field, heading, line, notice, passwordField, sketch } from "./dom.js";
-import { headingOr, redrawKeepingFocus } from "./focus.js";
+import { actionButton, el, field, heading, line, notice, passwordField } from "./dom.js";
+import { headingOr } from "./focus.js";
+import { screenPart } from "./part.js";
 import { continueSignIn, stepOf } from "./pending.js";
 import { runDirect, type AccountAction } from "./run.js";
 import {
@@ -42,7 +43,6 @@ import {
   holdFor,
   needsHttps,
   partsOf,
-  latest,
   read,
   retryButton,
   slot,
@@ -151,57 +151,57 @@ export function mountInvite<C extends InviteClient>(
     body.replaceChildren(box);
   };
 
-  const loads = latest(signal);
-  /** Draws the screen from `state()`, saying `said` over it. */
-  const load = async (said?: Said): Promise<void> => {
+  /** What a write's answer leaves for the next draw to say. */
+  let said: Said | undefined;
+  const part = screenPart<{ readonly state: StateResponse; readonly webauthn: boolean }>({
+    content: body,
+    scope: stack,
+    heading: lead,
+    busy: panel,
+    notices,
+    signal,
+    read: async () => {
+      const [state, support] = await Promise.all([
+        read(() => client.state()),
+        access.passkeySupport(),
+      ]);
+      return state.ok
+        ? { ok: true, data: { state: state.data, webauthn: support.webauthn } }
+        : state;
+    },
+    refused: (r, again) => {
+      said = undefined;
+      notices.show("danger", generic(r, w).text, retryButton(w["generic.retry"], again));
+    },
+    draw: ({ state: s, webauthn: can }) => {
+      const words = said;
+      said = undefined;
+      notices.clear();
+      const t = transportOf(s);
+      // access refuses an invite's acceptance over plain HTTP.
+      if (t.plain) {
+        holdable = [];
+        body.replaceChildren(needsHttps(t, app, w));
+        return;
+      }
+      passwordLength = passwordLengthOf(s);
+      webauthn = can;
+      const password = s.password_login && has("password") && (s.sso ?? "alongside") !== "only";
+      const sso = s.oidc && has("single-sign-on") && client.inviteAcceptOIDC !== undefined;
+      draw(password, sso);
+      if (words !== undefined) {
+        notices.show(words.tone, words.text);
+      }
+    },
+  });
+  /** Reads `state()` and draws the screen from it, saying `next` over it. */
+  const load = (next?: Said): Promise<boolean> => {
     if (token === "") {
       broken(w["invite.broken"]);
-      return;
+      return Promise.resolve(false);
     }
-    panel.setAttribute("aria-busy", "true");
-    const current = loads.start();
-    const skeleton = skeletonTiming(() => {
-      if (current()) {
-        redrawKeepingFocus(body, lead, () => {
-          body.replaceChildren(sketch());
-        });
-      }
-    }, life);
-    const [state, support] = await Promise.all([
-      read(() => client.state()),
-      access.passkeySupport(),
-    ]);
-    if (!current()) {
-      skeleton.cancel();
-      return;
-    }
-    skeleton.commit(() => {
-      redrawKeepingFocus(stack, lead, () => {
-        panel.removeAttribute("aria-busy");
-        notices.clear();
-        if (!state.ok) {
-          body.replaceChildren();
-          notices.show("danger", generic(state, w).text, retryButton(w["generic.retry"], load));
-          return;
-        }
-        const s = state.data;
-        const t = transportOf(s);
-        // access refuses an invite's acceptance over plain HTTP.
-        if (t.plain) {
-          holdable = [];
-          body.replaceChildren(needsHttps(t, app, w));
-          return;
-        }
-        passwordLength = passwordLengthOf(s);
-        webauthn = support.webauthn;
-        const password = s.password_login && has("password") && (s.sso ?? "alongside") !== "only";
-        const sso = s.oidc && has("single-sign-on") && client.inviteAcceptOIDC !== undefined;
-        draw(password, sso);
-        if (said !== undefined) {
-          notices.show(said.tone, said.text);
-        }
-      });
-    });
+    said = next;
+    return part.load();
   };
 
   const draw = (password: boolean, sso: boolean): void => {

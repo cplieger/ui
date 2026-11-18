@@ -1168,3 +1168,33 @@ describe("mountSignIn: the single sign-on mode", () => {
     expect(button(panel, "Authelia")).toBeUndefined();
   });
 });
+
+describe("mountSignIn: a re-read refused once the form is drawn", () => {
+  it("keeps the form and its values under the notice, and Retry draws it again", async () => {
+    const every = {
+      setup_required: false,
+      password_login: true,
+      passkeys: true,
+      oidc: false,
+      secure: true,
+      https_required: [],
+    };
+    const fake = new Fake()
+      .answer("state", ok(every), refuse(503, "auth_unavailable"), ok(every))
+      .answer("loginPassword", refuse(403, "auth_password_login_disabled"));
+    const { panel } = mount(fake);
+    await drawn(panel);
+    await signIn(panel);
+    await vi.waitFor(() => {
+      expect(noticeOf(panel)?.querySelector("[data-cp-action='retry']")).not.toBeNull();
+    });
+    expect(panel.querySelector("form")).not.toBeNull();
+    expect(input(panel, "username").value).toBe("mika");
+    await userEvent.click(noticeOf(panel)!.querySelector<HTMLElement>("[data-cp-action='retry']")!);
+    await vi.waitFor(() => {
+      expect(fake.named("state")).toHaveLength(3);
+      expect(noticeOf(panel)).toBeNull();
+    });
+    expect(panel.querySelector("form")).not.toBeNull();
+  });
+});

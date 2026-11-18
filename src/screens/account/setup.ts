@@ -8,7 +8,6 @@
 
 import { enhanceConfirm, type Confirm } from "../../buttons/confirm/confirm.js";
 import { installAnnouncer } from "../../feedback/announce/announce.js";
-import { skeletonTiming } from "../../feedback/skeleton/skeleton.js";
 import { clearError, reportErrors, type FieldError } from "../../forms/form/form.js";
 import { enhanceReveal } from "../../forms/secret/secret.js";
 import { installTooltips } from "../../overlays/tooltip/tooltip.js";
@@ -32,10 +31,12 @@ import type {
   SetupAccess,
   SetupClient,
   PasskeySignInOutcome,
+  StateResponse,
 } from "./client.js";
-import { actionButton, el, field, heading, line, notice, passwordField, sketch } from "./dom.js";
+import { actionButton, el, field, heading, line, notice, passwordField } from "./dom.js";
 import { showRecoveryCode } from "./factor.js";
-import { headingOr, redrawKeepingFocus } from "./focus.js";
+import { headingOr } from "./focus.js";
+import { screenPart } from "./part.js";
 import { continueSignIn } from "./pending.js";
 import { runDirect, type AccountAction } from "./run.js";
 import {
@@ -44,7 +45,6 @@ import {
   needsHttps,
   partsOf,
   plainLines,
-  latest,
   read,
   retryButton,
   slot,
@@ -159,54 +159,55 @@ export function mountSetup<C extends SetupClient>(
     }
   };
 
-  const loads = latest(signal);
-  /** Draws the screen from `state()`, saying `said` over it. */
-  const load = async (said?: Said): Promise<void> => {
-    region.setAttribute("aria-busy", "true");
-    const current = loads.start();
-    const skeleton = skeletonTiming(() => {
-      if (current()) {
-        redrawKeepingFocus(body, lead, () => {
-          body.replaceChildren(sketch());
-        });
+  /** What a write's answer leaves for the next draw to say. */
+  let said: Said | undefined;
+  const part = screenPart<{ readonly state: StateResponse; readonly webauthn: boolean }>({
+    content: body,
+    scope: stack,
+    heading: lead,
+    busy: region,
+    notices,
+    signal,
+    read: async () => {
+      const [state, support] = await Promise.all([
+        read(() => client.state()),
+        access.passkeySupport(),
+      ]);
+      return state.ok
+        ? { ok: true, data: { state: state.data, webauthn: support.webauthn } }
+        : state;
+    },
+    refused: (r, again) => {
+      said = undefined;
+      notices.show("danger", generic(r, w).text, retryButton(w["generic.retry"], again));
+    },
+    draw: ({ state: s, webauthn: can }) => {
+      const words = said;
+      said = undefined;
+      notices.clear();
+      if (!s.setup_required) {
+        body.replaceChildren();
+        alreadyDone();
+        return;
       }
-    }, life);
-    const [state, support] = await Promise.all([
-      read(() => client.state()),
-      access.passkeySupport(),
-    ]);
-    if (!current()) {
-      skeleton.cancel();
-      return;
-    }
-    skeleton.commit(() => {
-      redrawKeepingFocus(stack, lead, () => {
-        region.removeAttribute("aria-busy");
-        notices.clear();
-        if (!state.ok) {
-          body.replaceChildren();
-          notices.show("danger", generic(state, w).text, retryButton(w["generic.retry"], load));
-          return;
-        }
-        if (!state.data.setup_required) {
-          body.replaceChildren();
-          alreadyDone();
-          return;
-        }
-        const t = transportOf(state.data);
-        const required = state.data.https_required;
-        if (t.plain && (required.includes("setup") || required.includes("password"))) {
-          body.replaceChildren(needsHttps(t, app, w));
-          return;
-        }
-        passwordLength = passwordLengthOf(state.data);
-        webauthn = support.webauthn;
-        draw(t, has("setup-passkey") && state.data.passkeys && support.webauthn && !t.plain);
-        if (said !== undefined) {
-          notices.show(said.tone, said.text);
-        }
-      });
-    });
+      const t = transportOf(s);
+      const required = s.https_required;
+      if (t.plain && (required.includes("setup") || required.includes("password"))) {
+        body.replaceChildren(needsHttps(t, app, w));
+        return;
+      }
+      passwordLength = passwordLengthOf(s);
+      webauthn = can;
+      draw(t, has("setup-passkey") && s.passkeys && can && !t.plain);
+      if (words !== undefined) {
+        notices.show(words.tone, words.text);
+      }
+    },
+  });
+  /** Reads `state()` and draws the screen from it, saying `next` over it. */
+  const load = (next?: Said): Promise<boolean> => {
+    said = next;
+    return part.load();
   };
 
   const draw = (t: Transport, passkey: boolean): void => {

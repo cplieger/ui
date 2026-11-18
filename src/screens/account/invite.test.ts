@@ -412,3 +412,25 @@ describe("mountInvite: the password's bounds", () => {
     expect(fake.named("inviteAcceptPassword")).toHaveLength(0);
   });
 });
+
+describe("mountInvite: a re-read refused once the form is drawn", () => {
+  it("keeps the form and its values under the notice, and Retry draws it again", async () => {
+    const fake = new Fake()
+      .answer("state", ok(EVERY), refuse(503, "auth_unavailable"), ok(EVERY))
+      .answer("inviteAcceptPassword", refuse(403, "auth_https_required"));
+    const { panel } = mount(fake);
+    await drawn(panel);
+    await accept(panel);
+    await vi.waitFor(() => {
+      expect(noticeOf(panel)?.querySelector("[data-cp-action='retry']")).not.toBeNull();
+    });
+    expect(panel.querySelector("form")).not.toBeNull();
+    expect(input(panel, "username").value).toBe("noor");
+    await userEvent.click(noticeOf(panel)!.querySelector<HTMLElement>("[data-cp-action='retry']")!);
+    await vi.waitFor(() => {
+      expect(fake.named("state")).toHaveLength(3);
+      expect(noticeOf(panel)).toBeNull();
+    });
+    expect(panel.querySelector("form")).not.toBeNull();
+  });
+});

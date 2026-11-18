@@ -9,7 +9,6 @@
 
 import { enhancePill } from "../../core/pill/pill.js";
 import { announce, installAnnouncer } from "../../feedback/announce/announce.js";
-import { skeletonTiming } from "../../feedback/skeleton/skeleton.js";
 import { glyph } from "../../foundations/icons/glyph.js";
 import { rowHead } from "./actions.js";
 import { codeOf, genericSignedIn, reasonOf } from "./answer.js";
@@ -22,11 +21,10 @@ import type {
   SecurityLogView,
 } from "./client.js";
 import { deviceName } from "./device.js";
-import { redrawKeepingFocus } from "./focus.js";
-import { cell, cellStack, el, heading, notice, sketch, table, time, uid } from "./dom.js";
+import { cell, cellStack, el, heading, notice, table, time, uid } from "./dom.js";
+import { screenPart, type Part } from "./part.js";
 import {
   endsSession,
-  latest,
   leaver,
   read,
   retryButton,
@@ -74,7 +72,7 @@ export interface SecurityLogScreen {
   /** Reads what the log gained since the newest entry shown: the first
    *  page takes it on top, a later page offers it through Newer. During a
    *  read it waits for that read, and the calls made meanwhile share one;
-   *  after a load that drew no page, it loads the view again. */
+   *  while no page of the view is drawn, it reads the view's page. */
   refresh(): Promise<void>;
   /** Shows the view a query names, as Back does. The log follows
    *  `popstate` itself unless the host passes `onQuery`. */
@@ -98,6 +96,20 @@ export interface LogCtx {
 }
 
 const KEYS = ["order", "kind", "user", "before", "after"] as const;
+
+/** A page of the log as drawn. */
+interface Page {
+  /** The view it was read for. */
+  readonly view: View;
+  /** The answer whose counts it shows. */
+  readonly log: SecurityLogView;
+  readonly entries: readonly LogEntryView[];
+  readonly past: boolean;
+  readonly future: boolean;
+  /** How many entries arrived since the page drawn before it, said as it
+   *  draws. */
+  readonly arrived: number;
+}
 
 interface View {
   readonly order: "newest" | "oldest";
@@ -303,19 +315,6 @@ export function drawLog(
   body.replaceChildren(filters, notices.root, counts, evicted, content, help);
 
   let view = viewOf(ctx.search, fixed);
-  let entries: readonly LogEntryView[] = [];
-  let past = false;
-  let future = false;
-  // Every read of the log, a load or a refresh: the newest started draws.
-  const loads = latest(signal);
-  /** The newest read's end while it runs. */
-  let reading: Promise<unknown> | undefined;
-  /** The refresh the calls made during a read share. */
-  let queued: Promise<void> | undefined;
-  /** Whether the last load drew a page; until one does, a refresh loads. */
-  let drawn = false;
-  /** The notice of the last refresh that failed, until one succeeds. */
-  let failure: Element | undefined;
   const people = new Map<number, string>();
 
   const nameOf = (id: number): string =>
@@ -456,86 +455,137 @@ export function drawLog(
       }),
     );
 
-  const ordered = (list: readonly LogEntryView[]): LogEntryView[] =>
-    list.toSorted((a, b) => (view.order === "newest" ? b.seq - a.seq : a.seq - b.seq));
+  const ordered = (list: readonly LogEntryView[], order: View["order"]): LogEntryView[] =>
+    list.toSorted((a, b) => (order === "newest" ? b.seq - a.seq : a.seq - b.seq));
 
-  /** Makes `work` the newest read, which a refresh waits for. */
-  const track = <T>(work: Promise<T>): Promise<T> => {
-    reading = work;
-    void work.then(() => {
-      if (reading === work) {
-        reading = undefined;
-      }
-    });
-    return work;
-  };
-
-  /** True when it drew the page it read. */
-  const load = (focus: boolean): Promise<boolean> => track(loadPage(focus));
-
-  const loadPage = async (focus: boolean): Promise<boolean> => {
-    const current = loads.start();
-    body.setAttribute("aria-busy", "true");
-    const ascending =
-      view.after !== undefined || (view.before === undefined && view.order === "oldest");
-    const skeleton = skeletonTiming(() => {
-      if (current() && entries.length === 0) {
-        redrawKeepingFocus(content, title, () => {
-          content.replaceChildren(sketch());
-        });
-      }
-    }, ctx.life);
+  /** The page `v` names. One past the end reads the first page instead and
+   *  corrects the address while `v` is still the view. */
+  const pageOf = async (v: View): Promise<Result<Page>> => {
+    const ascending = v.after !== undefined || (v.before === undefined && v.order === "oldest");
     const [got] = await Promise.all([
-      query(view, {
+      query(v, {
         ...(ascending ? { oldestFirst: true } : {}),
-        ...(view.before === undefined ? {} : { before: view.before }),
-        ...(view.after === undefined ? {} : { after: view.after }),
+        ...(v.before === undefined ? {} : { before: v.before }),
+        ...(v.after === undefined ? {} : { after: v.after }),
       }),
       peopleRead,
     ]);
-    if (!current()) {
-      skeleton.cancel();
-      return false;
-    }
-    let ok = false;
-    skeleton.commit(() => {
-      redrawKeepingFocus(
-        body,
-        title,
-        () => {
-          ok = shown(got, ascending);
-        },
-        got.ok && focus ? null : undefined,
-      );
-    });
-    return ok;
-  };
-
-  /** Draws a page the log read, or why it could not; true when it drew
-   *  that page. */
-  const shown = (got: Result<SecurityLogView>, ascending: boolean): boolean => {
-    body.removeAttribute("aria-busy");
-    drawn = got.ok;
     if (!got.ok) {
-      if (content.querySelector("table") === null) {
-        content.replaceChildren();
-      }
-      refused(got);
-      return false;
+      return got;
     }
-    notices.clear();
     const page = got.data.entries;
-    if (page.length === 0 && (view.before !== undefined || view.after !== undefined)) {
-      void go(first(view), { replace: true });
-      return false;
+    if (page.length === 0 && (v.before !== undefined || v.after !== undefined)) {
+      const top = first(v);
+      if (view === v) {
+        view = top;
+        syncFilters();
+        onQuery(paramsOf(top), true);
+      }
+      return pageOf(top);
     }
     const full = page.length >= limit;
-    past = ascending ? view.after !== undefined : full;
-    future = ascending ? full : view.before !== undefined;
-    entries = ordered(page);
-    draw(got.data);
-    return true;
+    return {
+      ok: true,
+      data: {
+        view: v,
+        log: got.data,
+        entries: ordered(page, v.order),
+        past: ascending ? v.after !== undefined : full,
+        future: ascending ? full : v.before !== undefined,
+        arrived: 0,
+      },
+    };
   };
+
+  /** What arrived since `p` was read, as the page to draw; `p` itself when
+   *  nothing did. */
+  const since = async (p: Page): Promise<Result<Page>> => {
+    const v = p.view;
+    const top = p.entries.reduce((n, e) => Math.max(n, e.seq), 0);
+    const atTop = v.before === undefined && v.after === undefined;
+    const live = v.order === "newest" ? atTop : !p.future;
+    const from = top === 0 ? {} : { after: top };
+    if (!live) {
+      if (p.future) {
+        return { ok: true, data: p };
+      }
+      const got = await query(v, { ...from, oldestFirst: true, limit: 1 });
+      if (!got.ok) {
+        return got;
+      }
+      return {
+        ok: true,
+        data: got.data.entries.length > 0 ? { ...p, log: got.data, future: true, arrived: 0 } : p,
+      };
+    }
+    const fresh: LogEntryView[] = [];
+    let last: SecurityLogView | undefined;
+    let after = from;
+    let more = false;
+    // Ten pages at most: past them, a newest-first view reads its first
+    // page again, and an oldest-first one offers the rest through Later.
+    for (let i = 0; i < 10; i += 1) {
+      const got = await query(v, { ...after, oldestFirst: true });
+      if (!got.ok) {
+        return got;
+      }
+      last = got.data;
+      fresh.push(...got.data.entries);
+      const end = got.data.entries[got.data.entries.length - 1];
+      more = got.data.entries.length >= limit && end !== undefined;
+      if (!more || end === undefined) {
+        break;
+      }
+      after = { after: end.seq };
+    }
+    if (last === undefined || fresh.length === 0) {
+      return { ok: true, data: p };
+    }
+    if (more && v.order === "newest") {
+      const got = await pageOf(v);
+      return got.ok ? { ok: true, data: { ...got.data, arrived: fresh.length } } : got;
+    }
+    const known = new Set(p.entries.map((e) => e.seq));
+    const added = fresh.filter((e) => !known.has(e.seq));
+    if (added.length === 0) {
+      return { ok: true, data: p };
+    }
+    let entries = ordered([...p.entries, ...added], v.order);
+    let { past, future } = p;
+    if (entries.length > limit) {
+      if (v.order === "newest") {
+        past = true;
+      } else {
+        future = true;
+      }
+      entries = entries.slice(0, limit);
+    }
+    return { ok: true, data: { view: v, log: last, entries, past, future, arrived: added.length } };
+  };
+
+  // Paging and refreshing build on the page drawn, so one read follows
+  // another; a page of another view is read whole.
+  const part: Part<Page> = screenPart<Page>({
+    content,
+    scope: body,
+    heading: title,
+    busy: body,
+    notices,
+    signal,
+    follows: true,
+    // `since` answers the page drawn when nothing arrived.
+    unchanged: (p, drawn) => p === drawn,
+    read: (): Promise<Result<Page>> => {
+      const p = part.drawn();
+      return p?.view === view ? since(p) : pageOf(view);
+    },
+    refused: (r, again) => {
+      refused(r, again);
+    },
+    draw: (p) => {
+      draw(p);
+    },
+  });
 
   const go = async (
     next: View,
@@ -544,10 +594,10 @@ export function drawLog(
     view = next;
     syncFilters();
     onQuery(paramsOf(next), o.replace === true);
-    await load(o.focus === true);
+    await part.load(o.focus === true ? null : undefined);
   };
 
-  const refused = (r: Refusal): void => {
+  const refused = (r: Refusal, again: () => void): void => {
     if (endsSession(r, ctx.leave)) {
       return;
     }
@@ -572,11 +622,7 @@ export function drawLog(
         return;
       default: {
         const said = genericSignedIn(r, w);
-        notices.show(
-          said.tone,
-          said.text,
-          retryButton(w["generic.retry"], () => load(false)),
-        );
+        notices.show(said.tone, said.text, retryButton(w["generic.retry"], again));
       }
     }
   };
@@ -587,7 +633,8 @@ export function drawLog(
 
   // Drawing ----------------------------------------------------------------
 
-  const draw = (page: SecurityLogView): void => {
+  const draw = (p: Page): void => {
+    const page = p.log;
     const fmt = new Intl.NumberFormat();
     const count = (c: string): number => page.classes.find((x) => x.class === c)?.count ?? 0;
     counts.textContent = w["log.counts"](fmt.format(count("change")), fmt.format(count("session")));
@@ -595,8 +642,11 @@ export function drawLog(
     evicted.replaceChildren(
       ...(removed > 0 ? [notice("neutral", w["log.evicted"](fmt.format(removed)))] : []),
     );
-    if (entries.length === 0) {
-      content.replaceChildren(empty());
+    if (p.arrived > 0) {
+      announce(w["log.arrived"](p.arrived));
+    }
+    if (p.entries.length === 0) {
+      content.replaceChildren(empty(p.view));
       return;
     }
     const t = table(title.id, [
@@ -607,7 +657,7 @@ export function drawLog(
       { text: w["log.where"], priority: "low" },
       { text: w["log.type"], priority: "low" },
     ]);
-    for (const e of entries) {
+    for (const e of p.entries) {
       const tr = el("tr");
       tr.dataset["seq"] = String(e.seq);
       const what = kindWords(e);
@@ -630,7 +680,7 @@ export function drawLog(
       tr.append(who(e), where, type);
       t.body.append(tr);
     }
-    t.root.append(pager());
+    t.root.append(pager(p));
     content.replaceChildren(t.root);
   };
 
@@ -655,7 +705,7 @@ export function drawLog(
     return cell(w["log.nobody"]);
   };
 
-  const pager = (): HTMLElement => {
+  const pager = ({ view: v, entries, past, future }: Page): HTMLElement => {
     const nav = el("nav", "cp-pager");
     nav.setAttribute("aria-label", w["log.pages"]);
     const times = entries.map((e) => e.occurred_at).sort();
@@ -673,11 +723,11 @@ export function drawLog(
     const seqs = entries.map((e) => e.seq);
     const low = Math.min(...seqs);
     const high = Math.max(...seqs);
-    const base = first(view);
+    const base = first(v);
     const toPast = past ? { ...base, before: low } : undefined;
     const toFuture = future ? { ...base, after: high } : undefined;
     const links =
-      view.order === "newest"
+      v.order === "newest"
         ? [link(w["log.newer"], toFuture, "newer"), link(w["log.older"], toPast, "older")]
         : [link(w["log.earlier"], toPast, "older"), link(w["log.later"], toFuture, "newer")];
     nav.append(...links);
@@ -710,9 +760,9 @@ export function drawLog(
     return a;
   };
 
-  const empty = (): HTMLElement => {
+  const empty = (v: View): HTMLElement => {
     const box = el("div", "cp-empty");
-    const filtered = view.kind !== undefined || view.user !== undefined;
+    const filtered = v.kind !== undefined || v.user !== undefined;
     box.append(
       glyph("history"),
       el("p", undefined, w[filtered ? "log.emptyFiltered" : "log.empty"]),
@@ -730,128 +780,12 @@ export function drawLog(
     return b;
   }
 
-  // Keeping up -------------------------------------------------------------
-
-  /** Resolves once no read runs, the newest included. */
-  const idle = async (): Promise<void> => {
-    for (let r = reading; r !== undefined; r = reading) {
-      await r;
-    }
-  };
-
-  const refresh = (): Promise<void> => {
-    if (reading === undefined) {
-      return track(keepUp());
-    }
-    queued ??= idle().then(() => {
-      queued = undefined;
-      return refresh();
-    });
-    return queued;
-  };
-
-  const keepUp = async (): Promise<void> => {
-    if (!drawn) {
-      await load(false);
-      return;
-    }
-    const top = entries.reduce((n, e) => Math.max(n, e.seq), 0);
-    const atTop = view.before === undefined && view.after === undefined;
-    const live = view.order === "newest" ? atTop : !future;
-    const since = top === 0 ? {} : { after: top };
-    if (!live && future) {
-      return;
-    }
-    // A load started after this refresh drops its answers.
-    const current = loads.start();
-    /** Draws what the refresh read, and clears its own last failure. */
-    const redraw = (page: SecurityLogView): void => {
-      redrawKeepingFocus(body, title, () => {
-        notices.drop(failure);
-        failure = undefined;
-        draw(page);
-      });
-    };
-    if (!live) {
-      const got = await query(view, { ...since, oldestFirst: true, limit: 1 });
-      if (!current()) {
-        return;
-      }
-      if (!got.ok) {
-        refused(got);
-        failure = notices.shown();
-      } else if (got.data.entries.length > 0) {
-        future = true;
-        redraw(got.data);
-      } else {
-        notices.drop(failure);
-        failure = undefined;
-      }
-      return;
-    }
-    const fresh: LogEntryView[] = [];
-    let last: SecurityLogView | undefined;
-    let after = since;
-    let more = false;
-    // Ten pages at most: past them, a newest-first view reads its first
-    // page again, and an oldest-first one offers the rest through Later.
-    for (let i = 0; i < 10; i += 1) {
-      const got = await query(view, { ...after, oldestFirst: true });
-      if (!current()) {
-        return;
-      }
-      if (!got.ok) {
-        refused(got);
-        failure = notices.shown();
-        return;
-      }
-      last = got.data;
-      fresh.push(...got.data.entries);
-      const end = got.data.entries[got.data.entries.length - 1];
-      more = got.data.entries.length >= limit && end !== undefined;
-      if (!more || end === undefined) {
-        break;
-      }
-      after = { after: end.seq };
-    }
-    if (last === undefined || fresh.length === 0) {
-      notices.drop(failure);
-      failure = undefined;
-      return;
-    }
-    if (more && view.order === "newest") {
-      if (await load(false)) {
-        announce(w["log.arrived"](fresh.length));
-      }
-      return;
-    }
-    const known = new Set(entries.map((e) => e.seq));
-    const added = fresh.filter((e) => !known.has(e.seq));
-    if (added.length === 0) {
-      notices.drop(failure);
-      failure = undefined;
-      return;
-    }
-    let next = ordered([...entries, ...added]);
-    if (next.length > limit) {
-      if (view.order === "newest") {
-        past = true;
-      } else {
-        future = true;
-      }
-      next = next.slice(0, limit);
-    }
-    entries = next;
-    redraw(last);
-    announce(w["log.arrived"](added.length));
-  };
-
   const show = (search: string): void => {
     const next = viewOf(search, fixed);
     if (paramsOf(next).toString() !== paramsOf(view).toString()) {
       view = next;
       syncFilters();
-      void load(false);
+      void part.load();
     }
   };
   if (ctx.options.onQuery === undefined) {
@@ -866,8 +800,13 @@ export function drawLog(
 
   syncFilters();
   const peopleRead = readPeople();
-  void load(false);
-  return { refresh, show };
+  void part.load();
+  return {
+    refresh: async () => {
+      await part.refresh();
+    },
+    show,
+  };
 }
 
 /** A kind with no words, as sent, with the app's detail under it. */

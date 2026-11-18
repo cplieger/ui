@@ -32,6 +32,13 @@ export interface PartSpec<T> {
   readonly took?: (data: T) => void;
   /** Replaces what `content` holds with `data`. */
   readonly draw: (data: T) => void;
+  /** For a read that builds on what is drawn: a refresh during a read
+   *  waits for it, and the refreshes made meanwhile share one read after
+   *  it. Without it a refresh supersedes the read. */
+  readonly follows?: boolean;
+  /** True when an answer adds nothing to what is drawn, so it is not
+   *  drawn again. */
+  readonly unchanged?: (data: T, drawn: T) => boolean;
 }
 
 export interface Part<T> {
@@ -39,13 +46,14 @@ export interface Part<T> {
    * Reads again and draws the answer while it is the newest read. `focus`
    * names the control focused after the draw, null the heading; with none,
    * focus stays, or goes to the heading when the draw took its control. A
-   * refusal leaves what is drawn under its notice; an open edit holds the
-   * draw back and drops the request. True when it drew.
+   * refusal leaves what is drawn under its notice; an `unchanged` answer
+   * only drops that notice; an open edit holds the draw back and drops
+   * the request. True when it drew.
    */
   refresh(focus?: string | null): Promise<boolean>;
-  /** The first read: `refresh`, with a sketch in `content` while it is
-   *  slow and nothing is drawn. */
-  load(): Promise<boolean>;
+  /** `refresh`, with `aria-busy` on `busy` while it runs and a sketch in
+   *  `content` while it is slow and nothing is drawn. */
+  load(focus?: string | null): Promise<boolean>;
   /** Draws data the screen read itself, as the newest read's. */
   show(data: T, focus?: string | null): void;
   /** Shows a refusal of a read the screen ran itself as the part's, so
@@ -63,6 +71,11 @@ export function screenPart<T>(spec: PartSpec<T>): Part<T> {
   const reads = latest(spec.signal);
   const scope = spec.scope ?? spec.content;
   let runs = 0;
+  let loads = 0;
+  /** The newest read's end while it runs. */
+  let running: Promise<unknown> | undefined;
+  /** The refresh the calls made during a read share. */
+  let queued: Promise<boolean> | undefined;
   // A superseded read hands its focus request to the newer one.
   let wanted: string | null | undefined;
   let drawn: { readonly data: T } | undefined;
@@ -88,13 +101,41 @@ export function screenPart<T>(spec: PartSpec<T>): Part<T> {
     );
   };
 
-  // Retry asks again for the focus the refused read was to draw with.
+  // Retry asks again for the focus the refused read was to draw with, and
+  // with nothing drawn it is the first read again.
   const fail = (r: Refusal, asked: string | null | undefined): void => {
-    spec.refused(r, () => void refresh(asked));
+    spec.refused(r, () => void (drawn === undefined ? load(asked) : refresh(asked)));
     failure = spec.notices.shown();
   };
 
-  const refresh = async (focus?: string | null): Promise<boolean> => {
+  const track = <R>(work: Promise<R>): Promise<R> => {
+    running = work;
+    void work.then(() => {
+      if (running === work) {
+        running = undefined;
+      }
+    });
+    return work;
+  };
+
+  const idle = async (): Promise<void> => {
+    for (let r = running; r !== undefined; r = running) {
+      await r;
+    }
+  };
+
+  const refresh = (focus?: string | null): Promise<boolean> => {
+    if (spec.follows !== true || running === undefined) {
+      return track(reread(focus));
+    }
+    queued ??= idle().then(() => {
+      queued = undefined;
+      return refresh(focus);
+    });
+    return queued;
+  };
+
+  const reread = async (focus?: string | null): Promise<boolean> => {
     wanted = focus === undefined ? wanted : focus;
     runs += 1;
     let drew = false;
@@ -111,6 +152,11 @@ export function screenPart<T>(spec: PartSpec<T>): Part<T> {
         fail(got, asked);
         return;
       }
+      if (drawn !== undefined && spec.unchanged?.(got.data, drawn.data) === true) {
+        spec.notices.drop(failure);
+        failure = undefined;
+        return;
+      }
       spec.took?.(got.data);
       if (renames.held()) {
         return;
@@ -121,9 +167,11 @@ export function screenPart<T>(spec: PartSpec<T>): Part<T> {
     return drew;
   };
 
-  const load = async (): Promise<boolean> => {
+  const load = async (focus?: string | null): Promise<boolean> => {
     spec.busy?.setAttribute("aria-busy", "true");
-    const reading = refresh();
+    loads += 1;
+    const loading = loads;
+    const reading = track(reread(focus));
     const mine = runs;
     const skeleton = skeletonTiming(
       () => {
@@ -141,7 +189,9 @@ export function screenPart<T>(spec: PartSpec<T>): Part<T> {
       return false;
     }
     skeleton.commit(() => {
-      spec.busy?.removeAttribute("aria-busy");
+      if (loads === loading) {
+        spec.busy?.removeAttribute("aria-busy");
+      }
     });
     return drew;
   };
