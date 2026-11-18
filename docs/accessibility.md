@@ -44,14 +44,16 @@ These adopted criteria are not fully met yet, and one item is a default the bar 
 
 - [1.4.6 Contrast (enhanced)](#146-contrast-enhanced): Secondary text and ink on a solid hold 7:1 only when the operating system asks for more contrast, and not every platform offers that setting. The bar requires a contrast choice in the page, beside the theme choice, with three values: follow the system, more and standard. More applies what `prefers-contrast: more` applies, and standard overrides a system that asks for more. Owed by `foundations/colour` and `core/theme`.
 - [1.4.8 Visual presentation](#148-visual-presentation): The criterion is met through its Note 1, since the person's own paragraph spacing applies. The bar asks more of ui's default: prose paragraphs are 33.7px top to top at the 14px body size, 2.41 times the font size, and the bar requires at least 2.5 times, a paragraph gap of at least 0.95em. Owed by `content/prose`.
-- [2.5.5 Target size (enhanced)](#255-target-size-enhanced): A mouse user gets 32px controls and 24px targets and cannot ask for 44px. The bar requires a stored choice of larger targets, with the values follow the device and larger, that gives every control the touch sizes while hover keeps working. On the touch sizes each icon segment stays 36px wide a Copy button attached to its machine text is 42px tall and a chosen value's remove button is 40px, and the bar requires 44px. Owed by `core/theme`, `core/pointer`, `forms/segmented`, `forms/copy` and `forms/tokens`.
+- [2.5.5 Target size (enhanced)](#255-target-size-enhanced): A mouse user gets 32px controls and 24px targets and cannot ask for 44px. The bar requires a stored choice of larger targets, with the values follow the device and larger, that gives every control the touch sizes while hover keeps working. On the touch sizes each icon segment stays 36px wide, a Copy button attached to its machine text is 42px tall, a chosen value's remove button is 40px, and a toast's buttons are 26px and 28px tall, and the bar requires 44px. Owed by `core/theme`, `core/pointer`, `forms/segmented`, `forms/copy`, `forms/tokens` and `feedback/toast`.
 - [2.3.3 Animation from interactions](#233-animation-from-interactions): Under reduced motion a filter chip's check still grows for 220ms and the drop zone's icon still moves for 300ms. A chosen value typed again only shakes, so under reduced motion nothing shows it was refused. The bar requires every glide to take the short duration and every cue to have a still form. Owed by `buttons/filter-chip`, `forms/file` and `forms/tokens`.
 - [2.4.6 Headings and labels](#246-headings-and-labels): A stepper whose value is a button that resets it, such as a zoom, names that button only by its value, so pressing 90% gives 100% with nothing saying so. The bar requires the button to say what it does, in a tip the description carries, such as Reset to 100%. Owed by `forms/stepper`.
 - [4.1.3 Status messages](#413-status-messages): A toast is put in the page as a live region that already holds its words, which some browser and screen-reader pairings do not speak. A field of chosen values drops a value typed again with nothing said. The bar requires a toast's words to reach a live region that was already in the page, once, and the refusal to be said. Owed by `feedback/toast` and `forms/tokens`.
 - [2.5.8 Target size (minimum)](#258-target-size-minimum): When a feed row wraps its lines, its summary is one line tall and under 24px from the row's other targets. In a context panel's list, links one word long sit on consecutive lines under 24px apart. The bar requires each target to be 24px, or to keep 24px of spacing from the next. Owed by `data/feed` and `layout/context-panel`.
 - [2.5.3 Label in name](#253-label-in-name): The account button is named Account while it shows the person's initials, so a voice user who says the initials reaches nothing. WCAG 3 2.3.5.5 asks the same. The bar requires the name to contain the visible words, or the initials to be hidden from the name as a picture of the person. Owed by `navigation/account`.
-- [4.1.2 Name, role, value](#412-name-role-value): A list row's cut line takes focus so a keyboard and a tap reach its full text, but it is a `span` with no role, which a screen reader announces as nothing. WCAG 3 2.3.5.6 and 2.12.1.1 ask the same. A key shown for copying takes focus as a scroll region with no role and no name, even when it fits. The bar requires each focus stop to have a role and a name: the cut line becomes a button named by the whole line, and the key takes focus only while it overflows, as a region named by its field's label. Owed by `data/list-row` and `forms/copy`.
+- [4.1.2 Name, role, value](#412-name-role-value): A list row's cut line takes focus so a keyboard and a tap reach its full text, but it is a `span` with no role, which a screen reader announces as nothing. WCAG 3 2.3.5.6 and 2.12.1.1 ask the same. A key shown for copying takes focus as a scroll region with no role and no name, even when it fits. A finished upload's row takes focus with no role and no name when its Retry leaves. The bar requires each focus stop to have a role and a name: the cut line becomes a button named by the whole line, the key takes focus only while it overflows, as a region named by its field's label, and the upload's row is a group named by its file and its state. Owed by `data/list-row`, `forms/copy` and `forms/file`.
 - [1.4.13 Content on hover or focus](#1413-content-on-hover-or-focus): The tooltip hides when the pointer leaves its control, so the pointer cannot move onto the tip. WCAG 3 2.4.5.2 asks for the same hoverable tip. The bar requires the tip to stay while the pointer is over the control or the tip, and to hide when it leaves both. Owed by `overlays/tooltip`.
+- [2.4.3 Focus order](#243-focus-order): A toast that leaves while it holds focus, after its Undo or its Dismiss is pressed by key, drops focus to the page. The bar requires focus to move to the next toast's button, else back to the control that was focused before. Owed by `feedback/toast`.
+- [WCAG 3 2.2.2.3](#2223-numerical-metadata-available): A relative time shows its exact date and time under a mouse only: a time takes no focus and no tap, so a keyboard or touch user who sees "8 minutes ago" cannot see when that was. The bar requires the exact time to be reachable by keyboard and by touch too. Owed by `data/relative-time`.
 - [2.4.12 Focus not obscured (enhanced)](#2412-focus-not-obscured-enhanced): No stylesheet sets `scroll-padding` for the sticky header, the foot bar or the status line. The bar requires that no part of a focused control sits under them. Owed by `layout/app-frame`.
 - [3.2.5 Change on request](#325-change-on-request): Markdown output opens web links in a new tab and the link does not say so, which WCAG 3 2.12.5.3 also asks. The bar requires the link's name to say it opens a new tab. Owed by `content/markdown`.
 - [WCAG 3 2.6.1.4](#2614-no-visual-motion-no-exceptions): The spinners, the loader and the skeleton move for as long as their work runs. The bar requires each to stop within 5 seconds on a whole cycle, at a still frame. Its words keep saying the work runs, and reduced motion keeps its still state. Until then their motion past 5 seconds is a trigger under WCAG 3 2.6.1.5, which the bar meets by removing it, never by a warning. Owed by `feedback/skeleton`, `buttons/button`, `buttons/confirm`, `feedback/state` and `feedback/loader`.
@@ -284,7 +286,7 @@ As 1.4.5. ui ships no image of text except the wordmark's logotype.
 
 Level AA. Adopted. Met by ui. [Understanding 1.4.10](https://www.w3.org/WAI/WCAG22/Understanding/reflow.html)
 
-Nothing is wider than a 320px window and nothing is clipped. A combobox's list too tall for either side of its field shrinks into the room under or over it and scrolls. A data table wider than its panel scrolls inside its own focusable region (two-dimensional content, the criterion's exception).
+Nothing is wider than a 320px window and nothing is clipped. A list row's state and its own action wrap under its words when the three do not fit. A combobox's list too tall for either side of its field shrinks into the room under or over it and scrolls. A data table wider than its panel scrolls inside its own focusable region (two-dimensional content, the criterion's exception).
 
 - Unit: the 320px tests in src/system/system-css.test.ts.
 - Manual: 320x256 and 640x360 per page.
@@ -447,9 +449,9 @@ A route change sets `<title>` to the screen's name ([Navigation and the URL](des
 
 ### 2.4.3 Focus order
 
-Level A. Adopted. Met by ui. [Understanding 2.4.3](https://www.w3.org/WAI/WCAG22/Understanding/focus-order.html)
+Level A. Adopted, partly met, owed by `feedback/toast`. Met by ui. [Understanding 2.4.3](https://www.w3.org/WAI/WCAG22/Understanding/focus-order.html)
 
-Focus follows the DOM. A modal dialog returns focus to its opener. A route change focuses the new screen's `h1`. A repaint that hides the focused control, such as a save bar's Discard once nothing waits, moves focus to the first field that held a change, never to the page.
+Focus follows the DOM. A modal dialog returns focus to its opener. A route change focuses the new screen's `h1`. A repaint that hides the focused control, such as a save bar's Discard once nothing waits, moves focus to the first field that held a change, never to the page. An item whose Retry leaves takes focus as a group named by the item and its new state. A toast that leaves while it holds focus drops focus to the page.
 
 - axe: `tabindex`.
 - Manual: keyboard order and focus after a route change.
@@ -574,7 +576,7 @@ No ui element responds to device or body motion.
 
 ### 2.5.5 Target size (enhanced)
 
-Level AAA. Adopted, partly met, owed by `core/theme`, `core/pointer`, `forms/segmented`, `forms/copy` and `forms/tokens`. Met by ui. [Understanding 2.5.5](https://www.w3.org/WAI/WCAG22/Understanding/target-size-enhanced.html)
+Level AAA. Adopted, partly met, owed by `core/theme`, `core/pointer`, `forms/segmented`, `forms/copy`, `forms/tokens` and `feedback/toast`. Met by ui. [Understanding 2.5.5](https://www.w3.org/WAI/WCAG22/Understanding/target-size-enhanced.html)
 
 On the coarse tier targets are 44px at least, except an icon segment, which stays 36px wide, and a Copy button attached to its machine text, 42px tall. On the fine tier controls are 32px and targets 24px at least. The tier follows the last real pointer, so a mouse user with a tremor gets 32px. The person's own choice of large targets is in [Where ui falls short](#where-ui-falls-short).
 
@@ -783,7 +785,7 @@ As 3.3.8. No step asks to recognise an object or the person's own content.
 
 ### 4.1.2 Name, role, value
 
-Level A. Adopted, partly met, owed by `data/list-row` and `forms/copy`. Met by ui. [Understanding 4.1.2](https://www.w3.org/WAI/WCAG22/Understanding/name-role-value.html)
+Level A. Adopted, partly met, owed by `data/list-row`, `forms/copy` and `forms/file`. Met by ui. [Understanding 4.1.2](https://www.w3.org/WAI/WCAG22/Understanding/name-role-value.html)
 
 Native elements first. A custom widget has its APG role, its name, and each state and value in ARIA 1.2, kept current by its module. A list row's cut line takes focus with no role, as [Where ui falls short](#where-ui-falls-short) records.
 
@@ -794,7 +796,7 @@ Native elements first. A custom widget has its APG role, its name, and each stat
 
 Level AA. Adopted, partly met, owed by `feedback/toast` and `forms/tokens`. Met by ui. [Understanding 4.1.3](https://www.w3.org/WAI/WCAG22/Understanding/status-messages.html)
 
-`@cplieger/ui/announce`, Copy and the header status speak through live regions that exist before their text arrives. Only a blocking problem uses `role="alert"`. A range's output repeats the slider's value, so it is silenced (`aria-live="off"`) and the slider says its value once, in the output's words. A toast is inserted as a live region already holding its words, and a value typed again into a field of chosen values is dropped with nothing said.
+`@cplieger/ui/announce`, Copy and the header status speak through live regions that exist before their text arrives. A relative time is `aria-live="off"`, so its minute rewrites inside a banner's region are not said again. Only a blocking problem uses `role="alert"`. A range's output repeats the slider's value, so it is silenced (`aria-live="off"`) and the slider says its value once, in the output's words. A toast is inserted as a live region already holding its words, and a value typed again into a field of chosen values is dropped with nothing said.
 
 - axe: `aria-allowed-role` and `aria-required-attr` on the regions.
 - Manual: a live-region observer and the AT-SPI events.
@@ -1034,9 +1036,9 @@ Stricter than 3.1.2, which excepts names and technical terms. Every element that
 
 ### 2.2.2.3 Numerical metadata available
 
-A core requirement. Adopted, stricter than WCAG 2.2. Met by ui. [Draft](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#numerical-metadata-available)
+A core requirement. Adopted, partly met, owed by `data/relative-time`. Met by ui. [Draft](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#numerical-metadata-available)
 
-A date or time is a `<time datetime>` with its absolute value in the machine form, and a relative time shows the absolute date on hover and focus and in its accessible text. A number keeps its unit beside it ([Words on screen](design-patterns.md#words-on-screen)).
+A date or time is a `<time datetime>` with its absolute value in the machine form, and a relative time shows the absolute date on hover and in its accessible text, and beside its words in a wide wrapped row. A keyboard or touch user cannot reach the absolute date elsewhere yet. A number keeps its unit beside it ([Words on screen](design-patterns.md#words-on-screen)).
 
 - Unit: src/data/relative-time tests.
 - Manual: the message cards, the detail and figure cards.
