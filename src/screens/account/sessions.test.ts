@@ -237,3 +237,22 @@ describe("deviceName", () => {
     expect(deviceName({ label: "Desk", user_agent: "Firefox/140.0" }, w)).toBe("Desk");
   });
 });
+
+describe("mountSecurity: sessions over more than one page", () => {
+  it("lists every session, reading page after page", async () => {
+    const many = Array.from({ length: 201 }, (_, i): SessionView => ({
+      ...PHONE_SESSION,
+      id: `m${String(i)}`,
+      label: `Device ${String(i)}`,
+    }));
+    const fake = new Fake().always("sessions", ok([HERE, ...many]));
+    const { region } = mount(fake, { parts: ["sessions"] });
+    await vi.waitFor(async () => {
+      expect(await sessionRows(region)).toHaveLength(202);
+    });
+    expect(fake.named("sessions").map((c) => c.args)).toEqual([
+      [{ limit: 200 }],
+      [{ cursor: "at-200", limit: 200 }],
+    ]);
+  });
+});

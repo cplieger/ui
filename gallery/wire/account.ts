@@ -12,7 +12,9 @@ import {
   type LogClient,
   type LogEntryView,
   type LogKinds,
+  type ListAnswer,
   type LogQuery,
+  type PageQuery,
   type SecurityLogView,
   type AccountPart,
   type KeyScopes,
@@ -1470,25 +1472,63 @@ function logOf(): LogEntryView[] {
 
 const LOG = logOf();
 
-/** `adminSecurityLog` as access answers it over `log`. */
+/** `items` as access serves a list: the page the cursor names, `limit`
+ *  long, with a cursor to each side that has items. */
+function served<T>(items: readonly T[], q: PageQuery = {}): Result<ListAnswer<T>> {
+  const limit = q.limit ?? 50;
+  const offset = Math.min(items.length, Number(/^at-(\d+)$/.exec(q.cursor ?? "")?.[1] ?? 0));
+  const end = Math.min(items.length, offset + limit);
+  return {
+    ok: true,
+    data: {
+      items: items.slice(offset, end),
+      ...(end < items.length ? { next_cursor: `at-${String(end)}` } : {}),
+      ...(offset > 0 ? { prev_cursor: `at-${String(Math.max(0, offset - limit))}` } : {}),
+      offset,
+      total: items.length,
+    },
+  };
+}
+
+/** `adminSecurityLog` as access answers it over `log`: a cursor resumes
+ *  after (`n`) or before (`p`) an entry's `seq` in the order asked, and a
+ *  page before one near the top is the first page. */
 function logPage(
   log: readonly LogEntryView[],
   q: LogQuery = {},
   evicted = 0,
 ): Result<SecurityLogView> {
-  const match = log.filter(
-    (e) =>
-      (q.kinds === undefined || q.kinds.length === 0 || q.kinds.includes(e.kind)) &&
-      (q.user === undefined || e.user_id === q.user) &&
-      (q.after === undefined || e.seq > q.after) &&
-      (q.before === undefined || e.seq < q.before),
-  );
-  const ordered = q.oldestFirst === true ? match : [...match].reverse();
+  const oldest = q.oldestFirst === true;
+  const match = log
+    .filter(
+      (e) =>
+        (q.kinds === undefined || q.kinds.length === 0 || q.kinds.includes(e.kind)) &&
+        (q.user === undefined || e.user_id === q.user),
+    )
+    .toSorted((a, b) => (oldest ? a.seq - b.seq : b.seq - a.seq));
+  const limit = q.limit ?? 50;
+  const at = /^([np])(\d+)$/.exec(q.cursor ?? "");
+  const seq = Number(at?.[2] ?? 0);
+  const before = match.filter((e) => (oldest ? e.seq < seq : e.seq > seq)).length;
+  const start =
+    at === null
+      ? 0
+      : at[1] === "n"
+        ? match.filter((e) => (oldest ? e.seq <= seq : e.seq >= seq)).length
+        : Math.max(0, before - limit);
+  const items = match.slice(start, start + limit);
+  const last = items.at(-1);
   const count = (c: string): number => log.filter((e) => e.class === c).length;
   return {
     ok: true,
     data: {
-      entries: ordered.slice(0, q.limit ?? 50),
+      items,
+      ...(last !== undefined && start + items.length < match.length
+        ? { next_cursor: `n${String(last.seq)}` }
+        : {}),
+      ...(start > 0 && items[0] !== undefined ? { prev_cursor: `p${String(items[0].seq)}` } : {}),
+      offset: start,
+      total: match.length,
       classes: [
         { class: "change", count: count("change"), evicted },
         { class: "session", count: count("session"), evicted: 0 },
@@ -1506,7 +1546,7 @@ const APP_KINDS: LogKinds = {
 function logClient(log: LogEntryView[], evicted = 0): LogClient & { add(): void } {
   return {
     adminSecurityLog: (q) => after(logPage(log, q, evicted), 400),
-    adminUsers: () => after({ ok: true, data: PEOPLE }, 200),
+    adminUsers: (q) => after(served(PEOPLE, q), 200),
     add() {
       const seq = Math.max(0, ...log.map((e) => e.seq)) + 1;
       const now = new Date().toISOString();
@@ -1643,7 +1683,7 @@ function securityFake(a: Account): {
       methods({ password: false });
       return done;
     },
-    passkeys: () => after({ ok: true, data: a.passkeys }, 300),
+    passkeys: (q) => after(served(a.passkeys, q), 300),
     async renamePasskey(id, r) {
       await wait(500);
       a.passkeys = a.passkeys.map((k) => (k.id === id ? { ...k, name: r.name } : k));
@@ -1711,7 +1751,7 @@ function securityFake(a: Account): {
       await wait(600);
       return proofRefused(proof) ?? { ok: true, data: { recovery_code: "R3VD8KQ2PX7MTN4B" } };
     },
-    sessions: () => after({ ok: true, data: a.sessions }, 300),
+    sessions: (q) => after(served(a.sessions, q), 300),
     async renameSession(id, r) {
       await wait(500);
       a.sessions = a.sessions.map((s) => (s.id === id ? { ...s, label: r.name } : s));
@@ -1727,9 +1767,9 @@ function securityFake(a: Account): {
       a.sessions = a.sessions.filter((s) => s.current);
       return done;
     },
-    keys: () => after({ ok: true, data: a.keys }, 300),
+    keys: (q) => after(served(a.keys, q), 300),
     adminSecurityLog: (q) => after(logPage(LOG, q), 300),
-    adminUsers: () => after({ ok: true, data: PEOPLE }, 200),
+    adminUsers: (q) => after(served(PEOPLE, q), 200),
     async createKey(r) {
       await wait(700);
       const no = fresh();
@@ -2153,10 +2193,10 @@ function usersFake(o: {
     async adminUsers(q) {
       await wait(400);
       const key = q?.key;
-      return {
-        ok: true,
-        data: key === undefined ? people : people.filter((u) => u.key_lineage?.includes(key)),
-      };
+      return served(
+        key === undefined ? people : people.filter((u) => u.key_lineage?.includes(key)),
+        q,
+      );
     },
     async adminCreateUser(r) {
       await wait(500);
@@ -2190,13 +2230,13 @@ function usersFake(o: {
       ];
       return { ok: true, data: { token: "inv_Q4mT9xVb2LcR7pWz", expires_at: expires } };
     },
-    async adminTokens() {
+    async adminTokens(q) {
       await wait(300);
-      return { ok: true, data: tokens };
+      return served(tokens, q);
     },
-    async adminKeys() {
+    async adminKeys(q) {
       await wait(300);
-      return { ok: true, data: keys };
+      return served(keys, q);
     },
     async adminRevokeKey(id) {
       await wait(600);

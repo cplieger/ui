@@ -22,6 +22,7 @@ import {
   meWith,
   noAnswer,
   ok,
+  pageOf,
   PHONE,
   refuse,
 } from "./test-helpers/fake.js";
@@ -294,14 +295,12 @@ const screens: readonly Screen[] = [
       });
       return { region, refresh: () => void screen.refresh() };
     },
-    // Entries 1 to n: the newest first, or those after `after` oldest first.
-    answer: (n, _server, args) => {
-      const after = (args[0] as { readonly after?: number } | undefined)?.after;
-      const seqs = Array.from({ length: n }, (_, i) => i + 1).filter(
-        (s) => after === undefined || s > after,
-      );
+    // Entries 1 to n, the newest first.
+    answer: (n) => {
+      const seqs = Array.from({ length: n }, (_, i) => n - i);
       return ok({
-        entries: (after === undefined ? seqs.toReversed() : seqs).map((seq) => ({
+        ...pageOf(seqs),
+        items: seqs.map((seq) => ({
           seq,
           at: "2026-11-14T10:00:00Z",
           occurred_at: "2026-11-14T10:00:00Z",

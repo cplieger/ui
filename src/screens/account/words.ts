@@ -669,8 +669,6 @@ export interface AccountWords {
   readonly "log.older": string;
   readonly "log.earlier": string;
   readonly "log.later": string;
-  /** The times of a page's first and last entries. */
-  readonly "log.range": (from: string, to: string) => string;
   readonly "log.empty": string;
   readonly "log.emptyFiltered": string;
   readonly "log.clear": string;
@@ -679,6 +677,9 @@ export interface AccountWords {
   readonly "log.unknownKind": string;
   readonly "log.badPage": string;
   readonly "log.newest": string;
+  /** A page's place in its list, from formatted numbers: "51 to 100 of
+   *  659". */
+  readonly "pages.range": (first: string, last: string, total: string) => string;
   readonly auth_key_label_taken: (label: string) => string;
   /** `scope` is the scope the server named, when it named one. */
   readonly auth_unknown_scope: (scope: string | undefined) => string;
@@ -1617,7 +1618,6 @@ export const defaultAccountWords: AccountWords = {
   "log.older": "Older",
   "log.earlier": "Earlier",
   "log.later": "Later",
-  "log.range": (from, to) => `${from} to ${to}`,
   "log.empty": "Nothing has happened yet.",
   "log.emptyFiltered": "Nothing matches these filters.",
   "log.clear": "Clear filters",
@@ -1626,6 +1626,7 @@ export const defaultAccountWords: AccountWords = {
   "log.unknownKind": "This app does not record that kind of entry.",
   "log.badPage": "This address does not name a page of the log.",
   "log.newest": "Show the newest",
+  "pages.range": (first, last, total) => `${first} to ${last} of ${total}`,
   auth_key_label_taken: (label) => `You already have a key named ${label}.`,
   auth_unknown_scope: (scope) =>
     scope === undefined ? "This app has no such scope." : `This app has no scope named ${scope}.`,

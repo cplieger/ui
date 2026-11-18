@@ -248,7 +248,7 @@ A `.cp-table` of what succeeded and what changed, newest first:
 
 1. Its columns are the time as a `<time>`, what happened, the account, who did it, the address and the entry's class as a chip, Change or Session. The app words each kind it knows and shows an unknown one as sent. Who is "You", a person, a key by its label, or "The app's own command".
 2. Above the table: the kind filter, the account filter for an admin, the order as "Newest first" and "Oldest first", the answer's count for each class, and, when the size limit has removed entries, a neutral notice such as "312 older entries were removed."
-3. Under it, a `.cp-pager`: "Older" asks for `before` the smallest seq shown, and "Newer" for `after` the largest with `oldest_first`, shown in the page's order again ("Earlier" and "Later" oldest first). There is no total, since entries keep arriving. A page holds 50 entries. The address holds the view, so a page opens in a new tab.
+3. Under it, a `.cp-pager`: where the page sits, such as "51 to 100 of 659", from the answer's `offset` and `total`, then "Newer" and "Older" ("Earlier" and "Later" oldest first). "Older" follows the answer's `next_cursor` and "Newer" its `prev_cursor`; a side the answer has no cursor for is disabled. A page holds 50 entries. The address holds the view and the page's cursor, so a page opens in a new tab.
 4. Its help says that failed sign-ins are not recorded.
 
 ## Words

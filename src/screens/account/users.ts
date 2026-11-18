@@ -41,6 +41,7 @@ import {
   uid,
 } from "./dom.js";
 import { drawKeys, type KeysSection } from "./keys.js";
+import { everyPage } from "./pages.js";
 import { screenPart } from "./part.js";
 import { runDirect, type AccountAction } from "./run.js";
 import {
@@ -366,9 +367,11 @@ export function mountUsers<C extends UsersClient>(
     const [state, me, users, tokenList] = await Promise.all([
       read(() => client.state()),
       read(() => client.me()),
-      read(() => client.adminUsers(key === undefined ? undefined : { key })),
-      has("invites") || has("admin-keys") ? read(() => client.adminTokens()) : undefined,
-      has("admin-keys") ? keyReads.run(() => read(() => client.adminKeys()), takeKeys) : undefined,
+      everyPage((q) => client.adminUsers(key === undefined ? q : { ...q, key })),
+      has("invites") || has("admin-keys") ? everyPage((q) => client.adminTokens(q)) : undefined,
+      has("admin-keys")
+        ? keyReads.run(() => everyPage((q) => client.adminKeys(q)), takeKeys)
+        : undefined,
     ]);
     if (!me.ok || !users.ok || !state.ok || tokenList?.ok === false) {
       return !me.ok ? me : !users.ok ? users : !state.ok ? state : (tokenList as Refusal);
@@ -627,7 +630,7 @@ export function mountUsers<C extends UsersClient>(
       keysPart.heading,
       {
         list: async () => {
-          const got = read(() => client.adminKeys());
+          const got = everyPage((q) => client.adminKeys(q));
           const taken = await keyReads.run(
             () => got,
             (answer) => {

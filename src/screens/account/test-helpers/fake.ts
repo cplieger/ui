@@ -1,7 +1,9 @@
 /**
  * fake.ts — a fake `@cplieger/access` client and module for the account
  * screens' tests: each call is recorded with its arguments, and answers the
- * next of the answers queued for it, else its default.
+ * next of the answers queued for it, else its default. A list call's
+ * answer of an array is the list the server holds, which it serves a page
+ * at a time.
  */
 
 import { codeOf, reasonOf } from "../answer.js";
@@ -12,8 +14,10 @@ import type {
   InviteClient,
   KeyCreated,
   KeyView,
+  ListAnswer,
   MethodsView,
   OIDCReturn,
+  PageQuery,
   PasskeyMiss,
   PasskeyView,
   PasswordAnswer,
@@ -185,6 +189,28 @@ export function refuse(
   };
 }
 
+/** `items` served as access serves a list: the page `q`'s cursor names, at
+ *  most `q.limit` (default 50) long, with a cursor to each side that has
+ *  items; the page before one starting near the top is the first page. */
+export function pageOf<T>(items: readonly T[], q: PageQuery = {}): ListAnswer<T> {
+  const limit = q.limit ?? 50;
+  const offset = q.cursor === undefined ? 0 : Number(/^at-(\d+)$/.exec(q.cursor)?.[1] ?? NaN);
+  if (!Number.isInteger(offset) || offset > items.length) {
+    throw new Error(`fake: no page at ${String(q.cursor)}`);
+  }
+  const end = Math.min(items.length, offset + limit);
+  return {
+    items: items.slice(offset, end),
+    ...(end < items.length ? { next_cursor: `at-${String(end)}` } : {}),
+    ...(offset > 0 ? { prev_cursor: `at-${String(Math.max(0, offset - limit))}` } : {}),
+    offset,
+    total: items.length,
+  };
+}
+
+const isPage = <T>(data: ListAnswer<T> | readonly T[]): data is ListAnswer<T> =>
+  !Array.isArray(data);
+
 export const noAnswer: Refusal = { ok: false, status: 0, error: "network", code: "network" };
 
 type Answer = unknown;
@@ -283,7 +309,7 @@ export class Fake {
         }),
     ],
     ["revokeKey", ok(undefined)],
-    ["adminSecurityLog", ok({ entries: [], classes: [] })],
+    ["adminSecurityLog", ok({ ...pageOf([]), classes: [] })],
     ["loginCode", ok({ signed_in: signedIn })],
     ["loginRecoveryCode", ok({ signed_in: signedIn })],
     ["loginSetPassword", ok({ signed_in: signedIn })],
@@ -380,6 +406,19 @@ export class Fake {
     return typeof next === "function"
       ? (next as (...a: readonly unknown[]) => Answer)(...args)
       : next;
+  }
+
+  /** A list call: an array answer is paged by `q`, any other answer is
+   *  served as it is. */
+  async list<T>(name: string, q?: PageQuery): Promise<Result<ListAnswer<T>>> {
+    const got = (await this.call(name, q === undefined ? [] : [q])) as Result<
+      ListAnswer<T> | readonly T[]
+    >;
+    if (!got.ok) {
+      return got;
+    }
+    const data = got.data;
+    return ok(isPage(data) ? data : pageOf(data, q));
   }
 
   /** `@cplieger/access`'s `withStepUp` as the pinned release runs it; the
@@ -489,7 +528,7 @@ export class Fake {
       updateProfile: (r) => call<Result<AccountView>>("updateProfile", [r]),
       setPassword: (r) => call<Result<void>>("setPassword", [r]),
       removePassword: (r) => call<Result<void>>("removePassword", [r]),
-      passkeys: () => call<Result<readonly PasskeyView[]>>("passkeys", []),
+      passkeys: (q) => this.list<PasskeyView>("passkeys", q),
       renamePasskey: (id, r) => call<Result<void>>("renamePasskey", [id, r]),
       removePasskey: (id, proof?: SecondFactorProof) =>
         call<Result<void>>("removePasskey", proof === undefined ? [id] : [id, proof]),
@@ -509,18 +548,17 @@ export class Fake {
       stepUpPasskeyFinish: (ceremony, credential) =>
         call<Result<void>>("stepUpPasskeyFinish", [ceremony, credential]),
       oidcStartStepUp: (r) => call<Result<{ readonly url: string }>>("oidcStartStepUp", [r]),
-      sessions: () => call<Result<readonly SessionView[]>>("sessions", []),
+      sessions: (q) => this.list<SessionView>("sessions", q),
       renameSession: (id, r) => call<Result<void>>("renameSession", [id, r]),
       revokeSession: (id) => call<Result<void>>("revokeSession", [id]),
       revokeOtherSessions: () => call<Result<void>>("revokeOtherSessions", []),
-      keys: () => call<Result<readonly KeyView[]>>("keys", []),
+      keys: (q) => this.list<KeyView>("keys", q),
       createKey: (r) => call<Result<KeyCreated>>("createKey", [r]),
       renameKey: (id, r) => call<Result<void>>("renameKey", [id, r]),
       rotateKey: (id) => call<Result<KeyCreated>>("rotateKey", [id]),
       revokeKey: (id) => call<Result<void>>("revokeKey", [id]),
       adminSecurityLog: (q) => call<Result<SecurityLogView>>("adminSecurityLog", [q]),
-      adminUsers: (o?: { readonly key?: number }) =>
-        call<Result<readonly UserView[]>>("adminUsers", o === undefined ? [] : [o]),
+      adminUsers: (q) => this.list<UserView>("adminUsers", q),
       adminUpdateUser: (id, r) => call<Result<UserView>>("adminUpdateUser", [id, r]),
       adminDeleteUser: (id) => call<Result<void>>("adminDeleteUser", [id]),
       adminTemporaryPassword: (id, o) =>
@@ -532,8 +570,8 @@ export class Fake {
         call<Result<TemporaryPasswordResponse>>("adminRelinkOIDC", [id, o]),
       adminCreateUser: (r) => call<Result<UserView>>("adminCreateUser", [r]),
       adminInvite: (r) => call<Result<TokenResponse>>("adminInvite", [r]),
-      adminTokens: () => call<Result<readonly TokenView[]>>("adminTokens", []),
-      adminKeys: () => call<Result<readonly KeyView[]>>("adminKeys", []),
+      adminTokens: (q) => this.list<TokenView>("adminTokens", q),
+      adminKeys: (q) => this.list<KeyView>("adminKeys", q),
       adminRevokeKey: (id) => call<Result<void>>("adminRevokeKey", [id]),
       adminSSOReadiness: (mode: SSOMode) => call<Result<Readiness>>("adminSSOReadiness", [mode]),
       adminApplySSO: (mode: SSOMode) => call<Result<void>>("adminApplySSO", [mode]),
