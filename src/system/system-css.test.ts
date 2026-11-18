@@ -1728,7 +1728,7 @@ describe("css/system.css", () => {
     panel.hidePopover();
   });
 
-  it("runs a listbox's covered options edge to edge, a title over its facts, the covers flush", () => {
+  it("runs a listbox's covered options edge to edge, a title over its facts, the covers 2px apart", () => {
     theme("light");
     const option = (title: string) =>
       `<li role="option"><span class="cp-cover" data-harmony="2"><span class="cp-icon"></span></span><strong>${title}</strong><small>2023 · TV</small></li>`;
