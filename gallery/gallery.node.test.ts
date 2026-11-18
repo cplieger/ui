@@ -1344,6 +1344,33 @@ describe.each(browsers)("the gallery in %s", (name) => {
     );
   }, 60_000);
 
+  // An empty `required` field matches :invalid at rest, and Firefox and WebKit
+  // then expose it as an invalid entry before anything was typed (WCAG 2.2
+  // 3.3.1), so the composer marks its fields aria-required and checks on send.
+  it("reads no field of the messages composer as invalid before anything is typed", async () => {
+    const tab = await (browser as Browser).newPage();
+    await tab.goto(`${origin}/messages.html`);
+    const fields = await tab.evaluate(() =>
+      [...document.querySelectorAll<HTMLInputElement>("#msg-compose .cp-input")].map((field) => ({
+        name: field.name,
+        invalid: field.matches(":invalid") || field.getAttribute("aria-invalid") === "true",
+        required: field.getAttribute("aria-required"),
+        help: [...(field.closest(".cp-field")?.querySelectorAll(".cp-help") ?? [])].map((help) =>
+          help.textContent.trim(),
+        ),
+      })),
+    );
+    await tab.close();
+    expect(fields).toEqual(
+      ["subject", "body"].map((name) => ({
+        name,
+        invalid: false,
+        required: "true",
+        help: ["Required."],
+      })),
+    );
+  }, 60_000);
+
   it("shows a template's destination as a route change, focus on its h1", async () => {
     const tab = await (browser as Browser).newPage({ viewport: { width: 1440, height: 900 } });
     await tab.goto(`${origin}/templates/app.html`);

@@ -108,11 +108,12 @@ Once your scroll fix merges, the queue moves to me. Tell me if it slips past noo
                     <div class="cp-notice" data-tone="danger" hidden><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span><div data-part="body"></div></div>
                     <div class="cp-field">
                       <label class="cp-label" for="msg-subject">Subject</label>
-                      <input type="text" class="cp-input" id="msg-subject" name="subject" maxlength="120" autocomplete="off" required>
+                      <input type="text" class="cp-input" id="msg-subject" name="subject" maxlength="120" autocomplete="off" aria-required="true"><span class="cp-help">Required.</span>
                     </div>
                     <div class="cp-field">
                       <label class="cp-label" for="msg-body">Message</label>
-                      <textarea class="cp-input" id="msg-body" name="body" rows="2" required></textarea>
+                      <textarea class="cp-input" id="msg-body" name="body" rows="2" aria-required="true"></textarea>
+                      <span class="cp-help">Required.</span>
                       <span class="cp-textarea-count" id="msg-body-count"></span>
                     </div>
                     <div>

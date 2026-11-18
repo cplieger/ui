@@ -110,11 +110,13 @@ The composer is a form like any other:
   <div class="cp-notice" data-tone="danger" id="summary" hidden><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span><div data-part="body"></div></div>
   <div class="cp-field">
     <label class="cp-label" for="subject">Subject</label>
-    <input class="cp-input" id="subject" name="subject" required>
+    <input class="cp-input" id="subject" name="subject" aria-required="true">
+    <span class="cp-help">Required.</span>
   </div>
   <div class="cp-field">
     <label class="cp-label" for="body">Message</label>
-    <textarea class="cp-input" id="body" name="body" required></textarea>
+    <textarea class="cp-input" id="body" name="body" aria-required="true"></textarea>
+    <span class="cp-help">Required.</span>
     <span class="cp-textarea-count" id="body-count"></span>
   </div>
   <button class="cp-button" data-variant="primary" type="submit" id="send">
@@ -143,6 +145,7 @@ compose.addEventListener("submit", async (e) => {
 ```
 
 - Send stays enabled with empty fields, so a press says what is missing, as every form does.
+- A field the send needs carries `aria-required="true"` and "Required." in its help, never `required`: an empty `required` field is invalid from the start, and Firefox and WebKit then call it an invalid entry before anything is typed. The send's own check finds what is missing.
 - Ctrl+Enter, or Command+Enter on a Mac, sends from the message. Enter alone breaks the line.
 - Append the own entry with `data-state="sending"` as the send starts, so the feed scrolls to it, and keep the text in the fields until the send is done. A failed send leaves the entry failed with Retry, and the text stays.
 
