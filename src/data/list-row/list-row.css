@@ -536,9 +536,56 @@ button.cp-list-row[aria-pressed] .cp-badge {
   background: var(--cp-fill-active);
 }
 
+/* A row whose one action is a link or a button (installRowActions marks
+ * it) is that action, whole: the action's box covers the row, over the
+ * row's positioned parts, so a press anywhere follows it, and the action's
+ * focus ring is drawn round the row. */
+:is(.cp-list-row, .cp-table tbody tr, .cp-feed-entry)[data-cp-row-action] {
+  position: relative;
+}
+
+:is(.cp-list-row, .cp-table tbody tr, .cp-feed-entry)[data-cp-row-action] [data-cp-stretch]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+}
+
+/* A positioned or transformed action, such as a confirming button or a
+ * pressed one, would be the box its ::after is placed in, shrinking the
+ * hit area to the action and losing a release on the row mid-press. */
+:is(.cp-list-row, .cp-table tbody tr, .cp-feed-entry)[data-cp-row-action] [data-cp-stretch] {
+  position: static;
+}
+
+/* stylelint-disable-next-line selector-max-attribute, selector-max-specificity -- it must outrank the button's own press scale */
+:is(.cp-list-row, .cp-table tbody tr, .cp-feed-entry)[data-cp-row-action]
+  .cp-button[data-cp-stretch]:is(:active, [data-cp-pressed]) {
+  transform: none;
+}
+
+:is(.cp-list-row, .cp-table tbody tr, .cp-feed-entry)[data-cp-row-action]
+  [data-cp-stretch]:focus-visible {
+  outline: none;
+}
+
+:is(.cp-list-row, .cp-table tbody tr, .cp-feed-entry)[data-cp-row-action]
+  [data-cp-stretch]:focus-visible::after {
+  outline: var(--cp-focus-w) solid var(--cp-focus-ring);
+  outline-offset: -2px;
+}
+
+/* stylelint-disable-next-line selector-max-pseudo-class -- a mouse's :active and a finger's data-cp-pressed on the action */
+:is(.cp-list-row, .cp-feed-entry)[data-cp-row-action]:is(:active, :has([data-cp-pressed])) {
+  background: var(--cp-fill-active);
+}
+
 @media (any-hover: hover) {
   @scope (:root:not([data-pointer="coarse"])) {
-    .cp-list-row:not([data-skeleton]):hover {
+    /* Only a row that is one action takes a fill under the mouse; a row
+     * of two actions or none leaves the mouse to its controls. */
+    .cp-list-row:where(a[href], button, [data-cp-row-action]):hover {
       background: var(--cp-list-row-hover, var(--cp-fill));
     }
 
@@ -556,9 +603,15 @@ button.cp-list-row[aria-pressed] .cp-badge {
       color: var(--cp-accent-ink);
     }
 
+    /* A title link beside other actions is a link like any other. */
+    .cp-list-row:not([data-cp-row-action]) > .cp-cell-stack > a:hover {
+      text-decoration-color: currentcolor;
+    }
+
     /* A plain button shares the row's hover fill and would vanish; lift it
      * to the raised surface. One that confirms in place keeps its state's. */
-    .cp-list-row:hover .cp-button:not([data-variant], [data-cp-state]) {
+    /* stylelint-disable-next-line selector-max-attribute, selector-max-specificity -- the one-action row and the plain resting button are each attributes */
+    .cp-list-row[data-cp-row-action]:hover .cp-button:not([data-variant], [data-cp-state]) {
       --cp-chart-surface: var(--cp-surface-raised);
 
       background: var(--cp-surface-raised);

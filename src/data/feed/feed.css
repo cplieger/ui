@@ -66,6 +66,10 @@
     .cp-feed-entry > header > a:not(.cp-filter-chip):hover {
       color: var(--cp-accent-ink);
     }
+
+    .cp-feed-entry[data-cp-row-action]:hover {
+      background: var(--cp-fill);
+    }
   }
 }
 

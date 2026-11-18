@@ -184,6 +184,25 @@ describe("installTooltips", () => {
     expect(showing()).toBe(false);
   });
 
+  it("toggles the tip of an aria-disabled control with a tap, since the tap runs nothing", () => {
+    installTooltips({ signal: life.signal });
+    const b = control("Refreshed 10 seconds ago", "Refresh now");
+    b.setAttribute("aria-disabled", "true");
+    const tap = () => {
+      b.dispatchEvent(
+        new PointerEvent("pointerdown", { bubbles: true, composed: true, pointerType: "touch" }),
+      );
+    };
+    tap();
+    expect(showing()).toBe(true);
+    expect(tip().textContent).toBe("Refreshed 10 seconds ago");
+    tap();
+    expect(showing()).toBe(false);
+    b.setAttribute("aria-disabled", "false");
+    tap();
+    expect(showing()).toBe(false);
+  });
+
   it("anchors the tip beside any anchor the control already has", () => {
     installTooltips({ signal: life.signal });
     const b = control("More", "More");

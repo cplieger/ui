@@ -1,10 +1,9 @@
 /**
- * tooltip.ts — a short name or hint for a control, from its `data-cp-tip`,
- * in one `popover="manual"` placed by CSS anchor positioning. A mouse waits
- * half a second, keyboard focus shows it at once, and a finger toggles it on
- * a control marked `data-cp-tip-toggle`. The tip's words are never the only
- * place they live: an icon-only control keeps its `aria-label`, and a tip
- * that says more than that label describes the control.
+ * tooltip.ts — a control's short name or hint from its `data-cp-tip`, in one
+ * anchor-placed `popover="manual"`. A mouse waits half a second, focus shows
+ * it at once, and a finger toggles it on `data-cp-tip-toggle` or
+ * `aria-disabled="true"`. An icon-only control keeps its `aria-label`, and a
+ * tip that says more than that label describes the control.
  * @module
  */
 
@@ -199,7 +198,7 @@ function listen(signal: AbortSignal, delay: number): void {
         hide();
         return;
       }
-      if (el?.hasAttribute("data-cp-tip-toggle") === true) {
+      if (el?.matches('[data-cp-tip-toggle], [aria-disabled="true"]') === true) {
         if (el === shownFor) {
           hide();
         } else {

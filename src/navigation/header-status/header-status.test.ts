@@ -486,6 +486,51 @@ describe("the panel's sections", () => {
     }
   });
 
+  it("draws a one-line row a menu item tall under a mouse, a finger's under touch", () => {
+    const { panel, status } = mount();
+    status.update(
+      model({
+        conditions: [
+          problem("full", { since: Date.now() - 60_000 }),
+          warning("slow", { reasons: ["Sonarr took 9 s"] }),
+        ],
+        recent: [{ id: "r", words: "Check finished", at: Date.now() - 60_000 }],
+      }),
+    );
+    panel.showPopover();
+    const menu = document.createElement("div");
+    menu.className = "cp-menu";
+    menu.innerHTML = '<button type="button" role="menuitem">Rename</button>';
+    document.body.append(menu);
+    const option = menu.firstElementChild as HTMLElement;
+    const one = [
+      ...panel.querySelectorAll<HTMLElement>(
+        '[data-cp-status="conditions"] li:first-child .cp-list-row, [data-cp-status="recent"] .cp-list-row',
+      ),
+    ];
+    expect(one).toHaveLength(2);
+    const two = panel.querySelector(
+      '[data-cp-status="conditions"] li:last-child .cp-list-row',
+    ) as HTMLElement;
+    expect(two.textContent).toContain("Sonarr took 9 s");
+    const inset = () => Number.parseFloat(getComputedStyle(two).paddingBlockStart);
+    // offsetHeight, since the panel's entry scales its box.
+    try {
+      for (const tier of ["fine", "coarse"] as const) {
+        document.documentElement.dataset["pointer"] = tier;
+        for (const r of one) {
+          expect(r.offsetHeight, `${tier} ${r.textContent ?? ""}`).toBe(option.offsetHeight);
+        }
+        expect(inset(), tier).toBeGreaterThan(0);
+      }
+      expect(option.offsetHeight).toBeGreaterThanOrEqual(44);
+      document.documentElement.dataset["pointer"] = "fine";
+      expect(option.offsetHeight).toBeLessThan(44);
+    } finally {
+      delete document.documentElement.dataset["pointer"];
+    }
+  });
+
   it("leaves out every empty section", () => {
     const { panel, status } = mount();
     status.update(full());
@@ -1022,12 +1067,11 @@ describe("the running section", () => {
   it("keeps a second stop's Stopping… when the first stop's refusal comes late", async () => {
     const { panel, status } = mount();
     const refusals: ((error: Error) => void)[] = [];
-    const run = vi.fn(
-      () =>
-        new Promise<void>((_, reject) => {
-          refusals.push(reject);
-        }),
-    );
+    const run = vi.fn(() => {
+      const { promise, reject }: PromiseWithResolvers<void> = Promise.withResolvers();
+      refusals.push(reject);
+      return promise;
+    });
     const m = model({ work: [job("a", { stop: { run } })] });
     status.update(m);
     stopButton(panel, "a").click();
@@ -1181,12 +1225,11 @@ describe("the starts", () => {
   it("drops a refusal that comes back after its start left or was pressed again", async () => {
     const { panel, status } = mount();
     const refusals: ((error: Error) => void)[] = [];
-    const run = vi.fn(
-      () =>
-        new Promise<void>((_, reject) => {
-          refusals.push(reject);
-        }),
-    );
+    const run = vi.fn(() => {
+      const { promise, reject }: PromiseWithResolvers<void> = Promise.withResolvers();
+      refusals.push(reject);
+      return promise;
+    });
     const m = model({ starts: [begin("f", { icon: icon("refresh-cw"), turn: true, run })] });
     status.update(m);
     startButton(panel, "f").click();
@@ -1402,60 +1445,77 @@ describe("the starts", () => {
     expect(q.hasAttribute("aria-describedby")).toBe(false);
   });
 
-  it("writes the starts' info button last, its tip shown on a tap", async () => {
-    const { panel, status } = mount();
-    panel.showPopover();
-    const startsInfo = { label: "About the checks", tip: "Quick check reads the last 48 hours." };
-    const starts = [begin("q", { label: "Quick check" }), begin("f", { label: "Full check" })];
-    status.update(model({ starts, startsInfo }));
-    const last = () => panel.querySelector('[data-cp-status="starts"] li:last-child button');
-    const info = last() as HTMLButtonElement;
-    expect(info.hasAttribute("data-cp-start")).toBe(false);
-    expect(
-      info.matches('.cp-button[data-variant="quiet"][data-size="sm"][data-cp-tip-toggle]'),
-    ).toBe(true);
-    expect(info.dataset["cpTip"]).toBe(startsInfo.tip);
-    expect(info.querySelector('.cp-icon[data-cp-icon="info"]')).not.toBeNull();
-    await expect
-      .element(page.getByRole("button", { name: "About the checks" }))
-      .toBeInTheDocument();
-    status.update(model({ starts: starts.toReversed(), startsInfo }));
-    expect(last()).toBe(info);
-    status.update(model({ starts }));
-    expect(panel.querySelector("[data-cp-tip-toggle]")).toBeNull();
-    status.update(model({ startsInfo }));
-    expect(panel.querySelector('[data-cp-status="starts"]')).toBeNull();
-  });
-
   describe("with the tooltip", () => {
     const tip = () => document.getElementById("cp-tooltip") as HTMLElement;
     const anchor = (el: HTMLElement) => el.style.getPropertyValue("anchor-name");
     const moving = (step: number): StatusModel =>
       model({
         work: [job("Full check", { value: step, max: 8 })],
-        starts: [begin("q", { label: "Quick check", tip: "Reads the last 48 hours." })],
-        startsInfo: { label: "About the checks", tip: "Quick check reads the last 48 hours." },
+        starts: [
+          begin("q", { label: "Quick check", tip: "Reads the last 48 hours." }),
+          begin("r", { label: "Refresh now", unavailable: "Refreshed 10 seconds ago" }),
+        ],
       });
 
     beforeEach(() => {
       installTooltips({ signal: life.signal, delay: 10 });
     });
 
-    it("keeps the info button's tapped tip on it across an update", () => {
+    const tap = (el: HTMLElement) =>
+      el.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, pointerType: "touch" }));
+
+    it("shows an unavailable start's reason as its tip to a mouse, the keys and a tap", async () => {
       const { panel, status } = mount();
       status.update(moving(1));
       panel.showPopover();
-      const info = panel.querySelector<HTMLElement>("[data-cp-tip-toggle]") as HTMLElement;
-      info.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, pointerType: "touch" }));
+      const r = startButton(panel, "r");
+      const reason = "Refreshed 10 seconds ago";
+      expect(panel.querySelector('[data-cp-tip-toggle], [data-cp-icon="info"]')).toBeNull();
+      expect(r.getAttribute("aria-describedby")?.split(" ")).toContain(startLine(panel, "r").id);
+      await expect
+        .element(page.getByRole("button", { name: "Refresh now" }))
+        .toHaveAccessibleDescription(reason);
+      r.dispatchEvent(new PointerEvent("pointerover", { bubbles: true, pointerType: "mouse" }));
+      vi.advanceTimersByTime(10);
       expect(tip().matches(":popover-open")).toBe(true);
-      const at = anchor(info);
+      expect(tip().textContent).toBe(reason);
+      r.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, pointerType: "mouse" }));
+      expect(tip().matches(":popover-open")).toBe(false);
+      r.focus({ focusVisible: true });
+      expect(tip().matches(":popover-open")).toBe(true);
+      expect(tip().textContent).toBe(reason);
+      r.blur();
+      expect(tip().matches(":popover-open")).toBe(false);
+      tap(r);
+      expect(tip().matches(":popover-open")).toBe(true);
+      expect(tip().textContent).toBe(reason);
+      tap(r);
+      expect(tip().matches(":popover-open")).toBe(false);
+    });
+
+    it("keeps an unavailable start's tapped tip on it across an update", () => {
+      const { panel, status } = mount();
+      status.update(moving(1));
+      panel.showPopover();
+      const r = startButton(panel, "r");
+      const own = r.getAttribute("aria-describedby");
+      tap(r);
+      expect(tip().matches(":popover-open")).toBe(true);
+      const at = anchor(r);
       expect(at).not.toBe("");
-      expect(info.getAttribute("aria-describedby")).toBe(tip().id);
       status.update(moving(2));
-      expect(panel.querySelector("[data-cp-tip-toggle]")).toBe(info);
-      expect(anchor(info)).toBe(at);
-      expect(info.getAttribute("aria-describedby")).toBe(tip().id);
+      expect(startButton(panel, "r")).toBe(r);
+      expect(anchor(r)).toBe(at);
+      expect(r.getAttribute("aria-describedby")).toBe(own);
       expect(tip().matches(":popover-open")).toBe(true);
+    });
+
+    it("leaves a tap on a start that can run to the start", () => {
+      const { panel, status } = mount();
+      status.update(moving(1));
+      panel.showPopover();
+      tap(startButton(panel, "q"));
+      expect(tip().matches(":popover-open")).toBe(false);
     });
 
     it("keeps a start's tip shown to a mouse on it across an update", () => {

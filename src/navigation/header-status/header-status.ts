@@ -73,8 +73,8 @@ export interface StatusStart {
    *  message is the start's reason line. The started work shows once the
    *  app puts it in `work`. */
   readonly run: () => Promise<void>;
-  /** Why it cannot start now, shown under it; the button stays focusable
-   *  and pressing it runs nothing. */
+  /** Why it cannot start now, shown under it and as the button's tip; the
+   *  button stays focusable and pressing it runs nothing. */
   readonly unavailable?: string;
   /** A drawing from `@cplieger/ui/icons` before the label, as `ask()`
    *  takes one; the panel draws its own copy. */
@@ -88,9 +88,6 @@ export interface StatusStart {
 export interface StatusModel {
   /** Shown first, so they never move. */
   readonly starts?: readonly StatusStart[];
-  /** An info button after the starts, "About the checks", whose tip a tap
-   *  shows too, since a start's own tip shows only to a mouse or the keys. */
-  readonly startsInfo?: { readonly label: string; readonly tip: string };
   readonly conditions: readonly StatusCondition[];
   /** Newest first; the panel shows three: running work first, then the
    *  queue, each in this order. */
@@ -586,7 +583,12 @@ export function createHeaderStatus(
     if (s.childElementCount === 0) {
       s.append(
         h("h3", { class: "cp-list-heading", id: `${id}-${name}`, tabindex: "-1" }),
-        h("ul", { class: "cp-list", "data-surface": "plain", "aria-labelledby": `${id}-${name}` }),
+        h("ul", {
+          class: "cp-list",
+          "data-surface": "plain",
+          "data-density": "compact",
+          "aria-labelledby": `${id}-${name}`,
+        }),
       );
     }
     const [heading, list] = s.children as unknown as [HTMLElement, HTMLElement];
@@ -634,7 +636,7 @@ export function createHeaderStatus(
           "data-size": "sm",
           type: "button",
           "data-cp-start": s.id,
-          "data-cp-tip": s.tip,
+          "data-cp-tip": s.unavailable ?? s.tip,
           "aria-disabled": busy || s.unavailable !== undefined ? "true" : undefined,
           "aria-busy": busy ? "true" : undefined,
           "aria-label": w.startName(verb, s),
@@ -651,25 +653,6 @@ export function createHeaderStatus(
       ),
     );
   };
-
-  const startsInfo = (info: NonNullable<StatusModel["startsInfo"]>): HTMLLIElement =>
-    h(
-      "li",
-      {},
-      h(
-        "button",
-        {
-          class: "cp-button",
-          "data-variant": "quiet",
-          "data-size": "sm",
-          type: "button",
-          "aria-label": info.label,
-          "data-cp-tip": info.tip,
-          "data-cp-tip-toggle": "",
-        },
-        icon("info"),
-      ),
-    );
 
   const workRow = (x: StatusWork): HTMLLIElement => {
     const busy = stopping.has(x.id);
@@ -816,11 +799,7 @@ export function createHeaderStatus(
         list = h("ul", { class: "cp-cluster" });
         s.append(list);
       }
-      const items = starts.map(startItem);
-      if (model.startsInfo !== undefined) {
-        items.push(startsInfo(model.startsInfo));
-      }
-      syncList(list, items);
+      syncList(list, starts.map(startItem));
       kids.push(s);
     }
     const conditions = listSection(

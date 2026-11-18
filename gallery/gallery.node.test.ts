@@ -191,6 +191,439 @@ afterAll(async () => {
   await rm(out, { recursive: true, force: true });
 });
 
+type Kind = "self" | "one" | "none" | "many";
+interface Point {
+  readonly x: number;
+  readonly y: number;
+}
+/** The page side of the hover and row sweeps, which `installProbe` sets
+ *  on the tab's `globalThis.cpProbe`. */
+interface Probe {
+  readonly park: Point;
+  /** How many popovers and dialogs the page has. */
+  layers(): number;
+  /** Shows layer `i`; says whether it shows. */
+  open(i: number): boolean;
+  close(i: number): void;
+  /** Gathers the non-controls a `:hover` rule could paint, in layer `i`
+   *  or, given null, the page; returns their count. */
+  hoverables(layer: number | null): number;
+  /** Scrolls hoverable `i` into view and takes its paint, with the mouse
+   *  parked; the point to hover it at, null when controls cover it, or
+   *  why it cannot be hovered. */
+  aim(i: number): Point | string | null;
+  /** What hovering hoverable `i` changed. */
+  diff(i: number): Promise<string[]>;
+  /** Gathers the rows in layer `i` or the page; returns their kinds. */
+  rows(layer: number | null): Kind[];
+  /** Scrolls row `i` into view and takes its paint: a one-action row's
+   *  point is its far end, any other's a point of it no control covers. */
+  aimRow(i: number): Point | string;
+  /** What hovering, then pressing, row `i` did wrong. */
+  checkRow(i: number, step: "hover" | "press" | "ring"): Promise<string[]>;
+}
+
+/**
+ * Sets `globalThis.cpProbe`. Self-contained, since Playwright sends this
+ * function's source to the page. A control is one by its tag or role, or
+ * a row the library marks as one action; a hover is any paint change.
+ */
+function installProbe(): void {
+  const ACTION =
+    'a[href], button, input:not([type="hidden"]), select, textarea, summary, [contenteditable]:not([contenteditable="false"]), [role="button"], [role="link"], [role="checkbox"], [role="radio"], [role="switch"], [role="tab"], [role="slider"], [role="spinbutton"], [role="combobox"], [role="option"], [role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"], [role="treeitem"]';
+  const CONTROL = `${ACTION}, [data-cp-row-action]`;
+  const ROWS = ".cp-list-row, .cp-table tbody tr, .cp-feed-entry";
+  const SELECTED =
+    '[aria-current]:not([aria-current="false"]), [aria-pressed="true"], [aria-selected="true"]';
+  const PAINT = [
+    "background-color",
+    "background-image",
+    "border-top-color",
+    "border-right-color",
+    "border-bottom-color",
+    "border-left-color",
+    "color",
+    "box-shadow",
+    "outline-style",
+    "outline-color",
+    "text-decoration-line",
+    "text-decoration-color",
+    "opacity",
+    "filter",
+    "scale",
+    "transform",
+    "translate",
+  ];
+  const isControl = (el: Element): boolean =>
+    el.matches(CONTROL) || (el instanceof HTMLLabelElement && el.control !== null);
+  /** Whether `el` or an ancestor up to `top`, or to the root, is a control. */
+  const underControl = (el: Element, top: Element | null): boolean => {
+    for (let n: Element | null = el; n !== null; n = n === top ? null : n.parentElement) {
+      if (isControl(n)) {
+        return true;
+      }
+    }
+    return false;
+  };
+  const name = (el: Element): string =>
+    `${el.localName}${[...el.classList].map((c) => `.${c}`).join("")} "${el.textContent.trim().replace(/\s+/g, " ").slice(0, 30)}"`;
+  const where = (el: Element): string =>
+    el.closest(".card")?.querySelector("h2, h3")?.textContent.trim() ??
+    el.closest("[popover], dialog")?.id ??
+    "";
+
+  const style = document.createElement("style");
+  style.textContent =
+    "*, *::before, *::after { transition: none !important; animation-play-state: paused !important; }";
+  document.head.append(style);
+  const park = document.createElement("div");
+  Object.assign(park.style, {
+    position: "fixed",
+    insetBlockEnd: "0",
+    insetInlineEnd: "0",
+    inlineSize: "4px",
+    blockSize: "4px",
+    zIndex: "2147483647",
+  });
+  document.body.append(park);
+
+  const split = (sel: string): string[] => {
+    const out: string[] = [];
+    let depth = 0;
+    let cur = "";
+    for (const ch of sel) {
+      depth += "([".includes(ch) ? 1 : ")]".includes(ch) ? -1 : 0;
+      if (ch === "," && depth === 0) {
+        out.push(cur.trim());
+        cur = "";
+      } else {
+        cur += ch;
+      }
+    }
+    return [...out, cur.trim()].filter((s) => s !== "");
+  };
+  /** The selector up to the end of the compound holding :hover, unhovered. */
+  const hovered = (sel: string): string | null => {
+    const at = sel.indexOf(":hover");
+    if (at < 0) {
+      return null;
+    }
+    let depth = 0;
+    let end = at + 6;
+    for (; end < sel.length; end++) {
+      const ch = sel.charAt(end);
+      if ("([".includes(ch)) {
+        depth++;
+      } else if (")]".includes(ch)) {
+        if (depth === 0) {
+          break;
+        }
+        depth--;
+      } else if (depth === 0 && /[\s>+~]/.test(ch)) {
+        break;
+      }
+    }
+    return sel.slice(0, end).replaceAll(":hover", "") || "*";
+  };
+  const compounds = new Set<string>();
+  const visit = (rules: CSSRuleList, parents: string[]): void => {
+    for (const rule of rules) {
+      let sels = parents;
+      if (rule instanceof CSSStyleRule) {
+        const own = split(rule.selectorText);
+        sels =
+          parents.length === 0
+            ? own
+            : parents.flatMap((p) =>
+                own.map((s) =>
+                  s.includes("&") ? s.replaceAll("&", `:is(${p})`) : `:is(${p}) ${s}`,
+                ),
+              );
+        for (const s of sels) {
+          const h = hovered(s);
+          if (h !== null) {
+            compounds.add(h);
+          }
+        }
+      }
+      if ("cssRules" in rule) {
+        visit(rule.cssRules as CSSRuleList, sels);
+      }
+    }
+  };
+  for (const sheet of document.styleSheets) {
+    visit(sheet.cssRules, []);
+  }
+
+  const layers = [...document.querySelectorAll<HTMLElement>("[popover], dialog")];
+  const scopeOf = (layer: number | null): ParentNode =>
+    layer === null ? document : (layers[layer] ?? document);
+  const shown = (el: Element): boolean => {
+    const box = el.getBoundingClientRect();
+    return el.checkVisibility() && box.width > 0 && box.height > 0 && el !== park;
+  };
+  const paint = (el: Element, pseudo?: string): string[] => {
+    const cs = getComputedStyle(el, pseudo);
+    return PAINT.map((p) => cs.getPropertyValue(p));
+  };
+  interface Shot {
+    readonly el: Element;
+    readonly pseudo: string | undefined;
+    readonly value: string[];
+  }
+  const take = (els: Iterable<Element>, also: Element | null): Shot[] => [
+    ...[...els].map((el) => ({ el, pseudo: undefined, value: paint(el) })),
+    ...(also === null
+      ? []
+      : ["::before", "::after"].map((pseudo) => ({
+          el: also,
+          pseudo,
+          value: paint(also, pseudo),
+        }))),
+  ];
+  const changes = (shots: readonly Shot[]): string[] =>
+    shots.flatMap(({ el, pseudo, value }) => {
+      const now = paint(el, pseudo);
+      const props = PAINT.filter((_, k) => now[k] !== value[k]);
+      return props.length === 0 ? [] : [`${name(el)}${pseudo ?? ""} ${props.join(",")}`];
+    });
+  // A part of an open layer is in view already; scrolling the page under
+  // an anchored popover leaves it a frame behind in WebKit.
+  const reveal = (el: Element): void => {
+    if (el.closest(":popover-open, dialog[open]") === null) {
+      el.scrollIntoView({ block: "center", inline: "nearest" });
+    }
+  };
+  const frame = (): Promise<void> =>
+    new Promise((ok) => {
+      requestAnimationFrame(() => {
+        ok();
+      });
+    });
+  /** A point of `el` in view whose hit, up to `el`, is no control. */
+  const blank = (el: Element): Point | null => {
+    for (const box of el.getClientRects()) {
+      for (const fy of [0.5, 0.2, 0.8, 0.1, 0.35, 0.65, 0.9]) {
+        for (const fx of [0.5, 0.15, 0.85, 0.03, 0.97, 0.3, 0.7]) {
+          const x = box.left + box.width * fx;
+          const y = box.top + box.height * fy;
+          if (x < 0 || y < 0 || x >= innerWidth - 8 || y >= innerHeight - 8) {
+            continue;
+          }
+          const hit = document.elementFromPoint(x, y);
+          if (hit !== null && el.contains(hit) && !underControl(hit, el)) {
+            return { x, y };
+          }
+        }
+      }
+    }
+    return null;
+  };
+
+  let hoverables: Element[] = [];
+  let shots: Shot[] = [];
+  let rows: { row: Element; kind: Kind; action: HTMLElement | null }[] = [];
+  let pressed: EventTarget | null = null;
+  // Only a row's press is caught, so a layer's opener still opens it.
+  let catching = false;
+  addEventListener(
+    "click",
+    (e) => {
+      if (catching) {
+        pressed = e.target;
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    },
+    { capture: true },
+  );
+
+  const classify = (row: Element): { row: Element; kind: Kind; action: HTMLElement | null } => {
+    if (row.matches("a[href], button")) {
+      return { row, kind: "self", action: row as HTMLElement };
+    }
+    const actions = [...row.querySelectorAll<HTMLElement>(ACTION)].filter((a) => {
+      const layer = a.parentElement?.closest("[popover]");
+      return layer == null || layer.contains(row);
+    });
+    const [only] = actions;
+    if (actions.length === 1 && only?.matches("a[href], button") === true) {
+      return { row, kind: "one", action: only };
+    }
+    return { row, kind: actions.length === 0 ? "none" : "many", action: null };
+  };
+
+  const probe: Probe = {
+    park: { x: innerWidth - 2, y: innerHeight - 2 },
+    layers: () => layers.length,
+    open(i) {
+      const l = layers[i];
+      if (l === undefined) {
+        return false;
+      }
+      // A layer opens as a person opens it, through its opener in view,
+      // which pairs an anchored popover with it; shown by script alone,
+      // WebKit places the popover at its opener's place in the page.
+      const opener =
+        l.id === ""
+          ? null
+          : document.querySelector<HTMLElement>(
+              `[popovertarget="${CSS.escape(l.id)}"]:not([popovertargetaction="hide"])`,
+            );
+      if (opener?.checkVisibility() === true) {
+        opener.scrollIntoView({ block: "start", inline: "nearest" });
+        opener.click();
+        if (l.matches(":popover-open")) {
+          return shown(l);
+        }
+      }
+      try {
+        if (l instanceof HTMLDialogElement) {
+          l.show();
+        } else {
+          l.showPopover();
+        }
+      } catch {
+        return false;
+      }
+      return shown(l);
+    },
+    close(i) {
+      const l = layers[i];
+      if (l instanceof HTMLDialogElement) {
+        l.close();
+      } else if (l?.matches(":popover-open") === true) {
+        l.hidePopover();
+      }
+    },
+    hoverables(layer) {
+      const scope = scopeOf(layer);
+      const found = new Set<Element>();
+      for (const c of compounds) {
+        try {
+          for (const el of scope.querySelectorAll(c)) {
+            if (shown(el) && !underControl(el, null)) {
+              found.add(el);
+            }
+          }
+        } catch {
+          // A compound only a :has() or :not() argument held, cut mid-way.
+        }
+      }
+      hoverables = [...found];
+      return hoverables.length;
+    },
+    aim(i) {
+      const el = hoverables[i];
+      if (el === undefined) {
+        return null;
+      }
+      reveal(el);
+      const at = blank(el);
+      const parent = el.parentElement;
+      const near =
+        parent !== null && parent.getElementsByTagName("*").length < 1500
+          ? [parent, ...parent.querySelectorAll("*")]
+          : [el, ...el.querySelectorAll("*")];
+      shots = take(near, el);
+      const box = el.getBoundingClientRect();
+      const inView =
+        box.bottom > 0 && box.right > 0 && box.top < innerHeight && box.left < innerWidth;
+      return at ?? (inView ? null : `${where(el)}: ${name(el)} is out of the window`);
+    },
+    async diff(i) {
+      await frame();
+      const el = hoverables[i];
+      if (el === undefined) {
+        return [];
+      }
+      const said = `${where(el)}: hovering ${name(el)}`;
+      return el.matches(":hover")
+        ? changes(shots).map((c) => `${said} changed ${c}`)
+        : [`${said} did not hover it`];
+    },
+    rows(layer) {
+      rows = [...scopeOf(layer).querySelectorAll(ROWS)].filter(shown).map(classify);
+      return rows.map((r) => r.kind);
+    },
+    aimRow(i) {
+      const was = rows[i];
+      if (was === undefined) {
+        return "gone";
+      }
+      // A live row, such as a job that ends, may have changed since.
+      const r = classify(was.row);
+      rows[i] = r;
+      reveal(r.row);
+      shots = take([r.row, ...r.row.querySelectorAll("*")], null);
+      pressed = null;
+      catching = true;
+      if (r.kind === "self" || r.kind === "one") {
+        const box = r.row.getBoundingClientRect();
+        return { x: box.right - 3, y: box.top + box.height / 2 };
+      }
+      return (
+        blank(r.row) ??
+        `${where(r.row)}: ${r.kind}-action row ${name(r.row)} has no part free of controls`
+      );
+    },
+    async checkRow(i, step) {
+      await frame();
+      const r = rows[i];
+      if (r === undefined) {
+        return [];
+      }
+      const said = `${where(r.row)}: ${r.kind}-action row ${name(r.row)}`;
+      const whole = r.kind === "self" || r.kind === "one";
+      if (step === "hover") {
+        const changed = changes(shots);
+        if (whole && changed.length === 0 && !r.row.matches(SELECTED)) {
+          return [`${said} shows no hover at its far end`];
+        }
+        return whole ? [] : changed.map((c) => `${said} changed ${c} under the mouse`);
+      }
+      if (step === "press") {
+        catching = false;
+        const t = pressed instanceof Element ? pressed : null;
+        if (whole) {
+          return t !== null && r.action?.contains(t) === true
+            ? []
+            : [`${said}: a press at its far end reached ${t === null ? "nothing" : name(t)}`];
+        }
+        return t !== null && underControl(t, r.row)
+          ? [`${said}: a press on its blank part reached ${name(t)}`]
+          : [];
+      }
+      if (!whole || r.action === null) {
+        return [];
+      }
+      (document.activeElement as HTMLElement | null)?.blur();
+      r.action.focus({ focusVisible: true });
+      const box = r.row.getBoundingClientRect();
+      const ring =
+        r.kind === "one"
+          ? getComputedStyle(r.action, "::after")
+          : getComputedStyle(
+              (r.row.closest('[data-layout="grid"]') === null
+                ? null
+                : r.row.querySelector(":scope > .cp-cover")) ?? r.row,
+            );
+      const drawn =
+        ring.outlineStyle === "solid" &&
+        (r.kind === "self" ||
+          (Math.abs(parseFloat(ring.width) - box.width) <= 1 &&
+            Math.abs(parseFloat(ring.height) - box.height) <= 1));
+      r.action.blur();
+      return drawn ? [] : [`${said} draws no ring round itself on focus`];
+    },
+  };
+  (globalThis as unknown as { cpProbe: () => Probe }).cpProbe = () => probe;
+}
+
+// The page's global, which installProbe sets; only callbacks sent to the
+// page call it.
+declare const cpProbe: () => Probe;
+
 describe.each(browsers)("the gallery in %s", (name) => {
   let browser: Browser | undefined;
 
@@ -399,6 +832,212 @@ describe.each(browsers)("the gallery in %s", (name) => {
       expect(counts[0]).toBeLessThan(page / 10);
     },
     60_000,
+  );
+
+  it.each([...pageNames, ...frameNames, ...templateNames])(
+    "draws %s's tip toggles as focusable text, and each info glyph bare on its text's cap band",
+    async (page) => {
+      const tab = await (browser as Browser).newPage({ viewport: { width: 1440, height: 900 } });
+      await tab.goto(`${origin}/${page}.html`);
+      await tab.evaluate(() => document.fonts.ready.then(() => undefined));
+      const wrong = await tab.evaluate(() => {
+        const found: string[] = [];
+        const name = (el: Element) =>
+          `${el.tagName.toLowerCase()} "${(el.getAttribute("aria-label") ?? el.textContent).trim().slice(0, 40)}"`;
+        const glyphs = new Set(["info", "circle-help"]);
+        for (const b of document.querySelectorAll('button, [role="button"]')) {
+          const kids = [...b.children];
+          if (
+            kids.length > 0 &&
+            kids.every((k) => glyphs.has(k.getAttribute("data-cp-icon") ?? "")) &&
+            b.textContent.trim() === ""
+          ) {
+            found.push(`an info glyph drawn as a button: ${name(b)}`);
+          }
+        }
+        for (const t of document.querySelectorAll<HTMLElement>("[data-cp-tip-toggle]")) {
+          if (t.matches('button, [role="button"]')) {
+            found.push(`a tip toggle that is a button: ${name(t)}`);
+          } else if (t.closest('[aria-hidden="true"]') === null && t.tabIndex !== 0) {
+            found.push(`a tip toggle the keyboard cannot reach: ${name(t)}`);
+          }
+        }
+        for (const g of document.querySelectorAll<HTMLElement>(".cp-info")) {
+          if (!g.checkVisibility()) {
+            continue;
+          }
+          const text = g.parentElement as HTMLElement;
+          const probe = document.createElement("span");
+          Object.assign(probe.style, {
+            display: "inline-block",
+            inlineSize: "0",
+            blockSize: "1cap",
+          });
+          text.append(probe);
+          const band = probe.getBoundingClientRect();
+          probe.remove();
+          const box = g.getBoundingClientRect();
+          const off = box.top + box.height / 2 - (band.top + band.height / 2);
+          if (text.textContent.trim() === "" || Math.abs(off) > 0.5) {
+            found.push(`an info glyph ${off.toFixed(2)}px off its text's cap band: ${name(g)}`);
+          }
+          if (g.matches("button, [role='button']") || g.tabIndex !== 0) {
+            found.push(`an info glyph that is not a focusable span: ${name(g)}`);
+          }
+          for (const state of ["rest", "focus"]) {
+            if (state === "focus") {
+              g.focus({ focusVisible: true });
+            }
+            const cs = getComputedStyle(g);
+            const sides = [
+              cs.borderTopStyle,
+              cs.borderRightStyle,
+              cs.borderBottomStyle,
+              cs.borderLeftStyle,
+            ];
+            if (
+              cs.backgroundColor !== "rgba(0, 0, 0, 0)" ||
+              cs.backgroundImage !== "none" ||
+              sides.some((s) => s !== "none") ||
+              cs.boxShadow !== "none"
+            ) {
+              found.push(`an info glyph with a box at ${state}: ${name(g)}`);
+            }
+          }
+          g.blur();
+        }
+        return found;
+      });
+      await tab.close();
+      expect(wrong).toEqual([]);
+    },
+    60_000,
+  );
+
+  it("states a component's failing rule in its details, beside how often it is checked, with no glyph on its state", async () => {
+    const tab = await (browser as Browser).newPage({ viewport: { width: 1440, height: 900 } });
+    await tab.goto(`${origin}/navigation.html`);
+    const blocks = await tab.evaluate(() =>
+      [...document.querySelectorAll<HTMLElement>('ul.cp-list[aria-labelledby^="cs-"]')].map(
+        (ul) => {
+          const details = ul.querySelector("details") as HTMLDetailsElement;
+          details.open = true;
+          const facts = [...ul.querySelectorAll(".cp-facts > dt")].map((dt) => [
+            dt.textContent.trim(),
+            (dt.nextElementSibling as Element).textContent.trim(),
+            (dt as HTMLElement).checkVisibility(),
+          ]);
+          const outside = (s: string) =>
+            [...ul.querySelectorAll(s)].filter((el) => !details.contains(el)).length;
+          return {
+            name: ul.getAttribute("aria-labelledby"),
+            facts,
+            stateGlyphs: ul.querySelectorAll(
+              '.cp-state :is(.cp-info, [data-cp-tip-toggle], [data-cp-icon="info"])',
+            ).length,
+            tips: outside("[data-cp-tip-toggle], .cp-info, [data-cp-icon='info']"),
+            stateTip: ul.querySelector(".cp-state")?.hasAttribute("data-cp-tip"),
+          };
+        },
+      ),
+    );
+    await tab.close();
+    const rule = {
+      "cs-sonarr": "2 failed checks in a row",
+      "cs-seadex": "2 unanswered checks in a row",
+    };
+    expect(blocks.map((b) => b.name)).toEqual(Object.keys(rule));
+    for (const b of blocks) {
+      const at = b.facts.findIndex(([dt]) => dt === "Checked");
+      expect(b.facts[at + 1], `${b.name} rule beside Checked`).toEqual([
+        "Fails after",
+        rule[b.name as keyof typeof rule],
+        true,
+      ]);
+      expect([b.stateGlyphs, b.tips, b.stateTip], `${b.name} glyphs`).toEqual([0, 0, false]);
+    }
+  });
+
+  it.each([...pageNames, ...frameNames, ...templateNames])(
+    "changes nothing on %s under the mouse but its controls",
+    async (page) => {
+      const tab = await (browser as Browser).newPage({ viewport: { width: 1440, height: 900 } });
+      await tab.goto(`${origin}/${page}.html`);
+      await tab.evaluate(() => document.fonts.ready.then(() => undefined));
+      await tab.evaluate(installProbe);
+      const park = await tab.evaluate(() => cpProbe().park);
+      const wrong: string[] = [];
+      const layers = await tab.evaluate(() => cpProbe().layers());
+      for (const layer of [null, ...Array.from({ length: layers }, (_, k) => k)]) {
+        if (layer !== null && !(await tab.evaluate((l) => cpProbe().open(l), layer))) {
+          continue;
+        }
+        const count = await tab.evaluate((l) => cpProbe().hoverables(l), layer);
+        for (let i = 0; i < count; i++) {
+          await tab.mouse.move(park.x, park.y);
+          const at = await tab.evaluate((k) => cpProbe().aim(k), i);
+          if (typeof at === "string") {
+            wrong.push(at);
+          } else if (at !== null) {
+            await tab.mouse.move(at.x, at.y);
+            wrong.push(...(await tab.evaluate((k) => cpProbe().diff(k), i)));
+          }
+        }
+        if (layer !== null) {
+          await tab.evaluate((l) => {
+            cpProbe().close(l);
+          }, layer);
+        }
+      }
+      await tab.close();
+      expect(wrong).toEqual([]);
+    },
+    300_000,
+  );
+
+  it.each([...pageNames, ...frameNames, ...templateNames])(
+    "makes each row on %s of one action that action, whole, and leaves any other row to its controls",
+    async (page) => {
+      const tab = await (browser as Browser).newPage({ viewport: { width: 1440, height: 900 } });
+      await tab.goto(`${origin}/${page}.html`);
+      await tab.evaluate(() => document.fonts.ready.then(() => undefined));
+      await tab.evaluate(installProbe);
+      const park = await tab.evaluate(() => cpProbe().park);
+      const wrong: string[] = [];
+      const layers = await tab.evaluate(() => cpProbe().layers());
+      for (const layer of [null, ...Array.from({ length: layers }, (_, k) => k)]) {
+        if (layer !== null && !(await tab.evaluate((l) => cpProbe().open(l), layer))) {
+          continue;
+        }
+        const kinds = await tab.evaluate((l) => cpProbe().rows(l), layer);
+        for (const [i] of kinds.entries()) {
+          await tab.mouse.move(park.x, park.y);
+          const at = await tab.evaluate((k) => cpProbe().aimRow(k), i);
+          if (typeof at === "string") {
+            wrong.push(at);
+            continue;
+          }
+          await tab.mouse.move(at.x, at.y);
+          wrong.push(...(await tab.evaluate((k) => cpProbe().checkRow(k, "hover"), i)));
+          await tab.mouse.down();
+          await tab.mouse.up();
+          wrong.push(...(await tab.evaluate((k) => cpProbe().checkRow(k, "press"), i)));
+          await tab.mouse.move(park.x, park.y);
+          // A key press puts the page in keyboard modality, so the ring
+          // step's focus() matches :focus-visible after the mouse press.
+          await tab.keyboard.press("Shift");
+          wrong.push(...(await tab.evaluate((k) => cpProbe().checkRow(k, "ring"), i)));
+        }
+        if (layer !== null) {
+          await tab.evaluate((l) => {
+            cpProbe().close(l);
+          }, layer);
+        }
+      }
+      await tab.close();
+      expect(wrong).toEqual([]);
+    },
+    300_000,
   );
 
   it("finds every file the pages ask for", () => {

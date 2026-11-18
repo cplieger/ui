@@ -30,7 +30,7 @@
 
 /* The accent can be the header's own colour, so on the bar a solid badge
  * takes the bar's ink, as the mark does. */
-.cp-header .cp-badge:not([data-variant]) {
+.cp-header .cp-badge:not([data-variant], [popover] *) {
   background: var(--cp-shell-ink);
   color: var(--cp-shell-bg);
 }

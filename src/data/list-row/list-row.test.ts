@@ -1,7 +1,7 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { userEvent } from "vitest/browser";
 
-import { markKept } from "./list-row.js";
+import { installRowActions, markKept } from "./list-row.js";
 
 let sheet: HTMLLinkElement;
 
@@ -319,5 +319,160 @@ describe("a timeline's event", () => {
         0.5,
       );
     }
+  });
+});
+
+describe("installRowActions", () => {
+  const life = new AbortController();
+  const still = document.createElement("style");
+  still.textContent = "*, *::after { transition: none !important; }";
+  beforeAll(() => {
+    document.head.append(still);
+    installRowActions({ signal: life.signal });
+  });
+  afterAll(() => {
+    life.abort();
+    still.remove();
+  });
+
+  /** A list row holding `parts` after its title, in a 40rem list. */
+  function row(title: string, ...parts: string[]): HTMLElement {
+    const ul = document.createElement("ul");
+    ul.className = "cp-list";
+    ul.style.inlineSize = "40rem";
+    ul.innerHTML = `<li><div class="cp-list-row"><span class="cp-cell-stack">${title}<small>Checked 4 minutes ago</small></span>${parts.join("")}</div></li>`;
+    document.body.append(ul);
+    return ul.querySelector(".cp-list-row") as HTMLElement;
+  }
+
+  const settle = () => new Promise((ok) => setTimeout(ok, 0));
+  /** Puts the mouse on a block under the rows: an earlier file can leave it where a new row lands. */
+  async function mouseAway(): Promise<void> {
+    const off = document.createElement("div");
+    off.style.blockSize = "2rem";
+    document.body.append(off);
+    await userEvent.hover(off);
+  }
+  const fill = (el: Element) => getComputedStyle(el).backgroundColor;
+  const farEnd = (el: Element) => {
+    const box = el.getBoundingClientRect();
+    return { x: box.width - 4, y: box.height / 2 };
+  };
+  const clicks = (el: Element) => {
+    const heard: EventTarget[] = [];
+    el.addEventListener("click", (e) => {
+      e.preventDefault();
+      heard.push(e.target as EventTarget);
+    });
+    return heard;
+  };
+
+  it("makes a row of one link that link, whole: its ring, a press at its far end and the hover fill", async () => {
+    const r = row('<a href="#frieren">Frieren</a>');
+    await settle();
+    const link = r.querySelector("a") as HTMLAnchorElement;
+    await userEvent.tab();
+    expect(document.activeElement).toBe(link);
+    const ring = getComputedStyle(link, "::after");
+    expect(ring.outlineStyle).toBe("solid");
+    const box = r.getBoundingClientRect();
+    expect(parseFloat(ring.inlineSize)).toBeCloseTo(box.width, 0);
+    expect(parseFloat(ring.blockSize)).toBeCloseTo(box.height, 0);
+    link.blur();
+    const heard = clicks(link);
+    await mouseAway();
+    const rest = fill(r);
+    await userEvent.click(r, { position: farEnd(r) });
+    expect(heard).toEqual([link]);
+    await userEvent.hover(r, { position: farEnd(r) });
+    expect(fill(r)).toBe(colour("--cp-fill", "backgroundColor"));
+    expect(fill(r)).not.toBe(rest);
+  });
+
+  it("makes a row of one button that button, whole", async () => {
+    const r = row(
+      "<span>Quick check</span>",
+      '<button class="cp-button" type="button">Cancel</button>',
+    );
+    await settle();
+    const button = r.querySelector("button") as HTMLButtonElement;
+    const heard = clicks(button);
+    await userEvent.click(r, { position: { x: 4, y: 4 } });
+    expect(heard).toEqual([button]);
+  });
+
+  it("gives a row of two actions no row hover and no row hit area, its title a link that underlines", async () => {
+    const r = row(
+      '<a href="#frieren">Frieren</a>',
+      '<button class="cp-button" type="button">Grab</button>',
+    );
+    await settle();
+    const link = r.querySelector("a") as HTMLAnchorElement;
+    const button = r.querySelector("button") as HTMLButtonElement;
+    const linkHeard = clicks(link);
+    const buttonHeard = clicks(button);
+    await mouseAway();
+    const rest = fill(r);
+    const blank = { x: r.getBoundingClientRect().width / 2, y: 4 };
+    await userEvent.click(r, { position: blank });
+    expect([...linkHeard, ...buttonHeard]).toEqual([]);
+    await userEvent.hover(r, { position: blank });
+    expect(fill(r)).toBe(rest);
+    await userEvent.hover(link);
+    expect(getComputedStyle(link).textDecorationColor).toBe(getComputedStyle(link).color);
+  });
+
+  it("gives a row of no action nothing under the mouse", async () => {
+    const r = row("<span>Store full</span>");
+    await settle();
+    await mouseAway();
+    const rest = fill(r);
+    await userEvent.hover(r);
+    expect(fill(r)).toBe(rest);
+    expect(r.hasAttribute("data-cp-row-action")).toBe(false);
+  });
+
+  it("does not count a menu's items in a row as the row's actions", async () => {
+    const r = row(
+      "<span>Frieren</span>",
+      '<button class="cp-button" type="button" popovertarget="m">More</button><div popover id="m" role="menu"><button role="menuitem" type="button">Rename</button><button role="menuitem" type="button">Delete</button></div>',
+    );
+    await settle();
+    expect(r.hasAttribute("data-cp-row-action")).toBe(true);
+    expect(r.querySelector("[data-cp-stretch]")?.textContent).toBe("More");
+  });
+
+  it("reads a row again when an action is added or taken away", async () => {
+    const r = row('<a href="#frieren">Frieren</a>');
+    await settle();
+    expect(r.hasAttribute("data-cp-row-action")).toBe(true);
+    const grab = document.createElement("button");
+    grab.textContent = "Grab";
+    r.append(grab);
+    await settle();
+    expect(r.hasAttribute("data-cp-row-action")).toBe(false);
+    expect(r.querySelector("[data-cp-stretch]")).toBeNull();
+    grab.remove();
+    await settle();
+    expect(r.querySelector("[data-cp-stretch]")).toBe(r.querySelector("a"));
+  });
+
+  it("makes a table row of one link that link, whole, and leaves a row of two to its cells", async () => {
+    const { row: one, link } = libraryRow();
+    const two = document.createElement("tr");
+    two.innerHTML =
+      '<td><a href="#mushishi">Mushishi</a></td><td><button type="button">Grab</button></td>';
+    one.after(two);
+    one.append(Object.assign(document.createElement("td"), { textContent: "2005" }));
+    await settle();
+    const heard = clicks(link);
+    const cell = one.lastElementChild as HTMLElement;
+    await userEvent.click(one, { position: farEnd(one) });
+    expect(heard).toEqual([link]);
+    await userEvent.hover(one, { position: farEnd(one) });
+    expect(fill(cell)).toBe(colour("--cp-fill", "backgroundColor"));
+    const rest = fill(two.cells[0] as Element);
+    await userEvent.hover(two.cells[0] as Element, { position: { x: 1, y: 1 } });
+    expect(fill(two.cells[0] as Element)).toBe(rest);
   });
 });
