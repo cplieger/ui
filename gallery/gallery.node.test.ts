@@ -1,8 +1,10 @@
+import { readdirSync } from "node:fs";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { extname, join, normalize } from "node:path";
+import { pathToFileURL } from "node:url";
 
 import { chromium, firefox, webkit, type Browser, type BrowserType, type Page } from "playwright";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -20,6 +22,34 @@ const TYPES: Record<string, string> = {
 };
 const ENGINES: Record<string, BrowserType> = { chromium, firefox, webkit };
 const browsers = (process.env["CPLIEGER_BROWSERS"] ?? "chromium").split(",");
+const SYSTEM_DIR = join(import.meta.dirname, "..", "docs", "system");
+const SYSTEM_SCREENS = readdirSync(SYSTEM_DIR).filter((file) => file.endsWith(".html"));
+
+/** Runs in the page: the id of each aria-required control whose `.cp-field`
+ *  shows no "Required" in a `.cp-help` line or a label, as the forms
+ *  pattern's step 2 asks. A mark counts when it renders larger than a pixel
+ *  while its control renders; a hidden control needs only the mark's text. */
+const requiredWithoutMark = (): string[] =>
+  [...document.querySelectorAll<HTMLElement>('[aria-required="true"]')]
+    .filter((control) => {
+      const field = control.closest(".cp-field");
+      if (field === null) {
+        return true;
+      }
+      const labels = [...((control as Partial<HTMLInputElement>).labels ?? [])];
+      const marks = [
+        ...field.querySelectorAll<HTMLElement>(".cp-help, .cp-label"),
+        ...labels,
+      ].filter((mark) => /\bRequired\b/.test(mark.textContent));
+      if (!control.checkVisibility()) {
+        return marks.length === 0;
+      }
+      return !marks.some((mark) => {
+        const box = mark.getBoundingClientRect();
+        return mark.checkVisibility() && box.width > 1 && box.height > 1;
+      });
+    })
+    .map((control) => (control.id !== "" ? control.id : control.outerHTML));
 
 let out = "";
 let origin = "";
@@ -1460,6 +1490,46 @@ describe.each(browsers)("the gallery in %s", (name) => {
       })),
     );
   }, 60_000);
+
+  it("finds each required field that shows no Required mark", async () => {
+    const tab = await (browser as Browser).newPage();
+    await tab.setContent(`
+      <div class="cp-field"><label for="a">A</label><input id="a" aria-required="true"><span class="cp-help">Required.</span></div>
+      <div class="cp-field"><label for="b">B (Required)</label><input id="b" aria-required="true"><span class="cp-help">From the provider.</span></div>
+      <div class="cp-field"><label for="c">C</label><input id="c" aria-required="true"><span class="cp-help">From the provider.</span></div>
+      <div class="cp-field"><label for="d">D</label><input id="d" aria-required="true"><span class="cp-help" hidden>Required.</span></div>
+      <div class="cp-field"><label for="e">E</label><input id="e" aria-required="true"><span class="cp-help" style="position:absolute;width:1px;height:1px;overflow:hidden">Required.</span></div>
+      <label for="f">F</label><input id="f" aria-required="true">
+      <div class="cp-field" hidden><label for="g">G</label><input id="g" aria-required="true"><span class="cp-help">Required.</span></div>
+      <div class="cp-field"><label for="h">H</label><input id="h" aria-required="false"></div>`);
+    const missing = await tab.evaluate(requiredWithoutMark);
+    await tab.close();
+    expect(missing).toEqual(["c", "d", "e", "f"]);
+  }, 60_000);
+
+  it.each([...pageNames, ...templateNames])(
+    "shows Required on every required field of %s",
+    async (page) => {
+      const tab = await (browser as Browser).newPage();
+      await tab.goto(`${origin}/${page}.html`);
+      const missing = await tab.evaluate(requiredWithoutMark);
+      await tab.close();
+      expect(missing).toEqual([]);
+    },
+    60_000,
+  );
+
+  it.each(SYSTEM_SCREENS)(
+    "shows Required on every required field of the reference screen %s",
+    async (file) => {
+      const tab = await (browser as Browser).newPage();
+      await tab.goto(pathToFileURL(join(SYSTEM_DIR, file)).href);
+      const missing = await tab.evaluate(requiredWithoutMark);
+      await tab.close();
+      expect(missing).toEqual([]);
+    },
+    60_000,
+  );
 
   it("shows a template's destination as a route change, focus on its h1", async () => {
     const tab = await (browser as Browser).newPage({ viewport: { width: 1440, height: 900 } });

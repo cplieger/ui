@@ -58,15 +58,16 @@ A field's error stays a `.cp-field-error` under its field.
 
 ## Forms
 
-A form never loses what the person typed, and every error is text that says how to fix it. [form](forms/form.md) shows and clears the errors as steps 3 to 5 ask, from the app's own checks.
+A form never loses what the person typed, and every error is text that says how to fix it. [form](forms/form.md) shows and clears the errors as steps 4 to 6 ask, from the app's own checks.
 
 1. Each control has a visible `<label>`, with `.cp-help` under it when a format or a source needs saying. A search field in a toolbar is the one exception. It may go without a label when its placeholder starts with "Search" and names what it searches, such as "Search titles…", and its accessible name is the same words.
-2. Validate a field when it loses focus and when the form submits, never on every keystroke. Keep submit enabled, so a submit shows what is missing.
-3. A field with an error gets `aria-invalid="true"` and a `.cp-field-error` under it, with a `circle-x` icon and a sentence that names the fix, such as "Enter 5 minutes or more". Tie the error to the field with `aria-describedby`.
-4. On a submit with one error, focus its field. With two or more, show a danger notice at the top of the form that lists each field as a link to it. Head it with the count, such as "2 settings need a fix before they save", give it `tabindex="-1"` and focus it.
-5. Clear a field's error as soon as its value is valid. Never clear what the person typed.
-6. While the form saves, the submit button is busy, and the fields stay as they are.
-7. A form with unsaved changes asks before a navigation or a close that would discard them. [form](forms/form.md#unsaved-changes)'s `guardChanges` counts the changes, asks, and takes in values saved elsewhere while keeping the person's.
+2. A field the submit needs carries `aria-required="true"` and shows the word "Required." as its `.cp-help` line, or beside its label, such as "API key (Required)", when the field already has help. A sighted person then sees what is needed before submitting ([WCAG 2.2 SC 3.3.2](https://www.w3.org/WAI/WCAG22/Understanding/labels-or-instructions)), and `aria-required` tells assistive technology the same. Never use `required`: an empty `required` field is invalid before anything is typed, and Firefox and WebKit then call it an invalid entry. The submit's own check finds what is missing.
+3. Validate a field when it loses focus and when the form submits, never on every keystroke. Keep submit enabled, so a submit shows what is missing.
+4. A field with an error gets `aria-invalid="true"` and a `.cp-field-error` under it, with a `circle-x` icon and a sentence that names the fix, such as "Enter 5 minutes or more". Tie the error to the field with `aria-describedby`.
+5. On a submit with one error, focus its field. With two or more, show a danger notice at the top of the form that lists each field as a link to it. Head it with the count, such as "2 settings need a fix before they save", give it `tabindex="-1"` and focus it.
+6. Clear a field's error as soon as its value is valid. Never clear what the person typed.
+7. While the form saves, the submit button is busy, and the fields stay as they are.
+8. A form with unsaved changes asks before a navigation or a close that would discard them. [form](forms/form.md#unsaved-changes)'s `guardChanges` counts the changes, asks, and takes in values saved elsewhere while keeping the person's.
 
 **A value set elsewhere.** A value the page shows but cannot change, because a config file, the environment or an administrator sets it, is a `.cp-set-elsewhere` line where its control would be: the value as text, a neutral `.cp-chip` naming where it is set, such as "from config.yaml", and one sentence of help on how to change it. It is never a disabled control, which would hide the value from some readers and say nothing about why. A secret shows its state in place of its value.
 
