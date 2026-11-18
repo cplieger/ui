@@ -1,16 +1,17 @@
-/* A stepper: a number between a minus and a plus, one control tall, as wide
- * as what it holds. The value is a number field, or for a value the buttons
- * alone set, such as a zoom, a button that resets it. */
+/* A stepper: one bar holding a value between its minus and its plus, or
+ * between steps of several sizes, one control tall, as wide as what it holds.
+ * The value is a field, or for a value the buttons alone set, such as a zoom,
+ * a button that resets it. */
 .cp-stepper {
   --cp-chart-surface: var(--cp-surface-raised);
   --cp-stepper-edge: var(--cp-border-strong);
 
   position: relative;
   display: inline-flex;
+  flex-wrap: wrap;
   align-items: stretch;
   inline-size: fit-content;
   max-inline-size: 100%;
-  block-size: var(--cp-control-h);
   border-radius: var(--cp-radius-control);
   background: var(--cp-surface-raised);
 }
@@ -18,7 +19,7 @@
 /* The edge is drawn over the parts, not as the stepper's border: a border
  * would take the number below the control height, short of a finger's
  * target, and a button's hover fill would cover an inset shadow. */
-.cp-stepper:not([data-variant="nudge"])::after {
+.cp-stepper::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -31,15 +32,16 @@
   justify-self: start;
 }
 
-.cp-stepper > .cp-button {
+/* Each part is one control tall. A bar too wide for its column, at 320px or
+ * under large text, wraps its parts onto a second row inside its edge
+ * rather than scroll the page sideways. */
+.cp-stepper > :is(.cp-button, input) {
   position: relative;
+  flex: none;
+  min-block-size: var(--cp-control-h);
 }
 
-.cp-stepper:not([data-variant]) > .cp-button {
-  min-block-size: 0;
-}
-
-.cp-stepper > input:not(.cp-input) {
+.cp-stepper > input {
   inline-size: 4ch;
   min-inline-size: var(--cp-hit-min);
   border: 0;
@@ -47,6 +49,7 @@
   background: transparent;
   color: var(--cp-ink);
   font: inherit;
+  font-weight: var(--cp-weight-medium);
   /* 16px on touch, so iOS does not zoom, as a field does. */
   font-size: max(16px, var(--cp-text-ui));
   font-variant-numeric: tabular-nums;
@@ -54,21 +57,32 @@
   appearance: textfield;
 }
 
-:root[data-pointer="fine"] .cp-stepper > input:not(.cp-input) {
+:root[data-pointer="fine"] .cp-stepper > input {
   font-size: var(--cp-text-ui);
+}
+
+/* A signed value such as "−60.00" fits, so the bar keeps one width. */
+.cp-stepper > input:not([type="number"]) {
+  inline-size: 7ch;
 }
 
 .cp-stepper > input::-webkit-inner-spin-button {
   appearance: none;
 }
 
-.cp-stepper-value {
-  min-inline-size: 3.5rem;
+/* Wide enough for "100%": three tabular digits and a percent sign, which is
+ * up to two digits wide in the fallback fonts. A shorter value sits centred
+ * and the plus never moves. It reads in the ink a field's value takes, over
+ * a quiet button's muted ink. */
+.cp-stepper > .cp-button.cp-stepper-value {
+  justify-content: center;
+  min-inline-size: calc(5ch + 2 * var(--cp-control-pad-x));
+  color: var(--cp-ink);
   font-variant-numeric: tabular-nums;
 }
 
 /* Focus on its number rings the whole stepper, as a focused field is. */
-.cp-stepper:has(> input:not(.cp-input):focus-visible) {
+.cp-stepper:has(> input:focus-visible) {
   --cp-stepper-edge: var(--cp-focus-ring);
 
   outline: var(--cp-focus-w) solid var(--cp-focus-ring);
@@ -94,23 +108,7 @@
 }
 
 @media (forced-colors: active) {
-  .cp-stepper:has(> input:not(.cp-input):focus-visible) {
+  .cp-stepper:has(> input:focus-visible) {
     outline-color: Highlight;
   }
-}
-
-/* Nudges: a signed value in its own field between buttons of several sizes,
- * such as −1 s, −0.1 s, +0.1 s and +1 s, and a Reset, wrapping as one row. */
-.cp-stepper[data-variant="nudge"] {
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--cp-space-1);
-  block-size: auto;
-  background: none;
-}
-
-.cp-stepper[data-variant="nudge"] > .cp-input {
-  inline-size: 7ch;
-  font-variant-numeric: tabular-nums;
-  text-align: center;
 }

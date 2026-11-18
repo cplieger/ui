@@ -130,19 +130,19 @@ function nudge(value = "+1.25"): {
   input: HTMLInputElement;
   button: (label: string) => HTMLButtonElement;
 } {
-  const s = document.createElement("div");
-  s.className = "cp-stepper";
-  s.dataset["variant"] = "nudge";
+  const wrap = document.createElement("div");
   // Static test markup, never caller text.
-  s.setHTMLUnsafe(
-    `<button type="button" data-step="-10">-1 s</button><button type="button" data-step="-1">-0.1 s</button><input class="cp-input" value="${value}" inputmode="decimal" data-min="-2" data-max="2" data-step="0.1" aria-label="Offset"><button type="button" data-step="1">+0.1 s</button><button type="button" data-step="10">+1 s</button><button type="button" data-reset="0">Reset</button><button type="button" data-reset>Undo</button>`,
+  wrap.setHTMLUnsafe(
+    `<div class="cp-stepper"><button type="button" data-step="-10">-1 s</button><button type="button" data-step="-1">-0.1 s</button><input id="offset" value="${value}" inputmode="decimal" data-min="-2" data-max="2" data-step="0.1" aria-label="Offset"><button type="button" data-step="1">+0.1 s</button><button type="button" data-step="10">+1 s</button></div><button type="button" data-reset="0" aria-controls="offset">Reset</button><button type="button" data-reset aria-controls="offset">Undo</button><button type="button" data-reset="1" aria-controls="other">Other</button>`,
   );
-  document.body.append(s);
+  document.body.append(wrap);
   return {
-    s,
-    input: s.querySelector("input") as HTMLInputElement,
+    s: wrap.querySelector(".cp-stepper") as HTMLElement,
+    input: wrap.querySelector("input") as HTMLInputElement,
     button: (label) =>
-      [...s.querySelectorAll("button")].find((b) => b.textContent === label) as HTMLButtonElement,
+      [...wrap.querySelectorAll("button")].find(
+        (b) => b.textContent === label,
+      ) as HTMLButtonElement,
   };
 }
 
@@ -174,15 +174,20 @@ describe("enhanceStepper with a signed text field", () => {
     expect(input.value).toBe("\u22120.90");
   });
 
-  it("resets to its data-reset, or else to the markup's value", async () => {
+  it("resets from a button beside it that controls its field, to its data-reset or else the markup's value", async () => {
     const { s, input, button } = nudge();
     enhanceStepper(s, { signal: life.signal });
+    await userEvent.click(button("Other"));
+    expect(input.value).toBe("+1.25");
     await userEvent.click(button("Reset"));
     expect(input.value).toBe("0.00");
     // The roll lays its words beside the field while it runs, which moves the
     // next button under a pointer aimed before the roll settled.
     await expect.poll(() => s.hasAttribute("data-cp-rolling")).toBe(false);
     await userEvent.click(button("Undo"));
+    expect(input.value).toBe("+1.25");
+    life.abort();
+    await userEvent.click(button("Reset"));
     expect(input.value).toBe("+1.25");
   });
 

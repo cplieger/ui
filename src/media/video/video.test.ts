@@ -326,7 +326,7 @@ describe("enhanceVideo", () => {
     const { video, handle } = await pane();
     await expect.poll(() => cues(video).length).toBe(2);
     handle.offset = 1;
-    // The nudge stepper's text for one second earlier, read without its minus.
+    // A signed stepper's text for one second earlier, read without its minus.
     expect(() => {
       handle.offset = Number("\u22121.00");
     }).not.toThrow();
