@@ -52,7 +52,6 @@ These adopted criteria are not fully met yet, and one item is a default the bar 
 - [2.5.3 Label in name](#253-label-in-name): The account button is named Account while it shows the person's initials, so a voice user who says the initials reaches nothing. WCAG 3 2.3.5.5 asks the same. The bar requires the name to contain the visible words, or the initials to be hidden from the name as a picture of the person. Owed by `navigation/account`.
 - [4.1.2 Name, role, value](#412-name-role-value): A list row's cut line takes focus so a keyboard and a tap reach its full text, but it is a `span` with no role, which a screen reader announces as nothing. WCAG 3 2.3.5.6 and 2.12.1.1 ask the same. A key shown for copying takes focus as a scroll region with no role and no name, even when it fits. A finished upload's row takes focus with no role and no name when its Retry leaves. The bar requires each focus stop to have a role and a name: the cut line becomes a button named by the whole line, the key takes focus only while it overflows, as a region named by its field's label, and the upload's row is a group named by its file and its state. Owed by `data/list-row`, `forms/copy` and `forms/file`.
 - [1.4.13 Content on hover or focus](#1413-content-on-hover-or-focus): The tooltip hides when the pointer leaves its control, so the pointer cannot move onto the tip. WCAG 3 2.4.5.2 asks for the same hoverable tip. The bar requires the tip to stay while the pointer is over the control or the tip, and to hide when it leaves both. Owed by `overlays/tooltip`.
-- [2.4.7 Focus visible](#247-focus-visible): At a phone's width the settings page picks its category with a native select, and while that select is focused and open its ring is cut at its top and right edges. WCAG 3 2.3.1.2 and 2.3.1.3 ask the same. The bar requires one whole ring round every focused field, clipped by nothing around it. Owed by `layout/settings`.
 - [2.4.3 Focus order](#243-focus-order): A toast that leaves while it holds focus, after its Undo or its Dismiss is pressed by key, drops focus to the page. The bar requires focus to move to the next toast's button, else back to the control that was focused before. Owed by `feedback/toast`.
 - [WCAG 3 2.2.2.3](#2223-numerical-metadata-available): A relative time shows its exact date and time under a mouse only: a time takes no focus and no tap, so a keyboard or touch user who sees "8 minutes ago" cannot see when that was. The bar requires the exact time to be reachable by keyboard and by touch too. Owed by `data/relative-time`.
 - [2.4.12 Focus not obscured (enhanced)](#2412-focus-not-obscured-enhanced): No stylesheet sets `scroll-padding` for the sticky header, the foot bar or the status line. The bar requires that no part of a focused control sits under them. Owed by `layout/app-frame`.
@@ -485,11 +484,11 @@ Each section has a heading and each control a label that names what it does. A s
 
 ### 2.4.7 Focus visible
 
-Level AA. Adopted, partly met, owed by `layout/settings`. Met by ui. [Understanding 2.4.7](https://www.w3.org/WAI/WCAG22/Understanding/focus-visible.html)
+Level AA. Adopted. Met by ui. [Understanding 2.4.7](https://www.w3.org/WAI/WCAG22/Understanding/focus-visible.html)
 
 Every `:focus-visible` element inside `.cp` draws a 2px outline at a 2px offset in the focus ring colour, and `Highlight` in forced colours.
 
-- Unit: ring tests in src/system/system-css.test.ts.
+- Unit: ring tests in src/system/system-css.test.ts, a narrow settings select's ring cut by no box round it among them.
 - Manual: every focus stop.
 
 ### 2.4.8 Location
@@ -535,7 +534,7 @@ As 2.4.11 with no part hidden: the page scrolls a focused control clear of every
 
 ### 2.4.13 Focus appearance
 
-Level AAA. Adopted, partly met, owed by `layout/settings`. Met by ui. [Understanding 2.4.13](https://www.w3.org/WAI/WCAG22/Understanding/focus-appearance.html)
+Level AAA. Adopted. Met by ui. [Understanding 2.4.13](https://www.w3.org/WAI/WCAG22/Understanding/focus-appearance.html)
 
 The ring is a solid 2px outline at a 2px offset, so its area exceeds a 2px perimeter of the control, in the accent's step 9, which holds 3:1 against every surface at every hue and chroma. On the header the ring takes the shell's ink, because the light shell is the accent's own fill. Inside a split button, whose fill is the ring's colour, focus rings the whole split outside its shape and marks the focused part with an inset ring in the split's ink. A date or time field rings while focus is in it, because WebKit focuses one of its parts and the field never matches `:focus-visible`.
 
@@ -1705,7 +1704,7 @@ A change of window or device is announced before it happens. No ui element opens
 
 ## Other WCAG 3 requirements
 
-Of the rest, 48 are met through a WCAG 2.2 criterion at the same strength, 6 ask the same as a WCAG 2.2 criterion ui does not meet yet, 12 do not apply, and 41 are not adopted. An assertion is an organisation's statement about its own process, not a property of the interface, and ui claims no WCAG 3 conformance, so no assertion is adopted. A requirement whose values the draft still leaves undetermined cannot be tested, so it waits for a draft that sets them.
+Of the rest, 50 are met through a WCAG 2.2 criterion at the same strength, 4 ask the same as a WCAG 2.2 criterion ui does not meet yet, 12 do not apply, and 41 are not adopted. An assertion is an organisation's statement about its own process, not a property of the interface, and ui claims no WCAG 3 conformance, so no assertion is adopted. A requirement whose values the draft still leaves undetermined cannot be tested, so it waits for a draft that sets them.
 
 | Requirement | Type | Ruling |
 | --- | --- | --- |
@@ -1758,8 +1757,8 @@ Of the rest, 48 are met through a WCAG 2.2 criterion at the same strength, 6 ask
 | [2.2.3.8 Clear language review](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#clear-language-review) | assertion | Not adopted, because it is an assertion |
 | [2.2.3.9 Visual aids review](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#visual-aids-review) | assertion | Not adopted, because it is an assertion |
 | [2.3.1.1 Default focus indicator used](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#default-focus-indicator-used) | supplemental | Not adopted, because the draft offers it as an alternative to 2.3.1.2 and 2.3.1.3, which ui meets with its own ring |
-| [2.3.1.2 Focus indicator contrast sufficient](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#focus-indicator-contrast-sufficient) | core | Same as WCAG 2.2 [2.4.13](#2413-focus-appearance), which ui does not meet yet, owed by `layout/settings`, as [Where ui falls short](#where-ui-falls-short) records |
-| [2.3.1.3 Focus indicator size sufficient](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#focus-indicator-size-sufficient) | supplemental | Same as WCAG 2.2 [2.4.13](#2413-focus-appearance), which ui does not meet yet, owed by `layout/settings`, as [Where ui falls short](#where-ui-falls-short) records |
+| [2.3.1.2 Focus indicator contrast sufficient](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#focus-indicator-contrast-sufficient) | core | Met through WCAG 2.2 [2.4.13](#2413-focus-appearance) |
+| [2.3.1.3 Focus indicator size sufficient](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#focus-indicator-size-sufficient) | supplemental | Met through WCAG 2.2 [2.4.13](#2413-focus-appearance) |
 | [2.3.1.4 Focus indicator style guide](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#focus-indicator-style-guide) | assertion | Not adopted, because it is an assertion |
 | [2.3.2.2 Pointer activation indicated (enhanced)](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#pointer-activation-indicated-enhanced) | supplemental | Does not apply, because it applies where the platform has no visible pointer (touch, eye tracking). Showing a pointer there is the platform's setting, and a page-drawn pointer would lag behind the real one |
 | [2.3.2.3 Pointer contrast sufficient](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#pointer-contrast-sufficient) | core | Does not apply, because it applies when the author changes the pointer's look. ui only names standard `cursor` keywords, which the operating system draws at the person's size and colour |
