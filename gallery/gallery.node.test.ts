@@ -476,6 +476,10 @@ describe.each(browsers)("the gallery in %s", (name) => {
               await tab.keyboard.press("Enter");
               break;
             }
+            if (before !== undefined && KNOWN[new URL(before.href).hash.slice(1)] !== undefined) {
+              // A press on another entry while one is shown replaces the entry.
+              want = { ...want, length: before.length };
+            }
             await enter(tab, selector);
             break;
           }
@@ -622,16 +626,45 @@ describe.each(browsers)("the gallery in %s", (name) => {
         ],
       ],
       [
-        "Back and Forward between two docked conversations, then Close",
+        "Back and Forward through the list between two docked conversations, then Close",
         W,
         AFTER,
         [
           ["load messages.html", `${M}#c-internal`],
+          ["close", M],
           ["press #c-marotte", `${M}#c-marotte`],
+          ["back", M],
           ["back", `${M}#c-internal`],
+          ["forward", M],
           ["forward", `${M}#c-marotte`],
           ["close", M],
-          ["back", `${M}#c-marotte`],
+          ["back", `${M}#c-internal`],
+        ],
+      ],
+      [
+        "the list, a press, a press on another row, Close, Back",
+        W,
+        AFTER,
+        [
+          ["load messages.html", `${M}#c-internal`],
+          ["close", M],
+          ["press #c-marotte", `${M}#c-marotte`],
+          ["press #c-announce", `${M}#c-announce`],
+          ["close", M],
+          ["back", `${M}#c-internal`],
+        ],
+      ],
+      [
+        "the list, a press, a press on another row, Back",
+        W,
+        AFTER,
+        [
+          ["load messages.html", `${M}#c-internal`],
+          ["close", M],
+          ["press #c-marotte", `${M}#c-marotte`],
+          ["press #c-announce", `${M}#c-announce`],
+          ["back", M, '#msg-list a[href="#c-announce"]'],
+          ["forward", `${M}#c-announce`],
         ],
       ],
       [
@@ -813,11 +846,10 @@ describe.each(browsers)("the gallery in %s", (name) => {
         [
           ["load messages.html#c-ui-data", `${M}#c-ui-data`],
           ["press #c-marotte", `${M}#c-marotte`],
-          ["back", `${M}#c-ui-data`],
           ["back", "/index.html"],
-          ["forward", `${M}#c-ui-data`],
+          ["forward", `${M}#c-marotte`],
           ["close", M],
-          ["back", `${M}#c-ui-data`],
+          ["back", `${M}#c-marotte`],
         ],
       ],
       [
@@ -1031,7 +1063,39 @@ describe.each(browsers)("the gallery in %s", (name) => {
     const wired = (tab: Page) =>
       tab.waitForFunction(() => document.querySelector("[data-build]") !== null);
 
-    it("closes after two presses onto the list, focusing the row it closed, and Back reopens it", async () => {
+    it("replaces the entry on a press on another row while one is open, so Close ends on the list", async () => {
+      const tab = await (browser as Browser).newPage({ viewport: { width: 1280, height: 800 } });
+      await tab.goto(`${origin}/index.html`);
+      await tab.goto(`${origin}${N}`);
+      await wired(tab);
+      await press(tab, "#md/frieren");
+      await at(tab, `${N}#md/frieren`);
+      const opened = await tab.evaluate(() => history.length);
+      await press(tab, "#md/mushishi");
+      const second = await at(tab, `${N}#md/mushishi`).catch(() => read(tab));
+      const replaced = await tab.evaluate(() => history.length);
+      await closeDetail(tab);
+      const closed = await at(tab, N).catch(() => read(tab));
+      const length = await tab.evaluate(() => history.length);
+      await tab.goForward();
+      const forward = await at(tab, `${N}#md/mushishi`).catch(() => read(tab));
+      await tab.close();
+      expect({ second: second.shows, replaced, closed, length, forward: forward.shows }).toEqual({
+        second: "Mushishi",
+        replaced: opened,
+        closed: {
+          address: N,
+          shows: "nothing",
+          current: [],
+          focus: "#md/mushishi",
+          app: undefined,
+        },
+        length: opened,
+        forward: "Mushishi",
+      });
+    }, 60_000);
+
+    it("ends on the list on Back after a press on another row while one is open", async () => {
       const tab = await (browser as Browser).newPage({ viewport: { width: 1280, height: 800 } });
       await tab.goto(`${origin}/index.html`);
       await tab.goto(`${origin}${N}`);
@@ -1040,26 +1104,40 @@ describe.each(browsers)("the gallery in %s", (name) => {
       await at(tab, `${N}#md/frieren`);
       await press(tab, "#md/mushishi");
       await at(tab, `${N}#md/mushishi`);
+      await tab.goBack();
+      const back = await at(tab, N).catch(() => read(tab));
+      await tab.close();
+      expect(back).toEqual({
+        address: N,
+        shows: "nothing",
+        current: [],
+        focus: "#md/mushishi",
+        app: undefined,
+      });
+    }, 60_000);
+
+    it("closes onto the list after a deep link and a press on another row, and Back reopens the last", async () => {
+      const tab = await (browser as Browser).newPage({ viewport: { width: 1280, height: 800 } });
+      await tab.goto(`${origin}/index.html`);
+      await tab.goto(`${origin}${N}#md/frieren`);
+      await wired(tab);
+      await press(tab, "#md/mushishi");
+      await at(tab, `${N}#md/mushishi`);
       await closeDetail(tab);
       const closed = await at(tab, `${N}#detail`).catch(() => read(tab));
       await tab.goBack();
       const back = await at(tab, `${N}#md/mushishi`).catch(() => read(tab));
+      await tab.goBack();
+      const left = await at(tab, "/index.html").catch(() => read(tab));
       await tab.close();
-      expect({ closed, back }).toEqual({
-        closed: {
-          address: `${N}#detail`,
-          shows: "nothing",
-          current: [],
-          focus: "#md/mushishi",
-          app: undefined,
-        },
-        back: {
-          address: `${N}#md/mushishi`,
-          shows: "Mushishi",
-          current: ["#md/mushishi"],
-          focus: "md-title",
-          app: undefined,
-        },
+      expect({
+        closed: [closed.address, closed.shows],
+        back: back.shows,
+        left: left.address,
+      }).toEqual({
+        closed: [`${N}#detail`, "nothing"],
+        back: "Mushishi",
+        left: "/index.html",
       });
     }, 60_000);
 

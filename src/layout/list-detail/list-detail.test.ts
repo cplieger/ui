@@ -186,6 +186,45 @@ describe("enhanceListDetail", () => {
     expect(document.activeElement).toBe(heading);
   });
 
+  it.each([["default"], ["wide"]])(
+    "keeps a short list at its own height beside a taller docked detail, the %s variant",
+    (variant) => {
+      const { root, opener, detail, api } = mount(1000);
+      if (variant === "wide") {
+        root.dataset["variant"] = "wide";
+      }
+      const list = document.createElement("ul");
+      list.className = "cp-list";
+      for (const name of ["One", "Two"]) {
+        const row = document.createElement("a");
+        row.className = "cp-list-row";
+        row.href = `#${name}`;
+        row.textContent = name;
+        const item = document.createElement("li");
+        item.append(row);
+        list.append(item);
+      }
+      opener.replaceWith(list);
+      detail.querySelector(".cp-detail-body")?.append(
+        ...Array.from({ length: 30 }, (_, i) => {
+          const p = document.createElement("p");
+          p.textContent = `Line ${String(i + 1)}`;
+          return p;
+        }),
+      );
+      const own = list.getBoundingClientRect().height;
+      api.show("entry");
+      const listBox = list.getBoundingClientRect();
+      const detailBox = detail.getBoundingClientRect();
+      expect(root.hasAttribute("data-cp-docked")).toBe(true);
+      expect(detailBox.height, "the detail is the taller").toBeGreaterThan(own * 2);
+      expect({ height: listBox.height, top: listBox.top }).toEqual({
+        height: own,
+        top: detailBox.top,
+      });
+    },
+  );
+
   it("docks from a 52rem box and opens the sheet in a box a pixel narrower", () => {
     const at = mount(832);
     at.api.show("entry");
@@ -1953,6 +1992,37 @@ describe("enhanceListDetail", () => {
     api.show("entry");
     api.show(null);
     expect(document.activeElement).toBe(other);
+  });
+
+  it("keeps focus on the row after a docked Close goes back to a fragment that names a part taking no focus", async () => {
+    const part = document.createElement("section");
+    part.id = "list-part";
+    part.textContent = "Library";
+    document.body.prepend(part);
+    history.replaceState(history.state, "", "#list-part");
+    const m = mount(DOCK, {
+      onDismiss: () => {
+        history.back();
+      },
+    });
+    addEventListener(
+      "popstate",
+      () => {
+        m.api.show(location.hash === "#entry" ? "entry" : null);
+      },
+      { signal: life.signal },
+    );
+    await keys(m.opener, "{Enter}");
+    await task();
+    m.api.show("entry");
+    expect(location.hash).toBe("#entry");
+    const back = popped();
+    await userEvent.click(m.close);
+    await back;
+    await frames(3);
+    await task();
+    expect(location.hash).toBe("#list-part");
+    expect(document.activeElement).toBe(m.opener);
   });
 
   it.each([

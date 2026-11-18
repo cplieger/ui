@@ -80,7 +80,9 @@ export function routeListDetail(options: ListRouteOptions): ListRoute {
       });
       // A press on a link to the address itself would replace its entry, which
       // in Firefox drops its state (https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate-fragid);
-      // the page keeps the entry and only moves focus.
+      // the page keeps the entry and only moves focus. While the address names
+      // an entry, the detail is one panel whose content a link to another
+      // entry changes, so that link replaces the entry, keeping its state.
       document.addEventListener("click", (e) => {
         const link = e.target instanceof Element ? e.target.closest("a[href]") : null;
         const plain = e.button === 0 && !(e.metaKey || e.ctrlKey || e.shiftKey || e.altKey);
@@ -88,9 +90,18 @@ export function routeListDetail(options: ListRouteOptions): ListRoute {
           !(link instanceof HTMLAnchorElement) ||
           !plain ||
           e.defaultPrevented ||
+          link.target !== "" ||
           location.hash === "" ||
-          link.href !== location.href
+          link.href.split("#")[0] !== location.href.split("#")[0]
         ) {
+          return;
+        }
+        if (link.href !== location.href) {
+          if (names(location.hash) && names(link.hash)) {
+            e.preventDefault();
+            stamp(fromList(history.state) ?? false, link.href);
+            sync(false);
+          }
           return;
         }
         e.preventDefault();

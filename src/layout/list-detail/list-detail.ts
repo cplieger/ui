@@ -476,7 +476,13 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
         // after it, so the page jumps back to the fragment; reveal again
         // after that task
         // (https://github.com/WebKit/WebKit/blob/9fea36ebc8f5d9bd116ccdbc2e7130eeb02217b3/Source/WebCore/page/LocalFrameView.cpp#L4757-L4783).
+        // Chromium's fragment anchor, applied on Back or Forward after the
+        // hide, clears focus when the part it names takes none
+        // (https://github.com/chromium/chromium/blob/main/third_party/blink/renderer/core/page/scrolling/element_fragment_anchor.cc).
         setTimeout(() => {
+          if (isPage(document.activeElement) && el.isConnected) {
+            land(el);
+          }
           if (document.activeElement === el) {
             reveal(el);
           }
