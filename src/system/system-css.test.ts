@@ -5046,6 +5046,78 @@ describe("css/system.css lists, feeds and counts", () => {
     }
   });
 
+  it("sets a two-line row's lines a space apart and as much room above them as below, at every height", () => {
+    theme("light");
+    const two = (title: string, lines: string) =>
+      `<li><a class="cp-list-row" href="#l"><span class="cp-icon"></span><span class="cp-cell-stack">${title}${lines}</span><span data-part="end"><time>4 min ago</time><span class="cp-cluster"><span class="cp-badge" data-variant="quiet">3</span></span></span></a></li>`;
+    // A plain title, a mono one, a meta line led by a glyph, and a kept row
+    // whose facts line is hidden.
+    const rows =
+      two('<span class="cp-truncate">Frieren</span>', "<small>TV, 2023</small>") +
+      two('<code class="cp-mono">Frieren.S01E04.en.ass</code>', "<small>48 KB</small>") +
+      two(
+        "<span>Household</span>",
+        '<span class="cp-meta"><span class="cp-icon"></span>3 people</span>',
+      ) +
+      two(
+        "<span>Mushishi</span>",
+        '<small hidden>TV, 2005</small><small class="cp-kept">Kept</small>',
+      );
+    /** A line's baseline, cap height and line box height, read from probes
+     *  set in its own font. */
+    const metrics = (line: Element) => {
+      const base = document.createElement("span");
+      base.style.cssText = "display: inline-block; inline-size: 1px; block-size: 0";
+      const cap = document.createElement("span");
+      cap.style.cssText = "position: absolute; block-size: 100cap";
+      const lh = document.createElement("span");
+      lh.style.cssText = "position: absolute; block-size: 100lh";
+      line.append(base, cap, lh);
+      return {
+        baseline: base.getBoundingClientRect().bottom,
+        cap: cap.getBoundingClientRect().height / 100,
+        lh: lh.getBoundingClientRect().height / 100,
+      };
+    };
+    const space = (
+      build('<div style="block-size: var(--cp-space-1)"></div>').firstElementChild as Element
+    ).getBoundingClientRect().height;
+    for (const tier of ["fine", "coarse"]) {
+      root.dataset["pointer"] = tier;
+      for (const density of ["compact", "", "tall"]) {
+        const el = build(`<ul class="cp-list" data-density="${density}">${rows}</ul>`);
+        for (const [i, r] of [...el.querySelectorAll<HTMLElement>(".cp-list-row")].entries()) {
+          const [title, sub] = [...r.querySelectorAll(".cp-cell-stack > :not([hidden])")] as [
+            Element,
+            Element,
+          ];
+          const t = metrics(title);
+          const s = metrics(sub);
+          const box = r.getBoundingClientRect();
+          const at = `${tier} ${density || "regular"} row ${String(i)}`;
+          expect(s.baseline - s.cap - t.baseline, `${at} gap`).toBeCloseTo(space, 0);
+          const above = t.baseline - t.cap - box.top;
+          const below = box.bottom - s.baseline;
+          expect(
+            Math.abs(above - below),
+            `${at} above ${String(above)} below ${String(below)}`,
+          ).toBeLessThanOrEqual(0.5);
+          // The height two untrimmed line boxes 2px apart gave the row.
+          const cs = getComputedStyle(r);
+          const end = (r.querySelector('[data-part="end"]') as Element).getBoundingClientRect()
+            .height;
+          const was = Math.max(
+            parseFloat(cs.minBlockSize),
+            parseFloat(cs.paddingTop) +
+              parseFloat(cs.paddingBottom) +
+              Math.max(t.lh + 2 + s.lh, end),
+          );
+          expect(box.height, `${at} height`).toBeCloseTo(was, 1);
+        }
+      }
+    }
+  });
+
   it("runs a compact row's time and count along its one line", () => {
     theme("light");
     root.dataset["pointer"] = "fine";
