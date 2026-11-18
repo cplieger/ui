@@ -9,7 +9,6 @@
 import { enhanceConfirm } from "../../buttons/confirm/confirm.js";
 import type { Tone } from "../../foundations/icons/glyph.js";
 import { installAnnouncer } from "../../feedback/announce/announce.js";
-import { skeletonTiming } from "../../feedback/skeleton/skeleton.js";
 import { installDialogs } from "../../overlays/dialog/dialog.js";
 import { codeOf, genericSignedIn, reasonOf, type Said } from "./answer.js";
 import type {
@@ -22,8 +21,8 @@ import type {
   StateResponse,
   StepUpAccess,
 } from "./client.js";
-import { actionButton, el, heading, line, sketch, uid } from "./dom.js";
-import { redrawKeepingFocus } from "./focus.js";
+import { actionButton, el, heading, line, uid } from "./dom.js";
+import { screenPart } from "./part.js";
 import { runDirect, type AccountAction } from "./run.js";
 import {
   cycle,
@@ -134,7 +133,6 @@ export function mountAccessSettings<C extends AccessSettingsClient>(
   root.append(h, notices.root, content);
 
   let current: SSOMode = "alongside";
-  const loads = latest(signal);
 
   const guarded = <T>(
     work: () => Promise<Result<T>>,
@@ -181,54 +179,42 @@ export function mountAccessSettings<C extends AccessSettingsClient>(
   const changes = (me: AccountView): boolean =>
     me.owner === true && client.adminApplySSO !== undefined;
 
-  const failed = (r: Refusal): void => {
-    if (endsSession(r, leave)) {
-      return;
-    }
-    const said = genericSignedIn(r, w);
-    notices.show(said.tone, said.text, retryButton(w["generic.retry"], load));
-  };
-
-  async function load(): Promise<void> {
-    region.setAttribute("aria-busy", "true");
-    const fresh = loads.start();
-    const skeleton = skeletonTiming(() => {
-      if (fresh()) {
-        redrawKeepingFocus(root, h, () => {
-          content.replaceChildren(sketch());
-        });
+  const part = screenPart<{ readonly state: StateResponse; readonly me: AccountView }>({
+    content,
+    scope: region,
+    heading: h,
+    busy: region,
+    notices,
+    signal,
+    read: async () => {
+      const [state, me] = await Promise.all([read(() => client.state()), read(() => client.me())]);
+      if (!me.ok || !state.ok) {
+        return me.ok ? (state as Refusal) : me;
       }
-    }, life);
-    const [state, me] = await Promise.all([read(() => client.state()), read(() => client.me())]);
-    if (!fresh()) {
-      skeleton.cancel();
-      return;
-    }
-    skeleton.commit(() => {
-      redrawKeepingFocus(root, h, () => {
-        show(state, me);
-      });
-    });
-  }
-
-  function show(state: Result<StateResponse>, me: Result<AccountView>): void {
-    region.removeAttribute("aria-busy");
-    notices.clear();
-    if (me.ok && !shows(me.data)) {
-      region.replaceChildren();
-      return;
-    }
-    if (!root.isConnected) {
-      region.replaceChildren(root);
-    }
-    if (!me.ok || !state.ok) {
-      content.replaceChildren();
-      failed(me.ok ? (state as Refusal) : me);
-      return;
-    }
-    current = state.data.sso ?? "alongside";
-    draw(me.data, httpsOriginOf(state.data.https_origin));
-  }
+      return { ok: true, data: { state: state.data, me: me.data } };
+    },
+    refused: (r, again) => {
+      if (endsSession(r, leave)) {
+        return;
+      }
+      if (!root.isConnected) {
+        region.replaceChildren(root);
+      }
+      const said = genericSignedIn(r, w);
+      notices.show(said.tone, said.text, retryButton(w["generic.retry"], again));
+    },
+    draw: ({ state, me }) => {
+      if (!shows(me)) {
+        region.replaceChildren();
+        return;
+      }
+      if (!root.isConnected) {
+        region.replaceChildren(root);
+      }
+      current = state.sso ?? "alongside";
+      draw(me, httpsOriginOf(state.https_origin));
+    },
+  });
 
   function draw(me: AccountView, httpsOrigin: string | undefined): void {
     // One form's readiness reads: a newer choice drops an older one's answer.
@@ -399,6 +385,10 @@ export function mountAccessSettings<C extends AccessSettingsClient>(
     });
   }
 
-  void load();
-  return { refresh: load };
+  void part.load();
+  return {
+    refresh: async () => {
+      await part.refresh();
+    },
+  };
 }

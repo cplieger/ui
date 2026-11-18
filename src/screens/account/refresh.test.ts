@@ -357,12 +357,12 @@ const control = (root: HTMLElement, key: string): HTMLElement | null => {
 
 interface Kept {
   readonly name: string;
-  /** Mounts the screen; its rows hold `key` until `drop()` answers the
-   *  next read without it. */
+  /** Mounts the screen; its rows hold `key` until `drop()`, where a read
+   *  can answer without it, makes the next read do so. */
   readonly mount: () => {
     readonly region: HTMLElement;
     readonly refresh: () => Promise<void>;
-    readonly drop: () => void;
+    readonly drop?: () => void;
   };
   readonly key: string;
   /** The heading focus goes to once the control is gone. */
@@ -443,11 +443,7 @@ const kept: readonly Kept[] = [
         navigate: () => undefined,
         ...signal(),
       });
-      return {
-        region,
-        refresh: () => screen.refresh(),
-        drop: () => fake.always("state", refuse(503, "auth_unavailable")),
-      };
+      return { region, refresh: () => screen.refresh() };
     },
   },
 ];
@@ -469,15 +465,18 @@ describe("every account screen, a host's refresh while a control has focus", () 
     expect(document.activeElement).toBe(after);
   });
 
-  it.each(kept)("$name gives focus to its heading once the control is gone", async (c) => {
+  // Every access settings answer draws the same choices.
+  const gone = kept.filter((c) => c.name !== "Access settings");
+  it.each(gone)("$name gives focus to its heading once the control is gone", async (c) => {
     const { region, refresh, drop } = c.mount();
+    expect(drop, "a row in this table drops its control").toBeDefined();
     const before = await vi.waitFor(() => {
       const found = control(region, c.key);
       expect(found).not.toBeNull();
       return found!;
     });
     before.focus();
-    drop();
+    drop?.();
     await refresh();
     await tick();
     expect(control(region, c.key)).toBeNull();
@@ -1177,5 +1176,55 @@ describe("Account and security, a refresh with one of its reads refused", () => 
     await screen.refresh();
     expect(noticeOf(region)).toBe("");
     expect(passkeyTable(region)).toBe("Phone,Tablet");
+  });
+});
+
+interface RefusedAgain {
+  readonly name: string;
+  /** The read the refresh is refused. */
+  readonly call: string;
+  readonly fake?: () => Fake;
+  readonly mount: (fake: Fake) => {
+    readonly region: HTMLElement;
+    readonly refresh: () => Promise<void>;
+  };
+  readonly shows: (region: HTMLElement) => string;
+  /** An answer for the refresh after the refusal, and what it shows. */
+  readonly newer: unknown;
+  readonly shown: string;
+}
+
+const refusedAgain: readonly RefusedAgain[] = [
+  ...refreshed.map((c) => ({
+    ...c,
+    fake: () => (c.fake?.() ?? new Fake()).always(c.call, c.older),
+  })),
+  {
+    name: "Users, its invites",
+    call: "adminTokens",
+    fake: () => new Fake().always("me", ok(owner)).always("adminUsers", ok([ME])),
+    mount: usersOn,
+    shows: peopleRows,
+    newer: ok([]),
+    shown: "mika",
+  },
+];
+
+describe("every account screen, a refresh refused once something is drawn", () => {
+  it.each(refusedAgain)("$name keeps what is drawn under the notice", async (c) => {
+    const fake = c.fake?.() ?? new Fake();
+    const { region, refresh } = c.mount(fake);
+    await vi.waitFor(() => {
+      expect(c.shows(region)).not.toBe("");
+    });
+    const before = c.shows(region);
+    fake.answer(c.call, refuse(503, "auth_unavailable"));
+    await refresh();
+    expect(noticeOf(region)).toBe("The app cannot do this right now. Try again in a few seconds.");
+    expect(c.shows(region)).toBe(before);
+    fake.always(c.call, c.newer);
+    await refresh();
+    expect(noticeOf(region)).toBe("");
+    expect(c.shows(region)).toBe(c.shown);
   });
 });

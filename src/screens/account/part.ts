@@ -5,7 +5,9 @@
  * @module
  */
 
+import { skeletonTiming } from "../../feedback/skeleton/skeleton.js";
 import type { Refusal, Result } from "./client.js";
+import { sketch } from "./dom.js";
 import type { Heading } from "./focus.js";
 import { redrawKeepingFocus } from "./focus.js";
 import { renameHold, type RenameSpec } from "./rename.js";
@@ -14,7 +16,11 @@ import { latest, type Slot } from "./screen.js";
 export interface PartSpec<T> {
   /** What `draw` fills. */
   readonly content: HTMLElement;
+  /** Where a draw keeps focus, when wider than `content`. */
+  readonly scope?: HTMLElement;
   readonly heading: Heading;
+  /** What carries `aria-busy` while `load` runs. */
+  readonly busy?: HTMLElement;
   readonly notices: Slot;
   readonly signal?: AbortSignal | undefined;
   /** The part's read; undefined when it did not run. */
@@ -37,6 +43,9 @@ export interface Part<T> {
    * draw back and drops the request. True when it drew.
    */
   refresh(focus?: string | null): Promise<boolean>;
+  /** The first read: `refresh`, with a sketch in `content` while it is
+   *  slow and nothing is drawn. */
+  load(): Promise<boolean>;
   /** Draws data the screen read itself, as the newest read's. */
   show(data: T, focus?: string | null): void;
   /** Shows a refusal of a read the screen ran itself as the part's, so
@@ -52,6 +61,8 @@ export interface Part<T> {
 
 export function screenPart<T>(spec: PartSpec<T>): Part<T> {
   const reads = latest(spec.signal);
+  const scope = spec.scope ?? spec.content;
+  let runs = 0;
   // A superseded read hands its focus request to the newer one.
   let wanted: string | null | undefined;
   let drawn: { readonly data: T } | undefined;
@@ -68,7 +79,7 @@ export function screenPart<T>(spec: PartSpec<T>): Part<T> {
     failure = undefined;
     drawn = { data };
     redrawKeepingFocus(
-      spec.content,
+      scope,
       spec.heading,
       () => {
         spec.draw(data);
@@ -85,6 +96,7 @@ export function screenPart<T>(spec: PartSpec<T>): Part<T> {
 
   const refresh = async (focus?: string | null): Promise<boolean> => {
     wanted = focus === undefined ? wanted : focus;
+    runs += 1;
     let drew = false;
     await reads.run(spec.read, (got) => {
       if (got === undefined) {
@@ -109,8 +121,34 @@ export function screenPart<T>(spec: PartSpec<T>): Part<T> {
     return drew;
   };
 
+  const load = async (): Promise<boolean> => {
+    spec.busy?.setAttribute("aria-busy", "true");
+    const reading = refresh();
+    const mine = runs;
+    const skeleton = skeletonTiming(
+      () => {
+        if (runs === mine && drawn === undefined) {
+          redrawKeepingFocus(scope, spec.heading, () => {
+            spec.content.replaceChildren(sketch());
+          });
+        }
+      },
+      spec.signal === undefined ? {} : { signal: spec.signal },
+    );
+    const drew = await reading;
+    if (spec.signal?.aborted === true) {
+      skeleton.cancel();
+      return false;
+    }
+    skeleton.commit(() => {
+      spec.busy?.removeAttribute("aria-busy");
+    });
+    return drew;
+  };
+
   return {
     refresh,
+    load,
     show(data, focus) {
       reads.start();
       wanted = undefined;

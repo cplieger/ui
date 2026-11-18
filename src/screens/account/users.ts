@@ -8,7 +8,6 @@
 
 import type { Confirm } from "../../buttons/confirm/confirm.js";
 import { installAnnouncer } from "../../feedback/announce/announce.js";
-import { skeletonTiming } from "../../feedback/skeleton/skeleton.js";
 import { clearError, showError } from "../../forms/form/form.js";
 import { installDialogs } from "../../overlays/dialog/dialog.js";
 import { rowActions, rowHead, type Action } from "./actions.js";
@@ -36,13 +35,13 @@ import {
   field,
   heading,
   plainButton,
-  sketch,
   stateMark,
   table,
   time,
   uid,
 } from "./dom.js";
 import { drawKeys, type KeysSection } from "./keys.js";
+import { screenPart } from "./part.js";
 import { runDirect, type AccountAction } from "./run.js";
 import {
   cycle,
@@ -100,6 +99,17 @@ export interface UsersScreen {
 }
 
 const NOT_RUN: Refusal = { ok: false, status: 0, error: "not run" };
+
+/** What one whole read of the Users screen draws. */
+interface People {
+  readonly viewer: AccountView;
+  readonly list: readonly UserView[];
+  readonly tokens: readonly TokenView[];
+  readonly mode: SSOMode;
+  readonly httpsOrigin: string | undefined;
+  /** The key filter the people were read for. */
+  readonly key: number | undefined;
+}
 const LIFETIMES = [1, 24, 72, 168] as const;
 const LIFETIME = 24;
 const INVITE_LIFETIMES = [24, 72, 168, 336] as const;
@@ -199,7 +209,6 @@ export function mountUsers<C extends UsersClient>(
   keysPart.root.dataset["part"] = "admin-keys";
   region.replaceChildren(root);
 
-  let viewer: AccountView | undefined;
   let list: readonly UserView[] = [];
   let keys: readonly KeyView[] = [];
   let tokens: readonly TokenView[] = [];
@@ -207,20 +216,14 @@ export function mountUsers<C extends UsersClient>(
   let mode: SSOMode = "alongside";
   let httpsOrigin: string | undefined;
   let keysView: KeysSection | undefined;
-  // The whole read draws the people; `keys` takes the newest keys answer,
-  // the whole read's or the keys table's own.
-  const reads = latest(signal);
+  /** The key filter of the people drawn. */
+  let shownKey: number | undefined;
+  // `keys` takes the newest keys answer, the whole read's or the keys
+  // table's own.
   const keyReads = latest(signal);
   /** Whether `keys` is the server's whole list, so a key missing from it
    *  is revoked; false while no keys read has answered. */
   let keysKnown = false;
-  /** The focus the newest refresh draws with: a control's
-   *  `data-cp-action`, null for the heading. */
-  let wanted: string | null | undefined;
-  /** Whether the people on screen are a read's, not its failure. */
-  let drawn = false;
-  /** The notice of the last whole read that failed, until one succeeds. */
-  let failure: Element | undefined;
 
   function part(title: string): {
     readonly root: HTMLElement;
@@ -332,16 +335,16 @@ export function mountUsers<C extends UsersClient>(
     return false;
   };
 
-  const failed = (r: Refusal): void => {
+  const failed = (r: Refusal, again: () => void): void => {
     if (endsSession(r, leave)) {
       return;
     }
     if (codeOf(r) === "auth_forbidden") {
-      failure = notices.show("danger", w["users.forbidden"]);
+      notices.show("danger", w["users.forbidden"]);
       return;
     }
     const said = genericSignedIn(r, w);
-    failure = notices.show(said.tone, said.text, retryButton(w["generic.retry"], load));
+    notices.show(said.tone, said.text, retryButton(w["generic.retry"], again));
   };
 
   /** Takes a keys answer: a refusal keeps the last list, no longer known
@@ -356,9 +359,9 @@ export function mountUsers<C extends UsersClient>(
   };
 
   /** Reads the viewer, the app's state, the people and, as mounted, the
-   *  keys and invites that name them; false on a failure, which it shows.
-   *  A failed keys read keeps the last list, no longer known whole. */
-  const readAll = async (current = reads.start()): Promise<boolean> => {
+   *  keys and invites that name them. A failed keys read keeps the last
+   *  list, no longer known whole. */
+  const readAll = async (): Promise<Result<People>> => {
     const key = filter;
     const [state, me, users, tokenList] = await Promise.all([
       read(() => client.state()),
@@ -367,77 +370,45 @@ export function mountUsers<C extends UsersClient>(
       has("invites") || has("admin-keys") ? read(() => client.adminTokens()) : undefined,
       has("admin-keys") ? keyReads.run(() => read(() => client.adminKeys()), takeKeys) : undefined,
     ]);
-    if (!current()) {
-      return false;
-    }
     if (!me.ok || !users.ok || !state.ok || tokenList?.ok === false) {
-      wanted = undefined;
-      drawn = false;
-      redrawKeepingFocus(root, h, () => {
-        content.replaceChildren();
-        failed(!me.ok ? me : !users.ok ? users : !state.ok ? state : (tokenList as Refusal));
-      });
-      return false;
+      return !me.ok ? me : !users.ok ? users : !state.ok ? state : (tokenList as Refusal);
     }
-    viewer = me.data;
-    list = users.data;
-    tokens = tokenList?.data ?? [];
-    mode = state.data.sso ?? "alongside";
-    httpsOrigin = httpsOriginOf(state.data.https_origin);
-    return true;
-  };
-
-  const load = async (): Promise<void> => {
-    region.setAttribute("aria-busy", "true");
-    const current = reads.start();
-    const reading = readAll(current);
-    // A newer read may have drawn by the time the sketch is due.
-    const skeleton = skeletonTiming(() => {
-      if (current()) {
-        redrawKeepingFocus(root, h, () => {
-          content.replaceChildren(sketch());
-        });
-      }
-    }, life);
-    const got = await reading;
-    if (signal?.aborted === true) {
-      skeleton.cancel();
-      return;
-    }
-    skeleton.commit(() => {
-      region.removeAttribute("aria-busy");
-      if (got) {
-        redraw();
-      }
-    });
-  };
-
-  /** Draws the newest read, with the focus its refresh asked for. */
-  function redraw(): void {
-    const asked = wanted;
-    wanted = undefined;
-    drawn = true;
-    redrawKeepingFocus(
-      root,
-      h,
-      () => {
-        notices.drop(failure);
-        failure = undefined;
-        draw();
+    return {
+      ok: true,
+      data: {
+        viewer: me.data,
+        list: users.data,
+        tokens: tokenList?.data ?? [],
+        mode: state.data.sso ?? "alongside",
+        httpsOrigin: httpsOriginOf(state.data.https_origin),
+        key,
       },
-      asked,
-    );
-  }
+    };
+  };
 
-  /** Reads again and redraws. `focus` names the control to focus after
-   *  it, null or a gone control the heading; with no `focus`, focus stays
-   *  where it is, or moves to the heading when the redraw took its
-   *  control away and drew none like it. */
+  const people = screenPart<People>({
+    content,
+    scope: root,
+    heading: h,
+    busy: region,
+    notices,
+    signal,
+    read: readAll,
+    refused: failed,
+    draw: (got) => {
+      list = got.list;
+      tokens = got.tokens;
+      mode = got.mode;
+      httpsOrigin = got.httpsOrigin;
+      shownKey = got.key;
+      drawPeople(got.viewer);
+      drawEveryKey(!got.viewer.session.secure);
+    },
+  });
+
+  /** Reads again and redraws, as `Part.refresh`. */
   async function refresh(focus?: string | null): Promise<void> {
-    wanted = focus === undefined ? wanted : focus;
-    if (await readAll()) {
-      redraw();
-    }
+    await people.refresh(focus);
   }
 
   /** Filters the people by the key `id`, or shows every one. */
@@ -491,25 +462,17 @@ export function mountUsers<C extends UsersClient>(
     return a;
   };
 
-  function draw(): void {
-    if (viewer === undefined) {
-      return;
-    }
-    drawPeople(viewer);
-    drawEveryKey(!viewer.session.secure);
-  }
-
   /** The heading, the bar, the people and the invites: everything a key's
    *  label is shown in, but the keys table. */
   function drawPeople(me: AccountView): void {
     const plain = !me.session.secure;
     const https = plain ? holdForHttps([], { httpsOrigin }, options.app, w) : undefined;
     h.textContent =
-      filter === undefined ? w["users.title"] : w["users.reachedTitle"](keyLabel(filter));
+      shownKey === undefined ? w["users.title"] : w["users.reachedTitle"](keyLabel(shownKey));
     const barHeld = drawBar(me, plain, https);
     let held = false;
     const parts: Node[] = [];
-    if (filter !== undefined) {
+    if (shownKey !== undefined) {
       const all = el("a", undefined, w["users.showAll"]);
       all.href = addressOf(undefined);
       all.addEventListener(
@@ -526,7 +489,7 @@ export function mountUsers<C extends UsersClient>(
       back.append(all);
       parts.push(back);
     }
-    if (list.length === 0 && filter !== undefined) {
+    if (list.length === 0 && shownKey !== undefined) {
       parts.push(el("p", "cp-meta", w["users.reachedNone"]));
     } else {
       const through = list.some((u) => (u.key_lineage?.length ?? 0) > 0);
@@ -596,7 +559,7 @@ export function mountUsers<C extends UsersClient>(
       invitesPart.root.remove();
       return;
     }
-    const key = filter;
+    const key = shownKey;
     const shown =
       key === undefined ? tokens : tokens.filter((t) => t.issuer_lineage?.includes(key) === true);
     if (shown.length === 0) {
@@ -668,8 +631,8 @@ export function mountUsers<C extends UsersClient>(
           const taken = await keyReads.run(
             () => got,
             (answer) => {
-              const me = viewer;
-              if (takeKeys(answer) && drawn && me !== undefined) {
+              const me = people.drawn()?.viewer;
+              if (takeKeys(answer) && me !== undefined) {
                 redrawKeepingFocus(root, h, () => {
                   drawPeople(me);
                 });
@@ -685,11 +648,7 @@ export function mountUsers<C extends UsersClient>(
             follow(id);
           },
           invites: () => tokens,
-          revoked: async () => {
-            if (await readAll()) {
-              redraw();
-            }
-          },
+          revoked: refresh,
         },
       },
     );
@@ -1369,6 +1328,6 @@ export function mountUsers<C extends UsersClient>(
     return [label, input];
   }
 
-  void load();
+  void people.load();
   return { refresh: () => refresh(), show };
 }
