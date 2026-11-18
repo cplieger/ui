@@ -1,7 +1,7 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
-import { userEvent } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 
-import { markKept } from "./list-row.js";
+import { markKept, skeletonListRow } from "./list-row.js";
 
 let sheet: HTMLLinkElement;
 
@@ -244,5 +244,84 @@ describe("markKept", () => {
       markKept(ul.firstElementChild as Element, { from: Number.NaN, reason: "Partial" });
     }).toThrow(TypeError);
     expect(ul.querySelector("[data-kept]")).toBeNull();
+  });
+});
+
+describe("skeletonListRow", () => {
+  /** A conversation: an avatar, a title over a preview, and the time over
+   *  the participants and an unread badge on some rows. */
+  const conversation = (title: string, mono: boolean, unread: boolean): string =>
+    '<li><a class="cp-list-row" href="#c"><span class="cp-avatar" data-harmony="2">UI</span>' +
+    `<span class="cp-cell-stack"><span class="cp-truncate${mono ? " cp-mono" : ""}">${title}</span>` +
+    '<small class="cp-truncate">@codex: The queue moves to you once the scroll fix merges.</small></span>' +
+    '<span data-part="end"><time>3h</time><span class="cp-cluster"><span class="cp-meta">5</span>' +
+    `${unread ? '<span class="cp-badge">2</span>' : ""}</span></span></a></li>`;
+  const ROWS =
+    conversation("/workspace/grelot/internal", true, false) +
+    conversation("Announcements", false, true) +
+    conversation("/workspace/ui/src/data", true, true) +
+    conversation("@claude and @gpt", false, false);
+  const listOf = (attrs: string, body: string): HTMLUListElement => {
+    const ul = document.createElement("ul");
+    ul.className = "cp-list";
+    // Static test markup, never caller text.
+    ul.setHTMLUnsafe(body);
+    for (const [name, value] of attrs === "" ? [] : [attrs.split("=") as [string, string]]) {
+      ul.setAttribute(name, value);
+    }
+    document.body.append(ul);
+    return ul;
+  };
+  const heights = (ul: HTMLUListElement) =>
+    [...ul.children].map((li) => li.getBoundingClientRect().height);
+
+  afterEach(async () => {
+    document.documentElement.removeAttribute("data-pointer");
+    await page.viewport(1280, 720);
+  });
+
+  it.each([
+    [1440, "fine"],
+    [1440, "coarse"],
+    [390, "fine"],
+    [390, "coarse"],
+  ] as const)(
+    "keeps every row and the list one height while loading at %ipx under a %s pointer",
+    async (width, tier) => {
+      await page.viewport(width, 900);
+      document.documentElement.dataset["pointer"] = tier;
+      const ul = listOf("", ROWS);
+      const before = { rows: heights(ul), block: ul.getBoundingClientRect().height };
+      // A title in a mono face, a badge or none: every loaded row is one height.
+      const lined = before.rows.slice(1);
+      expect(Math.max(...lined) - Math.min(...lined)).toBeLessThan(0.01);
+      const bones = skeletonListRow(ul);
+      ul.replaceChildren(...[...ul.children].map(() => bones.cloneNode(true)));
+      expect(heights(ul)).toEqual(before.rows);
+      expect(ul.getBoundingClientRect().height).toBe(before.block);
+    },
+  );
+
+  it("takes the loaded lead's class and one bar per line", () => {
+    const li = skeletonListRow(listOf("", ROWS));
+    const row = li.firstElementChild as HTMLElement;
+    expect(li.getAttribute("aria-hidden")).toBe("true");
+    expect(row.matches(".cp-list-row[data-skeleton]")).toBe(true);
+    expect(row.firstElementChild?.className).toBe("cp-avatar");
+    expect(row.querySelectorAll(":scope > .cp-cell-stack > .cp-skeleton")).toHaveLength(2);
+    expect(row.querySelectorAll(':scope > [data-part="end"] > .cp-skeleton')).toHaveLength(2);
+  });
+
+  it("reads the row's shape from data-row when the list has no rows yet", () => {
+    const tall = listOf("data-density=tall", "");
+    tall.dataset["row"] = "media";
+    const media = skeletonListRow(tall).firstElementChild as HTMLElement;
+    expect(media.firstElementChild?.className).toBe("cp-cover");
+    const sized = listOf("data-row=5rem", "");
+    sized.append(skeletonListRow(sized));
+    expect(heights(sized)[0]).toBeCloseTo(80, 1);
+    const plain = skeletonListRow(listOf("", "")).firstElementChild as HTMLElement;
+    expect(plain.querySelectorAll(".cp-skeleton")).toHaveLength(2);
+    expect(plain.firstElementChild?.className).toBe("cp-cell-stack");
   });
 });

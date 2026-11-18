@@ -67,7 +67,7 @@ const t = skeletonTiming(() => body.replaceChildren(...rows.map(() => bones.clon
 ```
 
 - `skeletonRow(table)` returns a `<tr data-skeleton aria-hidden="true">` in a loaded row's shape, to clone once per row: a title cell holds a cover-sized bone and a line of bars per line, a `.cp-cell-stack` two bars, and any other cell one. Each cell takes its head cell's `data-col` and `data-priority`, so the same columns step aside. Loading and loaded rows are then one height and the table keeps its size when the data comes. [skeleton](../feedback/skeleton.md) times it.
-- The table's first loaded body row gives the shapes. Before any row has loaded, `data-row` on the table names them: `data-row="media"` gives the first column without a `data-col` a title cell with a cover, and a length, such as `data-row="4rem"`, makes every cell that tall.
+- The table's first loaded body row gives the shapes, and its cells stand for a missing head. Before any row has loaded, `data-row` on the table names them: `data-row="media"` gives the first column without a `data-col` a title cell with a cover, and a length, such as `data-row="4rem"`, makes every cell that tall.
 
 ## Sort
 

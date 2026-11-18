@@ -8,8 +8,11 @@
 
 import { until, whenAborted } from "../../core/lifetime/lifetime.js";
 import { announce } from "../../feedback/announce/announce.js";
+import { bone } from "../../feedback/skeleton/bone.js";
+import { skeletonListRow } from "../list-row/list-row.js";
 import { focusOn, landing } from "../list-row/row.js";
 import { scrollerOf, seenOf, viewOf } from "../list-row/scroller.js";
+import { skeletonRow } from "../table/skeleton-row.js";
 
 /** A row's key, or `undefined` for a row not loaded yet. */
 export type KeyedListKeys = readonly (string | undefined)[];
@@ -178,8 +181,10 @@ export function enhanceKeyedList(container: Body, options: KeyedListOptions): Ke
   const slots = new Map<string, number>();
   const pool = new Map<string, number>();
   let sum = 0;
-  let blank = 3 * (Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16);
-  let seed = blank;
+  // A skeleton takes its rows' shape, so until one is measured its slot is
+  // theirs.
+  let blank: number | undefined;
+  let seed = 3 * (Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16);
   let gap = 0;
   let fitted = "";
   let sums = new Float64Array(1);
@@ -275,7 +280,8 @@ export function enhanceKeyedList(container: Body, options: KeyedListOptions): Ke
       sums = new Float64Array(n + 1);
       for (let i = 0; i < n; i += 1) {
         const key = keys[i];
-        sums[i + 1] = (sums[i] ?? 0) + (key === undefined ? blank : (slots.get(key) ?? mean));
+        sums[i + 1] =
+          (sums[i] ?? 0) + (key === undefined ? (blank ?? mean) : (slots.get(key) ?? mean));
       }
       stale = false;
     }
@@ -293,6 +299,7 @@ export function enhanceKeyedList(container: Body, options: KeyedListOptions): Ke
       gap = g;
       fitted = now;
       seed = guess();
+      blank = undefined;
       slots.clear();
       pool.clear();
       sum = 0;
@@ -316,34 +323,23 @@ export function enhanceKeyedList(container: Body, options: KeyedListOptions): Ke
 
   const skeleton = (i: number): HTMLElement => {
     let el = loading.get(i);
-    if (el !== undefined) {
-      return el;
-    }
-    const bar = () => {
-      const s = document.createElement("span");
-      s.className = "cp-skeleton";
-      return s;
-    };
-    if (table) {
-      const tr = document.createElement("tr");
-      for (let c = columns(); c > 0; c -= 1) {
-        tr.insertCell().append(bar());
+    if (el === undefined) {
+      const t = container.closest("table");
+      if (!(container instanceof HTMLTableSectionElement)) {
+        el = skeletonListRow(container);
+      } else if (t === null) {
+        const tr = document.createElement("tr");
+        for (let c = columns(); c > 0; c -= 1) {
+          tr.insertCell().append(bone());
+        }
+        tr.dataset["skeleton"] = "";
+        tr.setAttribute("aria-hidden", "true");
+        el = tr;
+      } else {
+        el = skeletonRow(t);
       }
-      tr.dataset["skeleton"] = "";
-      el = tr;
-    } else {
-      const stack = document.createElement("span");
-      stack.className = "cp-cell-stack";
-      stack.append(bar(), bar());
-      const body = document.createElement("div");
-      body.className = "cp-list-row";
-      body.dataset["skeleton"] = "";
-      body.append(stack);
-      el = document.createElement("li");
-      el.append(body);
+      loading.set(i, el);
     }
-    el.setAttribute("aria-hidden", "true");
-    loading.set(i, el);
     return el;
   };
 

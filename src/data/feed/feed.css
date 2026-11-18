@@ -161,6 +161,13 @@
   font-size: var(--cp-text-sm);
 }
 
+/* A name's bar holds its line, so the loading panel is the loaded one's
+ * size. */
+.cp-feed-readers li > .cp-skeleton {
+  inline-size: 6rem;
+  margin-block: calc((1lh - 0.75em) / 2);
+}
+
 /* The composer and the New messages button, pinned to the scroller's end.
  * --cp-keyboard-inset, which the feed script sets, is the part of the foot
  * the on-screen keyboard covers: padding it keeps the controls above the

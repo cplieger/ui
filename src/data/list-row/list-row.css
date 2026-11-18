@@ -198,8 +198,12 @@
 
 /* A name with no break point, such as a file's or a path, wraps inside the
  * row rather than widening it. */
+/* Each line is at least the title's line tall, whatever its font, so a
+ * row's height follows its line count alone and a loading row
+ * (skeletonListRow) knows it before the data. */
 .cp-list-row > .cp-cell-stack {
   flex: 1;
+  grid-auto-rows: minmax(1lh, auto);
   justify-items: stretch;
   min-inline-size: 0;
   padding-block: 0;
@@ -527,6 +531,7 @@ button.cp-list-row[aria-pressed] .cp-badge {
 }
 
 :where(.cp-list[data-layout="grid"] > li) > .cp-list-row > .cp-cell-stack {
+  grid-auto-rows: auto;
   gap: var(--cp-space-2);
   font-size: var(--cp-text-sm);
 }
@@ -625,8 +630,22 @@ div.cp-list-foot {
   block-size: 2rem;
 }
 
-.cp-list-row[data-skeleton] > .cp-cell-stack {
-  gap: var(--cp-space-2);
+/* A loading row's lead keeps the loaded lead's class for its size, drawn
+ * in the skeleton's fill. */
+.cp-list-row[data-skeleton] > :not(.cp-skeleton, .cp-cell-stack, [data-part="end"]) {
+  border-radius: var(--cp-radius-control);
+  background: var(--cp-fill-hover);
+  color: transparent;
+  mask: none;
+  animation: cp-skeleton var(--cp-skeleton-dur) var(--cp-ease-move) infinite alternate;
+}
+
+.cp-list-row[data-skeleton] > [data-part="end"] {
+  grid-auto-rows: minmax(1lh, auto);
+}
+
+.cp-list-row[data-skeleton] > :is(.cp-cell-stack, [data-part="end"]) > .cp-skeleton {
+  align-self: center;
 }
 
 .cp-list-row[data-skeleton] > .cp-cell-stack > :first-child {
@@ -635,6 +654,16 @@ div.cp-list-foot {
 
 .cp-list-row[data-skeleton] > .cp-cell-stack > :nth-child(2) {
   inline-size: 85%;
+}
+
+.cp-list-row[data-skeleton] > [data-part="end"] > .cp-skeleton {
+  inline-size: 3rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-list-row[data-skeleton] > :not(.cp-skeleton, .cp-cell-stack, [data-part="end"]) {
+    animation: none;
+  }
 }
 
 /* A table row kept the same way: muted ink in every cell. */

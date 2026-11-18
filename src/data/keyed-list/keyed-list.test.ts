@@ -374,6 +374,51 @@ describe("enhanceKeyedList", () => {
     expect(asked).toHaveLength(1);
   });
 
+  it("draws a skeleton as tall as a loaded row, so the scroll height holds when one is drawn", async () => {
+    const ul = virtualList();
+    enhance(ul, { keys: [...keysOf(100), ...Array<undefined>(900)] });
+    await frames();
+    const loaded = rows(ul)[1]?.getBoundingClientRect().height;
+    const height = ul.scrollHeight;
+    ul.scrollTop = 150 * pitchOf(ul);
+    await frames();
+    await frames();
+    const skeletons = [...ul.querySelectorAll<HTMLElement>(":scope > li:has(> [data-skeleton])")];
+    expect(skeletons.length).toBeGreaterThan(0);
+    for (const li of skeletons) {
+      expect(li.getBoundingClientRect().height).toBe(loaded);
+    }
+    expect(Math.abs(ul.scrollHeight - height)).toBeLessThan(1);
+  });
+
+  it("draws a table's skeleton in its rows' shape, under the head's columns", () => {
+    const table = document.createElement("table");
+    table.className = "cp-table";
+    const head = table.createTHead().insertRow();
+    for (const [name, col] of [
+      ["Title", undefined],
+      ["Verdict", undefined],
+      ["Size", "num"],
+    ] as const) {
+      const th = document.createElement("th");
+      th.textContent = name;
+      if (col !== undefined) {
+        th.dataset["col"] = col;
+      }
+      head.append(th);
+    }
+    const body = table.createTBody();
+    document.body.append(table);
+    enhance(body, { keys: [...keysOf(2), undefined], window: false });
+    const skeleton = body.rows[2] as HTMLTableRowElement;
+    expect(skeleton.hasAttribute("data-skeleton")).toBe(true);
+    expect(skeleton.getAttribute("aria-hidden")).toBe("true");
+    expect([...skeleton.cells].map((c) => c.dataset["col"])).toEqual([undefined, undefined, "num"]);
+    expect(skeleton.getBoundingClientRect().height).toBe(
+      body.rows[1]?.getBoundingClientRect().height,
+    );
+  });
+
   it("writes the count in subflux's words, and says it once a new set settles", async () => {
     const ul = virtualList();
     const count = document.createElement("span");
