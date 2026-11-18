@@ -46,6 +46,22 @@ function at(icon: HTMLElement, ms: number): [rotate: number, clapper: number] {
   return [degrees(s.rotate), degrees(s.getPropertyValue("--cp-toggle-clapper"))];
 }
 
+/** The angle halfway through one leg from `from` to `to` degrees, eased by
+ *  the token `ease` names, from a reference animation. */
+function midLeg(ease: string, ms: number, from: number, to: number): number {
+  const easing = getComputedStyle(document.documentElement).getPropertyValue(ease).trim();
+  const probe = build("<span></span>").firstElementChild as HTMLElement;
+  // WebKit computes no rotate on a non-replaced inline box.
+  probe.style.display = "inline-block";
+  const a = probe.animate([{ rotate: `${String(from)}deg` }, { rotate: `${String(to)}deg` }], {
+    duration: ms,
+    easing,
+  });
+  a.pause();
+  a.currentTime = ms / 2;
+  return degrees(getComputedStyle(probe).rotate);
+}
+
 describe("the bell's ring", () => {
   it("swings the body from its crown and the clapper against it, on the picked keyframes", () => {
     const el = build(bell("true"));
@@ -79,6 +95,18 @@ describe("the bell's ring", () => {
     for (const [ms, deg] of clapper) {
       expect(at(icon, ms)[1], `clapper at ${String(ms)}ms`).toBeCloseTo(deg, 1);
     }
+    // Halfway through a leg the easing shows: the first on --cp-ease-out,
+    // the next on --cp-ease-move.
+    expect(at(icon, 54)[0], "rotate at 54ms").toBeCloseTo(midLeg("--cp-ease-out", 108, 0, 16), 1);
+    expect(at(icon, 189)[0], "rotate at 189ms").toBeCloseTo(
+      midLeg("--cp-ease-move", 162, 16, -12),
+      1,
+    );
+    expect(at(icon, 72)[1], "clapper at 72ms").toBeCloseTo(midLeg("--cp-ease-out", 144, 0, -11), 1);
+    expect(at(icon, 225)[1], "clapper at 225ms").toBeCloseTo(
+      midLeg("--cp-ease-move", 162, -11, 8),
+      1,
+    );
     // The clapper layer turns on the pivot: 18 of 24 units below it.
     const reach = (18 * 18) / 24;
     at(icon, 144);

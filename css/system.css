@@ -12387,41 +12387,43 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
 }
 
 /* Struck out on --cp-ease-out, then five half swings, each a move between
- * two places, to rest. */
+ * two places, to rest. The curves are the tokens' values written out: every
+ * engine reads var() in a keyframe's timing function as ease
+ * (https://issues.chromium.org/issues/479982201; Gecko and WebKit too). */
 @keyframes cp-toggle-ring {
   0% {
     rotate: 0deg;
-    animation-timing-function: var(--cp-ease-out);
+    animation-timing-function: cubic-bezier(0.2, 0, 0, 1);
   }
 
   12% {
     rotate: 16deg;
-    animation-timing-function: var(--cp-ease-move);
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   30% {
     rotate: -12deg;
-    animation-timing-function: var(--cp-ease-move);
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   47% {
     rotate: 8deg;
-    animation-timing-function: var(--cp-ease-move);
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   63% {
     rotate: -5deg;
-    animation-timing-function: var(--cp-ease-move);
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   78% {
     rotate: 2.5deg;
-    animation-timing-function: var(--cp-ease-move);
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   90% {
     rotate: -1deg;
-    animation-timing-function: var(--cp-ease-move);
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   100% {
@@ -12435,37 +12437,37 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
   0% {
     --cp-toggle-clapper: 0deg;
 
-    animation-timing-function: var(--cp-ease-out);
+    animation-timing-function: cubic-bezier(0.2, 0, 0, 1);
   }
 
   16% {
     --cp-toggle-clapper: -11deg;
 
-    animation-timing-function: var(--cp-ease-move);
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   34% {
     --cp-toggle-clapper: 8deg;
 
-    animation-timing-function: var(--cp-ease-move);
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   51% {
     --cp-toggle-clapper: -5.5deg;
 
-    animation-timing-function: var(--cp-ease-move);
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   67% {
     --cp-toggle-clapper: 3.5deg;
 
-    animation-timing-function: var(--cp-ease-move);
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   82% {
     --cp-toggle-clapper: -1.5deg;
 
-    animation-timing-function: var(--cp-ease-move);
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   100% {
