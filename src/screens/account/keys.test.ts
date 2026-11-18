@@ -494,6 +494,28 @@ describe("mountSecurity: Rename, Rotate and Revoke", () => {
     expect(await keyRows(region)).toHaveLength(1);
   });
 
+  it("keeps a revoked key gone when a read sent before the revoke answers after it", async () => {
+    const late = Promise.withResolvers<unknown>();
+    const fresh: KeyView = { ...BACKUP, id: 20, label: "ci" };
+    const fake = new Fake().answer("keys", ok([fresh, BACKUP]), () => late.promise, ok([BACKUP]));
+    const { region } = mount(fake, { parts: [...KEY_PARTS] });
+    const row = await keyRow(region, "ci");
+    window.dispatchEvent(new FocusEvent("focus"));
+    await vi.waitFor(() => {
+      expect(fake.named("keys")).toHaveLength(2);
+    });
+    await press(row, "Revoke…");
+    await answerQuestion("Revoke ci?", "Revoke key");
+    await vi.waitFor(async () => {
+      expect(await keyRows(region)).toHaveLength(1);
+    });
+    late.resolve(ok([fresh, BACKUP]));
+    await new Promise((done) => setTimeout(done, 50));
+    expect(fake.named("keys")).toHaveLength(3);
+    expect(await keyRows(region)).toHaveLength(1);
+    expect(noticeOf(keysSection(region))).toBe("ci is revoked.");
+  });
+
   it("reads the keys again at a retiring key's end, and when the window gets focus", async () => {
     const fake = new Fake().answer(
       "keys",
@@ -564,6 +586,41 @@ describe("mountSecurity: Rename, Rotate and Revoke", () => {
       expect(await readsAfter(1)).toBe(4);
       expect(await readsAfter(3999)).toBe(4);
       expect(await readsAfter(1)).toBe(5);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("reads at a key's end still ahead when it comes before the past end's next ask", async () => {
+    const past = { ...BACKUP, previous_until: new Date(Date.now() - 5000).toISOString() };
+    let start = 0;
+    const ahead = (): KeyView => ({
+      ...CI,
+      previous_until: new Date(start + 10_000).toISOString(),
+    });
+    const fake = new Fake().answer("keys", ok([BACKUP])).always("keys", () => ok([past, ahead()]));
+    const { region } = mount(fake, { parts: [...KEY_PARTS] });
+    await keyRow(region, "backup script");
+    const realWait = globalThis.setTimeout.bind(globalThis);
+    const readsAfter = async (ms: number): Promise<number> => {
+      await vi.advanceTimersByTimeAsync(ms);
+      for (let i = 0; i < 20; i++) {
+        await new Promise((done) => realWait(done, 10));
+      }
+      return fake.named("keys").length;
+    };
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
+    try {
+      start = Date.now();
+      window.dispatchEvent(new FocusEvent("focus"));
+      // The past end is asked again at 1 s, 3 s and 7 s; the next ask, at
+      // 15 s, would come after the other key's end at 10 s.
+      expect(await readsAfter(0)).toBe(2);
+      expect(await readsAfter(1000)).toBe(3);
+      expect(await readsAfter(2000)).toBe(4);
+      expect(await readsAfter(4000)).toBe(5);
+      expect(await readsAfter(3999)).toBe(5);
+      expect(await readsAfter(1)).toBe(6);
     } finally {
       vi.useRealTimers();
     }

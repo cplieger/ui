@@ -35,19 +35,28 @@ export function drawSessions<C extends SecurityClient>(
   content.dataset["part"] = "sessions";
   body.replaceChildren(notices.root, content);
   let list: readonly SessionView[] = [];
+  // Only the newest of overlapping reads draws, with the focus any of
+  // them asked for.
+  let reads = 0;
+  let wanted: string | undefined;
 
   const refresh = async (focus?: string): Promise<void> => {
+    reads += 1;
+    const mine = reads;
+    wanted = focus ?? wanted;
     const got = await read(() => client.sessions());
-    if (ctx.signal?.aborted === true) {
+    if (mine !== reads || ctx.signal?.aborted === true) {
       return;
     }
+    const asked = wanted;
+    wanted = undefined;
     if (!got.ok) {
       ctx.settle({ kind: "done", result: got }, notices, (r) => unavailable(r, refresh));
       return;
     }
     list = order(got.data);
     draw();
-    if (focus !== undefined && !focusAction(content, focus)) {
+    if (asked !== undefined && !focusAction(content, asked)) {
       heading.focus();
     }
   };

@@ -151,6 +151,10 @@ export function drawKeys(
   const levelRequired = ctx.scopes?.required === true;
   const initial = ctx.scopes?.initial;
   let list: readonly KeyView[] = [];
+  // Reads overlap (focus, the timer, every key action): only the newest
+  // answer draws, with the focus any of them asked for.
+  let reads = 0;
+  let wanted: string | undefined;
   let editing = false;
   // A read that came back while Rename… was open, run again when it ends.
   let skipped = false;
@@ -170,8 +174,11 @@ export function drawKeys(
   const labelOf = (k: KeyView): string => (k.label === "" ? w["keys.unnamed"] : k.label);
 
   const refresh = async (focus?: string): Promise<void> => {
+    reads += 1;
+    const mine = reads;
+    wanted = focus ?? wanted;
     const got = await read(() => calls.list());
-    if (ctx.signal?.aborted === true) {
+    if (mine !== reads || ctx.signal?.aborted === true) {
       return;
     }
     if (editing) {
@@ -179,14 +186,16 @@ export function drawKeys(
       return;
     }
     skipped = false;
+    const asked = wanted;
+    wanted = undefined;
     if (!got.ok) {
       ctx.settle({ kind: "done", result: got }, notices, (r) => unavailable(r, refresh));
       return;
     }
     list = got.data;
-    const kept = focus ?? activeAction(content);
+    const kept = asked ?? activeAction(content);
     draw();
-    if (kept !== undefined && !focusAction(content, kept) && focus !== undefined) {
+    if (kept !== undefined && !focusAction(content, kept) && asked !== undefined) {
       heading.focus();
     }
   };
@@ -201,13 +210,15 @@ export function drawKeys(
       pastEnd = undefined;
       return;
     }
+    const now = Date.now();
     const soonest = Math.min(...ends);
-    const left = soonest - Date.now();
+    const left = soonest - now;
     let wait = left + 1000;
     if (left < 0) {
       pastWait = soonest === pastEnd ? Math.min(pastWait * 2, MINUTE) : 1000;
       pastEnd = soonest;
-      wait = pastWait;
+      const ahead = ends.filter((t) => t >= now);
+      wait = Math.min(pastWait, ahead.length === 0 ? pastWait : Math.min(...ahead) - now + 1000);
     } else {
       pastEnd = undefined;
     }
@@ -350,7 +361,7 @@ export function drawKeys(
       "click",
       () => {
         if (!isHeld(b)) {
-          createKey(b);
+          createKey(b, own.create);
         }
       },
       ctx.life,
@@ -396,7 +407,7 @@ export function drawKeys(
         key: `key-rename-${String(k.id)}`,
         label: w["keys.renameLabel"](name),
         run: (opener) => {
-          rename(k, nameNode, opener);
+          rename(k, nameNode, opener, own.rename);
         },
       });
     }
@@ -407,7 +418,7 @@ export function drawKeys(
         label: w["keys.rotateLabel"](name),
         https: ctx.plain,
         run: (opener) => {
-          void rotate(k, opener);
+          void rotate(k, opener, own.rotate);
         },
       });
     }
@@ -541,11 +552,7 @@ export function drawKeys(
     return ul;
   };
 
-  function createKey(opener: HTMLElement): void {
-    const create = own?.create;
-    if (create === undefined) {
-      return;
-    }
+  function createKey(opener: HTMLElement, create: SecurityClient["createKey"]): void {
     notices.clear();
     const d = formDialog({
       title: w["keys.createTitle"],
@@ -785,11 +792,12 @@ export function drawKeys(
     return { root, select };
   }
 
-  function rename(k: KeyView, node: HTMLElement, opener: HTMLElement): void {
-    const renameKey = own?.rename;
-    if (renameKey === undefined) {
-      return;
-    }
+  function rename(
+    k: KeyView,
+    node: HTMLElement,
+    opener: HTMLElement,
+    renameKey: SecurityClient["renameKey"],
+  ): void {
     notices.clear();
     editing = true;
     renameInPlace({
@@ -835,7 +843,11 @@ export function drawKeys(
     });
   }
 
-  async function rotate(k: KeyView, opener: HTMLElement): Promise<void> {
+  async function rotate(
+    k: KeyView,
+    opener: HTMLElement,
+    rotateKey: SecurityClient["rotateKey"],
+  ): Promise<void> {
     notices.clear();
     const name = labelOf(k);
     const sentence = [
@@ -852,10 +864,7 @@ export function drawKeys(
       opener.focus();
       return;
     }
-    const rotateKey = own?.rotate;
-    if (rotateKey !== undefined) {
-      await send(k, rotateKey, opener);
-    }
+    await send(k, rotateKey, opener);
   }
 
   async function send(

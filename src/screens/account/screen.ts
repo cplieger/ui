@@ -254,6 +254,7 @@ export interface Transport {
 
 export function transportOf(s: StateResponse): Transport {
   const plain = !s.secure;
+  const origin = plain ? httpsOriginOf(s.https_origin) : undefined;
   const withheld = s.https_required.filter(
     (m): m is "passkeys" | "oidc" => m === "passkeys" || m === "oidc",
   );
@@ -268,10 +269,27 @@ export function transportOf(s: StateResponse): Transport {
           },
         }
       : {}),
-    ...(plain && s.https_origin !== undefined && s.https_origin !== ""
-      ? { httpsOrigin: s.https_origin }
-      : {}),
+    ...(origin === undefined ? {} : { httpsOrigin: origin }),
   };
+}
+
+/**
+ * `raw` as an `https:` origin, or undefined for anything else (another
+ * scheme, credentials, a path, a query or a fragment), so a server's
+ * answer becomes a link only to an HTTPS address.
+ */
+export function httpsOriginOf(raw: string | undefined): string | undefined {
+  const u = raw === undefined ? null : URL.parse(raw);
+  const bare =
+    u !== null &&
+    u.protocol === "https:" &&
+    u.username === "" &&
+    u.password === "" &&
+    u.host !== "" &&
+    u.pathname === "/" &&
+    u.search === "" &&
+    u.hash === "";
+  return bare ? u.origin : undefined;
 }
 
 /** "12 hours" or "30 minutes", rounded to the larger unit that is whole. */

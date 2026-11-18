@@ -39,6 +39,7 @@ import { runDirect, type AccountAction } from "./run.js";
 import {
   cleanAddress,
   endsSession,
+  httpsOriginOf,
   leaver,
   partsOf,
   read,
@@ -206,6 +207,10 @@ export function mountSecurity<C extends SecurityClient>(
   let me: AccountView | undefined;
   let passkeys: readonly PasskeyView[] = [];
   let ctx: Ctx<C> | undefined;
+  // Only the newest of overlapping reads draws, with the focus any of
+  // them asked for.
+  let reads = 0;
+  let wanted: string | undefined;
   let sessionsView: SessionsSection | undefined;
   let keysView: KeysSection | undefined;
   let logView: SecurityLogScreen | undefined;
@@ -341,10 +346,15 @@ export function mountSecurity<C extends SecurityClient>(
   };
 
   const refresh = async (focus?: string): Promise<void> => {
+    reads += 1;
+    const mine = reads;
+    wanted = focus ?? wanted;
     const [got, keys] = await Promise.all([read(() => client.me()), readPasskeys()]);
-    if (signal?.aborted === true || ctx === undefined) {
+    if (mine !== reads || signal?.aborted === true || ctx === undefined) {
       return;
     }
+    const asked = wanted;
+    wanted = undefined;
     if (!got.ok) {
       if (!signedOut(got)) {
         const said = generic(got, w);
@@ -358,7 +368,7 @@ export function mountSecurity<C extends SecurityClient>(
     if (anyMethod) {
       drawMethods(ctx, methods.body, me, passkeys);
     }
-    if (focus !== undefined && !focusAction(methods.body, focus)) {
+    if (asked !== undefined && !focusAction(methods.body, asked)) {
       methods.heading.focus();
     }
   };
@@ -422,7 +432,7 @@ export function mountSecurity<C extends SecurityClient>(
         navigate,
         redirect,
         usableHere,
-        httpsOrigin: state.ok ? state.data.https_origin : undefined,
+        httpsOrigin: state.ok ? httpsOriginOf(state.data.https_origin) : undefined,
         appTotp: state.ok && state.data.totp === true,
         passwordLength: passwordLengthOf(state.ok ? state.data : undefined),
         webauthn: support.webauthn,

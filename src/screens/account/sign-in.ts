@@ -852,9 +852,12 @@ export function mountSignIn<C extends SignInClient>(
         return;
       }
       waiting = undefined;
-      if (outcome?.kind === "signed-in") {
+      if (outcome === null) {
+        // A write that threw fails again at once, as "failed" does.
+        notices.show("danger", w["generic.server"]);
+      } else if (outcome.kind === "signed-in") {
         finish(outcome.result);
-      } else if (outcome !== null && outcome.kind !== "cancelled" && outcome.kind !== "timeout") {
+      } else if (outcome.kind !== "cancelled" && outcome.kind !== "timeout") {
         passkeyRefused(outcome);
         // "failed" answers at once, before any prompt (a refused begin, no
         // network, a relying party id that does not fit the host), so

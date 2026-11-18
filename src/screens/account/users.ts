@@ -48,6 +48,7 @@ import {
   endsSession,
   holdBy,
   holdForHttps,
+  httpsOriginOf,
   isHeld,
   leaver,
   partsOf,
@@ -199,6 +200,10 @@ export function mountUsers<C extends UsersClient>(
   let mode: SSOMode = "alongside";
   let httpsOrigin: string | undefined;
   let keysView: KeysSection | undefined;
+  // Overlapping reads: only the newest whole read draws, and `keys` takes
+  // the newest answer of the whole read and the keys table's own.
+  let reads = 0;
+  let keyReads = 0;
 
   function part(title: string): {
     readonly root: HTMLElement;
@@ -329,7 +334,11 @@ export function mountUsers<C extends UsersClient>(
    *  keys and invites that name them; false on a failure, which it shows.
    *  A failed keys or invites read leaves those out. */
   const readAll = async (): Promise<boolean> => {
+    reads += 1;
+    const mine = reads;
     const key = filter;
+    keyReads += 1;
+    const keysMine = keyReads;
     const [state, me, users, keyList, tokenList] = await Promise.all([
       read(() => client.state()),
       read(() => client.me()),
@@ -337,7 +346,7 @@ export function mountUsers<C extends UsersClient>(
       has("admin-keys") ? read(() => client.adminKeys()) : undefined,
       has("invites") || has("admin-keys") ? read(() => client.adminTokens()) : undefined,
     ]);
-    if (signal?.aborted === true || key !== filter) {
+    if (mine !== reads || signal?.aborted === true) {
       return false;
     }
     if (!me.ok || !users.ok) {
@@ -347,20 +356,27 @@ export function mountUsers<C extends UsersClient>(
     }
     viewer = me.data;
     list = users.data;
-    keys = keyList?.ok === true ? keyList.data : [];
+    if (keysMine === keyReads) {
+      keys = keyList?.ok === true ? keyList.data : [];
+    }
     tokens = tokenList?.ok === true ? tokenList.data : [];
     mode = state.ok ? (state.data.sso ?? "alongside") : "alongside";
-    httpsOrigin = state.ok ? state.data.https_origin : undefined;
+    httpsOrigin = state.ok ? httpsOriginOf(state.data.https_origin) : undefined;
     return true;
   };
 
   const load = async (): Promise<void> => {
     notices.clear();
     region.setAttribute("aria-busy", "true");
+    const reading = readAll();
+    const mine = reads;
+    // A newer read may have drawn by the time the sketch is due.
     const skeleton = skeletonTiming(() => {
-      content.replaceChildren(sketch());
+      if (mine === reads) {
+        content.replaceChildren(sketch());
+      }
     }, life);
-    const got = await readAll();
+    const got = await reading;
     if (signal?.aborted === true) {
       skeleton.cancel();
       return;
@@ -602,8 +618,10 @@ export function mountUsers<C extends UsersClient>(
       keysPart.heading,
       {
         list: async () => {
+          keyReads += 1;
+          const mine = keyReads;
           const got = await client.adminKeys();
-          if (got.ok) {
+          if (got.ok && mine === keyReads) {
             keys = got.data;
           }
           return got;
@@ -1057,7 +1075,7 @@ export function mountUsers<C extends UsersClient>(
    *  list again. */
   async function passOn(u: UserView, t: TemporaryPasswordResponse): Promise<void> {
     const until = clockAt(new Date(t.expires_at));
-    const origin = t.https_origin ?? location.origin;
+    const origin = httpsOriginOf(t.https_origin) ?? location.origin;
     const line = t.dormant
       ? w["users.temporaryDormant"](u.username, provider, origin, until)
       : w["users.temporaryGive"](u.username, until);

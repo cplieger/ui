@@ -134,6 +134,30 @@ describe("mountSecurity: sessions", () => {
     });
   });
 
+  it("keeps a signed-out session gone when an earlier read answers after a later one", async () => {
+    const late = Promise.withResolvers<unknown>();
+    const fake = new Fake().answer(
+      "sessions",
+      ok([LAN, PHONE_SESSION, HERE]),
+      () => late.promise,
+      ok([HERE]),
+    );
+    const { region } = mount(fake, { parts: ["sessions"] });
+    const [, phone, lan] = await sessionRows(region);
+    await press(phone as HTMLElement, "Sign out Mika's phone");
+    await vi.waitFor(() => {
+      expect(fake.named("sessions")).toHaveLength(2);
+    });
+    await press(lan as HTMLElement, `Sign out ${deviceName(LAN, defaultAccountWords)}`);
+    await vi.waitFor(async () => {
+      expect(await sessionRows(region)).toHaveLength(1);
+    });
+    late.resolve(ok([LAN, HERE]));
+    await new Promise((done) => setTimeout(done, 50));
+    expect(fake.named("sessions")).toHaveLength(3);
+    expect(await sessionRows(region)).toHaveLength(1);
+  });
+
   it("reads the list again when the session is already gone", async () => {
     const fake = new Fake()
       .answer("sessions", ok([LAN, PHONE_SESSION, HERE]), ok([LAN, HERE]))

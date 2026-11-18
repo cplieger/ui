@@ -23,7 +23,7 @@ import {
   useScreen,
 } from "./test-helpers/security.js";
 import type { AccountAction } from "./run.js";
-import { mountUsers, type UsersOptions } from "./users.js";
+import { mountUsers, type UsersOptions, type UsersScreen } from "./users.js";
 import type { FakeClient } from "./test-helpers/fake.js";
 
 useScreen();
@@ -89,11 +89,15 @@ const owner = meWith({}, { owner: true, single_user: false });
 function mount(
   fake: Fake,
   options: Partial<Omit<UsersOptions<FakeClient>, "client" | "access">> = {},
-): { readonly region: HTMLElement; readonly ran: AccountAction[] } {
+): {
+  readonly region: HTMLElement;
+  readonly ran: AccountAction[];
+  readonly screen: UsersScreen;
+} {
   const region = document.createElement("div");
   document.body.append(region);
   const ran: AccountAction[] = [];
-  mountUsers(region, {
+  const screen = mountUsers(region, {
     client: fake.client,
     access: fake.access(),
     app: "Release tracker",
@@ -106,7 +110,7 @@ function mount(
     signal: life.signal,
     ...options,
   });
-  return { region, ran };
+  return { region, ran, screen };
 }
 
 const people = (...list: UserView[]): Fake =>
@@ -145,6 +149,24 @@ describe("mountUsers", () => {
     expect(robin?.cells[2]?.textContent).toBe("Password, 2 passkeys");
     expect(robin?.cells[3]?.textContent).toBe("Waiting for approval");
     expect(region.querySelectorAll("[style]")).toHaveLength(0);
+  });
+
+  it("draws the newest of two reads, whichever answers last", async () => {
+    const late = Promise.withResolvers<unknown>();
+    const fake = new Fake()
+      .always("me", ok(owner))
+      .answer("adminUsers", ok([ME, ALICE_USER]), () => late.promise)
+      .always("adminUsers", ok([ME]));
+    const { region, screen } = mount(fake);
+    await rowOf(region, "alice");
+    const first = screen.refresh();
+    await screen.refresh();
+    expect(await rowsOf(region)).toHaveLength(1);
+    late.resolve(ok([ME, ALICE_USER]));
+    await first;
+    expect(fake.named("adminUsers")).toHaveLength(3);
+    expect(await rowsOf(region)).toHaveLength(1);
+    expect(region.textContent).not.toContain("alice");
   });
 
   it("offers an owner every action, and nothing on their own row but Remove owner", async () => {
@@ -254,6 +276,19 @@ describe("mountUsers", () => {
     expect(shown.textContent).toContain(
       "Enter it on https://tracker.example. It does not work on the plain address.",
     );
+  });
+
+  it("names this page's address when the answer's HTTPS address is not an HTTPS origin", async () => {
+    const fake = people(ME, ALICE_USER).answer(
+      "adminTemporaryPassword",
+      ok({ ...TEMPORARY, https_only: true, https_origin: "javascript:alert(1)" }),
+    );
+    const { region } = mount(fake);
+    await press(await rowOf(region, "alice"), "Issue a temporary password…");
+    await userEvent.click(button(await dialogOf("Issue a temporary password for alice"), "Issue"));
+    const shown = await dialogOf("Temporary password for alice");
+    expect(shown.textContent).toContain(`Enter it on ${location.origin}.`);
+    expect(shown.textContent).not.toContain("javascript:");
   });
 
   it("words a dormant password by the answer, never by the mode the page read", async () => {

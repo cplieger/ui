@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 
-import { accountRunner, type DefineAction } from "./run.js";
+import { accountRunner, type DefineAction, type Runner } from "./run.js";
 import { Fake, noAnswer, ok, refuse, signedIn } from "./test-helpers/fake.js";
 import {
   button,
@@ -633,6 +633,28 @@ describe("mountSignIn: passkey", () => {
       expect(noticeOf(panel)?.textContent).toBe(words);
     },
   );
+
+  it("says the server failed when the autofill's write throws, and does not ask again", async () => {
+    const fake = new Fake().answer("passkeySupport", { webauthn: true, conditional: true });
+    let calls = 0;
+    const run: Runner = (name, work) => {
+      if (name !== "auth.sign_in_passkey") {
+        return work();
+      }
+      calls += 1;
+      return Promise.reject(new Error("the action log refused it"));
+    };
+    const { panel } = mount(fake, { run });
+    await drawn(panel);
+    await vi.waitFor(() => {
+      expect(noticeOf(panel)?.textContent).toBe(
+        "The server could not do this. Try again in a moment.",
+      );
+    });
+    await new Promise((done) => setTimeout(done, 1000));
+    expect(calls).toBe(1);
+    expect(noticeOf(panel)?.dataset["tone"]).toBe("danger");
+  });
 });
 
 describe("mountSignIn: single sign-on return", () => {
@@ -780,6 +802,35 @@ describe("mountSignIn: over plain HTTP", () => {
     expect(https?.querySelector("a")?.href.startsWith("https://tracker.example/")).toBe(true);
     expect(panel.querySelector("[data-part='plain-session']")?.textContent).toBe(
       "You stay signed in for up to 12 hours, 30 minutes when idle, until you close the browser.",
+    );
+  });
+
+  it.each([
+    ["a script URL", "javascript:alert(1)"],
+    ["a script URL split by a tab", "java\tscript:alert(1)"],
+    ["credentials before the host", "https://tracker.example@evil.example"],
+    ["plain HTTP", "http://tracker.example"],
+    ["a path", "https://tracker.example/path"],
+    ["a query", "https://tracker.example/?next=/"],
+    ["an empty string", ""],
+  ])("links nowhere when the HTTPS address is %s", async (_, origin) => {
+    const fake = new Fake().answer("state", ok({ ...plain, https_origin: origin }));
+    const { panel } = mount(fake, { app: "Release tracker" });
+    await drawn(panel);
+    const https = panel.querySelector<HTMLElement>("[data-part='https']");
+    expect(https?.textContent).toBe("Passkeys and single sign-on need HTTPS.");
+    expect(https?.querySelector("a")).toBeNull();
+  });
+
+  it("links an HTTPS origin, with its port, to this page there", async () => {
+    const fake = new Fake().answer(
+      "state",
+      ok({ ...plain, https_origin: "https://tracker.example:8443/" }),
+    );
+    const { panel } = mount(fake, { app: "Release tracker" });
+    await drawn(panel);
+    expect(panel.querySelector<HTMLAnchorElement>("[data-part='https'] a")?.href).toBe(
+      `https://tracker.example:8443${location.pathname}${location.search}`,
     );
   });
 

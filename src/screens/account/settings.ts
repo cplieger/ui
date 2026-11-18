@@ -27,6 +27,7 @@ import {
   cycle,
   endsSession,
   holdForHttps,
+  httpsOriginOf,
   leaver,
   read,
   slot,
@@ -212,7 +213,7 @@ export function mountAccessSettings<C extends AccessSettingsClient>(
         return;
       }
       current = state.data.sso ?? "alongside";
-      draw(me.data, state.data.https_origin);
+      draw(me.data, httpsOriginOf(state.data.https_origin));
     });
   }
 
