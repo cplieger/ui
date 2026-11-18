@@ -38,6 +38,41 @@ async function media(name: string, value: string): Promise<void> {
   });
 }
 
+// Firefox and WebKit take no media emulation from a browser test, so there
+// the linked sheet's own reduced-motion blocks are switched on in place,
+// keeping their place in the cascade, and put back after the test.
+async function reduceMotion(): Promise<void> {
+  if (emulates) {
+    await media("prefers-reduced-motion", "reduce");
+    return;
+  }
+  const link = document.querySelector<HTMLLinkElement>('link[href*="css/system.css"]');
+  const flipped: [CSSMediaRule, string][] = [];
+  const flip = (rules: CSSRuleList) => {
+    for (const rule of rules) {
+      if (rule instanceof CSSMediaRule && /prefers-reduced-motion/.test(rule.media.mediaText)) {
+        flipped.push([rule, rule.media.mediaText]);
+        rule.media.mediaText = rule.media.mediaText
+          .replaceAll(/\(prefers-reduced-motion:\s*reduce\)/g, "(min-width: 0px)")
+          .replaceAll(/\(prefers-reduced-motion:\s*no-preference\)/g, "(max-width: -1px)");
+      }
+      if ("cssRules" in rule) {
+        flip(rule.cssRules as CSSRuleList);
+      }
+    }
+  };
+  const rules = link?.sheet?.cssRules;
+  if (rules !== undefined) {
+    flip(rules);
+  }
+  expect(flipped.length, "the sheet's reduced-motion blocks").toBeGreaterThan(0);
+  onTestFinished(() => {
+    for (const [rule, text] of flipped) {
+      rule.media.mediaText = text;
+    }
+  });
+}
+
 describe("filter chip", () => {
   it("keeps the button raised on a strong edge, its check at no width until pressed", () => {
     const host = build(button() + button(true));
@@ -181,6 +216,25 @@ describe("filter chip", () => {
       want.color,
     ]);
     await userEvent.unhover(a);
+  });
+
+  it("moves nothing for longer than the short duration on a press under reduced motion", async () => {
+    await reduceMotion();
+    const chip = q(build(button()), "button");
+    const check = q(chip, ".cp-icon");
+    // Reading the style at rest makes the press a change the browser transitions.
+    expect(getComputedStyle(check).width).toBe("0px");
+    chip.setAttribute("aria-pressed", "true");
+    chip.setAttribute("data-cp-pressed", "");
+    const running = [chip, check].flatMap((el) => el.getAnimations());
+    expect(running.length, "the press starts transitions").toBeGreaterThan(0);
+    // WCAG 2.2 2.3.3; motion.css shortens every movement to --cp-dur-short.
+    const short = Number.parseFloat(getComputedStyle(root).getPropertyValue("--cp-dur-short"));
+    expect(short).toBe(160);
+    for (const a of running) {
+      const name = a instanceof CSSTransition ? a.transitionProperty : a.id;
+      expect(Number(a.effect?.getTiming().duration), name).toBeLessThanOrEqual(short);
+    }
   });
 
   it("presses a link as it presses the button", () => {

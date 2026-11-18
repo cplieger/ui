@@ -395,13 +395,13 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
    *  (https://html.spec.whatwg.org/multipage/browsing-the-web.html#scroll-to-the-fragment-identifier). */
   const toTop = (): void => {
     scrollTo(0, 0);
-    const kept = (el: Element | null | undefined): el is HTMLElement =>
+    const kept = (el: Element | null | undefined): el is Part =>
       drawn(el) && !detail.contains(el) && !dialog.contains(el) && el.closest("[inert]") === null;
     const first = [...document.querySelectorAll(FOCUSABLE)].find(
       (el) => kept(el) && el.tabIndex >= 0 && !el.matches(":disabled"),
     );
     const main = document.querySelector("main h1") ?? document.querySelector("h1");
-    const inView = (el: Element | undefined | null): el is HTMLElement =>
+    const inView = (el: Element | undefined | null): el is Part =>
       kept(el) && el.getBoundingClientRect().top < document.documentElement.clientHeight;
     land(inView(first) ? first : inView(main) ? main : document.body);
   };
@@ -431,10 +431,10 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
     if (drawn(part) && !detail.contains(part) && !part.contains(root)) {
       return { el: part, how: "part" };
     }
-    const outside = (el: Element | null): el is HTMLElement =>
+    const outside = (el: Element | null): el is Part =>
       drawn(el) && !isPage(el) && !detail.contains(el) && !dialog.contains(el);
     // Only an element that still takes focus is one to return to.
-    const control = (el: Element | null): el is HTMLElement =>
+    const control = (el: Element | null): el is Part =>
       outside(el) && (el.hasAttribute("tabindex") || el.tabIndex >= 0) && !el.matches(":disabled");
     if (control(h.opener)) {
       return { el: h.opener, how: "control" };

@@ -34,8 +34,8 @@
   margin-inline-end: 0;
   opacity: 0;
   transition:
-    inline-size 220ms var(--cp-ease-spring),
-    margin 220ms var(--cp-ease-spring),
+    inline-size var(--cp-dur-medium) var(--cp-ease-spring),
+    margin var(--cp-dur-medium) var(--cp-ease-spring),
     opacity 160ms var(--cp-ease-out);
 }
 
