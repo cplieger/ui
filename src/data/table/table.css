@@ -369,7 +369,7 @@ tr[data-skeleton] .cp-title-cell > .cp-cell-stack > :first-child {
     --cp-press-scale: 1;
   }
 
-  :where(.cp-table [data-col="actions"]) .cp-button[aria-label]:has(> .cp-icon) > :not(.cp-icon) {
+  :where(.cp-table [data-col="actions"]) .cp-button[aria-label]:has(> .cp-icon) > .cp-roll {
     display: none;
   }
 }
