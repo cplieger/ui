@@ -22,11 +22,14 @@ import type {
   SecurityLogView,
 } from "./client.js";
 import { deviceName } from "./device.js";
+import { redrawKeepingFocus } from "./focus.js";
 import { cell, cellStack, el, heading, notice, sketch, table, time, uid } from "./dom.js";
 import {
   endsSession,
+  latest,
   leaver,
   read,
+  retryButton,
   slot,
   type ScreenOptions,
   type SignedOutOptions,
@@ -284,7 +287,7 @@ export function drawLog(
   const fixed = ctx.user !== undefined;
   const how = (method: string): string => w["security.method"](method, ctx.provider);
 
-  const notices = slot(el("div"));
+  const notices = slot(el("div"), title);
   notices.root.dataset["part"] = "notice";
   const filters = el("div", "cp-cluster");
   filters.dataset["part"] = "filters";
@@ -301,8 +304,10 @@ export function drawLog(
   let entries: readonly LogEntryView[] = [];
   let past = false;
   let future = false;
-  let loads = 0;
+  const loads = latest(signal);
   let busy = false;
+  /** The notice of the last refresh that failed, until one succeeds. */
+  let failure: Element | undefined;
   const people = new Map<number, string>();
 
   const nameOf = (id: number): string =>
@@ -443,12 +448,11 @@ export function drawLog(
       }),
     );
 
-  const shown = (list: readonly LogEntryView[]): LogEntryView[] =>
+  const ordered = (list: readonly LogEntryView[]): LogEntryView[] =>
     list.toSorted((a, b) => (view.order === "newest" ? b.seq - a.seq : a.seq - b.seq));
 
   const load = async (focus: boolean): Promise<void> => {
-    loads += 1;
-    const mine = loads;
+    const current = loads.start();
     busy = true;
     body.setAttribute("aria-busy", "true");
     const ascending =
@@ -466,35 +470,44 @@ export function drawLog(
       }),
       peopleRead,
     ]);
-    if (mine !== loads || signal?.aborted === true) {
+    if (!current()) {
       skeleton.cancel();
       return;
     }
     busy = false;
     skeleton.commit(() => {
-      body.removeAttribute("aria-busy");
-      if (!got.ok) {
-        if (content.querySelector("table") === null) {
-          content.replaceChildren();
-        }
-        refused(got);
-        return;
-      }
-      notices.clear();
-      const page = got.data.entries;
-      if (page.length === 0 && (view.before !== undefined || view.after !== undefined)) {
-        void go(first(view), { replace: true });
-        return;
-      }
-      const full = page.length >= limit;
-      past = ascending ? view.after !== undefined : full;
-      future = ascending ? full : view.before !== undefined;
-      entries = shown(page);
-      draw(got.data);
-      if (focus) {
-        title.focus();
-      }
+      redrawKeepingFocus(
+        body,
+        title,
+        () => {
+          shown(got, ascending);
+        },
+        got.ok && focus ? null : undefined,
+      );
     });
+  };
+
+  /** Draws a page the log read, or why it could not. */
+  const shown = (got: Result<SecurityLogView>, ascending: boolean): void => {
+    body.removeAttribute("aria-busy");
+    if (!got.ok) {
+      if (content.querySelector("table") === null) {
+        content.replaceChildren();
+      }
+      refused(got);
+      return;
+    }
+    notices.clear();
+    const page = got.data.entries;
+    if (page.length === 0 && (view.before !== undefined || view.after !== undefined)) {
+      void go(first(view), { replace: true });
+      return;
+    }
+    const full = page.length >= limit;
+    past = ascending ? view.after !== undefined : full;
+    future = ascending ? full : view.before !== undefined;
+    entries = ordered(page);
+    draw(got.data);
   };
 
   const go = async (
@@ -535,7 +548,7 @@ export function drawLog(
         notices.show(
           said.tone,
           said.text,
-          button(w["generic.retry"], () => void load(false)),
+          retryButton(w["generic.retry"], () => load(false)),
         );
       }
     }
@@ -649,6 +662,7 @@ export function drawLog(
     a.dataset["variant"] = "quiet";
     a.dataset["size"] = "sm";
     a.dataset["part"] = side;
+    a.dataset["cpAction"] = `log-${side}`;
     if (to === undefined) {
       a.setAttribute("aria-disabled", "true");
       return a;
@@ -699,18 +713,36 @@ export function drawLog(
     const atTop = view.before === undefined && view.after === undefined;
     const live = view.order === "newest" ? atTop : !future;
     const since = top === 0 ? {} : { after: top };
+    if (!live && future) {
+      return;
+    }
+    // A load started after this refresh drops its answers.
+    const current = loads.start();
+    /** Draws what the refresh read, and clears its own last failure. */
+    const redraw = (page: SecurityLogView): void => {
+      redrawKeepingFocus(body, title, () => {
+        notices.drop(failure);
+        failure = undefined;
+        draw(page);
+      });
+    };
     if (!live) {
-      if (future) {
+      const got = await query(view, { ...since, oldestFirst: true, limit: 1 });
+      if (!current()) {
         return;
       }
-      const got = await query(view, { ...since, oldestFirst: true, limit: 1 });
-      if (got.ok && got.data.entries.length > 0 && signal?.aborted !== true) {
+      if (!got.ok) {
+        refused(got);
+        failure = notices.shown();
+      } else if (got.data.entries.length > 0) {
         future = true;
-        draw(got.data);
+        redraw(got.data);
+      } else {
+        notices.drop(failure);
+        failure = undefined;
       }
       return;
     }
-    const mine = loads;
     const fresh: LogEntryView[] = [];
     let last: SecurityLogView | undefined;
     let after = since;
@@ -719,11 +751,12 @@ export function drawLog(
     // page again, and an oldest-first one offers the rest through Later.
     for (let i = 0; i < 10; i += 1) {
       const got = await query(view, { ...after, oldestFirst: true });
-      if (mine !== loads || signal?.aborted === true) {
+      if (!current()) {
         return;
       }
       if (!got.ok) {
         refused(got);
+        failure = notices.shown();
         return;
       }
       last = got.data;
@@ -736,6 +769,8 @@ export function drawLog(
       after = { after: end.seq };
     }
     if (last === undefined || fresh.length === 0) {
+      notices.drop(failure);
+      failure = undefined;
       return;
     }
     if (more && view.order === "newest") {
@@ -746,9 +781,11 @@ export function drawLog(
     const known = new Set(entries.map((e) => e.seq));
     const added = fresh.filter((e) => !known.has(e.seq));
     if (added.length === 0) {
+      notices.drop(failure);
+      failure = undefined;
       return;
     }
-    let next = shown([...entries, ...added]);
+    let next = ordered([...entries, ...added]);
     if (next.length > limit) {
       if (view.order === "newest") {
         past = true;
@@ -758,7 +795,7 @@ export function drawLog(
       next = next.slice(0, limit);
     }
     entries = next;
-    draw(last);
+    redraw(last);
     announce(w["log.arrived"](added.length));
   };
 

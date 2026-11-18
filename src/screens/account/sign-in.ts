@@ -37,6 +37,7 @@ import type {
   StateResponse,
 } from "./client.js";
 import { glyph } from "../../foundations/icons/glyph.js";
+import { headingOr, redrawKeepingFocus } from "./focus.js";
 import {
   actionButton,
   el,
@@ -59,8 +60,10 @@ import {
   needsHttps,
   partsOf,
   plainLines,
+  latest,
+  nextPath,
   read,
-  samePath,
+  retryButton,
   sleep,
   slot,
   transportOf,
@@ -160,7 +163,7 @@ export function mountSignIn<C extends SignInClient>(
     });
   const search = options.search ?? location.search;
   const query = new URLSearchParams(search);
-  const next = options.next ?? samePath(query.get("next")) ?? "/";
+  const next = options.next ?? nextPath(query.get("next"));
   const arrived = options.arrived ?? arrivalOf(query.get("arrived"));
   const life = signal === undefined ? {} : { signal };
   installAnnouncer(life);
@@ -174,12 +177,14 @@ export function mountSignIn<C extends SignInClient>(
   const stack = el("div", "cp-stack");
   const title = options.heading === false ? undefined : heading(1, w["signIn.title"]);
   if (title !== undefined) {
+    title.tabIndex = -1;
     panel.setAttribute("aria-labelledby", title.id);
     stack.append(title);
   }
-  const notices = slot(el("div"));
-  notices.root.dataset["part"] = "notice";
   const body = el("div", "cp-stack");
+  const lead = headingOr(title, body);
+  const notices = slot(el("div"), lead);
+  notices.root.dataset["part"] = "notice";
   stack.append(notices.root, body);
   panel.replaceChildren(stack);
 
@@ -230,16 +235,16 @@ export function mountSignIn<C extends SignInClient>(
     }
   };
 
-  // Only the newest of overlapping loads draws.
-  let loads = 0;
+  const loads = latest(signal);
   const load = async (after?: Said): Promise<void> => {
     stopConditional();
-    notices.clear();
     panel.setAttribute("aria-busy", "true");
-    const mine = ++loads;
+    const current = loads.start();
     const skeleton = skeletonTiming(() => {
-      if (mine === loads) {
-        body.replaceChildren(sketch());
+      if (current()) {
+        redrawKeepingFocus(body, lead, () => {
+          body.replaceChildren(sketch());
+        });
       }
     }, life);
     const [state, support, pending] = await Promise.all([
@@ -249,63 +254,72 @@ export function mountSignIn<C extends SignInClient>(
       access.passkeySupport(),
       linking ? read(readPending) : Promise.resolve(undefined),
     ]);
-    if (mine !== loads || signal?.aborted === true) {
+    if (!current()) {
       skeleton.cancel();
       return;
     }
     skeleton.commit(() => {
-      panel.removeAttribute("aria-busy");
-      if (!state.ok) {
-        body.replaceChildren();
-        const retry = el("button", "cp-button", w["generic.retry"]);
-        retry.type = "button";
-        retry.addEventListener("click", () => void load(), { once: true });
-        notices.show("danger", generic(state, w).text, retry);
-        return;
-      }
-      const s = state.data;
-      webauthn = support.webauthn;
-      transport = transportOf(s);
-      passwordLength = passwordLengthOf(s);
-      precheck = transport.plain && s.temporary_password_https_only === true;
-      let said = after ?? opening();
-      opened = true;
-      if (pending?.ok === false) {
-        linking = false;
-        said = lapsed(pending, w, provider);
-      }
-      if (title !== undefined) {
-        title.textContent = linking ? w["link.title"] : w["signIn.title"];
-      }
-      if (strict(s)) {
-        holdable = [];
-        body.replaceChildren(needsHttps(transport, app, w));
-        if (said !== undefined) {
-          notices.show(said.tone, said.text);
-        }
-        return;
-      }
-      const temporary = temporaryOf(s);
-      if (pending?.ok === true && linking) {
-        drawLink(s, pending.data, support.webauthn, support.conditional, temporary);
-        if (said !== undefined) {
-          notices.show(said.tone, said.text);
-        }
-        return;
-      }
-      const drawn = draw({
-        password: (s.password_login && has("password")) || temporary === "only",
-        passkey: s.passkeys && has("passkeys") && support.webauthn,
-        sso: s.oidc && has("single-sign-on"),
-        conditional: support.conditional,
-        temporary,
-        mode: s.sso ?? "alongside",
+      redrawKeepingFocus(stack, lead, () => {
+        drawState(state, support, pending, after);
       });
-      const shown = drawn ? said : { tone: "neutral" as const, text: w["signIn.off"] };
-      if (shown !== undefined) {
-        notices.show(shown.tone, shown.text);
-      }
     });
+  };
+
+  const drawState = (
+    state: Result<StateResponse>,
+    support: { readonly webauthn: boolean; readonly conditional: boolean },
+    pending: Result<PendingLinkView> | undefined,
+    after: Said | undefined,
+  ): void => {
+    panel.removeAttribute("aria-busy");
+    notices.clear();
+    if (!state.ok) {
+      body.replaceChildren();
+      notices.show("danger", generic(state, w).text, retryButton(w["generic.retry"], load));
+      return;
+    }
+    const s = state.data;
+    webauthn = support.webauthn;
+    transport = transportOf(s);
+    passwordLength = passwordLengthOf(s);
+    precheck = transport.plain && s.temporary_password_https_only === true;
+    let said = after ?? opening();
+    opened = true;
+    if (pending?.ok === false) {
+      linking = false;
+      said = lapsed(pending, w, provider);
+    }
+    if (title !== undefined) {
+      title.textContent = linking ? w["link.title"] : w["signIn.title"];
+    }
+    if (strict(s)) {
+      holdable = [];
+      body.replaceChildren(needsHttps(transport, app, w));
+      if (said !== undefined) {
+        notices.show(said.tone, said.text);
+      }
+      return;
+    }
+    const temporary = temporaryOf(s);
+    if (pending?.ok === true && linking) {
+      drawLink(s, pending.data, support.webauthn, support.conditional, temporary);
+      if (said !== undefined) {
+        notices.show(said.tone, said.text);
+      }
+      return;
+    }
+    const drawn = draw({
+      password: (s.password_login && has("password")) || temporary === "only",
+      passkey: s.passkeys && has("passkeys") && support.webauthn,
+      sso: s.oidc && has("single-sign-on"),
+      conditional: support.conditional,
+      temporary,
+      mode: s.sso ?? "alongside",
+    });
+    const shown = drawn ? said : { tone: "neutral" as const, text: w["signIn.off"] };
+    if (shown !== undefined) {
+      notices.show(shown.tone, shown.text);
+    }
   };
 
   /** A plain request whose password form access would refuse: password

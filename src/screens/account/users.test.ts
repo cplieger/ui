@@ -630,7 +630,7 @@ describe("mountUsers, who a key reached", () => {
   });
 
   it("names a key it could not read the list of, never calling it revoked", async () => {
-    const fake = reached().answer("adminKeys", refuse(503, "auth_unavailable"));
+    const fake = reached().always("adminKeys", refuse(503, "auth_unavailable"));
     const { region } = mount(fake);
     const bot = await rowOf(region, "bot");
     expect([...bot.querySelectorAll("nav.cp-crumbs a")].map((a) => a.textContent)).toEqual([
@@ -665,6 +665,50 @@ describe("mountUsers, who a key reached", () => {
     await refreshing;
     const bot = await rowOf(region, "bot");
     expect(bot.querySelector("nav.cp-crumbs a")?.textContent).toBe("deploy");
+  });
+
+  it("names a new key once the keys table's read answers after the whole read", async () => {
+    const late = Promise.withResolvers<unknown>();
+    const NEW: KeyView = { ...BACKUP, id: 99, label: "agent", owner: "mika" };
+    const LEO: UserView = { ...ALICE_USER, id: 7, username: "leo", key_lineage: [99] };
+    const fake = reached();
+    const { region, screen } = mount(fake);
+    const keys = await section(region, "admin-keys");
+    await vi.waitFor(() => {
+      expect(keys.textContent).toContain("nightly");
+    });
+    fake
+      .always("adminUsers", ok([ME, BOT, KAI, LEO]))
+      .always("adminKeys", ok([CI, NIGHTLY, NEW]))
+      .answer("adminKeys", ok([CI, NIGHTLY, NEW]), () => late.promise);
+    const refreshing = screen.refresh();
+    window.dispatchEvent(new FocusEvent("focus"));
+    await refreshing;
+    late.resolve(ok([CI, NIGHTLY, NEW]));
+    await vi.waitFor(() => {
+      expect(keys.textContent).toContain("agent");
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const leo = await rowOf(region, "leo");
+    expect(leo.querySelector("nav.cp-crumbs a")?.textContent).toBe("agent");
+  });
+
+  it("stops calling a key revoked once the keys table's own read is refused", async () => {
+    const fake = reached();
+    const { region } = mount(fake);
+    const keys = await section(region, "admin-keys");
+    await vi.waitFor(() => {
+      expect(keys.textContent).toContain("nightly");
+    });
+    const kai = await rowOf(region, "kai");
+    expect(kai.querySelector("nav.cp-crumbs a")?.textContent).toBe("revoked key 9");
+    fake.answer("adminKeys", refuse(503, "auth_unavailable"));
+    window.dispatchEvent(new FocusEvent("focus"));
+    await vi.waitFor(async () => {
+      const row = await rowOf(region, "kai");
+      expect(row.querySelector("nav.cp-crumbs a")?.textContent).toBe("key 9");
+    });
+    expect(region.textContent).not.toContain("revoked key");
   });
 
   it("filters by a key in place, asking the server, and Show all users drops it", async () => {

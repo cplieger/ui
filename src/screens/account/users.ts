@@ -11,7 +11,7 @@ import { installAnnouncer } from "../../feedback/announce/announce.js";
 import { skeletonTiming } from "../../feedback/skeleton/skeleton.js";
 import { clearError, showError } from "../../forms/form/form.js";
 import { installDialogs } from "../../overlays/dialog/dialog.js";
-import { focusAction, rowActions, rowHead, type Action } from "./actions.js";
+import { rowActions, rowHead, type Action } from "./actions.js";
 import { codeOf, generic, reasonOf, usernameWords, type Said } from "./answer.js";
 import type {
   AccountView,
@@ -27,6 +27,7 @@ import type {
   UsersClient,
 } from "./client.js";
 import { formDialog, type FormDialog } from "./dialogs.js";
+import { redrawKeepingFocus } from "./focus.js";
 import {
   cell,
   cellStack,
@@ -50,10 +51,12 @@ import {
   holdForHttps,
   httpsOriginOf,
   isHeld,
+  latest,
   leaver,
   partsOf,
   question,
   read,
+  retryButton,
   slot,
   type ScreenOptions,
   type SignedOutOptions,
@@ -148,6 +151,10 @@ const writeAddress = (params: URLSearchParams, replace: boolean): void => {
   }
 };
 
+/** What a key list shows of each key in the people's rows: its label. */
+const signature = (keys: readonly KeyView[]): string =>
+  JSON.stringify(keys.map((k) => [k.id, k.label]));
+
 /** A follow of a link the screen shows in place: a plain left press. */
 const inPlace = (e: MouseEvent): boolean =>
   e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey;
@@ -179,7 +186,7 @@ export function mountUsers<C extends UsersClient>(
   const h = heading(level, w["users.title"]);
   h.tabIndex = -1;
   root.setAttribute("aria-labelledby", h.id);
-  const notices = slot(el("div"));
+  const notices = slot(el("div"), h);
   notices.root.dataset["part"] = "notice";
   const bar = el("div", "cp-cluster");
   bar.dataset["part"] = "users-bar";
@@ -200,16 +207,20 @@ export function mountUsers<C extends UsersClient>(
   let mode: SSOMode = "alongside";
   let httpsOrigin: string | undefined;
   let keysView: KeysSection | undefined;
-  // Overlapping reads: only the newest whole read draws, and `keys` takes
-  // the newest answer of the whole read and the keys table's own.
-  let reads = 0;
-  let keyReads = 0;
+  // The whole read draws the people; `keys` takes the newest keys answer,
+  // the whole read's or the keys table's own.
+  const reads = latest(signal);
+  const keyReads = latest(signal);
   /** Whether `keys` is the server's whole list, so a key missing from it
    *  is revoked; false while no keys read has answered. */
   let keysKnown = false;
   /** The focus the newest refresh draws with: a control's
    *  `data-cp-action`, null for the heading. */
   let wanted: string | null | undefined;
+  /** Whether the people on screen are a read's, not its failure. */
+  let drawn = false;
+  /** The notice of the last whole read that failed, until one succeeds. */
+  let failure: Element | undefined;
 
   function part(title: string): {
     readonly root: HTMLElement;
@@ -326,50 +337,51 @@ export function mountUsers<C extends UsersClient>(
       return;
     }
     if (codeOf(r) === "auth_forbidden") {
-      notices.show("danger", w["users.forbidden"]);
+      failure = notices.show("danger", w["users.forbidden"]);
       return;
     }
-    const retry = el("button", "cp-button", w["generic.retry"]);
-    retry.type = "button";
-    retry.addEventListener("click", () => void load(), { once: true });
     const said = generic(r, w);
-    notices.show(said.tone, said.text, retry);
+    failure = notices.show(said.tone, said.text, retryButton(w["generic.retry"], load));
+  };
+
+  /** Takes a keys answer: a refusal keeps the last list, no longer known
+   *  whole. True when what a key's label reads as changed. */
+  const takeKeys = (got: Result<readonly KeyView[]>): boolean => {
+    const before = keysKnown ? signature(keys) : undefined;
+    if (got.ok) {
+      keys = got.data;
+    }
+    keysKnown = got.ok;
+    return (keysKnown ? signature(keys) : undefined) !== before;
   };
 
   /** Reads the viewer, the app's state, the people and, as mounted, the
    *  keys and invites that name them; false on a failure, which it shows.
    *  A failed invites read leaves them out; a failed keys read keeps the
    *  last list, no longer known whole. */
-  const readAll = async (): Promise<boolean> => {
-    reads += 1;
-    const mine = reads;
+  const readAll = async (current = reads.start()): Promise<boolean> => {
     const key = filter;
-    keyReads += 1;
-    const keysMine = keyReads;
-    const [state, me, users, keyList, tokenList] = await Promise.all([
+    const [state, me, users, tokenList] = await Promise.all([
       read(() => client.state()),
       read(() => client.me()),
       read(() => client.adminUsers(key === undefined ? undefined : { key })),
-      has("admin-keys") ? read(() => client.adminKeys()) : undefined,
       has("invites") || has("admin-keys") ? read(() => client.adminTokens()) : undefined,
+      has("admin-keys") ? keyReads.run(() => read(() => client.adminKeys()), takeKeys) : undefined,
     ]);
-    if (mine !== reads || signal?.aborted === true) {
+    if (!current()) {
       return false;
     }
     if (!me.ok || !users.ok) {
       wanted = undefined;
-      content.replaceChildren();
-      failed(me.ok ? (users as Refusal) : me);
+      drawn = false;
+      redrawKeepingFocus(root, h, () => {
+        content.replaceChildren();
+        failed(me.ok ? (users as Refusal) : me);
+      });
       return false;
     }
     viewer = me.data;
     list = users.data;
-    if (keysMine === keyReads) {
-      if (keyList?.ok === true) {
-        keys = keyList.data;
-      }
-      keysKnown = keyList?.ok === true;
-    }
     tokens = tokenList?.ok === true ? tokenList.data : [];
     mode = state.ok ? (state.data.sso ?? "alongside") : "alongside";
     httpsOrigin = state.ok ? httpsOriginOf(state.data.https_origin) : undefined;
@@ -377,14 +389,15 @@ export function mountUsers<C extends UsersClient>(
   };
 
   const load = async (): Promise<void> => {
-    notices.clear();
     region.setAttribute("aria-busy", "true");
-    const reading = readAll();
-    const mine = reads;
+    const current = reads.start();
+    const reading = readAll(current);
     // A newer read may have drawn by the time the sketch is due.
     const skeleton = skeletonTiming(() => {
-      if (mine === reads) {
-        content.replaceChildren(sketch());
+      if (current()) {
+        redrawKeepingFocus(root, h, () => {
+          content.replaceChildren(sketch());
+        });
       }
     }, life);
     const got = await reading;
@@ -400,19 +413,27 @@ export function mountUsers<C extends UsersClient>(
     });
   };
 
-  /** Draws the newest read, then moves focus as its refresh asked. */
+  /** Draws the newest read, with the focus its refresh asked for. */
   function redraw(): void {
     const asked = wanted;
     wanted = undefined;
-    draw();
-    if (asked === null || (asked !== undefined && !focusAction(root, asked))) {
-      h.focus();
-    }
+    drawn = true;
+    redrawKeepingFocus(
+      root,
+      h,
+      () => {
+        notices.drop(failure);
+        failure = undefined;
+        draw();
+      },
+      asked,
+    );
   }
 
   /** Reads again and redraws. `focus` names the control to focus after
    *  it, null or a gone control the heading; with no `focus`, focus stays
-   *  where it is. */
+   *  where it is, or moves to the heading when the redraw took its
+   *  control away and drew none like it. */
   async function refresh(focus?: string | null): Promise<void> {
     wanted = focus === undefined ? wanted : focus;
     if (await readAll()) {
@@ -475,7 +496,13 @@ export function mountUsers<C extends UsersClient>(
     if (viewer === undefined) {
       return;
     }
-    const me = viewer;
+    drawPeople(viewer);
+    drawEveryKey(!viewer.session.secure);
+  }
+
+  /** The heading, the bar, the people and the invites: everything a key's
+   *  label is shown in, but the keys table. */
+  function drawPeople(me: AccountView): void {
     const plain = !me.session.secure;
     const https = plain ? holdForHttps([], { httpsOrigin }, options.app, w) : undefined;
     h.textContent =
@@ -526,7 +553,6 @@ export function mountUsers<C extends UsersClient>(
     }
     content.replaceChildren(...parts, ...(https !== undefined && held && !barHeld ? [https] : []));
     drawInvites(me);
-    drawEveryKey(plain);
   }
 
   /** Add user… and Invite…, held on a plain session; true when one is. */
@@ -639,13 +665,18 @@ export function mountUsers<C extends UsersClient>(
       keysPart.heading,
       {
         list: async () => {
-          keyReads += 1;
-          const mine = keyReads;
-          const got = await client.adminKeys();
-          if (got.ok && mine === keyReads) {
-            keys = got.data;
-            keysKnown = true;
-          }
+          const got = read(() => client.adminKeys());
+          await keyReads.run(
+            () => got,
+            (answer) => {
+              const me = viewer;
+              if (takeKeys(answer) && drawn && me !== undefined) {
+                redrawKeepingFocus(root, h, () => {
+                  drawPeople(me);
+                });
+              }
+            },
+          );
           return got;
         },
         revoke: (id) => client.adminRevokeKey(id),

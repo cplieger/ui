@@ -223,10 +223,26 @@ describe("widthKey", () => {
   }
   const locales = ["en", "fr", "ru", "pl", "ar", "cy", "ar-EG", "ja"];
 
-  it("checks every duration in exactly one group", () => {
+  it("checks every duration in exactly one group, and each key in one group", () => {
     const grouped = [...groups.values()].flat();
     expect(grouped).toHaveLength(signed.length);
     expect(new Set(grouped)).toEqual(new Set(signed));
+    const split: string[] = [];
+    for (const locale of locales) {
+      const key = widthKey("duration", locale);
+      const owner = new Map<number, string>();
+      for (const [name, values] of groups) {
+        for (const v of values) {
+          const k = key?.(v) ?? Number.NaN;
+          const held = owner.get(k);
+          if (held !== undefined && held !== name) {
+            split.push(`${locale}: ${String(v)} in ${name}, its key in ${held}`);
+          }
+          owner.set(k, held ?? name);
+        }
+      }
+    }
+    expect(split).toEqual([]);
   });
 
   it.each(

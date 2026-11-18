@@ -12,6 +12,7 @@ import { glyph, type Tone } from "../../foundations/icons/glyph.js";
 import { clock, codeOf, reasonOf } from "./answer.js";
 import type { Refusal, Result, StateResponse } from "./client.js";
 import { el, line, notice, uid } from "./dom.js";
+import { redrawKeepingFocus, type Heading } from "./focus.js";
 import type { Runner } from "./run.js";
 import type { AccountWords } from "./words.js";
 
@@ -91,25 +92,56 @@ export function endsSession(r: Refusal, leave: (reason: SignedOutReason) => void
   return true;
 }
 
-/** `value` when it is a path on this origin, else undefined. */
-export function samePath(value: string | null): string | undefined {
-  if (value?.startsWith("/") !== true) {
-    return undefined;
+/**
+ * Where sign-in goes next: `raw` as a path on `origin`, else "/". Only a
+ * value starting with one "/", not followed by "/" or a backslash, that
+ * parses on this origin counts, and its normalised path must not start
+ * with "//", which a later navigation reads as another host ("/.//host"
+ * normalises to it). Never throws.
+ */
+export function nextPath(raw: string | null, origin: string = location.origin): string {
+  if (raw?.startsWith("/") !== true || raw[1] === "/" || raw[1] === "\\") {
+    return "/";
   }
-  // The parser drops tabs and line breaks and reads a backslash as a slash,
-  // so "/\t/host" leaves the origin. Dot segments and backslashes can also
-  // normalise to a scheme-relative path ("/.//host" parses here with the
-  // pathname "//host", which a later navigation reads as another host), so
-  // the normalised path is what is checked, again.
-  const url = new URL(value, location.origin);
-  if (url.origin !== location.origin) {
-    return undefined;
+  const url = URL.parse(raw, origin);
+  if (url?.origin !== origin) {
+    return "/";
   }
   const path = url.pathname + url.search + url.hash;
-  if (path.startsWith("//") || new URL(path, location.origin).origin !== location.origin) {
-    return undefined;
-  }
-  return path;
+  return path.startsWith("//") ? "/" : path;
+}
+
+/** Overlapping reads of one thing, each answer applied only while its read
+ *  is the newest started. */
+export interface Latest {
+  /** Starts a read: the answer is current while no read started after it
+   *  and the screen has not ended. */
+  start(): () => boolean;
+  /** Runs `work` and hands its answer to `apply` only while it is current,
+   *  so an older answer never paints over a newer one, nor an older
+   *  success over a newer failure; true when it applied. */
+  run<T>(work: () => Promise<T>, apply: (answer: T) => void): Promise<boolean>;
+}
+
+export function latest(signal?: AbortSignal): Latest {
+  let started = 0;
+  const start = (): (() => boolean) => {
+    started += 1;
+    const mine = started;
+    return () => mine === started && signal?.aborted !== true;
+  };
+  return {
+    start,
+    async run(work, apply) {
+      const current = start();
+      const answer = await work();
+      if (!current()) {
+        return false;
+      }
+      apply(answer);
+      return true;
+    },
+  };
 }
 
 /** Removes the single sign-on outcome and the arrival from the address
@@ -139,26 +171,52 @@ export function sleep(ms: number, signal?: AbortSignal): Promise<void> {
 }
 
 /** The notice slot: at most one notice, said to a screen reader as it
- *  shows, a danger one assertively. */
+ *  shows, a danger one assertively. A focused action a new notice or a
+ *  clear takes away gives focus to the new notice's action with the same
+ *  `data-cp-action`, else to `heading`. */
 export interface Slot {
   readonly root: HTMLElement;
   show(tone: Tone, text: string | Node, action?: HTMLElement): HTMLElement;
   clear(): void;
+  /** Clears `box` when it is still the notice shown. */
+  drop(box: Element | undefined): void;
+  /** The notice shown, if any. */
+  shown(): Element | undefined;
 }
 
-export function slot(root: HTMLElement): Slot {
+export function slot(root: HTMLElement, heading: Heading = () => undefined): Slot {
+  const clear = (): void => {
+    redrawKeepingFocus(root, heading, () => {
+      root.replaceChildren();
+    });
+  };
   return {
     root,
     show(tone, text, action) {
       const box = notice(tone, text, action);
-      root.replaceChildren(box);
+      redrawKeepingFocus(root, heading, () => {
+        root.replaceChildren(box);
+      });
       announce(box.textContent, tone === "danger" ? "assertive" : "polite");
       return box;
     },
-    clear() {
-      root.replaceChildren();
+    clear,
+    drop(box) {
+      if (box?.parentElement === root) {
+        clear();
+      }
     },
+    shown: () => root.firstElementChild ?? undefined,
   };
+}
+
+/** A Retry button that runs `again` once. */
+export function retryButton(text: string, again: () => unknown): HTMLButtonElement {
+  const retry = el("button", "cp-button", text);
+  retry.type = "button";
+  retry.dataset["cpAction"] = "retry";
+  retry.addEventListener("click", () => void again(), { once: true });
+  return retry;
 }
 
 export interface Hold {

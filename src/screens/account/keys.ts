@@ -9,10 +9,11 @@
 import { enhanceRowDetail } from "../../data/table/table.js";
 import { clearError, showError } from "../../forms/form/form.js";
 import { glyph } from "../../foundations/icons/glyph.js";
-import { focusAction, rowActions, rowHead, type Action } from "./actions.js";
+import { rowActions, rowHead, type Action } from "./actions.js";
 import { codeOf, reasonOf, retryAfter, runes } from "./answer.js";
 import type { KeyCreated, KeyView, Refusal, Result, SecurityClient, TokenView } from "./client.js";
 import { formDialog, type FormDialog } from "./dialogs.js";
+import { redrawKeepingFocus } from "./focus.js";
 import {
   cell,
   cellStack,
@@ -26,7 +27,18 @@ import {
   uid,
 } from "./dom.js";
 import { NAME_MAX, nameRefused, renameInPlace } from "./rename.js";
-import { duration, holdBy, holdFor, holdForHttps, isHeld, question, read, slot } from "./screen.js";
+import {
+  duration,
+  holdBy,
+  holdFor,
+  holdForHttps,
+  isHeld,
+  latest,
+  question,
+  read,
+  retryButton,
+  slot,
+} from "./screen.js";
 import type { Ctx } from "./security.js";
 import { showSecret } from "./shown.js";
 import type { StepUpAnswer } from "./step-up.js";
@@ -138,7 +150,7 @@ export function drawKeys(
 ): KeysSection {
   const { w, has } = ctx;
   const { own, admin } = calls;
-  const notices = slot(el("div"));
+  const notices = slot(el("div"), heading);
   notices.root.dataset["part"] = "notice";
   const content = el("div", "cp-stack");
   content.dataset["part"] = "keys";
@@ -151,10 +163,12 @@ export function drawKeys(
   const levelRequired = ctx.scopes?.required === true;
   const initial = ctx.scopes?.initial;
   let list: readonly KeyView[] = [];
-  // Reads overlap (focus, the timer, every key action): only the newest
-  // answer draws, with the focus any of them asked for.
-  let reads = 0;
+  // Reads overlap: focus, the timer, every key action.
+  const reads = latest(ctx.signal);
+  /** The focus the newest read draws with, whichever read asked for it. */
   let wanted: string | undefined;
+  /** The notice of the last read that failed, until one succeeds. */
+  let failure: Element | undefined;
   let editing = false;
   // A read that came back while Rename… was open, run again when it ends.
   let skipped = false;
@@ -174,30 +188,28 @@ export function drawKeys(
   const labelOf = (k: KeyView): string => (k.label === "" ? w["keys.unnamed"] : k.label);
 
   const refresh = async (focus?: string): Promise<void> => {
-    reads += 1;
-    const mine = reads;
     wanted = focus ?? wanted;
-    const got = await read(() => calls.list());
-    if (mine !== reads || ctx.signal?.aborted === true) {
-      return;
-    }
-    if (editing) {
-      skipped = true;
-      return;
-    }
-    skipped = false;
-    const asked = wanted;
-    wanted = undefined;
-    if (!got.ok) {
-      ctx.settle({ kind: "done", result: got }, notices, (r) => unavailable(r, refresh));
-      return;
-    }
-    list = got.data;
-    const kept = asked ?? activeAction(content);
-    draw();
-    if (kept !== undefined && !focusAction(content, kept) && asked !== undefined) {
-      heading.focus();
-    }
+    await reads.run(
+      () => read(() => calls.list()),
+      (got) => {
+        if (editing) {
+          skipped = true;
+          return;
+        }
+        skipped = false;
+        const asked = wanted;
+        wanted = undefined;
+        if (!got.ok) {
+          ctx.settle({ kind: "done", result: got }, notices, (r) => unavailable(r, refresh));
+          failure = notices.shown();
+          return;
+        }
+        notices.drop(failure);
+        failure = undefined;
+        list = got.data;
+        redrawKeepingFocus(content, heading, draw, asked);
+      },
+    );
   };
 
   /** The soonest previous secret's end, when the row goes Active again. */
@@ -239,10 +251,7 @@ export function drawKeys(
     if (codeOf(r) !== "auth_unavailable") {
       return undefined;
     }
-    const retry = el("button", "cp-button", w["generic.retry"]);
-    retry.type = "button";
-    retry.addEventListener("click", () => void again(), { once: true });
-    notices.show("danger", w["generic.unavailable"], retry);
+    notices.show("danger", w["generic.unavailable"], retryButton(w["generic.retry"], again));
     return null;
   };
 
@@ -960,22 +969,4 @@ export function drawKeys(
 
   void refresh();
   return { refresh };
-}
-
-/** The `data-cp-action` of the control in `root` that has focus, or of the
- *  first item of the menu whose ⋯ button has it, so a redraw can give
- *  focus back. */
-function activeAction(root: HTMLElement): string | undefined {
-  const active = document.activeElement;
-  if (!(active instanceof HTMLElement) || !root.contains(active)) {
-    return undefined;
-  }
-  const own = active.dataset["cpAction"];
-  if (own !== undefined) {
-    return own;
-  }
-  const menu = active.getAttribute("popovertarget");
-  const item =
-    menu === null ? null : root.querySelector<HTMLElement>(`[id="${menu}"] [data-cp-action]`);
-  return item?.dataset["cpAction"];
 }

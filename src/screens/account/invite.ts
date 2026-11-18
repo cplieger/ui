@@ -34,6 +34,7 @@ import type {
 } from "./client.js";
 import { glyph } from "../../foundations/icons/glyph.js";
 import { actionButton, el, field, heading, line, notice, passwordField, sketch } from "./dom.js";
+import { headingOr, redrawKeepingFocus } from "./focus.js";
 import { continueSignIn, stepOf } from "./pending.js";
 import { runDirect, type AccountAction } from "./run.js";
 import {
@@ -41,7 +42,9 @@ import {
   holdFor,
   needsHttps,
   partsOf,
+  latest,
   read,
+  retryButton,
   slot,
   transportOf,
   type Hold,
@@ -103,14 +106,16 @@ export function mountInvite<C extends InviteClient>(
   installTooltips(life);
 
   const stack = el("div", "cp-stack");
-  if (options.heading !== false) {
-    const title = heading(1, w["invite.title"](app));
+  const title = options.heading === false ? undefined : heading(1, w["invite.title"](app));
+  if (title !== undefined) {
+    title.tabIndex = -1;
     panel.setAttribute("aria-labelledby", title.id);
     stack.append(title);
   }
-  const notices = slot(el("div"));
-  notices.root.dataset["part"] = "notice";
   const body = el("div", "cp-stack");
+  const lead = headingOr(title, body);
+  const notices = slot(el("div"), lead);
+  notices.root.dataset["part"] = "notice";
   stack.append(notices.root, body);
   panel.replaceChildren(stack);
 
@@ -146,56 +151,56 @@ export function mountInvite<C extends InviteClient>(
     body.replaceChildren(box);
   };
 
-  // Only the newest of overlapping loads draws.
-  let loads = 0;
+  const loads = latest(signal);
   /** Draws the screen from `state()`, saying `said` over it. */
   const load = async (said?: Said): Promise<void> => {
     if (token === "") {
       broken(w["invite.broken"]);
       return;
     }
-    notices.clear();
     panel.setAttribute("aria-busy", "true");
-    const mine = ++loads;
+    const current = loads.start();
     const skeleton = skeletonTiming(() => {
-      if (mine === loads) {
-        body.replaceChildren(sketch());
+      if (current()) {
+        redrawKeepingFocus(body, lead, () => {
+          body.replaceChildren(sketch());
+        });
       }
     }, life);
     const [state, support] = await Promise.all([
       read(() => client.state()),
       access.passkeySupport(),
     ]);
-    if (mine !== loads || signal?.aborted === true) {
+    if (!current()) {
       skeleton.cancel();
       return;
     }
     skeleton.commit(() => {
-      panel.removeAttribute("aria-busy");
-      if (!state.ok) {
-        body.replaceChildren();
-        const retry = el("button", "cp-button", w["generic.retry"]);
-        retry.type = "button";
-        retry.addEventListener("click", () => void load(), { once: true });
-        notices.show("danger", generic(state, w).text, retry);
-        return;
-      }
-      const s = state.data;
-      const t = transportOf(s);
-      // access refuses an invite's acceptance over plain HTTP.
-      if (t.plain) {
-        holdable = [];
-        body.replaceChildren(needsHttps(t, app, w));
-        return;
-      }
-      passwordLength = passwordLengthOf(s);
-      webauthn = support.webauthn;
-      const password = s.password_login && has("password") && (s.sso ?? "alongside") !== "only";
-      const sso = s.oidc && has("single-sign-on") && client.inviteAcceptOIDC !== undefined;
-      draw(password, sso);
-      if (said !== undefined) {
-        notices.show(said.tone, said.text);
-      }
+      redrawKeepingFocus(stack, lead, () => {
+        panel.removeAttribute("aria-busy");
+        notices.clear();
+        if (!state.ok) {
+          body.replaceChildren();
+          notices.show("danger", generic(state, w).text, retryButton(w["generic.retry"], load));
+          return;
+        }
+        const s = state.data;
+        const t = transportOf(s);
+        // access refuses an invite's acceptance over plain HTTP.
+        if (t.plain) {
+          holdable = [];
+          body.replaceChildren(needsHttps(t, app, w));
+          return;
+        }
+        passwordLength = passwordLengthOf(s);
+        webauthn = support.webauthn;
+        const password = s.password_login && has("password") && (s.sso ?? "alongside") !== "only";
+        const sso = s.oidc && has("single-sign-on") && client.inviteAcceptOIDC !== undefined;
+        draw(password, sso);
+        if (said !== undefined) {
+          notices.show(said.tone, said.text);
+        }
+      });
     });
   };
 

@@ -19,9 +19,11 @@ import type {
   Refusal,
   Result,
   SSOMode,
+  StateResponse,
   StepUpAccess,
 } from "./client.js";
 import { actionButton, el, heading, line, sketch, uid } from "./dom.js";
+import { redrawKeepingFocus } from "./focus.js";
 import { runDirect, type AccountAction } from "./run.js";
 import {
   cycle,
@@ -29,7 +31,9 @@ import {
   holdForHttps,
   httpsOriginOf,
   leaver,
+  latest,
   read,
+  retryButton,
   slot,
   type ScreenOptions,
   type SignedOutOptions,
@@ -121,17 +125,16 @@ export function mountAccessSettings<C extends AccessSettingsClient>(
 
   const root = el("section", "cp-stack");
   const h = heading(level, w["settings.title"]);
+  h.tabIndex = -1;
   root.setAttribute("aria-labelledby", h.id);
-  const notices = slot(el("div"));
+  const notices = slot(el("div"), h);
   notices.root.dataset["part"] = "notice";
   const content = el("div", "cp-stack");
   content.dataset["part"] = "sso-mode";
   root.append(h, notices.root, content);
 
   let current: SSOMode = "alongside";
-  let asked = 0;
-  // Only the newest of overlapping loads draws.
-  let loads = 0;
+  const loads = latest(signal);
 
   const guarded = <T>(
     work: () => Promise<Result<T>>,
@@ -182,48 +185,54 @@ export function mountAccessSettings<C extends AccessSettingsClient>(
     if (endsSession(r, leave)) {
       return;
     }
-    const retry = el("button", "cp-button", w["generic.retry"]);
-    retry.type = "button";
-    retry.addEventListener("click", () => void load(), { once: true });
     const said = generic(r, w);
-    notices.show(said.tone, said.text, retry);
+    notices.show(said.tone, said.text, retryButton(w["generic.retry"], load));
   };
 
   async function load(): Promise<void> {
-    notices.clear();
     region.setAttribute("aria-busy", "true");
-    const mine = ++loads;
+    const fresh = loads.start();
     const skeleton = skeletonTiming(() => {
-      if (mine === loads) {
-        content.replaceChildren(sketch());
+      if (fresh()) {
+        redrawKeepingFocus(root, h, () => {
+          content.replaceChildren(sketch());
+        });
       }
     }, life);
     const [state, me] = await Promise.all([read(() => client.state()), read(() => client.me())]);
-    if (mine !== loads || signal?.aborted === true) {
+    if (!fresh()) {
       skeleton.cancel();
       return;
     }
     skeleton.commit(() => {
-      region.removeAttribute("aria-busy");
-      if (me.ok && !shows(me.data)) {
-        region.replaceChildren();
-        return;
-      }
-      if (!root.isConnected) {
-        region.replaceChildren(root);
-      }
-      if (!me.ok || !state.ok) {
-        content.replaceChildren();
-        failed(me.ok ? (state as Refusal) : me);
-        return;
-      }
-      current = state.data.sso ?? "alongside";
-      draw(me.data, httpsOriginOf(state.data.https_origin));
+      redrawKeepingFocus(root, h, () => {
+        show(state, me);
+      });
     });
   }
 
+  function show(state: Result<StateResponse>, me: Result<AccountView>): void {
+    region.removeAttribute("aria-busy");
+    notices.clear();
+    if (me.ok && !shows(me.data)) {
+      region.replaceChildren();
+      return;
+    }
+    if (!root.isConnected) {
+      region.replaceChildren(root);
+    }
+    if (!me.ok || !state.ok) {
+      content.replaceChildren();
+      failed(me.ok ? (state as Refusal) : me);
+      return;
+    }
+    current = state.data.sso ?? "alongside";
+    draw(me.data, httpsOriginOf(state.data.https_origin));
+  }
+
   function draw(me: AccountView, httpsOrigin: string | undefined): void {
-    asked += 1;
+    // One form's readiness reads: a newer choice drops an older one's answer.
+    const checks = latest(signal);
     const form = el("form", "cp-form");
     form.noValidate = true;
     const set = el("fieldset", "cp-choices");
@@ -236,6 +245,7 @@ export function mountAccessSettings<C extends AccessSettingsClient>(
       input.name = name;
       input.value = mode;
       input.checked = mode === current;
+      input.dataset["cpAction"] = `sso-${mode}`;
       const words = el("span", undefined, w["settings.modeOf"](mode));
       words.append(el("small", undefined, w["settings.modeLine"](mode, provider)));
       choice.append(input, words);
@@ -255,7 +265,7 @@ export function mountAccessSettings<C extends AccessSettingsClient>(
       parts.push(https);
     }
     set.setAttribute("aria-describedby", described.join(" "));
-    const readiness = slot(el("div"));
+    const readiness = slot(el("div"), () => radios.find((r) => r.checked));
     readiness.root.dataset["part"] = "readiness";
     const apply = actionButton(w["settings.apply"], { primary: true, type: "submit" });
     apply.hidden = true;
@@ -270,12 +280,8 @@ export function mountAccessSettings<C extends AccessSettingsClient>(
     let chosen = current;
     const label = (mode: SSOMode): string => w["settings.modeOf"](mode);
 
-    const retry = (mode: SSOMode): HTMLButtonElement => {
-      const b = el("button", "cp-button", w["generic.retry"]);
-      b.type = "button";
-      b.addEventListener("click", () => void choose(mode), { once: true });
-      return b;
-    };
+    const retry = (mode: SSOMode): HTMLButtonElement =>
+      retryButton(w["generic.retry"], () => choose(mode));
 
     const outcome = (mode: SSOMode, r: Readiness): { readonly tone: Tone; readonly node: Node } => {
       const lines = [
@@ -305,7 +311,7 @@ export function mountAccessSettings<C extends AccessSettingsClient>(
       apply.hidden = true;
       readiness.clear();
       chosen = mode;
-      const n = ++asked;
+      const fresh = checks.start();
       if (mode === current) {
         return;
       }
@@ -316,7 +322,7 @@ export function mountAccessSettings<C extends AccessSettingsClient>(
       readiness.root.setAttribute("aria-busy", "true");
       readiness.root.replaceChildren(line("cp-help", w["settings.checking"]));
       const r = await read(() => ask(mode));
-      if (n !== asked || signal?.aborted === true) {
+      if (!fresh()) {
         return;
       }
       readiness.root.removeAttribute("aria-busy");

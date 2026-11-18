@@ -8,13 +8,14 @@
 
 import { enhanceConfirm, type Confirm } from "../../buttons/confirm/confirm.js";
 import { enhanceRelativeTime } from "../../data/relative-time/relative-time.js";
-import { focusAction, rowActions, rowHead, type Action } from "./actions.js";
+import { rowActions, rowHead, type Action } from "./actions.js";
 import { codeOf } from "./answer.js";
 import type { Refusal, SecurityClient, SessionView } from "./client.js";
 import { deviceName } from "./device.js";
 import { actionButton, cell, cellStack, clockAt, el, stateMark, table } from "./dom.js";
+import { redrawKeepingFocus } from "./focus.js";
 import { renameInPlace, nameRefused } from "./rename.js";
-import { cycle, question, read, slot } from "./screen.js";
+import { cycle, latest, question, read, retryButton, slot } from "./screen.js";
 import type { Ctx } from "./security.js";
 
 export interface SessionsSection {
@@ -29,36 +30,36 @@ export function drawSessions<C extends SecurityClient>(
   heading: HTMLHeadingElement,
 ): SessionsSection {
   const { w, client, has } = ctx;
-  const notices = slot(el("div"));
+  const notices = slot(el("div"), heading);
   notices.root.dataset["part"] = "notice";
   const content = el("div", "cp-stack");
   content.dataset["part"] = "sessions";
   body.replaceChildren(notices.root, content);
   let list: readonly SessionView[] = [];
-  // Only the newest of overlapping reads draws, with the focus any of
-  // them asked for.
-  let reads = 0;
+  const reads = latest(ctx.signal);
+  /** The focus the newest read draws with, whichever read asked for it. */
   let wanted: string | undefined;
+  /** The notice of the last read that failed, until one succeeds. */
+  let failure: Element | undefined;
 
   const refresh = async (focus?: string): Promise<void> => {
-    reads += 1;
-    const mine = reads;
     wanted = focus ?? wanted;
-    const got = await read(() => client.sessions());
-    if (mine !== reads || ctx.signal?.aborted === true) {
-      return;
-    }
-    const asked = wanted;
-    wanted = undefined;
-    if (!got.ok) {
-      ctx.settle({ kind: "done", result: got }, notices, (r) => unavailable(r, refresh));
-      return;
-    }
-    list = order(got.data);
-    draw();
-    if (asked !== undefined && !focusAction(content, asked)) {
-      heading.focus();
-    }
+    await reads.run(
+      () => read(() => client.sessions()),
+      (got) => {
+        const asked = wanted;
+        wanted = undefined;
+        if (!got.ok) {
+          ctx.settle({ kind: "done", result: got }, notices, (r) => unavailable(r, refresh));
+          failure = notices.shown();
+          return;
+        }
+        notices.drop(failure);
+        failure = undefined;
+        list = order(got.data);
+        redrawKeepingFocus(content, heading, draw, asked);
+      },
+    );
   };
 
   /** Offers Retry on `auth_unavailable`, the one answer worth repeating. */
@@ -66,10 +67,7 @@ export function drawSessions<C extends SecurityClient>(
     if (codeOf(r) !== "auth_unavailable") {
       return undefined;
     }
-    const retry = el("button", "cp-button", w["generic.retry"]);
-    retry.type = "button";
-    retry.addEventListener("click", () => void again(), { once: true });
-    notices.show("danger", w["generic.unavailable"], retry);
+    notices.show("danger", w["generic.unavailable"], retryButton(w["generic.retry"], again));
     return null;
   };
 

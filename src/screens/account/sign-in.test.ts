@@ -286,7 +286,13 @@ describe("mountSignIn: password", () => {
     "/foo/..//evil.example",
     "/%2e//evil.example",
     "/.\\/evil.example",
-  ])("goes home for a next of %j, which leaves the origin", async (next) => {
+    "//",
+    "///",
+    "//?x",
+    "/\\",
+    "/\\/",
+    "/\t/",
+  ])("goes home for a next of %j, which leaves the origin or does not parse", async (next) => {
     const navigate = vi.fn<(url: string) => void>();
     const { panel } = mount(new Fake(), {
       navigate,

@@ -35,6 +35,7 @@ import type {
 } from "./client.js";
 import { actionButton, el, field, heading, line, notice, passwordField, sketch } from "./dom.js";
 import { showRecoveryCode } from "./factor.js";
+import { headingOr, redrawKeepingFocus } from "./focus.js";
 import { continueSignIn } from "./pending.js";
 import { runDirect, type AccountAction } from "./run.js";
 import {
@@ -43,7 +44,9 @@ import {
   needsHttps,
   partsOf,
   plainLines,
+  latest,
   read,
+  retryButton,
   slot,
   transportOf,
   type Hold,
@@ -113,16 +116,17 @@ export function mountSetup<C extends SetupClient>(
   installTooltips(life);
 
   const stack = el("div", "cp-stack");
-  if (options.heading !== false) {
-    const title = heading(1, w["setup.title"](app));
+  const title = options.heading === false ? undefined : heading(1, w["setup.title"](app));
+  if (title !== undefined) {
+    title.tabIndex = -1;
     region.setAttribute("aria-labelledby", title.id);
     stack.append(title);
   }
-  const notices = slot(el("div"));
-  notices.root.dataset["part"] = "notice";
-  stack.append(notices.root);
   const body = el("div", "cp-stack");
-  stack.append(body);
+  const lead = headingOr(title, body);
+  const notices = slot(el("div"), lead);
+  notices.root.dataset["part"] = "notice";
+  stack.append(notices.root, body);
   region.replaceChildren(stack);
 
   let hold: Hold | undefined;
@@ -155,53 +159,53 @@ export function mountSetup<C extends SetupClient>(
     }
   };
 
-  // Only the newest of overlapping loads draws.
-  let loads = 0;
+  const loads = latest(signal);
   /** Draws the screen from `state()`, saying `said` over it. */
   const load = async (said?: Said): Promise<void> => {
-    notices.clear();
     region.setAttribute("aria-busy", "true");
-    const mine = ++loads;
+    const current = loads.start();
     const skeleton = skeletonTiming(() => {
-      if (mine === loads) {
-        body.replaceChildren(sketch());
+      if (current()) {
+        redrawKeepingFocus(body, lead, () => {
+          body.replaceChildren(sketch());
+        });
       }
     }, life);
     const [state, support] = await Promise.all([
       read(() => client.state()),
       access.passkeySupport(),
     ]);
-    if (mine !== loads || signal?.aborted === true) {
+    if (!current()) {
       skeleton.cancel();
       return;
     }
     skeleton.commit(() => {
-      region.removeAttribute("aria-busy");
-      if (!state.ok) {
-        body.replaceChildren();
-        const retry = el("button", "cp-button", w["generic.retry"]);
-        retry.type = "button";
-        retry.addEventListener("click", () => void load(), { once: true });
-        notices.show("danger", generic(state, w).text, retry);
-        return;
-      }
-      if (!state.data.setup_required) {
-        body.replaceChildren();
-        alreadyDone();
-        return;
-      }
-      const t = transportOf(state.data);
-      const required = state.data.https_required;
-      if (t.plain && (required.includes("setup") || required.includes("password"))) {
-        body.replaceChildren(needsHttps(t, app, w));
-        return;
-      }
-      passwordLength = passwordLengthOf(state.data);
-      webauthn = support.webauthn;
-      draw(t, has("setup-passkey") && state.data.passkeys && support.webauthn && !t.plain);
-      if (said !== undefined) {
-        notices.show(said.tone, said.text);
-      }
+      redrawKeepingFocus(stack, lead, () => {
+        region.removeAttribute("aria-busy");
+        notices.clear();
+        if (!state.ok) {
+          body.replaceChildren();
+          notices.show("danger", generic(state, w).text, retryButton(w["generic.retry"], load));
+          return;
+        }
+        if (!state.data.setup_required) {
+          body.replaceChildren();
+          alreadyDone();
+          return;
+        }
+        const t = transportOf(state.data);
+        const required = state.data.https_required;
+        if (t.plain && (required.includes("setup") || required.includes("password"))) {
+          body.replaceChildren(needsHttps(t, app, w));
+          return;
+        }
+        passwordLength = passwordLengthOf(state.data);
+        webauthn = support.webauthn;
+        draw(t, has("setup-passkey") && state.data.passkeys && support.webauthn && !t.plain);
+        if (said !== undefined) {
+          notices.show(said.tone, said.text);
+        }
+      });
     });
   };
 
@@ -352,7 +356,7 @@ export function mountSetup<C extends SetupClient>(
     }
     const answer = got.answer;
     if (answer === null) {
-      notices.show("danger", w["generic.server"], retryButton(f));
+      notices.show("danger", w["generic.server"], resubmit(f));
     } else if (answer.ok) {
       if ("pending" in answer.data) {
         // Under a second-factor rule the account exists only once the
@@ -393,18 +397,10 @@ export function mountSetup<C extends SetupClient>(
     }
   };
 
-  const retryButton = (f: SetupForm): HTMLButtonElement => {
-    const retry = el("button", "cp-button", w["generic.retry"]);
-    retry.type = "button";
-    retry.addEventListener(
-      "click",
-      () => {
-        f.form.requestSubmit();
-      },
-      { once: true },
-    );
-    return retry;
-  };
+  const resubmit = (f: SetupForm): HTMLButtonElement =>
+    retryButton(w["generic.retry"], () => {
+      f.form.requestSubmit();
+    });
 
   /** Shows a refusal of either setup; every typed value stays. */
   const setupRefused = (r: Refusal, f: SetupForm): void => {
@@ -462,7 +458,7 @@ export function mountSetup<C extends SetupClient>(
         break;
     }
     const said = generic(r, w);
-    notices.show(said.tone, said.text, retryButton(f));
+    notices.show(said.tone, said.text, resubmit(f));
   };
 
   const passkeyButton = (f: SetupForm): HTMLButtonElement => {

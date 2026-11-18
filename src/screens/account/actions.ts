@@ -137,19 +137,3 @@ export function rowHead(content: string | Node): HTMLTableCellElement {
   th.append(content);
   return th;
 }
-
-/** Focuses the control marked `data-cp-action="<key>"` in `root`, or the ⋯
- *  button of the menu holding it; false when there is none. */
-export function focusAction(root: HTMLElement, key: string): boolean {
-  const target = root.querySelector<HTMLElement>(`[data-cp-action="${key}"]`);
-  const menu = target?.closest<HTMLElement>("[role='menu']");
-  const opener =
-    menu === null || menu === undefined
-      ? target
-      : root.querySelector<HTMLElement>(`[popovertarget="${menu.id}"]`);
-  if (opener === null) {
-    return false;
-  }
-  opener.focus();
-  return true;
-}

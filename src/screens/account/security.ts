@@ -11,7 +11,6 @@ import { installAnnouncer } from "../../feedback/announce/announce.js";
 import { skeletonTiming } from "../../feedback/skeleton/skeleton.js";
 import { installDialogs } from "../../overlays/dialog/dialog.js";
 import { installTooltips } from "../../overlays/tooltip/tooltip.js";
-import { focusAction } from "./actions.js";
 import {
   clock,
   codeOf,
@@ -29,8 +28,10 @@ import type {
   Result,
   SecurityAccess,
   SecurityClient,
+  StateResponse,
 } from "./client.js";
 import { clockAt, el, heading, sketch, stateMark } from "./dom.js";
+import { redrawKeepingFocus } from "./focus.js";
 import { checkScopes, drawKeys, type KeyNote, type KeyScopes, type KeysSection } from "./keys.js";
 import { drawLog, type LogOptions, type SecurityLogScreen } from "./log.js";
 import { drawMethods } from "./methods.js";
@@ -41,8 +42,10 @@ import {
   endsSession,
   httpsOriginOf,
   leaver,
+  latest,
   partsOf,
   read,
+  retryButton,
   slot,
   type AccountPart,
   type ScreenOptions,
@@ -184,32 +187,31 @@ export function mountSecurity<C extends SecurityClient>(
   installTooltips(life);
 
   const top = el("div", "cp-stack");
-  const notices = slot(el("div"));
+  /** The first section's heading, where focus goes when its control is
+   *  drawn away. */
+  const lead = (): HTMLElement | undefined =>
+    [profile, methods, sessionsPart, keysPart, logPart].find((p) => p.root.isConnected)?.heading;
+  const notices = slot(el("div"), lead);
   notices.root.dataset["part"] = "notice";
   const session = el("div");
   session.dataset["part"] = "session";
   const profile = section(w["profile.title"]);
   const methods = section(w["methods.title"]);
-  methods.heading.tabIndex = -1;
   // With no method's routes mounted, the screen has no methods section.
   const anyMethod = (["password", "passkeys", "second-factor", "single-sign-on"] as const).some(
     has,
   );
   const sessionsPart = section(w["sessions.title"]);
-  sessionsPart.heading.tabIndex = -1;
   const keysPart = section(w["keys.title"]);
-  keysPart.heading.tabIndex = -1;
   const logPart = section(w["log.title"]);
-  logPart.heading.tabIndex = -1;
   top.append(session, notices.root);
   region.replaceChildren(top);
 
   let me: AccountView | undefined;
   let passkeys: readonly PasskeyView[] = [];
   let ctx: Ctx<C> | undefined;
-  // Only the newest of overlapping reads draws, with the focus any of
-  // them asked for.
-  let reads = 0;
+  const reads = latest(signal);
+  /** The focus the newest read draws with, whichever read asked for it. */
   let wanted: string | undefined;
   /** The notice of the last refresh that failed, until one succeeds. */
   let failed: HTMLElement | undefined;
@@ -224,6 +226,7 @@ export function mountSecurity<C extends SecurityClient>(
   } {
     const root = el("section", "cp-stack");
     const h = heading(level, title);
+    h.tabIndex = -1;
     root.setAttribute("aria-labelledby", h.id);
     const body = el("div", "cp-stack");
     root.append(h, body);
@@ -348,39 +351,45 @@ export function mountSecurity<C extends SecurityClient>(
   };
 
   const refresh = async (focus?: string): Promise<void> => {
-    reads += 1;
-    const mine = reads;
     wanted = focus ?? wanted;
-    const [got, keys] = await Promise.all([read(() => client.me()), readPasskeys()]);
-    if (mine !== reads || signal?.aborted === true || ctx === undefined) {
-      return;
-    }
-    const asked = wanted;
-    wanted = undefined;
-    if (!got.ok) {
-      if (!signedOut(got)) {
-        const said = generic(got, w);
-        failed = notices.show(
-          said.tone,
-          said.text,
-          retryButton(() => refresh(asked)),
-        );
-      }
-      return;
-    }
-    if (failed?.isConnected === true) {
-      notices.clear();
-    }
-    failed = undefined;
-    me = got.data;
-    passkeys = keys;
-    drawSession(me);
-    if (anyMethod) {
-      drawMethods(ctx, methods.body, me, passkeys);
-    }
-    if (asked !== undefined && !focusAction(methods.body, asked)) {
-      methods.heading.focus();
-    }
+    await reads.run(
+      () => Promise.all([read(() => client.me()), readPasskeys()]),
+      ([got, keys]) => {
+        const c = ctx;
+        if (c === undefined) {
+          return;
+        }
+        const asked = wanted;
+        wanted = undefined;
+        if (!got.ok) {
+          if (!signedOut(got)) {
+            const said = generic(got, w);
+            failed = notices.show(
+              said.tone,
+              said.text,
+              retryButton(w["generic.retry"], () => refresh(asked)),
+            );
+          }
+          return;
+        }
+        notices.drop(failed);
+        failed = undefined;
+        const m = got.data;
+        me = m;
+        passkeys = keys;
+        drawSession(m);
+        if (anyMethod) {
+          redrawKeepingFocus(
+            methods.body,
+            methods.heading,
+            () => {
+              drawMethods(c, methods.body, m, keys);
+            },
+            asked,
+          );
+        }
+      },
+    );
   };
 
   const readPasskeys = async (): Promise<readonly PasskeyView[]> => {
@@ -389,14 +398,6 @@ export function mountSecurity<C extends SecurityClient>(
     }
     const got = await read(() => client.passkeys());
     return got.ok ? got.data : passkeys;
-  };
-
-  /** A Retry that runs `again`, the read that failed. */
-  const retryButton = (again: () => Promise<void>): HTMLButtonElement => {
-    const retry = el("button", "cp-button", w["generic.retry"]);
-    retry.type = "button";
-    retry.addEventListener("click", () => void again(), { once: true });
-    return retry;
   };
 
   // The first read, while it runs: a refresh waits for it, since the
@@ -410,10 +411,11 @@ export function mountSecurity<C extends SecurityClient>(
   // Runs only while no section is mounted: a second mount would leave the
   // first copies' focus, timer and popstate listeners running.
   const load = async (): Promise<void> => {
-    notices.clear();
     region.setAttribute("aria-busy", "true");
     const skeleton = skeletonTiming(() => {
-      top.replaceChildren(session, notices.root, sketch());
+      redrawKeepingFocus(top, lead, () => {
+        top.replaceChildren(session, notices.root, sketch());
+      });
     }, life);
     const [state, got, support] = await Promise.all([
       read(() => client.state()),
@@ -426,105 +428,118 @@ export function mountSecurity<C extends SecurityClient>(
       return;
     }
     skeleton.commit(() => {
-      region.removeAttribute("aria-busy");
-      top.replaceChildren(session, notices.root);
-      if (!got.ok) {
-        if (!signedOut(got)) {
-          const said = generic(got, w);
-          notices.show(said.tone, said.text, retryButton(start));
-        }
-        return;
-      }
-      me = got.data;
-      passkeys = keys;
-      if (has("passkeys") && support.webauthn) {
-        void access.sendSignals(client);
-      }
-      ctx = {
-        client,
-        access,
-        w,
-        has,
-        app: options.app,
-        provider,
-        level,
-        signal,
-        life,
-        navigate,
-        redirect,
-        usableHere,
-        httpsOrigin: state.ok ? httpsOriginOf(state.data.https_origin) : undefined,
-        appTotp: state.ok && state.data.totp === true,
-        passwordLength: passwordLengthOf(state.ok ? state.data : undefined),
-        webauthn: support.webauthn,
-        plain: !me.session.secure,
-        scopes: options.scopes,
-        keysElsewhere: options.keysCreatedElsewhere,
-        keyNote: options.keyNote,
-        signedOut: leave,
-        write,
-        settle,
-        refresh,
-      };
-      drawSession(me);
-      if (has("profile")) {
-        drawProfile(ctx, profile.body, me);
-        top.append(profile.root);
-      }
-      if (anyMethod) {
-        drawMethods(ctx, methods.body, me, passkeys);
-        top.append(methods.root);
-      }
-      if (has("sessions")) {
-        sessionsView = drawSessions(ctx, sessionsPart.body, sessionsPart.heading);
-        top.append(sessionsPart.root);
-      }
-      if (has("keys")) {
-        keysView = drawKeys(ctx, keysPart.body, keysPart.heading, {
-          list: () => client.keys(),
-          revoke: (id) => client.revokeKey(id),
-          own: {
-            create: (r) => client.createKey(r),
-            rename: (id, r) => client.renameKey(id, r),
-            rotate: (id) => client.rotateKey(id),
-          },
-        });
-        top.append(keysPart.root);
-      }
-      // access reads the log only to a viewer its policy lets list users,
-      // an admin under its role policy; its refusal removes the section.
-      if (has("security-log") && me.user.role === "admin") {
-        const everyone = options.log?.everyone === true || me.single_user === true;
-        logView = drawLog(
-          {
-            client,
-            w,
-            provider,
-            options: options.log ?? {},
-            search: options.search ?? location.search,
-            user: everyone ? undefined : me.user.id,
-            viewer: me.user.id,
-            life,
-            leave,
-            forbidden: () => {
-              logPart.root.remove();
-            },
-          },
-          logPart.body,
-          logPart.heading,
-        );
-        top.append(logPart.root);
-      }
-      const said = returned();
-      if (said !== undefined) {
-        const into = methods.body.querySelector<HTMLElement>("[data-part='notice']");
-        if (into === null) {
-          notices.show(said.tone, said.text);
-        } else {
-          slot(into).show(said.tone, said.text);
-        }
-      }
+      redrawKeepingFocus(top, lead, () => {
+        mount(state, got, keys, support);
+      });
     });
+  };
+
+  /** Draws the first read's sections, or its failure with Retry. */
+  const mount = (
+    state: Result<StateResponse>,
+    got: Result<AccountView>,
+    keys: readonly PasskeyView[],
+    support: { readonly webauthn: boolean },
+  ): void => {
+    region.removeAttribute("aria-busy");
+    notices.clear();
+    top.replaceChildren(session, notices.root);
+    if (!got.ok) {
+      if (!signedOut(got)) {
+        const said = generic(got, w);
+        notices.show(said.tone, said.text, retryButton(w["generic.retry"], start));
+      }
+      return;
+    }
+    me = got.data;
+    passkeys = keys;
+    if (has("passkeys") && support.webauthn) {
+      void access.sendSignals(client);
+    }
+    ctx = {
+      client,
+      access,
+      w,
+      has,
+      app: options.app,
+      provider,
+      level,
+      signal,
+      life,
+      navigate,
+      redirect,
+      usableHere,
+      httpsOrigin: state.ok ? httpsOriginOf(state.data.https_origin) : undefined,
+      appTotp: state.ok && state.data.totp === true,
+      passwordLength: passwordLengthOf(state.ok ? state.data : undefined),
+      webauthn: support.webauthn,
+      plain: !me.session.secure,
+      scopes: options.scopes,
+      keysElsewhere: options.keysCreatedElsewhere,
+      keyNote: options.keyNote,
+      signedOut: leave,
+      write,
+      settle,
+      refresh,
+    };
+    drawSession(me);
+    if (has("profile")) {
+      drawProfile(ctx, profile.body, me);
+      top.append(profile.root);
+    }
+    if (anyMethod) {
+      drawMethods(ctx, methods.body, me, passkeys);
+      top.append(methods.root);
+    }
+    if (has("sessions")) {
+      sessionsView = drawSessions(ctx, sessionsPart.body, sessionsPart.heading);
+      top.append(sessionsPart.root);
+    }
+    if (has("keys")) {
+      keysView = drawKeys(ctx, keysPart.body, keysPart.heading, {
+        list: () => client.keys(),
+        revoke: (id) => client.revokeKey(id),
+        own: {
+          create: (r) => client.createKey(r),
+          rename: (id, r) => client.renameKey(id, r),
+          rotate: (id) => client.rotateKey(id),
+        },
+      });
+      top.append(keysPart.root);
+    }
+    // access reads the log only to a viewer its policy lets list users,
+    // an admin under its role policy; its refusal removes the section.
+    if (has("security-log") && me.user.role === "admin") {
+      const everyone = options.log?.everyone === true || me.single_user === true;
+      logView = drawLog(
+        {
+          client,
+          w,
+          provider,
+          options: options.log ?? {},
+          search: options.search ?? location.search,
+          user: everyone ? undefined : me.user.id,
+          viewer: me.user.id,
+          life,
+          leave,
+          forbidden: () => {
+            logPart.root.remove();
+          },
+        },
+        logPart.body,
+        logPart.heading,
+      );
+      top.append(logPart.root);
+    }
+    const said = returned();
+    if (said !== undefined) {
+      const into = methods.body.querySelector<HTMLElement>("[data-part='notice']");
+      if (into === null) {
+        notices.show(said.tone, said.text);
+      } else {
+        slot(into).show(said.tone, said.text);
+      }
+    }
   };
 
   /** The notice a single sign-on link brings back. */
