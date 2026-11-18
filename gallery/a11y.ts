@@ -724,6 +724,10 @@ const statePass = (state: State): Pass => ({
     if (empty.length > 0) {
       report.fail(`a field read as invalid before anything was typed, ${label(state)}`, empty);
     }
+    const wordless = await stepless(tab);
+    if (wordless.length > 0) {
+      report.fail(`a known amount with no step in words, ${label(state)}`, wordless);
+    }
     await tab.close();
   },
 });
@@ -758,6 +762,21 @@ async function emptyRequired(tab: Page): Promise<string[]> {
     ]
       .filter((f) => f.validity.valueMissing && f.getAttribute("aria-invalid") !== "true")
       .map((f) => (f.id === "" ? f.outerHTML.slice(0, 80) : `#${f.id}`)),
+  );
+}
+
+/** Each `.cp-progress` whose bar has a known value but no words beside it.
+ *  The step in words, such as "3 of 8", is what a person reads without
+ *  judging a bar's length, at any zoom. */
+async function stepless(tab: Page): Promise<string[]> {
+  return tab.evaluate(() =>
+    [...document.querySelectorAll(".cp-progress")]
+      .filter((wrap) => {
+        const bar = wrap.querySelector(":scope > progress[value]");
+        const words = [...wrap.childNodes].filter((n) => n !== bar).map((n) => n.textContent);
+        return bar !== null && words.join("").trim() === "";
+      })
+      .map((wrap) => (wrap.id === "" ? wrap.outerHTML.slice(0, 80) : `#${wrap.id}`)),
   );
 }
 
@@ -1193,6 +1212,18 @@ export function selfTest(browser: () => Browser): void {
       await tab.close();
     },
   );
+
+  it("finds a known amount with no step in words, and no other", { timeout: 60_000 }, async () => {
+    const tab = await browser().newPage();
+    await tab.setContent(
+      `${PAGE}<span class="cp-progress" id="a"><progress max="8" value="3" aria-label="A"></progress></span>` +
+        '<span class="cp-progress" id="b"><progress max="8" value="3" aria-label="B"></progress><span>3 of 8</span></span>' +
+        '<span class="cp-progress" id="c"><progress aria-label="C"></progress></span>' +
+        '<span class="cp-progress" id="d"><progress max="8" value="0" aria-label="D"></progress><span> </span></span></main></html>',
+    );
+    expect(await stepless(tab)).toEqual(["#a", "#d"]);
+    await tab.close();
+  });
 
   it(
     "measures SVG text against what is behind its glyphs, its halo included, scrolled into view",

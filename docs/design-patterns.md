@@ -22,7 +22,7 @@ Every region that loads data has four designed states, for loading, empty, error
 - Empty says what belongs here and offers the one action that fills it (`.cp-empty`). Error says what broke and what to do next, in a notice where the region would be. It never apologises and never stays vague.
 - A change that will most likely succeed shows at once and rolls back on failure, through `@cplieger/reactive/actions`. A destructive action asks first or offers an Undo.
 
-**A known amount.** Work with known steps is a native `<progress>` in a `.cp-progress`, with the step in words beside it. The page sets the bar's `value` and the words as the work moves, and adds `data-state="done"` with the last step. A run that starts over is a new `<progress>`.
+**A known amount.** Work with known steps is a native `<progress>` in a `.cp-progress`, with the step in words beside it. The page sets the bar's `value` and the words as the work moves, and adds `data-state="done"` with the last step. A known value never shows without its words: the accessibility gate fails a `.cp-progress` whose bar has a `value` and nothing beside it. A run that starts over is a new `<progress>`.
 
 ```html
 <span class="cp-progress">
