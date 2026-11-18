@@ -14,7 +14,7 @@ import { installTooltips } from "../../overlays/tooltip/tooltip.js";
 import {
   clock,
   codeOf,
-  generic,
+  genericSignedIn,
   passwordLengthOf,
   reasonOf,
   retryAfter,
@@ -36,6 +36,7 @@ import { checkScopes, drawKeys, type KeyNote, type KeyScopes, type KeysSection }
 import { drawLog, type LogOptions, type SecurityLogScreen } from "./log.js";
 import { drawMethods } from "./methods.js";
 import { drawProfile } from "./profile.js";
+import { renameHold } from "./rename.js";
 import { runDirect, type AccountAction } from "./run.js";
 import {
   cleanAddress,
@@ -218,6 +219,8 @@ export function mountSecurity<C extends SecurityClient>(
   let sessionsView: SessionsSection | undefined;
   let keysView: KeysSection | undefined;
   let logView: SecurityLogScreen | undefined;
+  // A passkey's Rename… holds the methods' redraw, not the session line's.
+  const renames = renameHold(() => void refresh());
 
   function section(title: string): {
     readonly root: HTMLElement;
@@ -325,7 +328,7 @@ export function mountSecurity<C extends SecurityClient>(
           : { tone: "warning", text: w.auth_rate_limited(clock(seconds)) };
       }
       default:
-        return generic(r, w);
+        return genericSignedIn(r, w);
     }
   };
 
@@ -363,7 +366,7 @@ export function mountSecurity<C extends SecurityClient>(
         wanted = undefined;
         if (!got.ok) {
           if (!signedOut(got)) {
-            const said = generic(got, w);
+            const said = genericSignedIn(got, w);
             failed = notices.show(
               said.tone,
               said.text,
@@ -378,12 +381,14 @@ export function mountSecurity<C extends SecurityClient>(
         me = m;
         passkeys = keys;
         drawSession(m);
-        if (anyMethod) {
+        if (anyMethod && renames.held()) {
+          wanted = asked;
+        } else if (anyMethod) {
           redrawKeepingFocus(
             methods.body,
             methods.heading,
             () => {
-              drawMethods(c, methods.body, m, keys);
+              drawMethods(c, methods.body, m, keys, renames);
             },
             asked,
           );
@@ -412,6 +417,7 @@ export function mountSecurity<C extends SecurityClient>(
   // first copies' focus, timer and popstate listeners running.
   const load = async (): Promise<void> => {
     region.setAttribute("aria-busy", "true");
+    const current = reads.start();
     const skeleton = skeletonTiming(() => {
       redrawKeepingFocus(top, lead, () => {
         top.replaceChildren(session, notices.root, sketch());
@@ -423,7 +429,7 @@ export function mountSecurity<C extends SecurityClient>(
       access.passkeySupport(),
     ]);
     const keys = got.ok ? await readPasskeys() : [];
-    if (signal?.aborted === true) {
+    if (!current()) {
       skeleton.cancel();
       return;
     }
@@ -446,7 +452,7 @@ export function mountSecurity<C extends SecurityClient>(
     top.replaceChildren(session, notices.root);
     if (!got.ok) {
       if (!signedOut(got)) {
-        const said = generic(got, w);
+        const said = genericSignedIn(got, w);
         notices.show(said.tone, said.text, retryButton(w["generic.retry"], start));
       }
       return;
@@ -488,7 +494,7 @@ export function mountSecurity<C extends SecurityClient>(
       top.append(profile.root);
     }
     if (anyMethod) {
-      drawMethods(ctx, methods.body, me, passkeys);
+      drawMethods(ctx, methods.body, me, passkeys, renames);
       top.append(methods.root);
     }
     if (has("sessions")) {

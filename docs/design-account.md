@@ -192,6 +192,7 @@ Where the app manages sign-in through single sign-on for this person (`MeRespons
 | `auth_forbidden` `totp_needs_password` | "Set a password first: an authenticator app protects password sign-in." |
 | `auth_method_not_locked` | no words, and the section refreshes |
 | `auth_not_found` | no words, and the list refreshes without the item |
+| `auth_unavailable`, on this page and the admin's | "The app cannot do this right now. Try again in a few seconds." |
 
 `registerPasskey` tells the person's password manager about a new passkey. The screen calls `sendSignals` when it loads, after a removal and after a new display name, so the password manager drops a passkey the server no longer accepts and shows the current name. A passkey's own name lives only on the server, so a rename sends nothing.
 

@@ -43,7 +43,7 @@ import {
 } from "./dom.js";
 import { setUpFactor, showRecoveryCode } from "./factor.js";
 import { proofWays, withProof } from "./proof.js";
-import { nameRefused, renameInPlace } from "./rename.js";
+import { nameRefused, type RenameHold } from "./rename.js";
 import { cycle, holdFor, isHeld, question, slot } from "./screen.js";
 import type { Ctx } from "./security.js";
 import type { StepUpAnswer } from "./step-up.js";
@@ -65,12 +65,15 @@ function busyRun<T>(
   return confirm === undefined ? work().then((answer) => ({ answer })) : cycle(confirm, work, ok);
 }
 
-/** Draws the sign-in methods into `body`, keeping its notice slot. */
+/** Draws the sign-in methods into `body`, keeping its notice slot; a
+ *  passkey's Rename… edits under `renames`, which the caller asks before
+ *  drawing again. */
 export function drawMethods<C extends SecurityClient>(
   ctx: Ctx<C>,
   body: HTMLElement,
   me: AccountView,
   passkeys: readonly PasskeyView[],
+  renames: RenameHold,
 ): void {
   const { w, client, access, has, provider } = ctx;
   const m = me.methods;
@@ -744,7 +747,7 @@ export function drawMethods<C extends SecurityClient>(
 
   function renamePasskey(k: PasskeyView, node: HTMLElement, opener: HTMLElement): void {
     notices.clear();
-    renameInPlace({
+    renames.edit({
       name: node,
       value: k.name,
       label: w["passkeys.renameLabel"](k.name),
@@ -763,7 +766,13 @@ export function drawMethods<C extends SecurityClient>(
         if (a.result.ok) {
           return undefined;
         }
-        return nameRefused(a.result, w) ?? (ctx.settle(a, notices), false);
+        const said = nameRefused(a.result, w);
+        if (said !== undefined) {
+          return said;
+        }
+        renames.release();
+        ctx.settle(a, notices);
+        return false;
       },
       ended: (saved) => {
         if (saved) {

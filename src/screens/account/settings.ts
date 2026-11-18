@@ -11,7 +11,7 @@ import type { Tone } from "../../foundations/icons/glyph.js";
 import { installAnnouncer } from "../../feedback/announce/announce.js";
 import { skeletonTiming } from "../../feedback/skeleton/skeleton.js";
 import { installDialogs } from "../../overlays/dialog/dialog.js";
-import { codeOf, generic, reasonOf, type Said } from "./answer.js";
+import { codeOf, genericSignedIn, reasonOf, type Said } from "./answer.js";
 import type {
   AccessSettingsClient,
   AccountView,
@@ -169,7 +169,7 @@ export function mountAccessSettings<C extends AccessSettingsClient>(
       return { tone: "warning", text: w["security.needsHttps"] };
     }
     const said = blocker(codeOf(r), reasonOf(r), w);
-    return said === undefined ? generic(r, w) : { tone: "danger", text: said };
+    return said === undefined ? genericSignedIn(r, w) : { tone: "danger", text: said };
   };
 
   // access answers the readiness read to any admin, and the change only
@@ -185,7 +185,7 @@ export function mountAccessSettings<C extends AccessSettingsClient>(
     if (endsSession(r, leave)) {
       return;
     }
-    const said = generic(r, w);
+    const said = genericSignedIn(r, w);
     notices.show(said.tone, said.text, retryButton(w["generic.retry"], load));
   };
 

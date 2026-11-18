@@ -479,6 +479,41 @@ describe("mountSecurityLog: refresh", () => {
     expect(seqs(await rows(region))).toEqual([8, 7, 6]);
     expect(pagerLink(region, "Newer").getAttribute("aria-disabled")).toBeNull();
   });
+
+  it("reads once after a load, however many refreshes came during it", async () => {
+    const log = range(1, 3);
+    const fake = new Fake()
+      .answer("adminSecurityLog", server([...log]))
+      .always("adminSecurityLog", server(log));
+    const release = fake.hold("adminSecurityLog");
+    const { region, refresh } = mount(fake, { limit: 4 });
+    await vi.waitFor(() => {
+      expect(asked(fake)).toHaveLength(1);
+    });
+    const both = Promise.all([refresh(), refresh()]);
+    log.push(entry(4));
+    release();
+    await both;
+    expect(asked(fake)).toEqual([{ limit: 4 }, { limit: 4, after: 3, oldestFirst: true }]);
+    expect(seqs(await rows(region))).toEqual([4, 3, 2, 1]);
+  });
+
+  it("after a refused Older page, reads that page again and drops the notice", async () => {
+    const fake = new Fake().always("adminSecurityLog", server(range(1, 8)));
+    const { region, refresh } = mount(fake, { limit: 5 });
+    expect(seqs(await rows(region))).toEqual([8, 7, 6, 5, 4]);
+    fake.answer("adminSecurityLog", refuse(503, "auth_unavailable"));
+    await userEvent.click(pagerLink(region, "Older"));
+    await vi.waitFor(() => {
+      expect(noticeText(region)).toBe(
+        "The app cannot do this right now. Try again in a few seconds.",
+      );
+    });
+    await refresh();
+    expect(asked(fake).at(-1)).toEqual({ limit: 5, before: 4 });
+    expect(seqs(await rows(region))).toEqual([3, 2, 1]);
+    expect(noticeText(region)).toBe("");
+  });
 });
 
 describe("mountSecurity: the security log section", () => {

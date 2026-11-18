@@ -12,7 +12,7 @@ import { skeletonTiming } from "../../feedback/skeleton/skeleton.js";
 import { clearError, showError } from "../../forms/form/form.js";
 import { installDialogs } from "../../overlays/dialog/dialog.js";
 import { rowActions, rowHead, type Action } from "./actions.js";
-import { codeOf, generic, reasonOf, usernameWords, type Said } from "./answer.js";
+import { codeOf, genericSignedIn, reasonOf, usernameWords, type Said } from "./answer.js";
 import type {
   AccountView,
   KeyView,
@@ -292,7 +292,7 @@ export function mountUsers<C extends UsersClient>(
       case "auth_https_required":
         return { tone: "warning", text: w["security.needsHttps"] };
       default:
-        return generic(r, w);
+        return genericSignedIn(r, w);
     }
   };
 
@@ -340,7 +340,7 @@ export function mountUsers<C extends UsersClient>(
       failure = notices.show("danger", w["users.forbidden"]);
       return;
     }
-    const said = generic(r, w);
+    const said = genericSignedIn(r, w);
     failure = notices.show(said.tone, said.text, retryButton(w["generic.retry"], load));
   };
 

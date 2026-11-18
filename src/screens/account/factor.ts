@@ -10,7 +10,7 @@ import { enhanceCopy } from "../../forms/copy/copy.js";
 import { clearError, showError } from "../../forms/form/form.js";
 import { qrCode } from "../../media/qr/qr.js";
 import { glyph } from "../../foundations/icons/glyph.js";
-import { codeOf, generic, reasonOf, retryAfter } from "./answer.js";
+import { codeOf, genericSignedIn, reasonOf, retryAfter } from "./answer.js";
 import type { Refusal, TotpBegin } from "./client.js";
 import { codeField, inFours, sixDigits } from "./code.js";
 import { formDialog } from "./dialogs.js";
@@ -125,7 +125,7 @@ export async function setUpFactor(spec: FactorSpec): Promise<FactorEnd> {
       }
       case "auth_forbidden":
         if (reason !== "totp_needs_password") {
-          d.notices.show("danger", generic(r, w).text);
+          d.notices.show("danger", genericSignedIn(r, w).text);
           return true;
         }
         return false;
@@ -136,7 +136,7 @@ export async function setUpFactor(spec: FactorSpec): Promise<FactorEnd> {
       case "auth_session_expired":
         return false;
       default:
-        d.notices.show("danger", generic(r, w).text);
+        d.notices.show("danger", genericSignedIn(r, w).text);
         return true;
     }
   };

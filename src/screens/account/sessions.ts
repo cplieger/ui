@@ -14,7 +14,7 @@ import type { Refusal, SecurityClient, SessionView } from "./client.js";
 import { deviceName } from "./device.js";
 import { actionButton, cell, cellStack, clockAt, el, stateMark, table } from "./dom.js";
 import { redrawKeepingFocus } from "./focus.js";
-import { renameInPlace, nameRefused } from "./rename.js";
+import { nameRefused, renameHold } from "./rename.js";
 import { cycle, latest, question, read, retryButton, slot } from "./screen.js";
 import type { Ctx } from "./security.js";
 
@@ -41,12 +41,16 @@ export function drawSessions<C extends SecurityClient>(
   let wanted: string | undefined;
   /** The notice of the last read that failed, until one succeeds. */
   let failure: Element | undefined;
+  const renames = renameHold(() => void refresh());
 
   const refresh = async (focus?: string): Promise<void> => {
     wanted = focus ?? wanted;
     await reads.run(
       () => read(() => client.sessions()),
       (got) => {
+        if (renames.held()) {
+          return;
+        }
         const asked = wanted;
         wanted = undefined;
         if (!got.ok) {
@@ -167,7 +171,7 @@ export function drawSessions<C extends SecurityClient>(
 
   function rename(s: SessionView, node: HTMLElement, opener: HTMLElement): void {
     notices.clear();
-    renameInPlace({
+    renames.edit({
       name: node,
       value: s.label ?? "",
       label: w["sessions.renameLabel"](deviceName(s, w)),
@@ -191,6 +195,7 @@ export function drawSessions<C extends SecurityClient>(
         if (said !== undefined) {
           return said;
         }
+        renames.release();
         ctx.settle(a, notices, (r) =>
           gone(r) === null
             ? null

@@ -7,7 +7,7 @@
 
 import { enhanceConfirm } from "../../buttons/confirm/confirm.js";
 import { clearError, showError } from "../../forms/form/form.js";
-import { codeOf, generic, passkeyMiss, reasonOf, retryAfter } from "./answer.js";
+import { codeOf, genericSignedIn, passkeyMiss, reasonOf, retryAfter } from "./answer.js";
 import type {
   MethodsView,
   PasskeyMiss,
@@ -157,7 +157,7 @@ export async function withProof<C, T>(
   const missed = (miss: PasskeyMiss): void => {
     const said = passkeyMiss(miss, w);
     if (said !== undefined) {
-      const words = "ok" in said ? generic(said, w) : said;
+      const words = "ok" in said ? genericSignedIn(said, w) : said;
       d.notices.show(words.tone, words.text);
     }
   };

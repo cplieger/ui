@@ -26,7 +26,7 @@ import {
   time,
   uid,
 } from "./dom.js";
-import { NAME_MAX, nameRefused, renameInPlace } from "./rename.js";
+import { NAME_MAX, nameRefused, renameHold } from "./rename.js";
 import {
   duration,
   holdBy,
@@ -170,9 +170,7 @@ export function drawKeys(
   let wanted: string | undefined;
   /** The notice of the last read that failed, until one succeeds. */
   let failure: Element | undefined;
-  let editing = false;
-  // A read that came back while Rename… was open, run again when it ends.
-  let skipped = false;
+  const renames = renameHold(() => void refresh());
   let timer: ReturnType<typeof setTimeout> | undefined;
   // A past end the server still sent, and the wait before asking again:
   // its clock is behind this one, so the wait doubles rather than polling.
@@ -196,11 +194,9 @@ export function drawKeys(
         if (got === undefined) {
           return;
         }
-        if (editing) {
-          skipped = true;
+        if (renames.held()) {
           return;
         }
-        skipped = false;
         const asked = wanted;
         wanted = undefined;
         if (!got.ok) {
@@ -812,8 +808,7 @@ export function drawKeys(
     renameKey: SecurityClient["renameKey"],
   ): void {
     notices.clear();
-    editing = true;
-    renameInPlace({
+    renames.edit({
       name: node,
       value: k.label,
       label: w["keys.renameLabel"](labelOf(k)),
@@ -839,7 +834,7 @@ export function drawKeys(
         if (said !== undefined) {
           return said;
         }
-        editing = false;
+        renames.release();
         ctx.settle(a, notices, (r) =>
           refused(r, () => {
             opener.click();
@@ -848,9 +843,8 @@ export function drawKeys(
         return false;
       },
       ended: (saved) => {
-        editing = false;
-        if (saved || skipped) {
-          void refresh(saved ? `key-rename-${String(k.id)}` : undefined);
+        if (saved) {
+          void refresh(`key-rename-${String(k.id)}`);
         }
       },
     });

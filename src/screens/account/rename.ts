@@ -15,7 +15,7 @@ import type { AccountWords } from "./words.js";
  *  most this many characters (access `maxDisplayRunes`). */
 export const NAME_MAX = 128;
 
-export interface RenameSpec {
+interface RenameSpec {
   /** The node showing the name, replaced by the field while it is edited. */
   readonly name: HTMLElement;
   readonly value: string;
@@ -34,7 +34,7 @@ export interface RenameSpec {
   readonly ended: (saved: boolean) => void;
 }
 
-export function renameInPlace(spec: RenameSpec): void {
+function renameInPlace(spec: RenameSpec): void {
   const w = spec.words;
   const box = el("div");
   const input = el("input", "cp-input");
@@ -113,6 +113,54 @@ export function renameInPlace(spec: RenameSpec): void {
       }
     });
   });
+}
+
+/** A part's redraws held while one of its names is edited in place, so a
+ *  read answering meanwhile neither takes the field away nor moves focus. */
+export interface RenameHold {
+  /** Asked where a read would draw: true while an edit is open, so the
+   *  caller skips its redraw and the hold runs `again` once the last edit
+   *  ends unsaved. */
+  held(): boolean;
+  /** `renameInPlace` under the hold. */
+  edit(spec: RenameSpec): void;
+  /** Lets redraws through while the field stays open, for a refusal whose
+   *  answer redraws the part. */
+  release(): void;
+}
+
+/** A hold whose `again` reads the part again for a read it held back. */
+export function renameHold(again: () => void): RenameHold {
+  const open = new Set<object>();
+  // A read was held back since the last one that drew.
+  let owed = false;
+  return {
+    held() {
+      owed = open.size > 0;
+      return owed;
+    },
+    edit(spec) {
+      const mine = {};
+      open.add(mine);
+      renameInPlace({
+        ...spec,
+        ended: (saved) => {
+          open.delete(mine);
+          const missed = owed && open.size === 0;
+          if (missed) {
+            owed = false;
+          }
+          spec.ended(saved);
+          if (missed && !saved) {
+            again();
+          }
+        },
+      });
+    },
+    release() {
+      open.clear();
+    },
+  };
 }
 
 /** A refused name's words on its field, or undefined for any other

@@ -12,7 +12,7 @@ import { announce, installAnnouncer } from "../../feedback/announce/announce.js"
 import { skeletonTiming } from "../../feedback/skeleton/skeleton.js";
 import { glyph } from "../../foundations/icons/glyph.js";
 import { rowHead } from "./actions.js";
-import { codeOf, generic, reasonOf } from "./answer.js";
+import { codeOf, genericSignedIn, reasonOf } from "./answer.js";
 import type {
   LogClient,
   LogEntryView,
@@ -72,7 +72,9 @@ export interface SecurityLogOptions<C extends LogClient>
 
 export interface SecurityLogScreen {
   /** Reads what the log gained since the newest entry shown: the first
-   *  page takes it on top, a later page offers it through Newer. */
+   *  page takes it on top, a later page offers it through Newer. During a
+   *  read it waits for that read, and the calls made meanwhile share one;
+   *  after a load that drew no page, it loads the view again. */
   refresh(): Promise<void>;
   /** Shows the view a query names, as Back does. The log follows
    *  `popstate` itself unless the host passes `onQuery`. */
@@ -304,8 +306,14 @@ export function drawLog(
   let entries: readonly LogEntryView[] = [];
   let past = false;
   let future = false;
+  // Every read of the log, a load or a refresh: the newest started draws.
   const loads = latest(signal);
-  let busy = false;
+  /** The newest read's end while it runs. */
+  let reading: Promise<void> | undefined;
+  /** The refresh the calls made during a read share. */
+  let queued: Promise<void> | undefined;
+  /** Whether the last load drew a page; until one does, a refresh loads. */
+  let drawn = false;
   /** The notice of the last refresh that failed, until one succeeds. */
   let failure: Element | undefined;
   const people = new Map<number, string>();
@@ -451,9 +459,21 @@ export function drawLog(
   const ordered = (list: readonly LogEntryView[]): LogEntryView[] =>
     list.toSorted((a, b) => (view.order === "newest" ? b.seq - a.seq : a.seq - b.seq));
 
-  const load = async (focus: boolean): Promise<void> => {
+  /** Makes `work` the newest read, which a refresh waits for. */
+  const track = (work: Promise<void>): Promise<void> => {
+    reading = work;
+    void work.then(() => {
+      if (reading === work) {
+        reading = undefined;
+      }
+    });
+    return work;
+  };
+
+  const load = (focus: boolean): Promise<void> => track(loadPage(focus));
+
+  const loadPage = async (focus: boolean): Promise<void> => {
     const current = loads.start();
-    busy = true;
     body.setAttribute("aria-busy", "true");
     const ascending =
       view.after !== undefined || (view.before === undefined && view.order === "oldest");
@@ -476,7 +496,6 @@ export function drawLog(
       skeleton.cancel();
       return;
     }
-    busy = false;
     skeleton.commit(() => {
       redrawKeepingFocus(
         body,
@@ -492,6 +511,7 @@ export function drawLog(
   /** Draws a page the log read, or why it could not. */
   const shown = (got: Result<SecurityLogView>, ascending: boolean): void => {
     body.removeAttribute("aria-busy");
+    drawn = got.ok;
     if (!got.ok) {
       if (content.querySelector("table") === null) {
         content.replaceChildren();
@@ -546,7 +566,7 @@ export function drawLog(
         );
         return;
       default: {
-        const said = generic(r, w);
+        const said = genericSignedIn(r, w);
         notices.show(
           said.tone,
           said.text,
@@ -707,8 +727,27 @@ export function drawLog(
 
   // Keeping up -------------------------------------------------------------
 
-  const refresh = async (): Promise<void> => {
-    if (busy) {
+  /** Resolves once no read runs, the newest included. */
+  const idle = async (): Promise<void> => {
+    for (let r = reading; r !== undefined; r = reading) {
+      await r;
+    }
+  };
+
+  const refresh = (): Promise<void> => {
+    if (reading === undefined) {
+      return track(keepUp());
+    }
+    queued ??= idle().then(() => {
+      queued = undefined;
+      return refresh();
+    });
+    return queued;
+  };
+
+  const keepUp = async (): Promise<void> => {
+    if (!drawn) {
+      await load(false);
       return;
     }
     const top = entries.reduce((n, e) => Math.max(n, e.seq), 0);

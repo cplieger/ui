@@ -179,3 +179,11 @@ export function generic(r: Refusal, w: AccountWords): Said {
       return { tone: "danger", text: w["generic.server"] };
   }
 }
+
+/** `generic` for a screen the person reaches signed in, where
+ *  `auth_unavailable` is the app's, not sign-in's. */
+export function genericSignedIn(r: Refusal, w: AccountWords): Said {
+  return r.status !== 0 && codeOf(r) === "auth_unavailable"
+    ? { tone: "danger", text: w["generic.unavailable"] }
+    : generic(r, w);
+}

@@ -300,7 +300,7 @@ describe("mountAccessSettings", () => {
     await choose(region, "For linked accounts");
     await vi.waitFor(() => {
       expect(readinessOf(region)).toBe(
-        "Sign-in is unavailable right now. Try again in a few seconds.",
+        "The app cannot do this right now. Try again in a few seconds.",
       );
     });
     await userEvent.click(button(region, "Retry"));

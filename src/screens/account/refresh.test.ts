@@ -1,14 +1,27 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 
-import type { LogEntryView, SessionView, StateResponse, UserView } from "./client.js";
+import type {
+  KeyView,
+  LogEntryView,
+  PasskeyView,
+  SessionView,
+  StateResponse,
+  UserView,
+} from "./client.js";
 import { mountInvite } from "./invite.js";
 import { mountSecurityLog } from "./log.js";
 import { mountAccessSettings } from "./settings.js";
 import { mountSetup } from "./setup.js";
 import { mountSignIn } from "./sign-in.js";
-import { ALICE_USER, BACKUP, Fake, HERE, meWith, ok, refuse } from "./test-helpers/fake.js";
-import { mount as mountAccount, useScreen } from "./test-helpers/security.js";
+import { ALICE_USER, BACKUP, Fake, HERE, meWith, ok, PHONE, refuse } from "./test-helpers/fake.js";
+import {
+  mount as mountAccount,
+  noticeOf,
+  passkeyRows,
+  press,
+  useScreen,
+} from "./test-helpers/security.js";
 import { mountUsers } from "./users.js";
 
 useScreen();
@@ -601,4 +614,308 @@ describe("every account screen, Retry", () => {
       expect(active?.textContent).toContain(c.heading);
     },
   );
+});
+
+const usersOn = (fake: Fake): { region: HTMLElement; refresh: () => Promise<void> } => {
+  const region = host();
+  const screen = mountUsers(region, {
+    client: fake.client,
+    access: fake.access(),
+    app: "Release tracker",
+    navigate: () => undefined,
+    ...signal(),
+  });
+  return { region, refresh: () => screen.refresh() };
+};
+
+const settingsOn = (fake: Fake): { region: HTMLElement; refresh: () => Promise<void> } => {
+  const region = host();
+  const screen = mountAccessSettings(region, {
+    client: fake.client,
+    access: fake.access(),
+    app: "Release tracker",
+    navigate: () => undefined,
+    ...signal(),
+  });
+  return { region, refresh: () => screen.refresh() };
+};
+
+interface Refreshed {
+  readonly name: string;
+  /** The read a refresh makes again. */
+  readonly call: string;
+  /** Its newer answer, and what the screen shows of it. */
+  readonly newer: unknown;
+  readonly shown: string;
+  /** A first answer the newer one replaces. */
+  readonly older: unknown;
+  readonly fake?: () => Fake;
+  readonly mount: (fake: Fake) => {
+    readonly region: HTMLElement;
+    readonly refresh: () => Promise<void>;
+  };
+  readonly shows: (region: HTMLElement) => string;
+}
+
+const sessionName = (region: HTMLElement): string =>
+  among(textOf(region, "[data-part='sessions'] tbody"), "Newer", "Older");
+
+const refreshed: readonly Refreshed[] = [
+  {
+    name: "Account and security",
+    call: "me",
+    older: ok(meWith({}, { user: { id: 1, username: "old", role: "admin" } })),
+    newer: ok(meWith({}, { user: { id: 1, username: "new", role: "admin" } })),
+    shown: "new",
+    mount: (fake) => {
+      const { region, screen } = mountAccount(fake, { parts: ["password"] });
+      return { region, refresh: () => screen.refresh() };
+    },
+    shows: (region) =>
+      /Signed in as (\w+)/.exec(textOf(region, "[data-part='session']"))?.[1] ?? "",
+  },
+  {
+    name: "Sessions",
+    call: "sessions",
+    older: ok([HERE, { ...PHONE_SESSION, label: "Older" }]),
+    newer: ok([HERE, { ...PHONE_SESSION, label: "Newer" }]),
+    shown: "Newer",
+    mount: (fake) => {
+      const { region, screen } = mountAccount(fake, { parts: ["sessions"] });
+      return { region, refresh: () => screen.refresh() };
+    },
+    shows: sessionName,
+  },
+  {
+    name: "API keys",
+    call: "keys",
+    older: ok([{ ...BACKUP, label: "older" }]),
+    newer: ok([{ ...BACKUP, label: "newer" }]),
+    shown: "newer",
+    mount: (fake) => {
+      const { region, screen } = mountAccount(fake, { parts: ["keys"] });
+      return { region, refresh: () => screen.refresh() };
+    },
+    shows: (region) => among(textOf(region, "[data-part='keys'] tbody th"), "newer", "older"),
+  },
+  {
+    name: "Users",
+    call: "adminUsers",
+    older: ok([ME, { ...ALICE_USER, username: "older" }]),
+    newer: ok([ME, { ...ALICE_USER, username: "newer" }]),
+    shown: "newer",
+    fake: () => new Fake().always("me", ok(owner)),
+    mount: usersOn,
+    shows: (region) => among(textOf(region, "[data-part='users'] tbody"), "newer", "older"),
+  },
+  {
+    name: "Access settings",
+    call: "state",
+    older: ok({ ...EVERY, sso: "for_linked" }),
+    newer: ok({ ...EVERY, sso: "only" }),
+    shown: "only",
+    fake: () => new Fake().always("me", ok(owner)),
+    mount: settingsOn,
+    shows: (region) =>
+      region.querySelector<HTMLInputElement>("input[type='radio']:checked")?.value ?? "",
+  },
+  {
+    name: "Security log",
+    call: "adminSecurityLog",
+    older: page(1),
+    // The first page whole, and what a read after entry 1 gains.
+    newer: (q: { after?: number } = {}) => (q.after === 1 ? page(2) : page(2, 1)),
+    shown: "2,1",
+    mount: (fake) => {
+      const region = host();
+      const screen = mountSecurityLog(region, {
+        client: fake.client,
+        search: "",
+        viewer: 1,
+        onQuery: () => undefined,
+        ...signal(),
+      });
+      return { region, refresh: () => screen.refresh() };
+    },
+    shows: (region) =>
+      [...region.querySelectorAll<HTMLElement>("tbody tr")].map((r) => r.dataset["seq"]).join(),
+  },
+];
+
+describe("every account screen, a refresh during its first read", () => {
+  it.each(refreshed)(
+    "$name has drawn a read made after it when the refresh resolves",
+    async (c) => {
+      const fake = (c.fake?.() ?? new Fake()).answer(c.call, c.older).always(c.call, c.newer);
+      const release = fake.hold(c.call);
+      const { region, refresh } = c.mount(fake);
+      await vi.waitFor(
+        () => {
+          expect(fake.named(c.call)).toHaveLength(1);
+        },
+        { interval: 5 },
+      );
+      const done = refresh();
+      release();
+      await done;
+      expect(c.shows(region)).toBe(c.shown);
+      expect(fake.named(c.call)).toHaveLength(2);
+    },
+  );
+});
+
+describe("every account screen, a first read refused and a refresh answered", () => {
+  it.each(refreshed)("$name draws the refresh's answer and drops the notice", async (c) => {
+    const fake = (c.fake?.() ?? new Fake())
+      .answer(c.call, refuse(503, "auth_unavailable"))
+      .always(c.call, c.newer);
+    const { region, refresh } = c.mount(fake);
+    await vi.waitFor(() => {
+      expect(noticeOf(region)).toBe(
+        "The app cannot do this right now. Try again in a few seconds.",
+      );
+    });
+    await refresh();
+    expect(c.shows(region)).toBe(c.shown);
+    expect(noticeOf(region)).toBe("");
+  });
+});
+
+interface Edited {
+  readonly name: string;
+  /** The list read, its first answer and one with a row named Tablet
+   *  added. */
+  readonly call: string;
+  readonly first: unknown;
+  readonly newer: unknown;
+  /** The same list, with the renamed row named Desk. */
+  readonly saved: unknown;
+  readonly mount: (fake: Fake) => {
+    readonly region: HTMLElement;
+    readonly refresh: () => Promise<void>;
+  };
+  readonly row: (region: HTMLElement) => Promise<HTMLElement>;
+  /** The renamed row's Rename… key. */
+  readonly key: string;
+  readonly table: (region: HTMLElement) => string;
+}
+
+const rowNamed = (
+  region: HTMLElement,
+  selector: string,
+  name: string,
+): Promise<HTMLTableRowElement> =>
+  vi.waitFor(() => {
+    const row = [...region.querySelectorAll<HTMLTableRowElement>(`${selector} tbody tr`)].find(
+      (r) => r.cells[0]?.textContent.startsWith(name) === true,
+    );
+    expect(row, name).toBeDefined();
+    return row!;
+  });
+
+const TABLET_KEY: KeyView = { ...BACKUP, id: 99, label: "Tablet", prefix: "rt_tab" };
+const TABLET_PASSKEY: PasskeyView = { ...PHONE, id: 8, name: "Tablet" };
+
+const edited: readonly Edited[] = [
+  {
+    name: "Sessions",
+    call: "sessions",
+    first: ok([HERE, PHONE_SESSION]),
+    newer: ok([HERE, PHONE_SESSION, { ...PHONE_SESSION, id: "s3", label: "Tablet" }]),
+    saved: ok([HERE, { ...PHONE_SESSION, label: "Desk" }]),
+    mount: (fake) => {
+      const { region, screen } = mountAccount(fake, { parts: ["sessions", "session-rename"] });
+      return { region, refresh: () => screen.refresh() };
+    },
+    row: (region) => rowNamed(region, "[data-part='sessions']", "Phone"),
+    key: "session-rename-s2",
+    table: (region) => textOf(region, "[data-part='sessions'] tbody"),
+  },
+  {
+    name: "Passkeys",
+    call: "passkeys",
+    first: ok([PHONE]),
+    newer: ok([PHONE, TABLET_PASSKEY]),
+    saved: ok([{ ...PHONE, name: "Desk" }]),
+    mount: (fake) => {
+      const { region, screen } = mountAccount(fake, { parts: ["passkeys"] });
+      return { region, refresh: () => screen.refresh() };
+    },
+    row: (region) =>
+      vi.waitFor(() => {
+        const row = passkeyRows(region)[0];
+        expect(row).toBeDefined();
+        return row!;
+      }),
+    key: `passkey-rename-${String(PHONE.id)}`,
+    table: (region) =>
+      passkeyRows(region)
+        .map((r) => r.cells[0]?.textContent ?? "")
+        .join(),
+  },
+  {
+    name: "API keys",
+    call: "keys",
+    first: ok([BACKUP]),
+    newer: ok([BACKUP, TABLET_KEY]),
+    saved: ok([{ ...BACKUP, label: "Desk" }]),
+    mount: (fake) => {
+      const { region, screen } = mountAccount(fake, { parts: ["keys", "key-rotate"] });
+      return { region, refresh: () => screen.refresh() };
+    },
+    row: (region) => rowNamed(region, "[data-part='keys']", BACKUP.label),
+    key: `key-rename-${String(BACKUP.id)}`,
+    table: (region) => textOf(region, "[data-part='keys'] tbody"),
+  },
+];
+
+describe("every account table, a refresh while Rename… is open", () => {
+  /** Opens Rename… on the row, types Desk and refreshes the screen with
+   *  the newer list. */
+  const typedThenRefreshed = async (
+    c: Edited,
+  ): Promise<{ fake: Fake; region: HTMLElement; input: HTMLInputElement }> => {
+    const fake = new Fake().answer(c.call, c.first).always(c.call, c.newer);
+    const { region, refresh } = c.mount(fake);
+    await press(await c.row(region), "Rename…");
+    const input = region.querySelector<HTMLInputElement>("tbody input.cp-input")!;
+    await userEvent.fill(input, "Desk");
+    const reads = fake.named(c.call).length;
+    await refresh();
+    await tick();
+    expect(fake.named(c.call).length).toBeGreaterThan(reads);
+    return { fake, region, input };
+  };
+
+  it.each(edited)("$name keeps the field, its text and focus", async (c) => {
+    const { region, input } = await typedThenRefreshed(c);
+    expect(input.isConnected).toBe(true);
+    expect(input.value).toBe("Desk");
+    expect(document.activeElement).toBe(input);
+    expect(c.table(region)).not.toContain("Tablet");
+  });
+
+  it.each(edited)("$name draws the newer list once Escape closes the field", async (c) => {
+    const { region, input } = await typedThenRefreshed(c);
+    input.focus();
+    await userEvent.keyboard("{Escape}");
+    await vi.waitFor(() => {
+      expect(c.table(region)).toContain("Tablet");
+    });
+    expect(region.querySelector("tbody input.cp-input")).toBeNull();
+  });
+
+  it.each(edited)("$name draws the saved name with focus on Rename… after Enter", async (c) => {
+    const { fake, region, input } = await typedThenRefreshed(c);
+    fake.always(c.call, c.saved);
+    input.focus();
+    await userEvent.keyboard("{Enter}");
+    await vi.waitFor(() => {
+      expect(c.table(region)).toContain("Desk");
+      expect(region.querySelector("tbody input.cp-input")).toBeNull();
+    });
+    await vi.waitFor(() => {
+      expect(document.activeElement).toBe(control(region, c.key));
+    });
+  });
 });

@@ -87,7 +87,7 @@ describe("mountSecurity: the screen", () => {
     const { region } = mount(fake);
     await vi.waitFor(() => {
       expect(noticeOf(region)).toBe(
-        "Sign-in is unavailable right now. Try again in a few seconds.",
+        "The app cannot do this right now. Try again in a few seconds.",
       );
     });
     await userEvent.click(button(region, "Retry"));
