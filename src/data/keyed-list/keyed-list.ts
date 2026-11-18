@@ -245,9 +245,8 @@ export function enhanceKeyedList(container: Body, options: KeyedListOptions): Ke
 
   // The first row drawn, never a heading, shapes every skeleton even after
   // it leaves the window. Once its key leaves the list it is retired but
-  // still shapes them, until a row of the new keys is drawn, so a removal
-  // never resizes the skeletons. A data-row shape is not kept: a loaded
-  // row replaces it.
+  // still shapes them, until a row of the new keys is drawn. A data-row
+  // shape is not kept: a loaded row replaces it.
   let model: { readonly key: string; readonly el: HTMLElement; retired: boolean } | undefined;
   let shape: HTMLElement | undefined;
   const shapes = (el: HTMLElement): boolean =>

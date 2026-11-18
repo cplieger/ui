@@ -421,6 +421,73 @@ describe("enhanceKeyedList", () => {
     expect(Math.abs(ul.scrollHeight - height)).toBeLessThan(1);
   });
 
+  /** A grouped list's row: a day's heading for a key starting `h`, a title
+   *  row with a second line for one starting `d`, else a title row. */
+  function groupedItem(key: string): HTMLLIElement {
+    if (key.startsWith("h")) {
+      const heading = document.createElement("h3");
+      heading.className = "cp-list-heading";
+      heading.textContent = `Day ${key}`;
+      const li = document.createElement("li");
+      li.dataset["key"] = key;
+      li.append(heading);
+      return li;
+    }
+    const li = titleItem(key);
+    if (key.startsWith("d")) {
+      const meta = document.createElement("span");
+      meta.className = "cp-meta";
+      meta.textContent = "TV, 2024";
+      li.querySelector(".cp-cell-stack")?.append(meta);
+    }
+    return li;
+  }
+
+  /** Each skeleton is `height` tall, with one bar in its stack and one at its end. */
+  function expectTitleSkeletons(ul: HTMLElement, height: number | undefined): void {
+    const skeletons = [
+      ...ul.querySelectorAll<HTMLElement>(":scope > li > .cp-list-row[data-skeleton]"),
+    ];
+    expect(skeletons.length).toBeGreaterThan(0);
+    for (const row of skeletons) {
+      expect(row.parentElement?.getBoundingClientRect().height).toBe(height);
+      expect(row.querySelectorAll(":scope > .cp-cell-stack > .cp-skeleton")).toHaveLength(1);
+      expect(row.querySelectorAll(':scope > [data-part="end"] > .cp-skeleton')).toHaveLength(1);
+    }
+  }
+
+  it("passes over a grouped list's first heading for its skeletons' shape, and keeps it once update() drops that row", async () => {
+    const ul = virtualList();
+    const list = enhance(ul, {
+      keys: ["h0", ...keysOf(39, 1), ...Array<undefined>(960)],
+      row: groupedItem,
+    });
+    await frames();
+    const loaded = rows(ul)[1]?.getBoundingClientRect().height;
+    const pitch = pitchOf(ul);
+    await scrollTo(ul, 45 * pitch);
+    await scrollTo(ul, 200 * pitch);
+    await scrollTo(ul, 600 * pitch);
+    expect(rows(ul)).toHaveLength(0);
+    expectTitleSkeletons(ul, loaded);
+    list.update(["h0", ...keysOf(38, 2), ...Array<undefined>(961)]);
+    await frames();
+    await frames();
+    expect(rows(ul)).toHaveLength(0);
+    expectTitleSkeletons(ul, loaded);
+  });
+
+  it("passes over a heading drawn first among update()'s new rows, taking the title row after it", () => {
+    const ul = virtualList();
+    const list = enhance(ul, { keys: ["d0", "d1", ...Array<undefined>(998)], row: groupedItem });
+    expect(
+      ul.querySelector("li > [data-skeleton] > .cp-cell-stack > .cp-skeleton + .cp-skeleton"),
+    ).not.toBeNull();
+    list.update(["h0", "t1", ...Array<undefined>(998)]);
+    expect(keysIn(ul)).toEqual(["h0", "t1"]);
+    expectTitleSkeletons(ul, list.rowOf("t1")?.getBoundingClientRect().height);
+  });
+
   it("keeps a cover table's skeletons in its rows' shape once those rows have left the window", async () => {
     const panel = document.createElement("div");
     panel.style.blockSize = "15rem";
