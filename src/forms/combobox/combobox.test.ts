@@ -302,7 +302,7 @@ describe("options led by a cover", () => {
     document.documentElement.classList.remove("cp");
   });
 
-  it("stack their covers into one square strip, rounded only by the list's own corners", () => {
+  it("stack their covers square and 2px apart, rounded only by the list's own corners", () => {
     const box = document.createElement("div");
     box.className = "cp-popover cp-listbox";
     const ul = document.createElement("ul");
@@ -320,7 +320,10 @@ describe("options led by a cover", () => {
       ul.append(li);
     }
     box.append(ul);
+    box.popover = "manual";
+    box.style.transition = "none";
     document.body.append(box);
+    box.showPopover();
     const covers = [...box.querySelectorAll<HTMLElement>(".cp-cover")];
     for (const c of covers) {
       expect(getComputedStyle(c).borderTopLeftRadius).toBe("0px");
@@ -328,7 +331,7 @@ describe("options led by a cover", () => {
     }
     for (let i = 1; i < covers.length; i++) {
       const above = covers[i - 1]?.getBoundingClientRect().bottom ?? 0;
-      expect(covers[i]?.getBoundingClientRect().top).toBeCloseTo(above, 1);
+      expect(covers[i]?.getBoundingClientRect().top).toBeCloseTo(above + 2, 1);
     }
     expect(getComputedStyle(box).overflowY).toBe("auto");
     expect(getComputedStyle(box).borderTopLeftRadius).not.toBe("0px");
