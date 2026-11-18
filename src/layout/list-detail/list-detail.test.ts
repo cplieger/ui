@@ -1581,6 +1581,159 @@ describe("enhanceListDetail", () => {
     },
   );
 
+  /** Counts focus events on the detail's heading, whichever node it is. */
+  const headingFocuses = (detail: HTMLElement) => {
+    let n = 0;
+    const count = (e: FocusEvent): void => {
+      if (e.target instanceof HTMLHeadingElement && detail.contains(e.target)) {
+        n += 1;
+      }
+    };
+    document.addEventListener("focus", count, { capture: true });
+    return (): number => {
+      document.removeEventListener("focus", count, { capture: true });
+      return n;
+    };
+  };
+
+  /** Frames until the page's scroll stops moving. */
+  const scrollStill = async (): Promise<void> => {
+    let y = Number.NaN;
+    while (y !== scrollY) {
+      y = scrollY;
+      await frames(10);
+    }
+  };
+
+  /** One focus event on the heading, the show's; in this iframe Firefox 159
+   *  commits an intercepted traversal twice and resets focus to the body
+   *  when the second handler run settles, so the repair adds one more. */
+  const repaired = (focused: number): void => {
+    if (server.browser === "firefox") {
+      expect(focused, "the show's focus and the repair's").toBeGreaterThanOrEqual(2);
+    } else {
+      expect(focused, "the show's one focus event on the heading").toBe(1);
+    }
+  };
+
+  it.each(
+    (["intercept", "intercept-await"] as const).flatMap((answer) =>
+      (["wheel", "PageDown", "Control", "Shift", "Tab", "a synthetic pointerdown"] as const).map(
+        (input) => [`${input}, under an ${answer} route`, answer, input] as const,
+      ),
+    ),
+  )(
+    "leaves the reader's own input standing while a docked traversal's route still loads, %s",
+    async (_, answer, input) => {
+      let load = Promise.resolve();
+      const s = await answered(DOCK, answer, true, { loads: () => load, scroll: "manual" });
+      await pressShows(s, s.rows[0]!);
+      await pressShows(s, s.rows[1]!);
+      const { promise, resolve: loaded } = Promise.withResolvers<undefined>();
+      load = promise;
+      const focuses = headingFocuses(s.detail);
+      const shown = opened(s.root);
+      history.back();
+      await shown;
+      await frames(3);
+      const transition = nav.transition;
+      expect(transition, "the route still loads").not.toBeNull();
+      expect(document.activeElement, "the show focused the heading").toBe(s.head());
+      const before = scrollY;
+      switch (input) {
+        case "wheel": {
+          const moved = new Promise((r) => {
+            addEventListener("scroll", r, { once: true });
+            setTimeout(r, 1000);
+          });
+          // Over the list: WebKit scrolls no page for a wheel over the heading here.
+          await userEvent.wheel(s.rows[1]!, { delta: { y: 1500 } });
+          await moved;
+          break;
+        }
+        case "PageDown":
+          await userEvent.keyboard("{PageDown}{PageDown}{PageDown}");
+          break;
+        case "Control":
+        case "Shift":
+          await userEvent.keyboard(`{${input}}`);
+          scrollTo(0, scrollY + 1500);
+          break;
+        case "Tab":
+          await userEvent.keyboard("{Tab}");
+          expect(document.activeElement, "Tab moved to the detail's next control").toBe(s.close);
+          break;
+        case "a synthetic pointerdown":
+          s.head().dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+          scrollTo(0, scrollY + 1500);
+          break;
+      }
+      // The other inputs are followed by a script's scroll, which stands in
+      // for the browser's restore: the heading must come back into view.
+      await scrollStill();
+      const y = scrollY;
+      loaded(undefined);
+      await transition?.finished.catch(() => undefined);
+      await frames(3);
+      await task();
+      const focused = focuses();
+      expect(s.api.key).toBe("row-0");
+      if (input === "wheel" || input === "PageDown") {
+        expect(y, "the reader scrolled").toBeGreaterThan(before + 100);
+        expect(scrollY, "the page where the reader scrolled it").toBe(y);
+        expect(document.activeElement, "focus still on the heading").toBe(s.head());
+        repaired(focused);
+      } else if (input === "Tab") {
+        expect(document.activeElement, "focus where the reader moved it").toBe(s.close);
+        expect(focused, "the show's one focus event on the heading").toBe(1);
+      } else {
+        expect(document.activeElement, "focus on the heading").toBe(s.head());
+        const h = s.head().getBoundingClientRect();
+        expect(h.top > -1 && h.bottom < innerHeight + 1, "the heading wholly in view").toBe(true);
+        repaired(focused);
+      }
+    },
+  );
+
+  it.each(
+    (["intercept", "intercept-await"] as const).flatMap((answer) =>
+      ([50, 300] as const).map(
+        (ms) => [`under an ${answer} route that loads for ${String(ms)} ms`, answer, ms] as const,
+      ),
+    ),
+  )(
+    "keeps focus on the heading once a docked traversal's route that shows first settles, %s",
+    async (_, answer, ms) => {
+      const wait = (n: number = ms): Promise<void> => new Promise((r) => setTimeout(r, n));
+      // Each handler run of one navigation loads longer than the one before,
+      // as a refetch can, so Firefox's second run settles a load after the
+      // first.
+      let runs = 0;
+      const loads = (): Promise<void> => {
+        runs += 1;
+        return wait(ms * runs);
+      };
+      const s = await answered(DOCK, answer, true, { loads, scroll: "manual" });
+      await pressShows(s, s.rows[0]!);
+      await pressShows(s, s.rows[1]!);
+      await nav.transition?.finished.catch(() => undefined);
+      await wait(3 * ms);
+      runs = 0;
+      const focuses = headingFocuses(s.detail);
+      const shown = opened(s.root);
+      history.back();
+      await shown;
+      await nav.transition?.finished.catch(() => undefined);
+      await wait(2 * ms);
+      await frames(3);
+      await task();
+      const focused = focuses();
+      expect(s.api.key).toBe("row-0");
+      expect(document.activeElement, "focus on the heading").toBe(s.head());
+      repaired(focused);
+    },
+  );
+
   it.each([
     ["docked, a link at the top", DOCK, "link"],
     ["in the sheet, a link at the top", SHEET, "link"],

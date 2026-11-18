@@ -203,11 +203,16 @@ interface Nav {
   committed: boolean;
   /** Committed under a route's `intercept()`, which fires no hashchange. */
   intercepted: boolean;
-  /** A traversal whose show focused the detail's heading. */
-  focusedHeading: boolean;
-  /** Its show focused the heading and the reader has pressed nothing since,
-   *  so focus on the page can only be the browser's reset. */
+  /** Its own commits, and the settles of the handler runs they started. */
+  commits: number;
+  settles: number;
+  /** A traversal whose show focused the heading, with no input from the
+   *  reader since (a press, a key that moves focus or scroll, a wheel or a
+   *  touch scroll): a scroll restore can only be the browser's. */
   armed: boolean;
+  /** Where the reader's focus is since that show: the heading, then what
+   *  their last input left focused, null once it left focus on the page. */
+  held: Part | null;
 }
 
 /** What a hide hands `focusOnHide`, read at the hide: a modal sheet keeps
@@ -584,8 +589,8 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
         h.focus({ preventScroll: true });
       }
       if (current?.type === "traverse" && h !== null && document.activeElement === h) {
-        current.focusedHeading = true;
         current.armed = true;
+        current.held = h;
       }
     },
   };
@@ -693,7 +698,7 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
       // carry the heading its show focused out of view; by this task it has
       // (https://html.spec.whatwg.org/multipage/browsing-the-web.html#restore-persisted-user-state).
       const h = heading();
-      if (n.focusedHeading && h !== null && document.activeElement === h) {
+      if (n.armed && h !== null && document.activeElement === h) {
         reveal(h);
       }
     }, 0);
@@ -712,8 +717,10 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
         part: e.hashChange ? indicated(e.destination.url) : null,
         committed: false,
         intercepted: false,
-        focusedHeading: false,
+        commits: 0,
+        settles: 0,
         armed: false,
+        held: null,
       };
     },
     listen,
@@ -723,24 +730,19 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
     (e) => {
       const n = current;
       // A stamp's own commit is a replace, so it never commits a push.
-      if (n === null || n.committed || e.navigationType !== n.type) {
+      if (n?.type !== e.navigationType) {
+        return;
+      }
+      n.commits += 1;
+      if (n.committed) {
         return;
       }
       n.committed = true;
       lastType = n.type;
-      const transition = navigation.transition;
-      if (transition !== null) {
+      if (navigation.transition !== null) {
         // An intercepted navigation fires no popstate or hashchange: its
-        // route has handled it once the handler's promise settles.
+        // route has handled it once every handler run has settled.
         n.intercepted = true;
-        transition.finished.then(
-          () => {
-            end(n);
-          },
-          () => {
-            end(n);
-          },
-        );
       } else if (!n.hashChange && n.type !== "traverse") {
         // pushState and replaceState fire no popstate.
         end(n);
@@ -748,43 +750,68 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
     },
     listen,
   );
-  const settled = (): void => {
-    if (current !== null && !current.committed) {
-      end(current);
+  const settled = (e: Event): void => {
+    const n = current;
+    if (n === null) {
+      return;
     }
-  };
-  navigation?.addEventListener(
-    "navigatesuccess",
-    () => {
-      const n = current;
-      settled();
-      // In a nested browsing context, Firefox 159 commits an intercepted
-      // traversal twice and runs its handler again, and a run that focuses
-      // nothing leaves focus to the reset; only the traversal still in
-      // progress takes the heading back, and only until the reader presses
-      // anything, whose own focus move stands
-      // (https://html.spec.whatwg.org/multipage/nav-history-apis.html#potentially-reset-the-focus).
-      const h = heading();
-      if (
-        n?.intercepted === true &&
-        n.armed &&
-        shown !== null &&
-        h !== null &&
-        isPage(document.activeElement)
-      ) {
-        refocus(h);
+    if (!n.committed) {
+      end(n);
+      return;
+    }
+    if (!n.intercepted) {
+      return;
+    }
+    n.settles += 1;
+    // In a nested browsing context Firefox 159 commits an intercepted
+    // traversal twice, runs its handler again and, when that run settles,
+    // resets focus to the body even after the reader moved it, which can be
+    // after the transition finished; so the traversal lasts until its last
+    // run settles, and focus goes back where the reader had it
+    // (https://html.spec.whatwg.org/multipage/nav-history-apis.html#potentially-reset-the-focus).
+    const el = n.held;
+    if (
+      e.type === "navigatesuccess" &&
+      el?.isConnected === true &&
+      shown !== null &&
+      isPage(document.activeElement)
+    ) {
+      if (n.armed) {
+        refocus(el);
+      } else {
+        land(el);
       }
-    },
-    listen,
-  );
-  navigation?.addEventListener("navigateerror", settled, listen);
-  const disarm = (e: Event): void => {
-    if (e.isTrusted && current !== null) {
-      current.armed = false;
+    }
+    if (n.settles >= n.commits) {
+      end(n);
     }
   };
-  document.addEventListener("pointerdown", disarm, until(signal, true));
-  document.addEventListener("keydown", disarm, until(signal, true));
+  navigation?.addEventListener("navigatesuccess", settled, listen);
+  navigation?.addEventListener("navigateerror", settled, listen);
+  /** Keys that move neither focus nor scroll, as a screen reader's Control
+   *  that stops speech. */
+  const idle = new Set(["Shift", "Control", "Alt", "Meta", "AltGraph", "CapsLock"]);
+  const disarm = (e: Event): void => {
+    if (!e.isTrusted || current === null) {
+      return;
+    }
+    if (e instanceof KeyboardEvent && idle.has(e.key)) {
+      return;
+    }
+    const n = current;
+    n.armed = false;
+    // The input's own focus move has run by the next task.
+    setTimeout(() => {
+      const now = document.activeElement;
+      if (current === n && n.held !== null) {
+        n.held = isPart(now) && !isPage(now) ? now : null;
+      }
+    }, 0);
+  };
+  const input = { ...until(signal, true), passive: true };
+  for (const type of ["pointerdown", "keydown", "wheel", "touchmove"]) {
+    document.addEventListener(type, disarm, input);
+  }
   addEventListener(
     "popstate",
     () => {
