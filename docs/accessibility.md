@@ -52,11 +52,12 @@ These adopted criteria are not fully met yet, and one item is a default the bar 
 - [2.5.3 Label in name](#253-label-in-name): The account button is named Account while it shows the person's initials, so a voice user who says the initials reaches nothing. WCAG 3 2.3.5.5 asks the same. The bar requires the name to contain the visible words, or the initials to be hidden from the name as a picture of the person. Owed by `navigation/account`.
 - [4.1.2 Name, role, value](#412-name-role-value): A list row's cut line takes focus so a keyboard and a tap reach its full text, but it is a `span` with no role, which a screen reader announces as nothing. WCAG 3 2.3.5.6 and 2.12.1.1 ask the same. A key shown for copying takes focus as a scroll region with no role and no name, even when it fits. A finished upload's row takes focus with no role and no name when its Retry leaves. The bar requires each focus stop to have a role and a name: the cut line becomes a button named by the whole line, the key takes focus only while it overflows, as a region named by its field's label, and the upload's row is a group named by its file and its state. Owed by `data/list-row`, `forms/copy` and `forms/file`.
 - [1.4.13 Content on hover or focus](#1413-content-on-hover-or-focus): The tooltip hides when the pointer leaves its control, so the pointer cannot move onto the tip. WCAG 3 2.4.5.2 asks for the same hoverable tip. The bar requires the tip to stay while the pointer is over the control or the tip, and to hide when it leaves both. Owed by `overlays/tooltip`.
+- [2.4.7 Focus visible](#247-focus-visible): At a phone's width the settings page picks its category with a native select, and while that select is focused and open its ring is cut at its top and right edges. WCAG 3 2.3.1.2 and 2.3.1.3 ask the same. The bar requires one whole ring round every focused field, clipped by nothing around it. Owed by `layout/settings`.
 - [2.4.3 Focus order](#243-focus-order): A toast that leaves while it holds focus, after its Undo or its Dismiss is pressed by key, drops focus to the page. The bar requires focus to move to the next toast's button, else back to the control that was focused before. Owed by `feedback/toast`.
 - [WCAG 3 2.2.2.3](#2223-numerical-metadata-available): A relative time shows its exact date and time under a mouse only: a time takes no focus and no tap, so a keyboard or touch user who sees "8 minutes ago" cannot see when that was. The bar requires the exact time to be reachable by keyboard and by touch too. Owed by `data/relative-time`.
 - [2.4.12 Focus not obscured (enhanced)](#2412-focus-not-obscured-enhanced): No stylesheet sets `scroll-padding` for the sticky header, the foot bar or the status line. The bar requires that no part of a focused control sits under them. Owed by `layout/app-frame`.
 - [3.2.5 Change on request](#325-change-on-request): Markdown output opens web links in a new tab and the link does not say so, which WCAG 3 2.12.5.3 also asks. The bar requires the link's name to say it opens a new tab. Owed by `content/markdown`.
-- [WCAG 3 2.6.1.4](#2614-no-visual-motion-no-exceptions): The spinners, the loader and the skeleton move for as long as their work runs. The bar requires each to stop within 5 seconds on a whole cycle, at a still frame. Its words keep saying the work runs, and reduced motion keeps its still state. Until then their motion past 5 seconds is a trigger under WCAG 3 2.6.1.5, which the bar meets by removing it, never by a warning. Owed by `feedback/skeleton`, `buttons/button`, `buttons/confirm`, `feedback/state` and `feedback/loader`.
+- [WCAG 3 2.6.1.4](#2614-no-visual-motion-no-exceptions): The loader moves for as long as its work runs, and under reduced motion the loader and the refresh line pulse for as long. The bar requires each to stop within 5 seconds on a whole cycle, at a still frame, as the spinners and the skeleton do, while its words keep saying the work runs. Until then their motion past 5 seconds is a trigger under WCAG 3 2.6.1.5, which the bar meets by removing it, never by a warning. Owed by `feedback/loader` and `feedback/loading-region`.
 - [WCAG 3 2.1.5.5, 2.1.5.6, 2.1.6.7, 2.1.6.8, 2.12.4.3 and 2.12.4.4](#2155-caption-language-adjustable): The video bar has play, seek and time only. The bar requires a captions button that turns the track on and off, a choice of captions track and a chapter list from a `chapters` track. Where the engine exposes `audioTracks`, it also requires a choice of audio track. Owed by `media/video`.
 - [WCAG 3 2.1.5.1](#2151-captions-adjustable): The video's `::cue` rule sets the caption colour, background and font, which can override the person's caption settings. The bar requires the person's caption settings to win. Owed by `media/video`.
 - [3.3.2 Labels or instructions](#332-labels-or-instructions): A pair of fields, such as a path mapping, names each field by a hidden label and shows that name only as a placeholder, which goes once the field holds a value. WCAG 3 2.3.5.2 asks the same. The bar requires each field's name to stay on screen as its label. Owed by `forms/pairs`.
@@ -296,9 +297,9 @@ Nothing is wider than a 320px window and nothing is clipped. A list row's state 
 
 Level AA. Adopted. Met by ui. [Understanding 1.4.11](https://www.w3.org/WAI/WCAG22/Understanding/non-text-contrast.html)
 
-A boundary holds 3:1 on steps 1 to 3 (4.5:1 under `prefers-contrast: more`), and the focus ring is the accent's step 9. Series slots hold 3:1 on every surface, and in forced colours every control keeps a system-colour border and rings in the system's highlight, a checkbox, a radio, a switch and a range too, which keep their own colours there.
+A boundary holds 3:1 on steps 1 to 3 (4.5:1 under `prefers-contrast: more`), and the focus ring is the accent's step 9. Series slots hold 3:1 on every surface, and in forced colours every control keeps a system-colour border and rings in the system's highlight, a checkbox, a radio, a switch and a range too, which keep their own colours there. A skeleton's lines draw in GrayText there, so a region that loads never shows as an empty box.
 
-- Unit: boundary and series contrast tests, and the forced-colours ring of the controls that keep their own colours.
+- Unit: boundary and series contrast tests, the forced-colours ring of the controls that keep their own colours, and the skeleton's forced-colours fill.
 - Manual: forced colours and a contrast check per gallery card.
 
 ### 1.4.12 Text spacing
@@ -366,7 +367,7 @@ A passing toast lasts 7 seconds only when its result stays visible elsewhere, an
 
 Level A. Adopted. Met by ui. [Understanding 2.2.2](https://www.w3.org/WAI/WCAG22/Understanding/pause-stop-hide.html)
 
-No loop over 5 seconds runs beside other content, except a busy indicator such as a spinner, the loader or a skeleton while its work runs. That is the essential case of the preload note in Understanding 2.2.2. Under reduced motion the skeleton and the spinners stand still and the loader only fades. A live dot's ring plays twice, 3.6 seconds. WCAG 3 asks more, as [Where ui falls short](#where-ui-falls-short) shows.
+No loop over 5 seconds runs beside other content. A spinner turns six times in 4.8 seconds and a skeleton beats twice in 3.2 seconds, then each rests. The loader and the refresh line still loop while their work runs, which is the essential case of the preload note in Understanding 2.2.2, and under reduced motion they pulse. A live dot's ring plays twice, 3.6 seconds. WCAG 3 asks more, as [Where ui falls short](#where-ui-falls-short) shows.
 
 - axe: `blink`, `marquee`.
 - Manual: reduced motion and a 5-second sample of `getAnimations()` per gallery card.
@@ -484,7 +485,7 @@ Each section has a heading and each control a label that names what it does. A s
 
 ### 2.4.7 Focus visible
 
-Level AA. Adopted. Met by ui. [Understanding 2.4.7](https://www.w3.org/WAI/WCAG22/Understanding/focus-visible.html)
+Level AA. Adopted, partly met, owed by `layout/settings`. Met by ui. [Understanding 2.4.7](https://www.w3.org/WAI/WCAG22/Understanding/focus-visible.html)
 
 Every `:focus-visible` element inside `.cp` draws a 2px outline at a 2px offset in the focus ring colour, and `Highlight` in forced colours.
 
@@ -534,7 +535,7 @@ As 2.4.11 with no part hidden: the page scrolls a focused control clear of every
 
 ### 2.4.13 Focus appearance
 
-Level AAA. Adopted. Met by ui. [Understanding 2.4.13](https://www.w3.org/WAI/WCAG22/Understanding/focus-appearance.html)
+Level AAA. Adopted, partly met, owed by `layout/settings`. Met by ui. [Understanding 2.4.13](https://www.w3.org/WAI/WCAG22/Understanding/focus-appearance.html)
 
 The ring is a solid 2px outline at a 2px offset, so its area exceeds a 2px perimeter of the control, in the accent's step 9, which holds 3:1 against every surface at every hue and chroma. On the header the ring takes the shell's ink, because the light shell is the accent's own fill. Inside a split button, whose fill is the ring's colour, focus rings the whole split outside its shape and marks the focused part with an inset ring in the split's ink. A date or time field rings while focus is in it, because WebKit focuses one of its parts and the field never matches `:focus-visible`.
 
@@ -1373,25 +1374,27 @@ An error first appears when the person leaves the field or submits, never mid-ty
 
 A core requirement. Adopted, stricter than WCAG 2.2. Met by ui. [Draft](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#no-visual-motion)
 
-No ui motion runs past 5 seconds except a busy indicator while its work runs, which the draft and Understanding 2.2.2 count as essential. Under reduced motion the skeleton and the spinners stand still and the loader only fades.
+No ui motion runs past 5 seconds except a busy indicator while its work runs, which the draft and Understanding 2.2.2 count as essential. Under reduced motion the skeleton and the spinners stand still, and the loader and the refresh line only pulse.
 
 - Manual: reduced motion and a 5-second sample of `getAnimations()` per gallery card.
 
 ### 2.6.1.4 No visual motion (no exceptions)
 
-A supplemental requirement. Adopted, not met yet, owed by `feedback/skeleton`, `buttons/button`, `buttons/confirm`, `feedback/state` and `feedback/loader`. Met by ui. [Draft](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#no-visual-motion-no-exceptions)
+A supplemental requirement. Adopted, partly met, owed by `feedback/loader` and `feedback/loading-region`. Met by ui. [Draft](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#no-visual-motion-no-exceptions)
 
-With no exceptions, a busy indicator also settles within 5 seconds. The button's busy spinner, the confirm button, the state words' spinner, the loader and the skeleton loop for as long as their work runs, as [Where ui falls short](#where-ui-falls-short) records. Until they do, that motion is a trigger under 2.6.1.5.
+With no exceptions, a busy indicator also settles within 5 seconds. Every spinner turns six times in 4.8 seconds (`--cp-spin`) and a skeleton fades out and back twice in 3.2 seconds, then each rests on the frame it started from, while `aria-busy` and its words keep saying the work runs. The loader loops for as long as its work runs, and under reduced motion the loader and the refresh line pulse for as long, as [Where ui falls short](#where-ui-falls-short) records. Until they rest, that motion is a trigger under 2.6.1.5.
 
-- Manual: a 6-second sample of `getAnimations()` per busy card, outside reduced motion.
+- Unit: src/system/system-css.test.ts busy indicators.
+- Manual: a 6-second sample of `getAnimations()` per busy card, with and without reduced motion.
 
 ### 2.6.1.5 Trigger warning available
 
-A core requirement. Adopted, not met yet, owed by `feedback/skeleton`, `buttons/button`, `buttons/confirm`, `feedback/state` and `feedback/loader`. Met by ui. [Draft](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#trigger-warning-available)
+A core requirement. Adopted, partly met, owed by `feedback/loader` and `feedback/loading-region`. Met by ui. [Draft](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#trigger-warning-available)
 
-The busy indicators' motion past 5 seconds is a trigger today, as 2.6.1.4 records. The bar meets this requirement by removing the trigger, never by a warning, which would add noise before every spinner. Once each indicator stops within 5 seconds, no trigger remains and the requirement stops applying. Reduced motion already stills the indicators. ui has no flashing and no pseudo-motion.
+The loader's motion past 5 seconds, and its pulse and the refresh line's under reduced motion, are a trigger today, as 2.6.1.4 records. The bar meets this requirement by removing the trigger, never by a warning, which would add noise before every spinner. Once each indicator stops within 5 seconds, no trigger remains and the requirement stops applying. The spinners and the skeleton already rest within 5 seconds. ui has no flashing and no pseudo-motion.
 
-- Manual: a 6-second sample of `getAnimations()` per busy card, outside reduced motion.
+- Unit: src/system/system-css.test.ts busy indicators.
+- Manual: a 6-second sample of `getAnimations()` per busy card, with and without reduced motion.
 
 ### 2.6.1.6 Haptic stimulation adjustable
 
@@ -1702,7 +1705,7 @@ A change of window or device is announced before it happens. No ui element opens
 
 ## Other WCAG 3 requirements
 
-Of the rest, 50 are met through a WCAG 2.2 criterion at the same strength, 4 ask the same as a WCAG 2.2 criterion ui does not meet yet, 12 do not apply, and 41 are not adopted. An assertion is an organisation's statement about its own process, not a property of the interface, and ui claims no WCAG 3 conformance, so no assertion is adopted. A requirement whose values the draft still leaves undetermined cannot be tested, so it waits for a draft that sets them.
+Of the rest, 48 are met through a WCAG 2.2 criterion at the same strength, 6 ask the same as a WCAG 2.2 criterion ui does not meet yet, 12 do not apply, and 41 are not adopted. An assertion is an organisation's statement about its own process, not a property of the interface, and ui claims no WCAG 3 conformance, so no assertion is adopted. A requirement whose values the draft still leaves undetermined cannot be tested, so it waits for a draft that sets them.
 
 | Requirement | Type | Ruling |
 | --- | --- | --- |
@@ -1755,8 +1758,8 @@ Of the rest, 50 are met through a WCAG 2.2 criterion at the same strength, 4 ask
 | [2.2.3.8 Clear language review](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#clear-language-review) | assertion | Not adopted, because it is an assertion |
 | [2.2.3.9 Visual aids review](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#visual-aids-review) | assertion | Not adopted, because it is an assertion |
 | [2.3.1.1 Default focus indicator used](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#default-focus-indicator-used) | supplemental | Not adopted, because the draft offers it as an alternative to 2.3.1.2 and 2.3.1.3, which ui meets with its own ring |
-| [2.3.1.2 Focus indicator contrast sufficient](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#focus-indicator-contrast-sufficient) | core | Met through WCAG 2.2 [2.4.13](#2413-focus-appearance) |
-| [2.3.1.3 Focus indicator size sufficient](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#focus-indicator-size-sufficient) | supplemental | Met through WCAG 2.2 [2.4.13](#2413-focus-appearance) |
+| [2.3.1.2 Focus indicator contrast sufficient](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#focus-indicator-contrast-sufficient) | core | Same as WCAG 2.2 [2.4.13](#2413-focus-appearance), which ui does not meet yet, owed by `layout/settings`, as [Where ui falls short](#where-ui-falls-short) records |
+| [2.3.1.3 Focus indicator size sufficient](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#focus-indicator-size-sufficient) | supplemental | Same as WCAG 2.2 [2.4.13](#2413-focus-appearance), which ui does not meet yet, owed by `layout/settings`, as [Where ui falls short](#where-ui-falls-short) records |
 | [2.3.1.4 Focus indicator style guide](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#focus-indicator-style-guide) | assertion | Not adopted, because it is an assertion |
 | [2.3.2.2 Pointer activation indicated (enhanced)](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#pointer-activation-indicated-enhanced) | supplemental | Does not apply, because it applies where the platform has no visible pointer (touch, eye tracking). Showing a pointer there is the platform's setting, and a page-drawn pointer would lag behind the real one |
 | [2.3.2.3 Pointer contrast sufficient](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#pointer-contrast-sufficient) | core | Does not apply, because it applies when the author changes the pointer's look. ui only names standard `cursor` keywords, which the operating system draws at the person's size and colour |
