@@ -161,11 +161,13 @@
   font-size: var(--cp-text-sm);
 }
 
-/* A name's bar holds its line, so the loading panel is the loaded one's
- * size. */
+/* Inline, a name's bar sits in the line box a name's link would, so the
+ * loading panel is the loaded one's height to the subpixel; a block bar
+ * with 1lh of margins rounds each line apart. */
 .cp-feed-readers li > .cp-skeleton {
+  display: inline-block;
   inline-size: 6rem;
-  margin-block: calc((1lh - 0.75em) / 2);
+  vertical-align: middle;
 }
 
 /* The composer and the New messages button, pinned to the scroller's end.

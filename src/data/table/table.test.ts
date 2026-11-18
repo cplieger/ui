@@ -515,6 +515,11 @@ describe("enhanceBatchBar", () => {
 });
 
 describe("skeletonRow", () => {
+  // useSystemSheet resets the pointer tier after each test.
+  afterEach(async () => {
+    await page.viewport(1280, 720);
+  });
+
   const HEAD =
     '<thead><tr><th data-col="select"><label><input class="cp-checkbox" type="checkbox" aria-label="Select all"></label></th>' +
     '<th>Title</th><th data-priority="mid">Verdict</th><th data-col="num" data-priority="low">Size</th>' +
@@ -578,7 +583,6 @@ describe("skeletonRow", () => {
       expect(t.getBoundingClientRect().height).toBe(before.block);
       expect(t.getBoundingClientRect().width).toBeLessThanOrEqual(panel.clientWidth + 0.5);
       expect(shown(t.tBodies[0]?.rows[0] as HTMLTableRowElement)).toEqual(before.cells);
-      await page.viewport(1280, 720);
     },
   );
 
@@ -607,6 +611,33 @@ describe("skeletonRow", () => {
       true,
       "true",
     ]);
+  });
+
+  it("takes the head row nearest the body, and each column's loaded cell past a colspan", () => {
+    const t = document.createElement("table");
+    t.className = "cp-table";
+    t.innerHTML =
+      '<thead><tr><th colspan="2">Release</th><th data-col="num">Size</th></tr>' +
+      '<tr><th data-col="select">Pick</th><th>Title</th><th data-col="num" data-priority="low">GB</th></tr></thead>' +
+      '<tbody><tr><td colspan="2"><div class="cp-cell-stack"><span>Frieren</span><span>TV</span></div></td><td data-col="num">33.0</td></tr></tbody>';
+    build("").append(t);
+    const bones = skeletonRow(t);
+    expect([...bones.cells].map((c) => [c.dataset["col"], c.dataset["priority"]])).toEqual([
+      ["select", undefined],
+      [undefined, undefined],
+      ["num", "low"],
+    ]);
+    expect(bones.cells[0]?.querySelector(":scope > .cp-cell-stack")).not.toBeNull();
+    expect(bones.cells[1]?.querySelector(":scope > .cp-cell-stack")).not.toBeNull();
+    expect(bones.cells[2]?.querySelector(":scope > .cp-skeleton")).not.toBeNull();
+  });
+
+  it("takes the shapes from a given row out of the document", () => {
+    const t = table("", "");
+    const loaded = table("", ROWS).tBodies[0]?.rows[0] as HTMLTableRowElement;
+    loaded.remove();
+    const bones = skeletonRow(t, loaded);
+    expect(bones.cells[1]?.querySelectorAll(".cp-title-cell > .cp-skeleton")).toHaveLength(1);
   });
 
   it("reads the row's shape from data-row when the table has no rows yet", () => {

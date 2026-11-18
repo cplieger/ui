@@ -97,25 +97,31 @@ export function markKept(row: Element, kept: Kept | null, options: KeptOptions =
 /** The lead's attributes that set its size or shape. */
 const LEAD_ATTRS = ["data-part", "data-size", "data-cp-icon-size"] as const;
 
+/** A bar per shown child of `from`, or one for its bare text. */
 function bones(from: Element | null | undefined, fallback: number): HTMLElement[] {
-  const lines =
+  const shown =
     from == null
       ? fallback
       : [...from.children].filter((el) => !(el instanceof HTMLElement && el.hidden)).length;
+  const lines = shown === 0 && from != null && from.textContent.trim() !== "" ? 1 : shown;
   return Array.from({ length: lines }, () => bone());
 }
 
 /**
- * An item standing for one of `list`'s rows while they load, in their
- * shape, so the list keeps its height when they come: the loaded row's
- * lead, empty and in the skeleton's fill, and a bar per line of its
- * `.cp-cell-stack` and of its end. The list's first loaded `.cp-list-row`
- * gives the shape; with none, `data-row` on the list names it: `media` for
- * a cover beside two lines, or a length every row is tall. Clone it once
- * per row.
+ * An item in the shape of `list`'s loaded rows, so it keeps their height:
+ * the row's lead, empty, and a bar per line of its stack and its end.
+ * `from`, else the list's first loaded item, gives the shape; with
+ * neither, the list's `data-row` does (`media` for a cover beside two
+ * lines, or a length). Clone it once per row.
  */
-export function skeletonListRow(list: HTMLUListElement | HTMLOListElement): HTMLLIElement {
-  const loaded = list.querySelector(":scope > li > .cp-list-row:not([data-skeleton])");
+export function skeletonListRow(
+  list: HTMLUListElement | HTMLOListElement,
+  from?: HTMLLIElement,
+): HTMLLIElement {
+  const loaded =
+    from === undefined
+      ? list.querySelector(":scope > li > .cp-list-row:not([data-skeleton])")
+      : from.querySelector(":scope > .cp-list-row:not([data-skeleton])");
   const declared = list.dataset["row"];
   const row = document.createElement("div");
   row.className = "cp-list-row";

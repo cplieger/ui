@@ -8,7 +8,6 @@
 
 import { until, whenAborted } from "../../core/lifetime/lifetime.js";
 import { announce } from "../../feedback/announce/announce.js";
-import { bone } from "../../feedback/skeleton/bone.js";
 import { skeletonListRow } from "../list-row/list-row.js";
 import { focusOn, landing } from "../list-row/row.js";
 import { scrollerOf, seenOf, viewOf } from "../list-row/scroller.js";
@@ -307,6 +306,12 @@ export function enhanceKeyedList(container: Body, options: KeyedListOptions): Ke
     }
   };
 
+  // The first row drawn, never a heading, shapes every skeleton even after
+  // it leaves the window. A data-row shape is not kept: a loaded row
+  // replaces it.
+  let model: HTMLElement | undefined;
+  let shape: HTMLElement | undefined;
+
   const rowFor = (key: string, i: number): HTMLElement => {
     let el = drawn.get(key);
     if (el === undefined) {
@@ -317,27 +322,33 @@ export function enhanceKeyedList(container: Body, options: KeyedListOptions): Ke
       drawn.set(key, el);
       keyOf.set(el, key);
       sizes?.observe(el);
+      if (model === undefined && (table || el.querySelector(":scope > .cp-list-row") !== null)) {
+        model = el;
+      }
     }
     return el;
+  };
+
+  /** A skeleton in `from`'s shape, or in the host's `data-row` shape
+   *  without one. A tbody laid out outside a table is a TypeError. */
+  const shaped = (from: HTMLElement | undefined): HTMLElement => {
+    if (!table) {
+      return skeletonListRow(container, from instanceof HTMLLIElement ? from : undefined);
+    }
+    const t = container.closest("table");
+    if (t === null) {
+      throw new TypeError("enhanceKeyedList: the tbody is not in a table");
+    }
+    return skeletonRow(t, from instanceof HTMLTableRowElement ? from : undefined);
   };
 
   const skeleton = (i: number): HTMLElement => {
     let el = loading.get(i);
     if (el === undefined) {
-      const t = container.closest("table");
-      if (!(container instanceof HTMLTableSectionElement)) {
-        el = skeletonListRow(container);
-      } else if (t === null) {
-        const tr = document.createElement("tr");
-        for (let c = columns(); c > 0; c -= 1) {
-          tr.insertCell().append(bone());
-        }
-        tr.dataset["skeleton"] = "";
-        tr.setAttribute("aria-hidden", "true");
-        el = tr;
-      } else {
-        el = skeletonRow(t);
+      if (shape === undefined && model !== undefined) {
+        shape = shaped(model);
       }
+      el = shape === undefined ? shaped(undefined) : (shape.cloneNode(true) as HTMLElement);
       loading.set(i, el);
     }
     return el;

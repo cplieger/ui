@@ -50,30 +50,48 @@ function boneCell(row: HTMLTableRowElement, head: HTMLTableCellElement, shape: S
   cell.append(title);
 }
 
+/** The cell of `row` that covers column `column`, counting spans. */
+function cellAt(row: HTMLTableRowElement, column: number): HTMLTableCellElement | undefined {
+  let end = 0;
+  for (const cell of row.cells) {
+    end += cell.colSpan;
+    if (column < end) {
+      return cell;
+    }
+  }
+  return undefined;
+}
+
 /**
- * A row standing for one of `table`'s rows while they load, in their
- * shape, so the table keeps its height when they come: each cell holds a
- * title cell's cover and lines, two lines, or one bar, and its head cell's
- * `data-col` and `data-priority` (a loaded row's, with no head). A loaded
- * body row gives the shapes; with none, `data-row` on the table names
- * them: `media` for a cover in the first column without a `data-col`, or a
- * length every cell is tall. Clone it once per row.
+ * A row in the shape of `table`'s loaded rows, so it keeps their height:
+ * per head column, a cover and lines, two lines or a bar, with the head's
+ * `data-col` and `data-priority`. `from`, else the first loaded body row,
+ * gives the shapes; with neither, the table's `data-row` does (`media`, or
+ * a length). Clone it once per row.
  */
-export function skeletonRow(table: HTMLTableElement): HTMLTableRowElement {
-  const loaded = [...table.tBodies]
-    .flatMap((body) => [...body.rows])
-    .find((r) => r.matches(":not([data-skeleton], [data-part])"));
-  const heads = [...(table.tHead?.rows[0]?.cells ?? loaded?.cells ?? [])];
+export function skeletonRow(
+  table: HTMLTableElement,
+  from?: HTMLTableRowElement,
+): HTMLTableRowElement {
+  const loaded =
+    from ??
+    [...table.tBodies]
+      .flatMap((body) => [...body.rows])
+      .find((r) => r.matches(":not([data-skeleton], [data-part])"));
+  const nearest = table.tHead === null ? undefined : [...table.tHead.rows].at(-1);
+  const heads = [...(nearest?.cells ?? loaded?.cells ?? [])];
   const declared = table.dataset["row"];
   const lead = heads.findIndex((th) => th.dataset["col"] === undefined);
   const row = document.createElement("tr");
+  let column = 0;
   heads.forEach((head, i) => {
     const shape =
       loaded === undefined
         ? declared === "media" && i === lead
           ? "cover"
           : "bar"
-        : shapeOf(loaded.cells[i]);
+        : shapeOf(cellAt(loaded, column));
+    column += head.colSpan;
     boneCell(row, head, shape);
   });
   if (row.cells.length === 0) {

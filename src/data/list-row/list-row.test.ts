@@ -312,6 +312,17 @@ describe("skeletonListRow", () => {
     expect(row.querySelectorAll(':scope > [data-part="end"] > .cp-skeleton')).toHaveLength(2);
   });
 
+  it("gives a line of bare text one bar, and a given item out of the list its shape", () => {
+    const item = listOf(
+      "",
+      '<li><div class="cp-list-row"><span class="cp-cell-stack"><a href="#t">Mushishi</a></span><span data-part="end">3 of 26 episodes</span></div></li>',
+    ).firstElementChild as HTMLLIElement;
+    item.remove();
+    const row = skeletonListRow(listOf("", ""), item).firstElementChild as HTMLElement;
+    expect(row.querySelectorAll(":scope > .cp-cell-stack > .cp-skeleton")).toHaveLength(1);
+    expect(row.querySelectorAll(':scope > [data-part="end"] > .cp-skeleton')).toHaveLength(1);
+  });
+
   it("reads the row's shape from data-row when the list has no rows yet", () => {
     const tall = listOf("data-density=tall", "");
     tall.dataset["row"] = "media";
