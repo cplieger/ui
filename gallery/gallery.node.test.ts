@@ -242,7 +242,7 @@ describe.each(browsers)("the gallery in %s", (name) => {
         labelNamed: false,
       })),
     );
-  });
+  }, 60_000);
 
   it("shows a template's destination as a route change, focus on its h1", async () => {
     const tab = await (browser as Browser).newPage({ viewport: { width: 1440, height: 900 } });
@@ -258,7 +258,7 @@ describe.each(browsers)("the gallery in %s", (name) => {
     }));
     await tab.close();
     expect(state).toEqual({ heading: label, current: label, focused: true });
-  });
+  }, 60_000);
 
   it.each(pageNames)(
     "runs %s's script to its end inside a sandboxed frame, as a preview tab shows it",

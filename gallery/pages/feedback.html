@@ -177,12 +177,12 @@
   <section class="g-section" id="stale">
     <h2>Refreshing what is on screen</h2>
     <div class="g-grid">
-      <div class="card g-wide">
+      <div class="card g-wide" data-new>
         <div class="g-row-inline"><button class="cp-button" type="button" data-refresh="stale-region"><span class="cp-icon" data-cp-icon="refresh-cw" aria-hidden="true"></span>Refresh</button><button class="cp-button" type="button" data-refresh="stale-region" data-fail><span class="cp-icon" data-cp-icon="refresh-cw" aria-hidden="true"></span>Refresh, failing</button></div>
-        <div class="cp-panel g-refreshing cp-stack g-gap-top" id="stale-region">
+        <div class="cp-panel cp-stack g-gap-top" id="stale-region">
           <dl class="cp-facts"><dt>Series</dt><dd>351</dd><dt>On the best</dt><dd>268</dd><dt>Checked</dt><dd><time data-ago="420"></time></dd></dl>
         </div>
-        <footer>The old content stays while it refreshes: the button pressed turns busy, and a line runs along the top edge of the panel it refreshes, which is marked busy. A failed refresh puts its error at the top of that panel, with Retry, and says how old the content is. Where the content has no panel of its own, the line runs along the edge it does have, such as a table's header.</footer>
+        <footer>The old content stays while it refreshes: the button pressed turns busy, and a line runs along the top edge of the panel it refreshes, which is marked busy. A failed refresh puts a warning at the top of that panel, since what it shows is still true as of its time: it says how old the content is and what to do, with Retry. A first load that fails has nothing to show, so its error is danger and takes the panel's place. Where the content has no panel of its own, the line runs along the edge it does have, such as a table's header.</footer>
       </div>
     </div>
   </section>
@@ -190,11 +190,11 @@
   <section class="g-section" id="announce">
     <h2>Announcements that reach a dialog</h2>
     <div class="g-grid">
-      <div class="card">
-        <div class="g-buttons"><button class="cp-button" type="button" data-announce="3 subtitles found" data-log="heard">Say something from the page</button><button class="cp-button" type="button" commandfor="d-announce" command="show-modal">Open a dialog, then say something</button></div>
+      <div class="card" data-new>
+        <div class="g-buttons"><button class="cp-button" type="button" data-announce="3 subtitles found">Say something from the page</button><button class="cp-button" type="button" commandfor="d-announce" command="show-modal">Open a dialog, then say something</button></div>
         <ol class="g-heard g-gap-top" id="heard" aria-label="What a screen reader heard"></ol>
-        <dialog class="g-dialog" id="d-announce" aria-labelledby="d-announce-title">
-          <form method="dialog"><header><h2 id="d-announce-title">Timing</h2></header><div class="g-body"><p>While this dialog is open, the page behind it is inert, its live regions too. A message for the person has to be said from inside the dialog.</p><button class="cp-button" type="button" data-announce="Timing applied" data-log="heard">Apply the timing</button></div><footer><button class="cp-button" value="ok">Close</button></footer></form>
+        <dialog class="cp-dialog" id="d-announce" aria-labelledby="d-announce-title">
+          <form method="dialog"><header><h2 id="d-announce-title">Timing</h2></header><div class="cp-dialog-body"><p>While this dialog is open, the page behind it is inert, its live regions too. A message for the person has to be said from inside the dialog.</p><button class="cp-button" type="button" data-announce="Timing applied">Apply the timing</button></div><footer><button class="cp-button" type="submit" value="ok">Close</button></footer></form>
         </dialog>
         <footer>An announcement is for a screen reader: it is heard, never seen, so the list above shows what was said and from where. A modal dialog makes the rest of the page inert, live regions included, so each dialog has its own pair, made before it opens, and an announcement goes to the topmost.</footer>
       </div>

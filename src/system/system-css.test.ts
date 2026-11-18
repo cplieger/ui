@@ -5051,7 +5051,8 @@ describe("css/system.css lists, feeds and counts", () => {
     expect(bar.top).toBeGreaterThanOrEqual(Math.max(text.bottom, stop.bottom));
     expect(far.top).toBeGreaterThanOrEqual(bar.bottom);
     expect(stop.right).toBeCloseTo(bar.right, 1);
-    expect([stop.top, stop.height]).toEqual([text.top, text.height]);
+    // 26px is --cp-control-h-sm under a mouse.
+    expect([stop.top, stop.height]).toEqual([text.top, 26]);
     const link = getComputedStyle(r.querySelector("a") as Element);
     expect([link.color, link.fontWeight]).toEqual([resolved("var(--cp-ink)"), "500"]);
     const small = getComputedStyle(r.querySelector("small") as Element);
@@ -5083,6 +5084,24 @@ describe("css/system.css lists, feeds and counts", () => {
     expect(retry.left).toBeGreaterThan(replace.right);
     expect(details.top).toBeGreaterThanOrEqual(actions.bottom);
     expect(details.left).toBeCloseTo(actions.left, 1);
+  });
+
+  it("tops a failing status row's lead, state and small info button on its heading", () => {
+    theme("light");
+    const el = build(
+      '<ul class="cp-list"><li><div class="cp-list-row"><span class="cp-icon" data-cp-icon="radio-tower" aria-hidden="true"></span><div class="cp-cell-stack"><h3 id="st-sd" tabindex="-1">SeaDex</h3><small>Its API answers 503 Service Unavailable</small><small>Since 14:02</small></div><span data-part="end"><span class="cp-state" data-tone="danger"><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span>Failing</span></span><button class="cp-button" data-variant="quiet" data-size="sm" type="button" aria-label="About SeaDex states"><span class="cp-icon" data-cp-icon="info" aria-hidden="true"></span></button><div class="cp-cluster" data-part="actions"><button class="cp-button" data-size="sm" type="button">Test again</button></div><details open><summary>Show details</summary><p>503 from the provider</p></details></div></li></ul>',
+    );
+    el.style.inlineSize = "30rem";
+    const top = (s: string) => (el.querySelector(s) as Element).getBoundingClientRect().top;
+    const heading = top("h3");
+    expect(top(".cp-list-row > .cp-icon"), "lead").toBeCloseTo(heading, 1);
+    expect(top(".cp-state"), "state").toBeCloseTo(heading, 1);
+    expect(top('[aria-label="About SeaDex states"]'), "info").toBeCloseTo(heading, 1);
+    // 26px is --cp-control-h-sm under a mouse.
+    expect(
+      (el.querySelector('[aria-label="About SeaDex states"]') as Element).getBoundingClientRect()
+        .height,
+    ).toBeCloseTo(26, 1);
   });
 
   it("titles a row with a heading in the row's own font, size and line, at a title link's weight", () => {
@@ -6538,10 +6557,12 @@ describe("css/system.css data tables", () => {
 
   const batchReport = () =>
     '<div class="cp-batch-report">' +
-    "<p>Started 246 of 248. None remain. 2 couldn't start:</p><ul>" +
-    '<li><span>Kaiba, episode 4</span><span class="cp-state" data-tone="danger">No provider has Basque subtitles</span></li>' +
-    '<li><span>Kaiba, episode 12</span><span class="cp-state" data-tone="danger">The video file is missing</span></li>' +
-    "</ul></div>";
+    "<p>Started 246 of 248. None remain. 2 couldn't start:</p>" +
+    '<dl class="cp-facts" data-variant="compare">' +
+    '<dt>Kaiba, episode 4</dt><dd><span class="cp-state" data-cp-state="failed">No provider has Basque subtitles</span><small>Checked 6 providers</small></dd>' +
+    '<dt>Kaiba, episode 12</dt><dd><span class="cp-state" data-cp-state="failed">The video file is missing</span></dd>' +
+    '<dt>Kaiba, episode 13</dt><dd><span class="cp-state" data-cp-state="failed">The video file is missing</span></dd>' +
+    "</dl></div>";
 
   it("writes a batch report's summary muted and small, 8px under what runs it", () => {
     theme("light");
@@ -6555,26 +6576,28 @@ describe("css/system.css data tables", () => {
     const summary = (report.querySelector("p") as Element).getBoundingClientRect();
     expect(summary.top - report.getBoundingClientRect().top).toBe(0);
     expect(style.marginTop).toBe("8px");
-    expect(getComputedStyle(report.querySelector("ul") as Element).listStyleType).toBe("none");
+    const misses = (report.querySelector("dl") as Element).getBoundingClientRect();
+    expect(misses.top - summary.bottom).toBeCloseTo(8, 1);
   });
 
-  it("lines up each item that did not go beside its reason, stacking them on a phone", async () => {
+  it("lines up each miss's reason in one column, a miss with no note keeping the next in line", async () => {
     theme("light");
     const el = build(batchReport());
-    const [names, reasons] = [
-      [...el.querySelectorAll("li > span:first-child")],
-      [...el.querySelectorAll("li > .cp-state")],
-    ];
-    const items = [...el.querySelectorAll("li")];
     const box = (e: Element | undefined) => (e as Element).getBoundingClientRect();
+    const names = [...el.querySelectorAll("dt")];
+    const reasons = [...el.querySelectorAll(".cp-state")];
     expect(box(reasons[0]).left).toBe(box(reasons[1]).left);
-    expect(box(reasons[0]).left - box(names[1]).right).toBeCloseTo(12, 1);
-    expect(box(items[1]).top - box(items[0]).bottom).toBeCloseTo(4, 1);
-    expect(getComputedStyle(names[0] as Element).color).toBe(resolve("var(--cp-ink)"));
+    expect(box(reasons[1]).left).toBe(box(reasons[2]).left);
+    expect(box(names[2]).left).toBe(box(names[0]).left);
+    expect(box(names[2]).top).toBeGreaterThan(box(names[1]).bottom - 1);
+    expect(getComputedStyle(reasons[0] as Element).color).toBe(resolve("var(--cp-danger-11)"));
+    const glyph = getComputedStyle(reasons[0] as Element, "::before");
+    expect(glyph.inlineSize).toBe(
+      getComputedStyle(host("", { style: "inline-size: var(--cp-icon-ui)" })).inlineSize,
+    );
     await page.viewport(390, 800);
     expect(box(reasons[0]).left).toBe(box(names[0]).left);
     expect(box(reasons[0]).top).toBeCloseTo(box(names[0]).bottom, 1);
-    expect(box(items[1]).top - box(items[0]).bottom).toBeCloseTo(8, 1);
   });
 
   it("lays facts in a muted label column beside their values, one column on a phone", async () => {

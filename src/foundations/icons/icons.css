@@ -49,6 +49,10 @@
   --cp-icon-image: url("../icons/svg/bell-ring-filled.svg");
 }
 
+:where(.cp) .cp-icon:where([data-cp-icon="captions"]) {
+  --cp-icon-image: url("../icons/svg/captions.svg");
+}
+
 :where(.cp) .cp-icon:where([data-cp-icon="check"]) {
   --cp-icon-image: url("../icons/svg/check.svg");
 }

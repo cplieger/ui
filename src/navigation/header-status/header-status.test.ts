@@ -948,6 +948,26 @@ describe("the running section", () => {
     expect(stopButton(panel, "Full check").firstChild?.textContent).toBe("Stop");
   });
 
+  it("closes a Stop's open question as declined when it is destroyed", async () => {
+    vi.useRealTimers();
+    const { panel, status } = mount();
+    const run = vi.fn(() => Promise.resolve());
+    status.update(
+      model({
+        work: [job("Full check", { stop: { run, ask: { message: "Stop the full check?" } } })],
+      }),
+    );
+    stopButton(panel, "Full check").click();
+    await vi.waitFor(() => {
+      expect(document.querySelector("dialog[open]")).not.toBeNull();
+    });
+    status.destroy();
+    await vi.waitFor(() => {
+      expect(document.querySelector("dialog")).toBeNull();
+    });
+    expect(run).not.toHaveBeenCalled();
+  });
+
   it("stops the item shown when the question closes, not the one asked about", async () => {
     vi.useRealTimers();
     const real = matchMedia.bind(window);

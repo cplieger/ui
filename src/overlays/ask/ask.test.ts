@@ -161,6 +161,42 @@ describe("ask", () => {
     await expect(second).resolves.toBe(true);
   });
 
+  it("answers an open question as declined and removes it when its signal aborts", async () => {
+    const life = new AbortController();
+    const reply = ask("Apply an unchecked change?", { signal: life.signal });
+    expect(open().matches(":modal")).toBe(true);
+    life.abort();
+    await expect(reply).resolves.toBe(false);
+    expect(document.querySelector("dialog")).toBeNull();
+    const value = new AbortController();
+    const name = ask("Rename the passkey", { input: true, signal: value.signal });
+    value.abort();
+    await expect(name).resolves.toBeNull();
+    expect(document.querySelector("dialog")).toBeNull();
+  });
+
+  it("opens nothing and leaves the open question for a signal already aborted", async () => {
+    const first = ask("First?");
+    const gone = AbortSignal.abort();
+    await expect(ask("Second?", { signal: gone })).resolves.toBe(false);
+    await expect(ask("Which?", { choices: groups, signal: gone })).resolves.toBeNull();
+    expect(document.querySelectorAll("dialog")).toHaveLength(1);
+    await userEvent.click(button("OK"));
+    await expect(first).resolves.toBe(true);
+  });
+
+  it("leaves the next question open when an answered question's signal aborts later", async () => {
+    const life = new AbortController();
+    const reply = ask("Leave setup?", { signal: life.signal });
+    await userEvent.click(button("OK"));
+    await expect(reply).resolves.toBe(true);
+    const next = ask("Next?");
+    life.abort();
+    expect(open().querySelector("h2")?.textContent).toBe("Next?");
+    await userEvent.click(button("Cancel"));
+    await expect(next).resolves.toBe(false);
+  });
+
   it("refuses details that are not label and value strings, before it opens anything", () => {
     expect(() => ask("x", { details: [{ label: "a" }] as never })).toThrow(TypeError);
     expect(document.querySelector("dialog")).toBeNull();
@@ -183,6 +219,7 @@ describe("ask", () => {
       },
       { choices: [{ value: "a", label: "A" }], input: true },
       { confirmLabel: () => "Go" },
+      { signal: "abort" },
     ];
     for (const opts of bad) {
       expect(() => ask("x", opts as never), JSON.stringify(opts)).toThrow(TypeError);

@@ -1,0 +1,859 @@
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+
+import { installAnnouncer } from "../announce/announce.js";
+import { reported } from "../test-helpers/reported.js";
+import { enhanceLoadingRegion, type LoadingRegionOptions } from "./loading-region.js";
+
+let life = new AbortController();
+let sheet: HTMLLinkElement;
+
+// The refresh line is drawn by the stylesheet, so the tests link it.
+beforeAll(async () => {
+  document.documentElement.classList.add("cp");
+  sheet = document.createElement("link");
+  sheet.rel = "stylesheet";
+  sheet.href = new URL("../../../css/system.css", import.meta.url).href;
+  const loaded = new Promise((resolve, reject) => {
+    sheet.addEventListener("load", resolve, { once: true });
+    sheet.addEventListener("error", reject, { once: true });
+  });
+  document.head.append(sheet);
+  await loaded;
+});
+
+afterAll(() => {
+  sheet.remove();
+  document.documentElement.classList.remove("cp");
+});
+
+beforeEach(() => {
+  installAnnouncer({ signal: life.signal });
+});
+
+afterEach(() => {
+  life.abort();
+  life = new AbortController();
+  document.body.replaceChildren();
+});
+
+interface Deferred<T> {
+  readonly promise: Promise<T>;
+  resolve(value: T): void;
+  reject(reason: unknown): void;
+}
+
+function deferred<T>(): Deferred<T> {
+  return Promise.withResolvers<T>();
+}
+
+const sleep = (ms: number): Promise<void> =>
+  new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+
+const polite = (): string => document.querySelector('[aria-live="polite"]')?.textContent ?? "";
+
+function panel(content?: string): HTMLDivElement {
+  const div = document.createElement("div");
+  div.className = "cp-panel";
+  if (content !== undefined) {
+    const p = document.createElement("p");
+    p.textContent = content;
+    div.append(p);
+  }
+  document.body.append(div);
+  return div;
+}
+
+function refreshButton(): HTMLButtonElement {
+  const button = document.createElement("button");
+  button.className = "cp-button";
+  button.type = "button";
+  const glyph = document.createElement("span");
+  glyph.className = "cp-icon";
+  glyph.dataset["cpIcon"] = "refresh-cw";
+  glyph.setAttribute("aria-hidden", "true");
+  button.append(glyph, "Refresh");
+  document.body.prepend(button);
+  return button;
+}
+
+/** A region whose loads the test settles one by one. */
+function wired(region: HTMLElement, extra: Partial<LoadingRegionOptions<string>> = {}) {
+  const loads: Deferred<string>[] = [];
+  const handle = enhanceLoadingRegion<string>(region, {
+    load: () => {
+      const d = deferred<string>();
+      loads.push(d);
+      return d.promise;
+    },
+    render: (text) => {
+      const heading = document.createElement("h3");
+      heading.textContent = text;
+      region.append(heading);
+    },
+    signal: life.signal,
+    ...extra,
+  });
+  return { handle, loads };
+}
+
+const notice = (region: Element) => region.querySelector(":scope > .cp-notice");
+const retryIn = (region: Element) =>
+  region.querySelector<HTMLButtonElement>(":scope > .cp-notice > .cp-button");
+
+describe("enhanceLoadingRegion: a first load", () => {
+  it("starts idle when empty and ready when it holds content", () => {
+    expect(wired(panel()).handle.state).toBe("idle");
+    expect(wired(panel("Old")).handle.state).toBe("ready");
+  });
+
+  it("is busy while it loads, paints the placeholder after its delay, then the content", async () => {
+    const region = panel();
+    const { handle, loads } = wired(region);
+    const done = handle.load();
+    expect(region.getAttribute("aria-busy")).toBe("true");
+    expect(handle.state).toBe("loading");
+    expect(region.querySelector(".cp-inline-load")).toBeNull();
+    await sleep(260);
+    expect(region.querySelector(".cp-inline-load")?.textContent).toBe("Loading…");
+    loads[0]?.resolve("Series");
+    expect(await done).toBe(true);
+    expect(region.querySelector(".cp-inline-load")).toBeNull();
+    expect(region.querySelector("h3")?.textContent).toBe("Series");
+    expect(region.getAttribute("aria-busy")).toBe("false");
+    expect(handle.state).toBe("ready");
+  });
+
+  it("never paints the placeholder for a fast answer", async () => {
+    const region = panel();
+    const { handle, loads } = wired(region, {
+      placeholder: () => {
+        const s = document.createElement("span");
+        s.className = "cp-skeleton";
+        return s;
+      },
+    });
+    const done = handle.load();
+    loads[0]?.resolve("Fast");
+    await done;
+    await sleep(260);
+    expect(region.querySelector(".cp-skeleton")).toBeNull();
+    expect(region.textContent).toBe("Fast");
+  });
+
+  it("puts a danger notice with Retry in the region's place when it fails, and Retry loads again", async () => {
+    const region = panel();
+    const { handle, loads } = wired(region, {
+      words: { failed: (reason) => `The readers could not be loaded: ${String(reason)}.` },
+    });
+    region.tabIndex = -1;
+    region.focus();
+    const first = handle.load();
+    loads[0]?.reject("timeout");
+    expect(await first).toBe(false);
+    expect(handle.state).toBe("failed");
+    expect(region.getAttribute("aria-busy")).toBe("false");
+    const box = notice(region);
+    expect(box?.getAttribute("data-tone")).toBe("danger");
+    expect(box?.querySelector('[data-cp-icon="circle-x"]')).not.toBeNull();
+    expect(box?.textContent).toContain("The readers could not be loaded: timeout.");
+    expect(region.children).toHaveLength(1);
+    const retry = retryIn(region);
+    expect(document.activeElement).toBe(retry);
+    await sleep(150);
+    expect(polite()).toBe("The readers could not be loaded: timeout.");
+
+    retry?.click();
+    await sleep(0);
+    expect(handle.state).toBe("loading");
+    expect(loads).toHaveLength(2);
+    loads[1]?.resolve("Read");
+    await sleep(500);
+    expect(notice(region)).toBeNull();
+    expect(handle.state).toBe("ready");
+    // Retry held focus and is gone, so focus lands on the content's heading.
+    expect(document.activeElement).toBe(region.querySelector("h3"));
+  });
+  it("keeps Retry busy when a second press replaces the load the first started", async () => {
+    const region = panel();
+    const { handle, loads } = wired(region);
+    const first = handle.load();
+    loads[0]?.reject(new Error("timeout"));
+    await first;
+    const retry = retryIn(region) as HTMLButtonElement;
+    retry.click();
+    await sleep(0);
+    retry.click();
+    await sleep(250);
+    expect(loads).toHaveLength(3);
+    expect(retry.getAttribute("data-cp-state")).toBe("busy");
+    expect(retry.getAttribute("aria-busy")).toBe("true");
+    expect(region.getAttribute("aria-busy")).toBe("true");
+    loads[2]?.resolve("Read");
+    await sleep(0);
+    expect(region.querySelector("h3")?.textContent).toBe("Read");
+    expect(handle.state).toBe("ready");
+  });
+});
+
+describe("enhanceLoadingRegion: a refresh", () => {
+  it("keeps the old content under the line, turns the pressed button, and is busy", async () => {
+    const region = panel("Old");
+    const button = refreshButton();
+    const { handle, loads } = wired(region, { render: (text) => region.replaceChildren(text) });
+    const done = handle.load(button);
+    expect(handle.state).toBe("refreshing");
+    expect(region.dataset["cpLoad"]).toBe("refreshing");
+    expect(region.getAttribute("aria-busy")).toBe("true");
+    expect(button.getAttribute("aria-busy")).toBe("true");
+    expect(region.textContent).toBe("Old");
+    const line = getComputedStyle(region, "::before");
+    expect(line.content).not.toBe("none");
+    expect(line.position).toBe("absolute");
+    expect(line.blockSize).toBe("3px");
+    expect(getComputedStyle(region).position).toBe("relative");
+    loads[0]?.resolve("New");
+    expect(await done).toBe(true);
+    expect(region.textContent).toBe("New");
+    expect(button.hasAttribute("aria-busy")).toBe(false);
+    expect(getComputedStyle(region, "::before").content).toBe("none");
+  });
+
+  it("aborts a load under way when another starts, and renders only the newer one", async () => {
+    const region = panel("Old");
+    const signals: AbortSignal[] = [];
+    const answers: Deferred<string>[] = [];
+    const handle = enhanceLoadingRegion<string>(region, {
+      load: (signal) => {
+        signals.push(signal);
+        const d = deferred<string>();
+        answers.push(d);
+        // Ignores its signal, as a host's fetch wrapper may.
+        return d.promise;
+      },
+      render: (text) => region.replaceChildren(text),
+      signal: life.signal,
+    });
+    const first = handle.load();
+    const second = handle.load();
+    expect(signals[0]?.aborted).toBe(true);
+    expect(signals[1]?.aborted).toBe(false);
+    expect(await first).toBe(false);
+    expect(handle.state).toBe("refreshing");
+    expect(region.getAttribute("aria-busy")).toBe("true");
+    answers[0]?.resolve("Older");
+    answers[1]?.resolve("Newer");
+    expect(await second).toBe(true);
+    expect(region.textContent).toBe("Newer");
+    expect(handle.state).toBe("ready");
+  });
+
+  it("keeps the pressed button busy when a second press replaces its load", async () => {
+    const region = panel("Old");
+    const button = refreshButton();
+    const { handle, loads } = wired(region, { render: (text) => region.replaceChildren(text) });
+    const first = handle.load(button);
+    const second = handle.load(button);
+    expect(await first).toBe(false);
+    await sleep(0);
+    expect(button.getAttribute("aria-busy")).toBe("true");
+    loads[1]?.resolve("New");
+    expect(await second).toBe(true);
+    expect(button.hasAttribute("aria-busy")).toBe(false);
+  });
+
+  it("starts a superseded first load over, behind its placeholder", async () => {
+    const region = panel();
+    const { handle, loads } = wired(region, { words: { loading: "Loading who read it…" } });
+    const first = handle.load();
+    await sleep(260);
+    const second = handle.load();
+    expect(await first).toBe(false);
+    expect(handle.state).toBe("loading");
+    await sleep(260);
+    expect(region.textContent).toBe("Loading who read it…");
+    loads[1]?.resolve("Read");
+    expect(await second).toBe(true);
+    expect(region.textContent).toBe("Read");
+  });
+
+  it("puts its failure above the old content with its age, and rewrites the same notice", async () => {
+    const region = panel("Old");
+    const button = refreshButton();
+    const at = new Date();
+    at.setHours(14, 2, 0, 0);
+    const { handle, loads } = wired(region, { loadedAt: at, locale: "en-GB" });
+    const first = handle.load(button);
+    loads[0]?.reject(new Error("Sonarr did not answer"));
+    await first;
+    expect(handle.state).toBe("stale");
+    const box = notice(region);
+    expect(region.firstElementChild).toBe(box);
+    expect(region.querySelector("p")?.textContent).toBe("Old");
+    // What it keeps is still true as of its time, so it warns.
+    expect(box?.getAttribute("data-tone")).toBe("warning");
+    expect(box?.querySelector('[data-cp-icon="triangle-alert"]')).not.toBeNull();
+    expect(box?.querySelector('[data-cp-icon="circle-x"]')).toBeNull();
+    expect(box?.textContent).toContain("The refresh failed. What you see is from 14:02.");
+    // A refresh from a button outside the region keeps focus on it.
+    button.focus();
+    const second = handle.load(button);
+    expect(document.activeElement).toBe(button);
+    loads[1]?.reject(new Error("again"));
+    await second;
+    expect(notice(region)).toBe(box);
+    expect(region.querySelectorAll(".cp-notice")).toHaveLength(1);
+    expect(document.activeElement).toBe(button);
+  });
+
+  it("shows the host's remedy under a failure's sentence, unsaid, and drops it when none", async () => {
+    const region = panel();
+    const { handle, loads } = wired(region, {
+      words: {
+        remedy: (reason) =>
+          reason instanceof Error && reason.message === "auth"
+            ? "Sign in to Sonarr again in Settings."
+            : undefined,
+      },
+    });
+    const first = handle.load();
+    loads[0]?.reject(new Error("auth"));
+    await first;
+    const line = notice(region)?.querySelector("small");
+    expect(line?.textContent).toBe("Sign in to Sonarr again in Settings.");
+    const sentence = getComputedStyle(line?.previousElementSibling as Element);
+    const style = getComputedStyle(line as Element);
+    expect(style.display).toBe("block");
+    expect(parseFloat(style.fontSize)).toBeGreaterThanOrEqual(13);
+    expect(style.color).not.toBe(sentence.color);
+    await sleep(150);
+    expect(polite()).toBe("The content did not load.");
+
+    const again = handle.load();
+    loads[1]?.reject(new Error("timeout"));
+    await again;
+    expect(notice(region)?.querySelector("small")).toBeNull();
+    expect(notice(region)?.getAttribute("data-tone")).toBe("danger");
+  });
+
+  it("takes the host's refresh words, given the reason and the time", async () => {
+    const region = panel("Old");
+    const { handle, loads } = wired(region, {
+      words: {
+        refreshFailed: (reason, loadedAt) =>
+          `The refresh failed: ${(reason as Error).message}. What you see is from ${String(loadedAt.getHours())}h.`,
+        retry: "Try again",
+      },
+      loadedAt: new Date(2026, 10, 14, 9, 0),
+    });
+    const done = handle.load();
+    loads[0]?.reject(new Error("Sonarr did not answer"));
+    await done;
+    expect(notice(region)?.textContent).toContain(
+      "The refresh failed: Sonarr did not answer. What you see is from 9h.",
+    );
+    expect(retryIn(region)?.textContent).toBe("Try again");
+  });
+
+  it("spaces its failure from the old content, by the stack's own gap in a stack", async () => {
+    const plain = panel("Old");
+    const stacked = panel("Old");
+    stacked.classList.add("cp-stack");
+    for (const region of [plain, stacked]) {
+      const { handle, loads } = wired(region);
+      const done = handle.load();
+      loads[0]?.reject(new Error("no"));
+      await done;
+    }
+    const gap = (region: Element) =>
+      Number.parseFloat(getComputedStyle(notice(region) ?? region).marginBlockEnd);
+    expect(gap(plain)).toBeGreaterThan(0);
+    expect(gap(stacked)).toBe(0);
+    expect(Number.parseFloat(getComputedStyle(stacked).rowGap)).toBeGreaterThan(0);
+  });
+
+  it("runs the line under a table's head when the region starts with one", async () => {
+    const region = document.createElement("div");
+    region.className = "cp-panel";
+    region.dataset["flush"] = "";
+    const table = document.createElement("table");
+    table.className = "cp-table";
+    table.createTHead().insertRow().insertCell().textContent = "Name";
+    table.createTBody().insertRow().insertCell().textContent = "Frieren";
+    region.append(table);
+    document.body.append(region);
+    const { handle, loads } = wired(region);
+    const done = handle.load();
+    const line = getComputedStyle(region, "::before");
+    const head = table.tHead?.getBoundingClientRect().bottom ?? 0;
+    const top = region.getBoundingClientRect().top + region.clientTop;
+    expect(Number.parseFloat(line.insetBlockStart)).toBeCloseTo(head - top - 3, 0);
+    loads[0]?.resolve("x");
+    await done;
+  });
+
+  /** A region that scrolls, `height` tall, starting with a long table. */
+  function scrollingTable(height: string): { region: HTMLDivElement; table: HTMLTableElement } {
+    const region = document.createElement("div");
+    region.className = "cp-panel";
+    region.dataset["flush"] = "";
+    region.style.blockSize = height;
+    region.style.overflowY = "auto";
+    const table = document.createElement("table");
+    table.className = "cp-table";
+    table.createTHead().insertRow().insertCell().textContent = "Name";
+    const body = table.createTBody();
+    for (let i = 0; i < 30; i += 1) {
+      body.insertRow().insertCell().textContent = `Series ${String(i)}`;
+    }
+    region.append(table);
+    document.body.append(region);
+    return { region, table };
+  }
+
+  const lineAt = (region: Element): number =>
+    Number.parseFloat(getComputedStyle(region, "::before").insetBlockStart);
+
+  it("runs the line along the visible top once the table's head has scrolled away", async () => {
+    const { region, table } = scrollingTable("120px");
+    region.scrollTop = 200;
+    const top = region.getBoundingClientRect().top + region.clientTop;
+    expect(table.tHead?.getBoundingClientRect().bottom ?? 0).toBeLessThan(top);
+    const { handle, loads } = wired(region);
+    const done = handle.load();
+    expect(lineAt(region)).toBe(region.scrollTop);
+    loads[0]?.resolve("x");
+    await done;
+  });
+
+  it("runs the line under the part of the table's head still in view", async () => {
+    const { region, table } = scrollingTable("120px");
+    const head = table.tHead as HTMLTableSectionElement;
+    region.scrollTop = Math.floor(head.getBoundingClientRect().height / 2);
+    const { handle, loads } = wired(region);
+    const done = handle.load();
+    const top = region.getBoundingClientRect().top + region.clientTop;
+    const showing = head.getBoundingClientRect().bottom - top;
+    expect(showing).toBeGreaterThan(3);
+    expect(lineAt(region)).toBeCloseTo(region.scrollTop + showing - 3, 0);
+    expect(lineAt(region)).toBeGreaterThan(region.scrollTop);
+    loads[0]?.resolve("x");
+    await done;
+  });
+
+  it("keeps the line inside a region shorter than the table's head", async () => {
+    const { region, table } = scrollingTable("16px");
+    region.scrollTop = 4;
+    const top = region.getBoundingClientRect().top + region.clientTop;
+    expect(table.tHead?.getBoundingClientRect().bottom ?? 0).toBeGreaterThan(
+      top + region.clientHeight,
+    );
+    const { handle, loads } = wired(region);
+    const done = handle.load();
+    expect(lineAt(region)).toBeGreaterThanOrEqual(region.scrollTop);
+    expect(lineAt(region)).toBeLessThanOrEqual(region.scrollTop + region.clientHeight - 3);
+    loads[0]?.resolve("x");
+    await done;
+  });
+
+  it("stops a load under way when its signal aborts, and is no longer busy", async () => {
+    const region = panel("Old");
+    const own = new AbortController();
+    let seen: AbortSignal | undefined;
+    const handle = enhanceLoadingRegion(region, {
+      load: (signal) => {
+        seen = signal;
+        return new Promise<string>(() => undefined);
+      },
+      render: () => undefined,
+      signal: own.signal,
+    });
+    const first = handle.load();
+    own.abort();
+    expect(seen?.aborted).toBe(true);
+    expect(await first).toBe(false);
+    expect(handle.state).toBe("ready");
+    expect(region.getAttribute("aria-busy")).toBe("false");
+    expect(await handle.load()).toBe(false);
+  });
+});
+
+describe("enhanceLoadingRegion: the refresh failure's time", () => {
+  it("refuses a malformed language tag when it is wired", () => {
+    const section = document.createElement("section");
+    section.lang = "en_US";
+    document.body.append(section);
+    const region = panel("Old");
+    section.append(region);
+    expect(() => wired(region)).toThrow(RangeError);
+  });
+
+  it("writes the time in the language of the region's nearest lang", async () => {
+    const section = document.createElement("section");
+    section.lang = "fr";
+    document.body.append(section);
+    const region = panel("Old");
+    section.append(region);
+    const at = new Date();
+    at.setHours(14, 2, 0, 0);
+    const { handle, loads } = wired(region, { loadedAt: at });
+    const done = handle.load();
+    loads[0]?.reject(new Error("no"));
+    await done;
+    expect(notice(region)?.textContent).toContain("What you see is from 14:02.");
+  });
+
+  it("dates content from another day in the refresh failure", async () => {
+    const region = panel("Old");
+    const at = new Date(2025, 10, 14, 14, 2);
+    const { handle, loads } = wired(region, { loadedAt: at, locale: "en-GB" });
+    const done = handle.load();
+    loads[0]?.reject(new Error("no"));
+    await done;
+    expect(notice(region)?.querySelector('[data-part="text"]')?.textContent).toBe(
+      "The refresh failed. What you see is from 14 Nov 2025, 14:02.",
+    );
+  });
+
+  it("leaves the time out when the content's time is not a date", async () => {
+    const region = panel("Old");
+    const { handle, loads } = wired(region, { loadedAt: new Date(Number.NaN) });
+    const done = handle.load();
+    loads[0]?.reject(new Error("no"));
+    expect(await done).toBe(false);
+    expect(handle.state).toBe("stale");
+    expect(region.getAttribute("aria-busy")).toBe("false");
+    expect(region.querySelector("p")?.textContent).toBe("Old");
+    expect(notice(region)?.getAttribute("data-tone")).toBe("warning");
+    expect(notice(region)?.querySelector('[data-part="text"]')?.textContent).toBe(
+      "The refresh failed.",
+    );
+    expect(retryIn(region)).not.toBeNull();
+  });
+
+  it("falls back to the timeless sentence when the host's refresh words throw too", async () => {
+    const errors = reported();
+    const region = panel("Old");
+    const { handle, loads } = wired(region, {
+      loadedAt: new Date(Number.NaN),
+      words: {
+        refreshFailed: (_reason, loadedAt) => loadedAt.toISOString(),
+      },
+    });
+    const done = handle.load();
+    loads[0]?.reject(new Error("no"));
+    expect(await done).toBe(false);
+    expect(handle.state).toBe("stale");
+    expect(region.getAttribute("aria-busy")).toBe("false");
+    expect(notice(region)?.querySelector('[data-part="text"]')?.textContent).toBe(
+      "The refresh failed.",
+    );
+    expect(retryIn(region)).not.toBeNull();
+    expect(errors).toHaveLength(1);
+  });
+});
+
+describe("enhanceLoadingRegion: a host callback that throws", () => {
+  it("fails a load that throws before it returns its promise, and loads again after", async () => {
+    const region = panel("Old");
+    let calls = 0;
+    const handle = enhanceLoadingRegion<string>(region, {
+      load: (signal) => {
+        calls += 1;
+        if (calls === 1) {
+          throw new Error("bad url");
+        }
+        return Promise.resolve(signal.aborted ? "" : "New");
+      },
+      render: (text) => region.replaceChildren(text),
+      signal: life.signal,
+    });
+    expect(await handle.load()).toBe(false);
+    expect(handle.state).toBe("stale");
+    expect(region.getAttribute("aria-busy")).toBe("false");
+    expect(notice(region)?.getAttribute("data-tone")).toBe("warning");
+    expect(region.textContent).toContain("Old");
+    expect(await handle.load()).toBe(true);
+    expect(handle.state).toBe("ready");
+    expect(region.textContent).toBe("New");
+  });
+
+  it("fails a refresh whose render throws, keeping the old content under the notice", async () => {
+    const region = panel("Old");
+    const { handle, loads } = wired(region, {
+      render: () => {
+        throw new Error("boom");
+      },
+    });
+    const done = handle.load();
+    loads[0]?.resolve("New");
+    expect(await done).toBe(false);
+    expect(handle.state).toBe("stale");
+    expect(region.getAttribute("aria-busy")).toBe("false");
+    expect(region.firstElementChild).toBe(notice(region));
+    expect(region.querySelector("p")?.textContent).toBe("Old");
+  });
+
+  it("brings Retry to rest with its notice when the content it fetched fails to render", async () => {
+    const region = panel("Old");
+    let renders = 0;
+    const { handle, loads } = wired(region, {
+      render: () => {
+        renders += 1;
+        throw new Error("boom");
+      },
+    });
+    const first = handle.load();
+    loads[0]?.reject(new Error("timeout"));
+    expect(await first).toBe(false);
+    const retry = retryIn(region) as HTMLButtonElement;
+    const atRest = retry.textContent;
+    retry.click();
+    await sleep(300);
+    expect(retry.getAttribute("aria-busy")).toBe("true");
+    loads[1]?.resolve("New");
+    await sleep(50);
+    expect(renders).toBe(1);
+    expect(handle.state).toBe("stale");
+    expect(retryIn(region)).toBe(retry);
+    expect(retry.getAttribute("aria-busy") ?? "false").toBe("false");
+    expect(retry.hasAttribute("data-cp-state")).toBe(false);
+    // The words roll back to rest; the outgoing ones leave with the roll.
+    const end = performance.now() + 3000;
+    while (retry.textContent !== atRest && performance.now() < end) {
+      await sleep(20);
+    }
+    expect(retry.textContent).toBe(atRest);
+  });
+
+  it("settles a first load whose render throws after its placeholder showed", async () => {
+    const region = panel();
+    const { handle, loads } = wired(region, {
+      render: () => {
+        throw new Error("boom");
+      },
+    });
+    const done = handle.load();
+    await sleep(260);
+    expect(region.querySelector(".cp-inline-load")).not.toBeNull();
+    loads[0]?.resolve("Series");
+    expect(await done).toBe(false);
+    expect(handle.state).toBe("failed");
+    expect(region.getAttribute("aria-busy")).toBe("false");
+    expect(region.children).toHaveLength(1);
+    expect(notice(region)?.getAttribute("data-tone")).toBe("danger");
+  });
+
+  it("settles a refresh whose failure words throw, with the default sentence and Retry", async () => {
+    const errors = reported();
+    const region = panel("Old");
+    const { handle, loads } = wired(region, {
+      words: {
+        refreshFailed: (reason) => (reason as { body: { detail: string } }).body.detail,
+      },
+    });
+    const done = handle.load();
+    loads[0]?.reject(new TypeError("Failed to fetch"));
+    expect(await done).toBe(false);
+    expect(handle.state).toBe("stale");
+    expect(region.getAttribute("aria-busy")).toBe("false");
+    expect(notice(region)?.textContent).toContain("The refresh failed. What you see is from");
+    expect(retryIn(region)).not.toBeNull();
+    expect(region.querySelector("p")?.textContent).toBe("Old");
+    expect(errors).toHaveLength(1);
+  });
+
+  it("settles a first load whose remedy throws after its placeholder showed", async () => {
+    const errors = reported();
+    const region = panel();
+    const { handle, loads } = wired(region, {
+      words: { remedy: (reason) => (reason as { body: { fix: string } }).body.fix },
+    });
+    const done = handle.load();
+    await sleep(260);
+    expect(region.querySelector(".cp-inline-load")).not.toBeNull();
+    loads[0]?.reject(new TypeError("Failed to fetch"));
+    expect(await done).toBe(false);
+    expect(handle.state).toBe("failed");
+    expect(region.getAttribute("aria-busy")).toBe("false");
+    expect(notice(region)?.textContent).toContain("The content did not load.");
+    expect(notice(region)?.querySelector("small")).toBeNull();
+    expect(retryIn(region)).not.toBeNull();
+    expect(errors).toHaveLength(1);
+  });
+
+  it("settles a fast first load whose failed words throw, with the default sentence", async () => {
+    const errors = reported();
+    const region = panel();
+    const { handle, loads } = wired(region, {
+      words: { failed: (reason) => (reason as { body: { title: string } }).body.title },
+    });
+    const done = handle.load();
+    loads[0]?.reject(new TypeError("Failed to fetch"));
+    expect(await done).toBe(false);
+    expect(handle.state).toBe("failed");
+    expect(region.getAttribute("aria-busy")).toBe("false");
+    expect(notice(region)?.textContent).toContain("The content did not load.");
+    expect(retryIn(region)).not.toBeNull();
+    expect(errors).toHaveLength(1);
+  });
+});
+
+describe("enhanceLoadingRegion: a popover that loads when it opens", () => {
+  function popover(): { invoker: HTMLButtonElement; region: HTMLDivElement } {
+    const region = document.createElement("div");
+    region.className = "cp-popover";
+    region.popover = "auto";
+    region.id = "readers";
+    const invoker = document.createElement("button");
+    invoker.type = "button";
+    invoker.textContent = "Read by 2 of 4";
+    invoker.setAttribute("popovertarget", region.id);
+    document.body.append(invoker, region);
+    return { invoker, region };
+  }
+
+  /** Loads on the first open, as a host does. Resolves once toggle, which
+   *  fires on a task after the press, has started the load, with that load
+   *  boxed so awaiting the open does not await the load. */
+  function openOnToggle(
+    region: HTMLElement,
+    handle: { load(): Promise<boolean>; state: string },
+  ): Promise<{ readonly done: Promise<boolean> }> {
+    return new Promise((opened) => {
+      region.addEventListener("toggle", (e) => {
+        if (e.newState === "open" && handle.state === "idle") {
+          opened({ done: handle.load() });
+        }
+      });
+    });
+  }
+
+  it("takes focus from its opener to Retry when it fails, then to the content's heading", async () => {
+    const { invoker, region } = popover();
+    const { handle, loads } = wired(region, {
+      words: { loading: "Loading who read it…", failed: "The readers could not be loaded." },
+    });
+    const opened = openOnToggle(region, handle);
+    invoker.focus();
+    invoker.click();
+    const { done: first } = await opened;
+    expect(region.matches(":popover-open")).toBe(true);
+    expect(handle.state).toBe("loading");
+    expect(region.getAttribute("aria-busy")).toBe("true");
+    await sleep(260);
+    expect(region.textContent).toBe("Loading who read it…");
+    loads[0]?.reject(new Error("timeout"));
+    expect(await first).toBe(false);
+    expect(handle.state).toBe("failed");
+    expect(notice(region)?.textContent).toContain("The readers could not be loaded.");
+    expect(document.activeElement).toBe(retryIn(region));
+
+    retryIn(region)?.click();
+    await sleep(0);
+    loads[1]?.resolve("Read");
+    await sleep(500);
+    expect(handle.state).toBe("ready");
+    expect(notice(region)).toBeNull();
+    expect(document.activeElement).toBe(region.querySelector("h3"));
+  });
+
+  it("moves focus from its opener to the content's heading when the names arrive", async () => {
+    const { invoker, region } = popover();
+    const { handle, loads } = wired(region);
+    const opened = openOnToggle(region, handle);
+    invoker.focus();
+    invoker.click();
+    const { done: first } = await opened;
+    loads[0]?.resolve("Read");
+    expect(await first).toBe(true);
+    expect(handle.state).toBe("ready");
+    expect(region.getAttribute("aria-busy")).toBe("false");
+    expect(document.activeElement).toBe(region.querySelector("h3"));
+  });
+
+  it("reloads on each open over the last names, and keeps them when a reopen fails", async () => {
+    const { region } = popover();
+    const { handle, loads } = wired(region, {
+      render: (text) => {
+        const heading = document.createElement("h3");
+        heading.textContent = text;
+        region.replaceChildren(heading);
+      },
+    });
+    region.addEventListener("beforetoggle", (e) => {
+      if (e.newState === "open") {
+        void handle.load();
+      }
+    });
+    region.showPopover();
+    loads[0]?.resolve("Read by 2");
+    await sleep(0);
+    region.hidePopover();
+
+    region.showPopover();
+    expect(handle.state).toBe("refreshing");
+    expect(region.getAttribute("aria-busy")).toBe("true");
+    expect(region.textContent).toBe("Read by 2");
+    region.hidePopover();
+    region.showPopover();
+    expect(loads).toHaveLength(3);
+    loads[1]?.resolve("stale answer");
+    loads[2]?.reject(new Error("timeout"));
+    await sleep(0);
+    expect(handle.state).toBe("stale");
+    expect(region.querySelector("h3")?.textContent).toBe("Read by 2");
+    expect(notice(region)?.getAttribute("data-tone")).toBe("warning");
+  });
+
+  it("keeps a scrolled popover's scroll while it refreshes, the line at its visible top", async () => {
+    const { region } = popover();
+    region.style.maxBlockSize = "80px";
+    for (let i = 0; i < 20; i += 1) {
+      const p = document.createElement("p");
+      p.textContent = `Reader ${String(i)}`;
+      region.append(p);
+    }
+    const { handle, loads } = wired(region, {
+      render: (text) => {
+        region.querySelector("p")?.replaceChildren(text);
+      },
+    });
+    const elsewhere = document.createElement("input");
+    document.body.append(elsewhere);
+    region.showPopover();
+    elsewhere.focus();
+    region.scrollTop = 30;
+    const done = handle.load();
+    expect(handle.state).toBe("refreshing");
+    expect(getComputedStyle(region).overflowY).toBe("auto");
+    expect(region.scrollTop).toBe(30);
+    expect(Number.parseFloat(getComputedStyle(region, "::before").insetBlockStart)).toBe(30);
+    region.scrollTop = 50;
+    expect(region.scrollTop).toBe(50);
+    await new Promise((resolve) => {
+      region.addEventListener("scroll", resolve, { once: true });
+    });
+    expect(Number.parseFloat(getComputedStyle(region, "::before").insetBlockStart)).toBe(50);
+    loads[0]?.resolve("Read");
+    expect(await done).toBe(true);
+    expect(region.scrollTop).toBe(50);
+  });
+
+  it("leaves focus where the person moved it while the names loaded", async () => {
+    const { invoker, region } = popover();
+    const elsewhere = document.createElement("input");
+    document.body.append(elsewhere);
+    const { handle, loads } = wired(region);
+    const opened = openOnToggle(region, handle);
+    invoker.focus();
+    invoker.click();
+    const { done: first } = await opened;
+    elsewhere.focus();
+    loads[0]?.resolve("Read");
+    expect(await first).toBe(true);
+    expect(handle.state).toBe("ready");
+    expect(document.activeElement).toBe(elsewhere);
+  });
+});

@@ -5789,27 +5789,6 @@ th[aria-sort="descending"] > .cp-sort::after {
   justify-content: end;
 }
 
-/* A row action that turned into its result: a link to it in the success
- * tone, or the error beside Retry. */
-.cp-outcome {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--cp-space-2);
-  font-size: var(--cp-text-sm);
-}
-
-.cp-outcome > a {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--cp-space-1);
-  color: var(--cp-success-11);
-  font-weight: var(--cp-weight-medium);
-}
-
-.cp-outcome > .cp-field-error {
-  margin: 0;
-}
-
 /* A row that opens its detail does so from a chevron in its own first
  * column (@cplieger/ui/table). The chevron turns to point down, which in
  * a right-to-left row, where it is mirrored, is the other way round. */
@@ -5902,6 +5881,23 @@ th[aria-sort="descending"] > .cp-sort::after {
   .cp-table [data-priority="mid"] {
     display: none;
   }
+}
+
+/* A row action that turned into its result (@cplieger/ui/outcome): a link
+ * to it in the success tone, or its failed state beside Retry. */
+.cp-outcome {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cp-space-2);
+  font-size: var(--cp-text-sm);
+}
+
+.cp-outcome > a {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cp-space-1);
+  color: var(--cp-success-11);
+  font-weight: var(--cp-weight-medium);
 }
 
 /* Text someone else wrote, such as an agent's answer, as @cplieger/ui/markdown
@@ -6356,6 +6352,12 @@ th[aria-sort="descending"] > .cp-sort::after {
 .cp-facts[data-variant="compare"] {
   grid-template-columns: max-content auto minmax(0, 1fr);
   gap: var(--cp-space-1) var(--cp-space-3);
+  align-items: baseline;
+}
+
+/* Each label starts a row, so a fact with no note keeps the next in line. */
+.cp-facts[data-variant="compare"] > dt {
+  grid-column: 1;
 }
 
 .cp-facts[data-variant="compare"] > dd {
@@ -6370,6 +6372,11 @@ th[aria-sort="descending"] > .cp-sort::after {
 
 .cp-facts .cp-state > .cp-icon {
   --cp-icon-size: var(--cp-icon-ui);
+}
+
+.cp-facts .cp-state[data-cp-state]::before {
+  inline-size: var(--cp-icon-ui);
+  block-size: var(--cp-icon-ui);
 }
 
 .cp-facts[data-variant="compare"] > dd > small {
@@ -6398,6 +6405,32 @@ th[aria-sort="descending"] > .cp-sort::after {
   }
 
   .cp-facts[data-variant="compare"] > dd > * {
+    margin-block-end: var(--cp-space-3);
+  }
+}
+
+/* A box named cp-facts, such as a batch report, stacks the facts it holds
+ * below 24rem as a phone does, whatever the viewport. */
+@container cp-facts (width < 24rem) {
+  .cp-facts {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+
+  .cp-facts > dd:not(:last-child) {
+    margin-block-end: var(--cp-space-3);
+  }
+
+  .cp-facts[data-variant="compare"] {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 0 var(--cp-space-3);
+  }
+
+  .cp-facts[data-variant="compare"] > dt {
+    grid-column: 1 / -1;
+  }
+
+  .cp-facts[data-variant="compare"] > dd:not(:last-child) > * {
     margin-block-end: var(--cp-space-3);
   }
 }
@@ -7790,11 +7823,12 @@ th[aria-sort="descending"] > .cp-sort::after {
 
 /* A part under the row's text, such as a running job's bar or a status
  * row's remedies, takes a line of its own across the row, and what follows
- * it lines up under it. The action stretches to the text it sits beside. */
+ * it lines up under it. Its lead, end and action sit at the top at their
+ * own height. */
 .cp-list-row:has(> :is(progress, .cp-track, details, [data-part="actions"])) {
   flex-wrap: wrap;
   align-content: start;
-  align-items: stretch;
+  align-items: start;
   gap: var(--cp-space-1) var(--cp-space-4);
   padding-block: var(--cp-space-3);
 }
@@ -8806,6 +8840,58 @@ div.cp-list-foot {
   }
 }
 
+/* A change shown before it applies (@cplieger/ui/proposal): its words, then
+ * Apply and Discard. The dashed edge says it has not happened yet; a toned
+ * one (warning unverified, success applied) takes its tone's wash and edge
+ * and leads with its tone's glyph, as a notice does, and an applied one
+ * turns solid. In forced colours the dashed and solid edges still tell them
+ * apart. */
+.cp-proposal {
+  display: grid;
+  gap: var(--cp-space-3);
+  padding: var(--cp-space-4);
+  border: var(--cp-line-w) dashed var(--cp-accent-8);
+  border-radius: var(--cp-radius-surface);
+  background: var(--cp-selected);
+}
+
+.cp-proposal[data-cp-state="applied"] {
+  border-style: solid;
+}
+
+/* enhanceProposal writes data-tone and its glyph together. The glyph takes
+ * the first column and every other part the second, so the words and the
+ * buttons line up after it. Keyed on the attribute, not a :has() left of
+ * the combinator, which makes Chromium restyle the whole page on every
+ * insertion. */
+.cp-proposal[data-tone] {
+  border-color: var(--cp-tone-8);
+  grid-template-columns: auto minmax(0, 1fr);
+  background: var(--cp-tone-3);
+}
+
+.cp-proposal[data-tone] > :not([data-part="tone"]) {
+  grid-column: 2;
+}
+
+/* Centred on the words' first line. */
+.cp-proposal > [data-part="tone"] {
+  grid-row: 1;
+  margin-block-start: calc((1lh - var(--cp-icon-size, var(--cp-icon-ui))) / 2);
+  color: var(--cp-tone-11);
+  line-height: var(--cp-leading-body);
+}
+
+.cp-proposal > p {
+  margin: 0;
+  line-height: var(--cp-leading-body);
+}
+
+/* An indented cluster keeps its whitespace once Apply and Discard went. */
+.cp-proposal > .cp-cluster:not(:has(> *)) {
+  display: none;
+}
+
 /* Panel: an in-flow surface outlined by one line. A flush panel scrolls a
  * wide table inside itself so the page never scrolls sideways. */
 .cp-panel {
@@ -8831,6 +8917,87 @@ div.cp-list-foot {
   flex-wrap: wrap;
   align-items: center;
   gap: var(--cp-space-2);
+}
+
+/* A region that loads its own content (@cplieger/ui/loading-region). While
+ * it refreshes, its old content stays and a line runs along its top edge,
+ * inside its border, or under the head of the table it starts with, at
+ * --cp-load-line-at, which the script measures. */
+/* At zero specificity, so a class's own position or overflow, such as a
+ * scrolling panel's, wins. A popover and a dialog are left out: the user
+ * agent already positions them and lets them scroll, and any author
+ * declaration would replace that. The clip keeps the line inside a rounded
+ * edge. */
+:where([data-cp-load]:not([popover], dialog)) {
+  position: relative;
+}
+
+:where([data-cp-load="refreshing"]:not([popover], dialog)) {
+  overflow: clip;
+}
+
+[data-cp-load="refreshing"]::before {
+  content: "";
+  position: absolute;
+  z-index: calc(var(--cp-z-sticky) + 1);
+  inset-block-start: var(--cp-load-line-at, 0);
+  inset-inline: 0;
+  block-size: 3px;
+  border-radius: var(--cp-radius-round);
+  background: linear-gradient(
+      90deg,
+      transparent,
+      var(--cp-accent-9) 30%,
+      var(--cp-accent-9) 70%,
+      transparent
+    )
+    0 0 / 40% 100% no-repeat;
+  animation: cp-load-line 1.2s cubic-bezier(0.3, 0.25, 0.7, 0.75) infinite;
+  pointer-events: none;
+}
+
+/* The failure's notice sits above the old content, apart from it; a stack
+ * spaces it by its own gap. */
+[data-cp-load]:not(.cp-stack) > [data-cp-load-notice]:not(:only-child) {
+  margin-block-end: var(--cp-space-3);
+}
+
+/* What the person can do about the failure, on its own line under it. */
+[data-cp-load-notice] > [data-part="text"] > small {
+  display: block;
+  margin-block-start: var(--cp-space-1);
+  color: var(--cp-tone-11);
+  font-size: var(--cp-text-xs);
+}
+
+@keyframes cp-load-line {
+  from {
+    background-position: -40% 0;
+  }
+
+  to {
+    background-position: 140% 0;
+  }
+}
+
+/* Under reduced motion the line stays whole and pulses. */
+@media (prefers-reduced-motion: reduce) {
+  [data-cp-load="refreshing"]::before {
+    background: var(--cp-accent-9);
+    animation: cp-load-pulse 2s ease-in-out infinite;
+  }
+}
+
+@keyframes cp-load-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@media (forced-colors: active) {
+  [data-cp-load="refreshing"]::before {
+    background: Highlight;
+  }
 }
 
 /* A heading row: a title block, then the .cp-toolbar of what the page or
@@ -9960,11 +10127,13 @@ div.cp-list-foot {
   }
 }
 
-/* A batched action's report, under the control that ran it: a <p> summing
- * up what the presses did, then a <ul> of each item that did not go, its
- * name beside its reason as a .cp-state word, in aligned columns that stack
- * under 40rem as .cp-facts does. */
+/* A batched action's report (@cplieger/ui/batch-report), under the control
+ * that runs it: a <p> summing up the presses, then a compared .cp-facts of
+ * each item that did not go, its reason a failed .cp-state. */
 .cp-batch-report {
+  container: cp-facts / inline-size;
+  display: grid;
+  gap: var(--cp-space-2);
   margin: var(--cp-space-2) 0 0;
   color: var(--cp-ink-muted);
   font-size: var(--cp-text-sm);
@@ -9972,30 +10141,6 @@ div.cp-list-foot {
 
 .cp-batch-report > p {
   margin: 0;
-}
-
-.cp-batch-report > ul {
-  display: grid;
-  grid-template-columns: max-content minmax(0, 1fr);
-  gap: var(--cp-space-1) var(--cp-space-3);
-  margin: var(--cp-space-2) 0 0;
-  padding: 0;
-  list-style: none;
-}
-
-.cp-batch-report > ul > li {
-  display: grid;
-  grid-column: 1 / -1;
-  grid-template-columns: subgrid;
-  align-items: baseline;
-  color: var(--cp-ink);
-}
-
-@media (width < 40rem) {
-  .cp-batch-report > ul {
-    grid-template-columns: minmax(0, 1fr);
-    gap: var(--cp-space-2);
-  }
 }
 
 /* A share bar (@cplieger/ui/share-bar): the parts of a whole as segments
@@ -12758,6 +12903,10 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
 
 :where(.cp) .cp-icon:where([data-cp-icon="bell-ring-filled"]) {
   --cp-icon-image: url("../icons/svg/bell-ring-filled.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="captions"]) {
+  --cp-icon-image: url("../icons/svg/captions.svg");
 }
 
 :where(.cp) .cp-icon:where([data-cp-icon="check"]) {
