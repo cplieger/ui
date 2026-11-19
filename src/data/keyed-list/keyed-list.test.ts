@@ -1,7 +1,7 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { installAnnouncer } from "../../feedback/announce/announce.js";
-import { enhanceKeyedList, type KeyedListOptions } from "./keyed-list.js";
+import { enhanceKeyedList, type KeyedListKeys, type KeyedListOptions } from "./keyed-list.js";
 
 let life = new AbortController();
 let sheet: HTMLLinkElement;
@@ -372,6 +372,305 @@ describe("enhanceKeyedList", () => {
     expect(ul.querySelector("[data-skeleton]")).toBeNull();
     expect(skeleton?.isConnected).toBe(false);
     expect(asked).toHaveLength(1);
+  });
+
+  it("draws a skeleton as tall as a loaded row, so the scroll height holds when one is drawn", async () => {
+    const ul = virtualList();
+    enhance(ul, { keys: [...keysOf(100), ...Array<undefined>(900)] });
+    await frames();
+    const loaded = rows(ul)[1]?.getBoundingClientRect().height;
+    const height = ul.scrollHeight;
+    ul.scrollTop = 150 * pitchOf(ul);
+    await frames();
+    await frames();
+    const skeletons = [...ul.querySelectorAll<HTMLElement>(":scope > li:has(> [data-skeleton])")];
+    expect(skeletons.length).toBeGreaterThan(0);
+    for (const li of skeletons) {
+      expect(li.getBoundingClientRect().height).toBe(loaded);
+    }
+    expect(Math.abs(ul.scrollHeight - height)).toBeLessThan(1);
+  });
+
+  /** Scrolls `box` to `top` and waits for the draw it starts. */
+  const scrollTo = async (box: HTMLElement, top: number): Promise<void> => {
+    box.scrollTop = top;
+    await frames();
+    await frames();
+  };
+
+  it("keeps a list's skeletons in the loaded rows' shape once those rows have left the window", async () => {
+    const ul = virtualList();
+    enhance(ul, { keys: [...keysOf(40), ...Array<undefined>(960)] });
+    await frames();
+    const loaded = rows(ul)[1]?.getBoundingClientRect().height;
+    const pitch = pitchOf(ul);
+    const skeletons = () => [
+      ...ul.querySelectorAll<HTMLElement>(":scope > li > .cp-list-row[data-skeleton]"),
+    ];
+    await scrollTo(ul, 45 * pitch);
+    await scrollTo(ul, 200 * pitch);
+    expect(rows(ul)).toHaveLength(0);
+    const height = ul.scrollHeight;
+    await scrollTo(ul, 600 * pitch);
+    expect(skeletons().length).toBeGreaterThan(0);
+    for (const row of skeletons()) {
+      expect(row.parentElement?.getBoundingClientRect().height).toBe(loaded);
+      expect(row.querySelectorAll(":scope > .cp-cell-stack > .cp-skeleton")).toHaveLength(1);
+      expect(row.querySelectorAll(':scope > [data-part="end"] > .cp-skeleton')).toHaveLength(1);
+    }
+    expect(Math.abs(ul.scrollHeight - height)).toBeLessThan(1);
+  });
+
+  /** A grouped list's row: a day's heading for a key starting `h`, a title
+   *  row with a second line for one starting `d`, else a title row. */
+  function groupedItem(key: string): HTMLLIElement {
+    if (key.startsWith("h")) {
+      const heading = document.createElement("h3");
+      heading.className = "cp-list-heading";
+      heading.textContent = `Day ${key}`;
+      const li = document.createElement("li");
+      li.dataset["key"] = key;
+      li.append(heading);
+      return li;
+    }
+    const li = titleItem(key);
+    if (key.startsWith("d")) {
+      const meta = document.createElement("span");
+      meta.className = "cp-meta";
+      meta.textContent = "TV, 2024";
+      li.querySelector(".cp-cell-stack")?.append(meta);
+    }
+    return li;
+  }
+
+  /** Each skeleton is `height` tall, with one bar in its stack and one at its end. */
+  function expectTitleSkeletons(ul: HTMLElement, height: number | undefined): void {
+    const skeletons = [
+      ...ul.querySelectorAll<HTMLElement>(":scope > li > .cp-list-row[data-skeleton]"),
+    ];
+    expect(skeletons.length).toBeGreaterThan(0);
+    for (const row of skeletons) {
+      expect(row.parentElement?.getBoundingClientRect().height).toBe(height);
+      expect(row.querySelectorAll(":scope > .cp-cell-stack > .cp-skeleton")).toHaveLength(1);
+      expect(row.querySelectorAll(':scope > [data-part="end"] > .cp-skeleton')).toHaveLength(1);
+    }
+  }
+
+  it("passes over a grouped list's first heading for its skeletons' shape, and keeps it once update() drops that row", async () => {
+    const ul = virtualList();
+    const list = enhance(ul, {
+      keys: ["h0", ...keysOf(39, 1), ...Array<undefined>(960)],
+      row: groupedItem,
+    });
+    await frames();
+    const loaded = rows(ul)[1]?.getBoundingClientRect().height;
+    const pitch = pitchOf(ul);
+    await scrollTo(ul, 45 * pitch);
+    await scrollTo(ul, 200 * pitch);
+    await scrollTo(ul, 600 * pitch);
+    expect(rows(ul)).toHaveLength(0);
+    expectTitleSkeletons(ul, loaded);
+    list.update(["h0", ...keysOf(38, 2), ...Array<undefined>(961)]);
+    await frames();
+    await frames();
+    expect(rows(ul)).toHaveLength(0);
+    expectTitleSkeletons(ul, loaded);
+  });
+
+  it("passes over a heading drawn first among update()'s new rows, taking the title row after it", () => {
+    const ul = virtualList();
+    const list = enhance(ul, { keys: ["d0", "d1", ...Array<undefined>(998)], row: groupedItem });
+    expect(
+      ul.querySelector("li > [data-skeleton] > .cp-cell-stack > .cp-skeleton + .cp-skeleton"),
+    ).not.toBeNull();
+    list.update(["h0", "t1", ...Array<undefined>(998)]);
+    expect(keysIn(ul)).toEqual(["h0", "t1"]);
+    expectTitleSkeletons(ul, list.rowOf("t1")?.getBoundingClientRect().height);
+  });
+
+  it("keeps a cover table's skeletons in its rows' shape once those rows have left the window", async () => {
+    const panel = document.createElement("div");
+    panel.style.blockSize = "15rem";
+    panel.style.inlineSize = "40rem";
+    panel.style.overflowY = "auto";
+    const table = document.createElement("table");
+    table.className = "cp-table";
+    const head = table.createTHead().insertRow();
+    for (const text of ["Title", "Size"]) {
+      const th = document.createElement("th");
+      th.textContent = text;
+      head.append(th);
+    }
+    const body = table.createTBody();
+    body.dataset["virtual"] = "";
+    panel.append(table);
+    document.body.append(panel);
+    const coverRow = (key: string): HTMLTableRowElement => {
+      const tr = document.createElement("tr");
+      tr.dataset["key"] = key;
+      tr.insertCell().innerHTML =
+        `<div class="cp-title-cell"><span class="cp-cover" aria-hidden="true"></span>` +
+        `<div class="cp-cell-stack"><a href="#${key}">Title ${key}</a><span class="cp-meta">TV, 2024</span></div></div>`;
+      tr.insertCell().textContent = "33.0 GB";
+      return tr;
+    };
+    enhanceKeyedList(body, {
+      keys: [...keysOf(40), ...Array<undefined>(960)],
+      row: coverRow,
+      signal: life.signal,
+    });
+    await frames();
+    const loaded = rows(body)[1]?.getBoundingClientRect().height;
+    const pitch = pitchOf(body);
+    await scrollTo(panel, 45 * pitch);
+    await scrollTo(panel, 200 * pitch);
+    expect(rows(body)).toHaveLength(0);
+    const height = panel.scrollHeight;
+    await scrollTo(panel, 600 * pitch);
+    const skeletons = [...body.querySelectorAll<HTMLTableRowElement>(":scope > tr[data-skeleton]")];
+    expect(skeletons.length).toBeGreaterThan(0);
+    for (const tr of skeletons) {
+      expect(tr.getBoundingClientRect().height).toBe(loaded);
+      expect(tr.querySelectorAll(".cp-title-cell > .cp-skeleton")).toHaveLength(1);
+    }
+    expect(Math.abs(panel.scrollHeight - height)).toBeLessThan(1);
+  });
+
+  /** A scrolling table whose rows keyed `c…` hold a cover and two lines,
+   *  and whose other rows hold one link. */
+  function mixedTable(keys: KeyedListKeys) {
+    const panel = document.createElement("div");
+    panel.style.blockSize = "15rem";
+    panel.style.inlineSize = "40rem";
+    panel.style.overflowY = "auto";
+    const table = document.createElement("table");
+    table.className = "cp-table";
+    const head = table.createTHead().insertRow();
+    for (const text of ["Title", "Size"]) {
+      const th = document.createElement("th");
+      th.textContent = text;
+      head.append(th);
+    }
+    const body = table.createTBody();
+    body.dataset["virtual"] = "";
+    panel.append(table);
+    document.body.append(panel);
+    const anyRow = (key: string): HTMLTableRowElement => {
+      const tr = document.createElement("tr");
+      tr.dataset["key"] = key;
+      tr.insertCell().innerHTML = key.startsWith("c")
+        ? `<div class="cp-title-cell"><span class="cp-cover" aria-hidden="true"></span>` +
+          `<div class="cp-cell-stack"><a href="#${key}">Title ${key}</a><span class="cp-meta">TV, 2024</span></div></div>`
+        : `<a href="#${key}">Copy ${key}</a>`;
+      tr.insertCell().textContent = "33.0 GB";
+      return tr;
+    };
+    const list = enhanceKeyedList(body, { keys, row: anyRow, signal: life.signal });
+    const skeletons = () => [
+      ...body.querySelectorAll<HTMLTableRowElement>(":scope > tr[data-skeleton]"),
+    ];
+    return { panel, body, list, skeletons };
+  }
+
+  it("keeps its skeletons' shape when update() drops the first row while the window holds none", async () => {
+    const { panel, body, list, skeletons } = mixedTable([
+      ...keysOf(40).map((k) => `c${k}`),
+      ...Array<undefined>(960),
+    ]);
+    await frames();
+    const cover = rows(body)[1]?.getBoundingClientRect().height;
+    const pitch = pitchOf(body);
+    await scrollTo(panel, 200 * pitch);
+    await scrollTo(panel, 600 * pitch);
+    expect(rows(body)).toHaveLength(0);
+    const height = panel.scrollHeight;
+    list.update([...keysOf(39, 1).map((k) => `c${k}`), ...Array<undefined>(961)]);
+    await frames();
+    await frames();
+    expect(skeletons().length).toBeGreaterThan(0);
+    for (const tr of skeletons()) {
+      expect(tr.getBoundingClientRect().height).toBe(cover);
+      expect(tr.querySelectorAll(".cp-title-cell > .cp-skeleton")).toHaveLength(1);
+    }
+    expect(Math.abs(panel.scrollHeight - height)).toBeLessThan(1);
+  });
+
+  it("takes its skeletons' shape from a row still drawn once update() drops the first row", async () => {
+    const { panel, body, list, skeletons } = mixedTable([
+      "ct0",
+      ...keysOf(39, 1),
+      ...Array<undefined>(960),
+    ]);
+    await frames();
+    const plain = rows(body)[2]?.getBoundingClientRect().height;
+    await scrollTo(panel, 38 * pitchOf(body));
+    expect(rows(body).length).toBeGreaterThan(0);
+    expect(skeletons().length).toBeGreaterThan(0);
+    expect(body.querySelector("tr[data-skeleton] .cp-title-cell")).not.toBeNull();
+    const drawn = rows(body);
+    list.update([...keysOf(39, 1), ...Array<undefined>(961)]);
+    await frames();
+    await frames();
+    expect(rows(body).filter((tr) => drawn.includes(tr)).length).toBeGreaterThan(0);
+    expect(skeletons().length).toBeGreaterThan(0);
+    for (const tr of skeletons()) {
+      expect(tr.getBoundingClientRect().height).toBe(plain);
+      expect(tr.querySelector(".cp-title-cell")).toBeNull();
+    }
+  });
+
+  it("takes its skeletons' shape anew once update() swaps in rows of another shape", async () => {
+    const tail = Array<undefined>(960);
+    const { panel, body, list } = mixedTable([...keysOf(40).map((k) => `c${k}`), ...tail]);
+    await frames();
+    const cover = rows(body)[1]?.getBoundingClientRect().height;
+    await scrollTo(panel, 200 * pitchOf(body));
+    expect(body.querySelector("tr[data-skeleton] .cp-title-cell")).not.toBeNull();
+    list.update([...keysOf(40).map((k) => `p${k}`), ...tail]);
+    await scrollTo(panel, 0);
+    const plain = rows(body)[1]?.getBoundingClientRect().height;
+    expect(plain).not.toBe(cover);
+    await scrollTo(panel, 600 * pitchOf(body));
+    const skeletons = [...body.querySelectorAll<HTMLTableRowElement>(":scope > tr[data-skeleton]")];
+    expect(skeletons.length).toBeGreaterThan(0);
+    for (const tr of skeletons) {
+      expect(tr.getBoundingClientRect().height).toBe(plain);
+      expect(tr.querySelector(".cp-title-cell")).toBeNull();
+    }
+  });
+
+  it("throws a TypeError for a skeleton in a table body outside a table", () => {
+    const body = document.createElement("tbody");
+    document.body.append(body);
+    expect(() => enhance(body, { keys: [undefined], window: false })).toThrow(TypeError);
+  });
+
+  it("draws a table's skeleton in its rows' shape, under the head's columns", () => {
+    const table = document.createElement("table");
+    table.className = "cp-table";
+    const head = table.createTHead().insertRow();
+    for (const [name, col] of [
+      ["Title", undefined],
+      ["Verdict", undefined],
+      ["Size", "num"],
+    ] as const) {
+      const th = document.createElement("th");
+      th.textContent = name;
+      if (col !== undefined) {
+        th.dataset["col"] = col;
+      }
+      head.append(th);
+    }
+    const body = table.createTBody();
+    document.body.append(table);
+    enhance(body, { keys: [...keysOf(2), undefined], window: false });
+    const skeleton = body.rows[2] as HTMLTableRowElement;
+    expect(skeleton.hasAttribute("data-skeleton")).toBe(true);
+    expect(skeleton.getAttribute("aria-hidden")).toBe("true");
+    expect([...skeleton.cells].map((c) => c.dataset["col"])).toEqual([undefined, undefined, "num"]);
+    expect(skeleton.getBoundingClientRect().height).toBe(
+      body.rows[1]?.getBoundingClientRect().height,
+    );
   });
 
   it("writes the count in subflux's words, and says it once a new set settles", async () => {

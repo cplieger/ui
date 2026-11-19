@@ -1,14 +1,16 @@
 /**
  * table.ts — the parts of a `.cp-table` that need a script. `enhanceSort()`
  * runs its sortable headers, `enhanceBatchBar()` the `.cp-batchbar` over its
- * selection, and `enhanceRowDetail()` the detail row under a row that
- * explains itself.
+ * selection, `enhanceRowDetail()` the detail row under a row that explains
+ * itself, and `skeletonRow()` gives the row standing for one that loads.
  * @module
  */
 
 import { announce } from "../../feedback/announce/announce.js";
 import { reducedMotion, until } from "../../core/lifetime/lifetime.js";
 import { glideShow } from "../../navigation/disclosure/disclosure.js";
+
+export { skeletonRow } from "./skeleton-row.js";
 
 /** A column's order, as `aria-sort` writes it. */
 export type SortOrder = "ascending" | "descending";

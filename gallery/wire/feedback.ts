@@ -66,7 +66,7 @@ function people(list: string | undefined): string[] {
   return (list ?? "").split(" ").filter((name) => name !== "");
 }
 
-function readers(title: string, names: readonly string[]): HTMLElement {
+function readers(title: string, names: readonly string[], loading = false): HTMLElement {
   const heading = document.createElement("h4");
   heading.textContent = title;
   const section = document.createElement("section");
@@ -80,11 +80,17 @@ function readers(title: string, names: readonly string[]): HTMLElement {
   }
   const list = document.createElement("ul");
   for (const name of names) {
-    const link = document.createElement("a");
-    link.href = `#agent-${name === "You" ? "user" : name.slice(1)}`;
-    link.textContent = name;
     const item = document.createElement("li");
-    item.append(link);
+    if (loading) {
+      const bar = document.createElement("span");
+      bar.className = "cp-skeleton";
+      item.append(bar);
+    } else {
+      const link = document.createElement("a");
+      link.href = `#agent-${name === "You" ? "user" : name.slice(1)}`;
+      link.textContent = name;
+      item.append(link);
+    }
     list.append(item);
   }
   section.append(list);
@@ -139,6 +145,15 @@ export function readSummary(button: HTMLButtonElement): void {
           refuse(signal.reason);
         });
       }),
+    // The button holds the names, so the placeholder has the panel's shape.
+    placeholder: () => {
+      const shape = document.createDocumentFragment();
+      shape.append(
+        readers("Read", people(button.dataset["read"]), true),
+        readers("Not read yet", people(button.dataset["waiting"]), true),
+      );
+      return shape;
+    },
     render: () => {
       panel.replaceChildren(
         readers("Read", people(button.dataset["read"])),

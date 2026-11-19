@@ -2,7 +2,7 @@
 
 `@cplieger/ui/table`
 
-The parts of a `.cp-table` that need a script. `enhanceSort` runs sortable headers, `enhanceBatchBar` runs the `.cp-batchbar` that acts on the selected rows, and `enhanceRowDetail` opens the detail under a row that explains itself. [Design patterns](../design-patterns.md) "Tables" says how a table behaves, and [Components](../design-components.md) lists its classes.
+The parts of a `.cp-table` that need a script. `enhanceSort` runs sortable headers, and `enhanceBatchBar` runs the `.cp-batchbar` that acts on the selected rows. `enhanceRowDetail` opens the detail under a row that explains itself, and `skeletonRow` gives the row that stands for one while the table loads. [Design patterns](../design-patterns.md) "Tables" says how a table behaves, and [Components](../design-components.md) lists its classes.
 
 ## Markup
 
@@ -53,8 +53,23 @@ The parts of a `.cp-table` that need a script. `enhanceSort` runs sortable heade
 - A sortable header is a `<th>` holding a `<button class="cp-sort">` with the column's name. The stylesheet draws its arrow, shown on the column whose `<th>` carries `aria-sort`.
 - Each cell sits in the middle of its row's height, so a one-line cell centres beside a title and its line. A `data-col="num"` column, and a [ranked-bars](ranked-bars.md) column, hugs its widest cell as the actions column does, ends its values and header together and never breaks a value from its unit, and the text columns take the table's leftover width. A `<time>` in a cell stays on one line.
 - `.cp-title-cell` puts a `.cp-cover` beside the title and its line, 2rem wide (`--cp-cover-row-w`) and 6px (`--cp-cover-inset`) from the row's top and bottom edges, its glyph at 16px. The two lengths are the shared cover tokens a list row's cover reads too. The cover's harmony colour, glyph and `<img>` are the cover's own, as [Components](../design-components.md) describes.
+- A title cell's title and its line keep one line each, cut with an ellipsis, so every row is one height known before its data comes. Once the table is under 44rem wide the title gets two lines, and a short title leaves its second line empty. The full title stays in the link's name and on the page it opens.
+- Under 44rem the title cell is the column that narrows, so the table fits its panel, and a row's worded action keeps only its icon, hiding its `.cp-roll` words. Its `aria-label` names it, such as "Grab Mushishi", so give it the same words in `data-cp-tip`, as every icon-only control has.
 - A row's actions sit in a `.cp-toolbar`. Its worded action confirms in place with [confirm](../buttons/confirm.md), and its ⋯ buttons all open one `.cp-menu` through [menu](../overlays/menu.md).
-- While the table loads, each cell holds a `.cp-skeleton`, timed by [skeleton](../feedback/skeleton.md).
+
+## Loading
+
+```ts
+import { skeletonTiming } from "@cplieger/ui/skeleton";
+import { skeletonRow } from "@cplieger/ui/table";
+
+const bones = skeletonRow(table);
+const t = skeletonTiming(() => body.replaceChildren(...rows.map(() => bones.cloneNode(true))));
+```
+
+- `skeletonRow(table, from?)` returns a `<tr data-skeleton aria-hidden="true">` in a loaded row's shape, to clone once per row. A title cell holds a cover-sized bone and a line of bars per line, a `.cp-cell-stack` two bars, and any other cell one. The row holds one cell per head cell over a body column in the head's last row, nearest the body, including a cell spanning down from a row above.
+- Each cell takes its head cell's `data-col` and `data-priority`, so the same columns step aside, and the shape of the loaded cell in its column, colspans counted. Loading and loaded rows are then one height and the table keeps its size when the data comes. [skeleton](../feedback/skeleton.md) times it.
+- `from`, a loaded row that may be out of the document, gives the shapes, else the table's first loaded body row, whose cells also stand for a missing head. Before any row has loaded, `data-row` on the table names them. `data-row="media"` gives the first column without a `data-col` a title cell with a cover, and a length, such as `data-row="4rem"`, makes every cell that tall.
 
 ## Sort
 

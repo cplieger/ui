@@ -8,8 +8,10 @@
 
 import { until, whenAborted } from "../../core/lifetime/lifetime.js";
 import { announce } from "../../feedback/announce/announce.js";
+import { skeletonListRow } from "../list-row/list-row.js";
 import { focusOn, landing } from "../list-row/row.js";
 import { scrollerOf, seenOf, viewOf } from "../list-row/scroller.js";
+import { skeletonRow } from "../table/skeleton-row.js";
 
 /** A row's key, or `undefined` for a row not loaded yet. */
 export type KeyedListKeys = readonly (string | undefined)[];
@@ -178,8 +180,10 @@ export function enhanceKeyedList(container: Body, options: KeyedListOptions): Ke
   const slots = new Map<string, number>();
   const pool = new Map<string, number>();
   let sum = 0;
-  let blank = 3 * (Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16);
-  let seed = blank;
+  // A skeleton takes its rows' shape, so until one is measured its slot is
+  // theirs.
+  let blank: number | undefined;
+  let seed = 3 * (Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16);
   let gap = 0;
   let fitted = "";
   let sums = new Float64Array(1);
@@ -239,6 +243,22 @@ export function enhanceKeyedList(container: Body, options: KeyedListOptions): Ke
     return Math.max(1, n);
   };
 
+  // The first row drawn, never a heading, shapes every skeleton even after
+  // it leaves the window. Once its key leaves the list it is retired but
+  // still shapes them, until a row of the new keys is drawn. A data-row
+  // shape is not kept: a loaded row replaces it.
+  let model: { readonly key: string; readonly el: HTMLElement; retired: boolean } | undefined;
+  let shape: HTMLElement | undefined;
+  const shapes = (el: HTMLElement): boolean =>
+    table || el.querySelector(":scope > .cp-list-row") !== null;
+  const adopt = (key: string, el: HTMLElement): void => {
+    model = { key, el, retired: false };
+    shape = undefined;
+    blank = undefined;
+    loading.clear();
+    stale = true;
+  };
+
   const setKeys = (next: KeyedListKeys, total: number | undefined): void => {
     const index = new Map<string, number>();
     next.forEach((key, i) => {
@@ -253,6 +273,9 @@ export function enhanceKeyedList(container: Body, options: KeyedListOptions): Ke
     keys = next;
     at = index;
     of = total ?? of;
+    if (model !== undefined && !index.has(model.key)) {
+      model.retired = true;
+    }
     for (const key of slots.keys()) {
       if (!index.has(key)) {
         slots.delete(key);
@@ -275,7 +298,8 @@ export function enhanceKeyedList(container: Body, options: KeyedListOptions): Ke
       sums = new Float64Array(n + 1);
       for (let i = 0; i < n; i += 1) {
         const key = keys[i];
-        sums[i + 1] = (sums[i] ?? 0) + (key === undefined ? blank : (slots.get(key) ?? mean));
+        sums[i + 1] =
+          (sums[i] ?? 0) + (key === undefined ? (blank ?? mean) : (slots.get(key) ?? mean));
       }
       stale = false;
     }
@@ -293,6 +317,7 @@ export function enhanceKeyedList(container: Body, options: KeyedListOptions): Ke
       gap = g;
       fitted = now;
       seed = guess();
+      blank = undefined;
       slots.clear();
       pool.clear();
       sum = 0;
@@ -314,36 +339,28 @@ export function enhanceKeyedList(container: Body, options: KeyedListOptions): Ke
     return el;
   };
 
+  /** A skeleton in `from`'s shape, or in the host's `data-row` shape
+   *  without one. A tbody laid out outside a table is a TypeError. */
+  const shaped = (from: HTMLElement | undefined): HTMLElement => {
+    if (!table) {
+      return skeletonListRow(container, from instanceof HTMLLIElement ? from : undefined);
+    }
+    const t = container.closest("table");
+    if (t === null) {
+      throw new TypeError("enhanceKeyedList: the tbody is not in a table");
+    }
+    return skeletonRow(t, from instanceof HTMLTableRowElement ? from : undefined);
+  };
+
   const skeleton = (i: number): HTMLElement => {
     let el = loading.get(i);
-    if (el !== undefined) {
-      return el;
-    }
-    const bar = () => {
-      const s = document.createElement("span");
-      s.className = "cp-skeleton";
-      return s;
-    };
-    if (table) {
-      const tr = document.createElement("tr");
-      for (let c = columns(); c > 0; c -= 1) {
-        tr.insertCell().append(bar());
+    if (el === undefined) {
+      if (shape === undefined && model !== undefined) {
+        shape = shaped(model.el);
       }
-      tr.dataset["skeleton"] = "";
-      el = tr;
-    } else {
-      const stack = document.createElement("span");
-      stack.className = "cp-cell-stack";
-      stack.append(bar(), bar());
-      const body = document.createElement("div");
-      body.className = "cp-list-row";
-      body.dataset["skeleton"] = "";
-      body.append(stack);
-      el = document.createElement("li");
-      el.append(body);
+      el = shape === undefined ? shaped(undefined) : (shape.cloneNode(true) as HTMLElement);
+      loading.set(i, el);
     }
-    el.setAttribute("aria-hidden", "true");
-    loading.set(i, el);
     return el;
   };
 
@@ -507,6 +524,23 @@ export function enhanceKeyedList(container: Body, options: KeyedListOptions): Ke
         el.remove();
       }
     }
+    const order = [...wanted].sort((a, b) => a - b);
+    // Rows are drawn before any skeleton, so a row that replaces a missing
+    // or retired model shapes this pass's skeletons.
+    let first: { readonly key: string; readonly el: HTMLElement } | undefined;
+    for (const i of order) {
+      const key = keys[i];
+      if (key === undefined) {
+        continue;
+      }
+      const el = rowFor(key, i);
+      if (first === undefined && shapes(el)) {
+        first = { key, el };
+      }
+    }
+    if (first !== undefined && (model === undefined || model.retired)) {
+      adopt(first.key, first.el);
+    }
     const want: HTMLElement[] = [];
     const rows: { el: HTMLElement; i: number }[] = [];
     const tops = sumsOf();
@@ -540,7 +574,7 @@ export function enhanceKeyedList(container: Body, options: KeyedListOptions): Ke
       }
       want.push(el);
     };
-    for (const i of [...wanted].sort((a, b) => a - b)) {
+    for (const i of order) {
       fill(next, i);
       const key = keys[i];
       const el = key === undefined ? skeleton(i) : rowFor(key, i);

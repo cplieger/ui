@@ -36,7 +36,3 @@
 .cp-table tbody tr[data-part="spacer"][aria-hidden]:last-child > td {
   border-block-end: 0;
 }
-
-.cp-table tbody tr[data-skeleton] .cp-skeleton {
-  inline-size: 70%;
-}

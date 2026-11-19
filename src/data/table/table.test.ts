@@ -1,9 +1,18 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { userEvent } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 
 import { installAnnouncer } from "../../feedback/announce/announce.js";
 import { enhanceSelectAll } from "../../forms/checkbox/checkbox.js";
-import { enhanceBatchBar, enhanceRowDetail, enhanceSort, type BatchSelection } from "./table.js";
+import { build, useSystemSheet } from "../../system/test-helpers/css.js";
+import {
+  enhanceBatchBar,
+  enhanceRowDetail,
+  enhanceSort,
+  skeletonRow,
+  type BatchSelection,
+} from "./table.js";
+
+useSystemSheet();
 
 let life = new AbortController();
 
@@ -502,5 +511,168 @@ describe("enhanceBatchBar", () => {
     life.abort();
     await userEvent.click(b.boxes[0] as HTMLInputElement);
     expect(bar.count).toBe(1);
+  });
+});
+
+describe("skeletonRow", () => {
+  // useSystemSheet resets the pointer tier after each test.
+  afterEach(async () => {
+    await page.viewport(1280, 720);
+  });
+
+  const HEAD =
+    '<thead><tr><th data-col="select"><label><input class="cp-checkbox" type="checkbox" aria-label="Select all"></label></th>' +
+    '<th>Title</th><th data-priority="mid">Verdict</th><th data-col="num" data-priority="low">Size</th>' +
+    '<th data-col="actions"><span class="cp-visually-hidden">Actions</span></th></tr></thead>';
+  const row = (title: string, meta: string) =>
+    `<tr><td data-col="select"><label><input class="cp-checkbox" type="checkbox" aria-label="Select ${title}"></label></td>` +
+    `<td><div class="cp-title-cell"><span class="cp-cover" aria-hidden="true"></span><div class="cp-cell-stack"><a href="#t">${title}</a><span class="cp-meta">${meta}</span></div></div></td>` +
+    '<td data-priority="mid"><span class="cp-chip">Not the best</span></td><td data-col="num" data-priority="low">33.0 GB</td>' +
+    `<td data-col="actions"><div class="cp-toolbar"><button class="cp-button" data-size="sm" type="button" aria-label="Grab ${title}"><span class="cp-icon" aria-hidden="true"></span><span class="cp-roll">Grab</span></button>` +
+    `<button class="cp-button" data-variant="quiet" data-size="sm" type="button" aria-label="More for ${title}"><span class="cp-icon" aria-hidden="true"></span></button></div></td></tr>`;
+  const ROWS =
+    row("Delicious in Dungeon", "TV, 2024, 24 episodes") +
+    row(
+      "Frieren: Beyond Journey's End, the long road after the hero's party",
+      "TV, 2023, 28 episodes",
+    ) +
+    row("Mushishi", "TV, 2005, 26 episodes") +
+    row("Ping Pong the Animation", "TV, 2014, 11 episodes");
+  const table = (attrs: string, body: string) => {
+    const el = build(
+      `<div class="cp-panel" data-flush><table class="cp-table" ${attrs}>${HEAD}<tbody>${body}</tbody></table></div>`,
+    );
+    return el.querySelector("table") as HTMLTableElement;
+  };
+  const heights = (t: HTMLTableElement) =>
+    [...(t.tBodies[0]?.rows ?? [])].map((r) => r.getBoundingClientRect().height);
+  const shown = (r: HTMLTableRowElement) =>
+    [...r.cells].map((c) => getComputedStyle(c).display !== "none");
+  const loading = (t: HTMLTableElement) => {
+    const bones = skeletonRow(t);
+    const body = t.tBodies[0] as HTMLTableSectionElement;
+    body.replaceChildren(...[...body.rows].map(() => bones.cloneNode(true)));
+  };
+
+  it.each([
+    [1440, "fine"],
+    [1440, "coarse"],
+    [390, "fine"],
+    [390, "coarse"],
+  ] as const)(
+    "keeps every row and the table one height while loading, inside its panel, at %ipx under a %s pointer",
+    async (width, tier) => {
+      await page.viewport(width, 900);
+      document.documentElement.dataset["pointer"] = tier;
+      const t = table("", ROWS);
+      const panel = t.parentElement as HTMLElement;
+      const before = {
+        rows: heights(t),
+        block: t.getBoundingClientRect().height,
+        cells: shown(t.tBodies[0]?.rows[0] as HTMLTableRowElement),
+      };
+      expect(t.getBoundingClientRect().width).toBeLessThanOrEqual(panel.clientWidth + 0.5);
+      for (const stack of t.querySelectorAll(".cp-title-cell > .cp-cell-stack")) {
+        expect(stack.getBoundingClientRect().width).toBeGreaterThan(60);
+      }
+      // Every row but the last carries its line, so all but the last are one height.
+      const lined = before.rows.slice(0, -1);
+      expect(Math.max(...lined) - Math.min(...lined)).toBeLessThan(0.01);
+      loading(t);
+      expect(heights(t)).toEqual(before.rows);
+      expect(t.getBoundingClientRect().height).toBe(before.block);
+      expect(t.getBoundingClientRect().width).toBeLessThanOrEqual(panel.clientWidth + 0.5);
+      expect(shown(t.tBodies[0]?.rows[0] as HTMLTableRowElement)).toEqual(before.cells);
+    },
+  );
+
+  it("keeps a narrow row's actions to their icons, named as before", async () => {
+    await page.viewport(390, 900);
+    const t = table("", ROWS);
+    const grab = t.querySelector<HTMLElement>('[data-col="actions"] .cp-button') as HTMLElement;
+    expect(getComputedStyle(grab.querySelector(".cp-roll") as Element).display).toBe("none");
+    expect(grab.getAttribute("aria-label")).toBe("Grab Delicious in Dungeon");
+    await page.viewport(1280, 720);
+    expect(getComputedStyle(grab.querySelector(".cp-roll") as Element).display).not.toBe("none");
+  });
+
+  it("takes each cell's head attributes and the loaded cells' shapes", () => {
+    const bones = skeletonRow(table("", ROWS));
+    expect([...bones.cells].map((c) => [c.dataset["col"], c.dataset["priority"]])).toEqual([
+      ["select", undefined],
+      [undefined, undefined],
+      [undefined, "mid"],
+      ["num", "low"],
+      ["actions", undefined],
+    ]);
+    expect(bones.cells[1]?.querySelectorAll(".cp-title-cell > .cp-skeleton")).toHaveLength(1);
+    expect(bones.cells[2]?.querySelector(":scope > .cp-skeleton")).not.toBeNull();
+    expect([bones.hasAttribute("data-skeleton"), bones.getAttribute("aria-hidden")]).toEqual([
+      true,
+      "true",
+    ]);
+  });
+
+  it("takes the head row nearest the body, and each column's loaded cell past a colspan", () => {
+    const t = document.createElement("table");
+    t.className = "cp-table";
+    t.innerHTML =
+      '<thead><tr><th colspan="2">Release</th><th data-col="num">Size</th></tr>' +
+      '<tr><th data-col="select">Pick</th><th>Title</th><th data-col="num" data-priority="low">GB</th></tr></thead>' +
+      '<tbody><tr><td colspan="2"><div class="cp-cell-stack"><span>Frieren</span><span>TV</span></div></td><td data-col="num">33.0</td></tr></tbody>';
+    build("").append(t);
+    const bones = skeletonRow(t);
+    expect([...bones.cells].map((c) => [c.dataset["col"], c.dataset["priority"]])).toEqual([
+      ["select", undefined],
+      [undefined, undefined],
+      ["num", "low"],
+    ]);
+    expect(bones.cells[0]?.querySelector(":scope > .cp-cell-stack")).not.toBeNull();
+    expect(bones.cells[1]?.querySelector(":scope > .cp-cell-stack")).not.toBeNull();
+    expect(bones.cells[2]?.querySelector(":scope > .cp-skeleton")).not.toBeNull();
+  });
+
+  it("places a head cell spanning down from a row above in its column", () => {
+    const t = document.createElement("table");
+    t.className = "cp-table";
+    t.innerHTML =
+      '<thead><tr><th rowspan="2" data-col="select">Pick</th><th colspan="2">Release</th>' +
+      '<th rowspan="2" data-col="num" data-priority="low">Size</th></tr>' +
+      '<tr><th>Title</th><th data-priority="mid">Verdict</th></tr></thead>' +
+      '<tbody><tr><td data-col="select">x</td>' +
+      '<td><div class="cp-title-cell"><span class="cp-cover" aria-hidden="true"></span><div class="cp-cell-stack"><a href="#t">Frieren</a><span class="cp-meta">TV</span></div></div></td>' +
+      '<td data-priority="mid">Not the best</td><td data-col="num">33.0</td></tr></tbody>';
+    build("").append(t);
+    const bones = skeletonRow(t);
+    expect([...bones.cells].map((c) => [c.dataset["col"], c.dataset["priority"]])).toEqual([
+      ["select", undefined],
+      [undefined, undefined],
+      [undefined, "mid"],
+      ["num", "low"],
+    ]);
+    expect(bones.cells[1]?.querySelectorAll(".cp-title-cell > .cp-skeleton")).toHaveLength(1);
+    expect(bones.cells[2]?.querySelector(":scope > .cp-skeleton")).not.toBeNull();
+    expect(bones.cells[3]?.querySelector(":scope > .cp-skeleton")).not.toBeNull();
+  });
+
+  it("takes the shapes from a given row out of the document", () => {
+    const t = table("", "");
+    const loaded = table("", ROWS).tBodies[0]?.rows[0] as HTMLTableRowElement;
+    loaded.remove();
+    const bones = skeletonRow(t, loaded);
+    expect(bones.cells[1]?.querySelectorAll(".cp-title-cell > .cp-skeleton")).toHaveLength(1);
+  });
+
+  it("reads the row's shape from data-row when the table has no rows yet", () => {
+    const loaded = heights(table("", ROWS))[0];
+    for (const [attrs, height] of [
+      ['data-row="media"', loaded],
+      ['data-row="4rem"', 64],
+    ] as const) {
+      const t = table(attrs, "");
+      const body = t.tBodies[0] as HTMLTableSectionElement;
+      body.append(skeletonRow(t), skeletonRow(t));
+      expect(heights(t)[0]).toBeCloseTo(height ?? 0, 1);
+    }
   });
 });

@@ -5459,6 +5459,37 @@ describe("css/system.css lists, feeds and counts", () => {
     expect(lines).toEqual([120, 200, 360, 280]);
   });
 
+  it.each([
+    [1440, "fine"],
+    [1440, "coarse"],
+    [390, "fine"],
+    [390, "coarse"],
+  ] as const)(
+    "draws a loading readers panel at the loaded one's height, at %ipx under a %s pointer",
+    async (width, tier) => {
+      await page.viewport(width, 900);
+      root.setAttribute("data-pointer", tier);
+      theme("light");
+      const names = (n: number) => '<li><a href="#a">@kiro</a></li>'.repeat(n);
+      const el = build(
+        `<div class="cp-popover cp-feed-readers" data-variant="panel" popover="manual"><section><h4>Read</h4><ul>${names(3)}</ul></section><section><h4>Not read yet</h4><ul>${names(1)}</ul></section></div>`,
+      );
+      const panel = el.querySelector(".cp-feed-readers") as HTMLElement;
+      panel.showPopover();
+      onTestFinished(() => {
+        panel.hidePopover();
+      });
+      const loaded = panel.getBoundingClientRect().height;
+      for (const link of panel.querySelectorAll("li > a")) {
+        const bar = document.createElement("span");
+        bar.className = "cp-skeleton";
+        link.replaceWith(bar);
+      }
+      expect(panel.querySelectorAll("li > .cp-skeleton")).toHaveLength(4);
+      expect(panel.getBoundingClientRect().height).toBe(loaded);
+    },
+  );
+
   it("lists who has read an entry without bullets, in a panel that scrolls when long", () => {
     theme("light");
     const el = build(
