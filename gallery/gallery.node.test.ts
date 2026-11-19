@@ -1353,6 +1353,13 @@ describe.each(browsers)("the gallery in %s", (name) => {
       await wired(tab);
       await press(tab, "#md/frieren");
       await at(tab, `${N}#md/frieren`, "md-title");
+      // WebKit scrolls to a focused element on a zero-delay timer
+      // (https://github.com/WebKit/WebKit/blob/main/Source/WebCore/page/LocalFrameView.cpp,
+      // scheduleScrollToFocusedElement), so the heading is in view only after it.
+      await tab.waitForFunction(() => {
+        const r = document.getElementById("md-title")?.getBoundingClientRect();
+        return r !== undefined && r.top >= 0 && r.bottom <= document.documentElement.clientHeight;
+      });
       const marks = () =>
         tab.evaluate(() => ({
           length: history.length,
