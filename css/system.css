@@ -3915,19 +3915,35 @@ a.cp-wordmark {
   pointer-events: auto;
 }
 
-/* Breadcrumbs: the levels above the page, muted and small. */
+/* Breadcrumbs: the levels above the page, muted and small. Each level is a
+ * target of the tier's minimum while the line keeps its height, so wrapped
+ * lines, and whatever follows the trail, sit far enough apart that no two
+ * press areas overlap. */
 .cp-crumbs {
+  --cp-crumbs-reach: calc((var(--cp-hit-min) - 1lh) / 2);
+
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--cp-space-2);
-  margin-block-end: var(--cp-space-2);
+  gap: max(var(--cp-space-2), 2 * var(--cp-crumbs-reach)) var(--cp-space-2);
+  margin-block-end: max(var(--cp-space-2), var(--cp-crumbs-reach));
   color: var(--cp-ink-muted);
   font-size: var(--cp-text-xs);
 }
 
 .cp-crumbs a {
+  position: relative;
+  min-inline-size: var(--cp-hit-min);
   color: inherit;
+
+  &::after {
+    content: "";
+    position: absolute;
+    inset-block-start: 50%;
+    inset-inline: 0;
+    block-size: var(--cp-hit-min);
+    translate: 0 -50%;
+  }
 }
 
 /* A chevron between levels, drawn by CSS so it is never read aloud, and
