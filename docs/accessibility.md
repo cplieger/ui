@@ -51,7 +51,9 @@ These adopted criteria are not fully met yet, and one item is a default the bar 
 - [2.5.8 Target size (minimum)](#258-target-size-minimum): When a feed row wraps its lines, its summary is one line tall and under 24px from the row's other targets. In a context panel's list, links one word long sit on consecutive lines under 24px apart. The bar requires each target to be 24px, or to keep 24px of spacing from the next. Owed by `data/feed` and `layout/context-panel`.
 - [2.5.3 Label in name](#253-label-in-name): The account button is named Account while it shows the person's initials, so a voice user who says the initials reaches nothing. WCAG 3 2.3.5.5 asks the same. The bar requires the name to contain the visible words, or the initials to be hidden from the name as a picture of the person. Owed by `navigation/account`.
 - [4.1.2 Name, role, value](#412-name-role-value): A list row's cut line takes focus so a keyboard and a tap reach its full text, but it is a `span` with no role, which a screen reader announces as nothing. WCAG 3 2.3.5.6 and 2.12.1.1 ask the same. A key shown for copying takes focus as a scroll region with no role and no name, even when it fits. A finished upload's row takes focus with no role and no name when its Retry leaves. The bar requires each focus stop to have a role and a name: the cut line becomes a button named by the whole line, the key takes focus only while it overflows, as a region named by its field's label, and the upload's row is a group named by its file and its state. Owed by `data/list-row`, `forms/copy` and `forms/file`.
-- [1.4.13 Content on hover or focus](#1413-content-on-hover-or-focus): The tooltip hides when the pointer leaves its control, so the pointer cannot move onto the tip. WCAG 3 2.4.5.2 asks for the same hoverable tip. The bar requires the tip to stay while the pointer is over the control or the tip, and to hide when it leaves both. Owed by `overlays/tooltip`.
+- [1.4.13 Content on hover or focus](#1413-content-on-hover-or-focus): The tooltip hides when the pointer leaves its control, so the pointer cannot move onto the tip, and Escape pressed while a tip still waits out its rest lets it appear. WCAG 3 2.4.5.2 asks for the same hoverable tip. The bar requires the tip to stay while the pointer is over the control or the tip, to hide when it leaves both, and Escape to cancel a tip that has not appeared yet. Owed by `overlays/tooltip`.
+- [2.5.6 Concurrent input mechanisms](#256-concurrent-input-mechanisms): A tooltip marked to toggle on a tap, such as an info button's, shows on the finger's press and hides as the same touch leaves the control after its lift, so a tap never shows it and its words are out of reach by touch. The bar requires a tap to show the tip, and a second tap or a tap elsewhere to hide it. Owed by `overlays/tooltip`.
+- [2.4.13 Focus appearance](#2413-focus-appearance): A menu item with focus, and the option the arrows reach in a combobox's list, a select panel or the palette, are marked only by the selected wash, which differs from the overlay surface by 1.2:1 in light and 1.1:1 in dark, with no ring. WCAG 3 2.3.1.2 and 2.3.1.3 ask the same. The bar requires the reached row to change by at least 3:1 over at least a 2px perimeter, as every other focused control does. Owed by `overlays/menu`, `forms/combobox`, `overlays/select-panel` and `overlays/palette`.
 - [2.4.3 Focus order](#243-focus-order): A toast that leaves while it holds focus, after its Undo or its Dismiss is pressed by key, drops focus to the page. The bar requires focus to move to the next toast's button, else back to the control that was focused before. Owed by `feedback/toast`.
 - [WCAG 3 2.2.2.3](#2223-numerical-metadata-available): A relative time shows its exact date and time under a mouse only: a time takes no focus and no tap, so a keyboard or touch user who sees "8 minutes ago" cannot see when that was. The bar requires the exact time to be reachable by keyboard and by touch too. Owed by `data/relative-time`.
 - [2.4.12 Focus not obscured (enhanced)](#2412-focus-not-obscured-enhanced): No stylesheet sets `scroll-padding` for the sticky header, the foot bar or the status line. The bar requires that no part of a focused control sits under them. Owed by `layout/app-frame`.
@@ -286,7 +288,7 @@ As 1.4.5. ui ships no image of text except the wordmark's logotype.
 
 Level AA. Adopted. Met by ui. [Understanding 1.4.10](https://www.w3.org/WAI/WCAG22/Understanding/reflow.html)
 
-Nothing is wider than a 320px window and nothing is clipped. A list row's state and its own action wrap under its words when the three do not fit. A combobox's list too tall for either side of its field shrinks into the room under or over it and scrolls. A data table wider than its panel scrolls inside its own focusable region (two-dimensional content, the criterion's exception).
+Nothing is wider than a 320px window and nothing is clipped. A list row's state and its own action wrap under its words when the three do not fit. A popover too tall for either side of its button, a combobox's list among them, shrinks into the room under or over it, across the row's whole width, and scrolls. A data table wider than its panel scrolls inside its own focusable region (two-dimensional content, the criterion's exception).
 
 - Unit: the 320px tests in src/system/system-css.test.ts.
 - Manual: 320x256 and 640x360 per page.
@@ -314,7 +316,7 @@ No text container has a fixed height or a clipping overflow. Boxes grow with the
 
 Level AA. Adopted, partly met, owed by `overlays/tooltip`. Met by ui. [Understanding 1.4.13](https://www.w3.org/WAI/WCAG22/Understanding/content-on-hover-or-focus.html)
 
-A tooltip shows on focus at once and on a pointer resting 500ms. Escape and blur hide it without moving focus, so it is dismissible and persistent. It hides as soon as the pointer leaves the control, so the pointer cannot move onto the tip, which fails the hoverable condition. [Where ui falls short](#where-ui-falls-short) has the fix.
+A tooltip shows on focus at once and on a pointer resting 500ms. Escape and blur hide a shown tip without moving focus, so it is dismissible and persistent. It hides as soon as the pointer leaves the control, so the pointer cannot move onto the tip, and Escape pressed while a tip still waits out its rest lets it appear, as [Where ui falls short](#where-ui-falls-short) records.
 
 - Manual: the anchored overlay cards (tooltip, hover card).
 
@@ -534,9 +536,9 @@ As 2.4.11 with no part hidden: the page scrolls a focused control clear of every
 
 ### 2.4.13 Focus appearance
 
-Level AAA. Adopted. Met by ui. [Understanding 2.4.13](https://www.w3.org/WAI/WCAG22/Understanding/focus-appearance.html)
+Level AAA. Adopted, partly met, owed by `overlays/menu`, `forms/combobox`, `overlays/select-panel` and `overlays/palette`. Met by ui. [Understanding 2.4.13](https://www.w3.org/WAI/WCAG22/Understanding/focus-appearance.html)
 
-The ring is a solid 2px outline at a 2px offset, so its area exceeds a 2px perimeter of the control, in the accent's step 9, which holds 3:1 against every surface at every hue and chroma. On the header the ring takes the shell's ink, because the light shell is the accent's own fill. Inside a split button, whose fill is the ring's colour, focus rings the whole split outside its shape and marks the focused part with an inset ring in the split's ink. A date or time field rings while focus is in it, because WebKit focuses one of its parts and the field never matches `:focus-visible`.
+The ring is a solid 2px outline at a 2px offset, so its area exceeds a 2px perimeter of the control, in the accent's step 9, which holds 3:1 against every surface at every hue and chroma. On the header the ring takes the shell's ink, because the light shell is the accent's own fill. Inside a split button, whose fill is the ring's colour, focus rings the whole split outside its shape and marks the focused part with an inset ring in the split's ink. A date or time field rings while focus is in it, because WebKit focuses one of its parts and the field never matches `:focus-visible`. A menu item with focus, and the option the arrows reach in a listbox, a select panel or the palette, show only the selected wash, with no ring, as [Where ui falls short](#where-ui-falls-short) records.
 
 - Unit: the ring's 3:1 on every surface, on the header and inside a split button, and a date or time field's ring with focus in a part, src/system/system-css.test.ts.
 - Manual: ring width and its contrast against adjacent colours from a clipped screenshot per focus stop.
@@ -585,12 +587,12 @@ On the coarse tier targets are 44px at least, except an icon segment, which stay
 
 ### 2.5.6 Concurrent input mechanisms
 
-Level AAA. Adopted. Met by ui. [Understanding 2.5.6](https://www.w3.org/WAI/WCAG22/Understanding/concurrent-input-mechanisms.html)
+Level AAA. Adopted, partly met, owed by `overlays/tooltip`. Met by ui. [Understanding 2.5.6](https://www.w3.org/WAI/WCAG22/Understanding/concurrent-input-mechanisms.html)
 
-The tier follows each real input and never locks one out. `touch-action: manipulation` only removes the double-tap zoom.
+The tier follows each real input and never locks one out. `touch-action: manipulation` only removes the double-tap zoom. A tooltip marked to toggle on a tap never shows on a tap, as [Where ui falls short](#where-ui-falls-short) records.
 
 - Unit: src/core/pointer tests.
-- Manual: the foundation cards.
+- Manual: the foundation cards, the anchored overlay cards (a toggletip tapped in a touch context).
 
 ### 2.5.7 Dragging movements
 
@@ -1704,7 +1706,7 @@ A change of window or device is announced before it happens. No ui element opens
 
 ## Other WCAG 3 requirements
 
-Of the rest, 50 are met through a WCAG 2.2 criterion at the same strength, 4 ask the same as a WCAG 2.2 criterion ui does not meet yet, 12 do not apply, and 41 are not adopted. An assertion is an organisation's statement about its own process, not a property of the interface, and ui claims no WCAG 3 conformance, so no assertion is adopted. A requirement whose values the draft still leaves undetermined cannot be tested, so it waits for a draft that sets them.
+Of the rest, 48 are met through a WCAG 2.2 criterion at the same strength, 6 ask the same as a WCAG 2.2 criterion ui does not meet yet, 12 do not apply, and 41 are not adopted. An assertion is an organisation's statement about its own process, not a property of the interface, and ui claims no WCAG 3 conformance, so no assertion is adopted. A requirement whose values the draft still leaves undetermined cannot be tested, so it waits for a draft that sets them.
 
 | Requirement | Type | Ruling |
 | --- | --- | --- |
@@ -1757,8 +1759,8 @@ Of the rest, 50 are met through a WCAG 2.2 criterion at the same strength, 4 ask
 | [2.2.3.8 Clear language review](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#clear-language-review) | assertion | Not adopted, because it is an assertion |
 | [2.2.3.9 Visual aids review](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#visual-aids-review) | assertion | Not adopted, because it is an assertion |
 | [2.3.1.1 Default focus indicator used](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#default-focus-indicator-used) | supplemental | Not adopted, because the draft offers it as an alternative to 2.3.1.2 and 2.3.1.3, which ui meets with its own ring |
-| [2.3.1.2 Focus indicator contrast sufficient](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#focus-indicator-contrast-sufficient) | core | Met through WCAG 2.2 [2.4.13](#2413-focus-appearance) |
-| [2.3.1.3 Focus indicator size sufficient](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#focus-indicator-size-sufficient) | supplemental | Met through WCAG 2.2 [2.4.13](#2413-focus-appearance) |
+| [2.3.1.2 Focus indicator contrast sufficient](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#focus-indicator-contrast-sufficient) | core | Same as WCAG 2.2 [2.4.13](#2413-focus-appearance)'s area of change, which ui does not meet yet, owed by `overlays/menu`, `forms/combobox`, `overlays/select-panel` and `overlays/palette`, as [Where ui falls short](#where-ui-falls-short) records |
+| [2.3.1.3 Focus indicator size sufficient](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#focus-indicator-size-sufficient) | supplemental | Same as WCAG 2.2 [2.4.13](#2413-focus-appearance)'s area of change, which ui does not meet yet, owed by `overlays/menu`, `forms/combobox`, `overlays/select-panel` and `overlays/palette`, as [Where ui falls short](#where-ui-falls-short) records |
 | [2.3.1.4 Focus indicator style guide](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#focus-indicator-style-guide) | assertion | Not adopted, because it is an assertion |
 | [2.3.2.2 Pointer activation indicated (enhanced)](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#pointer-activation-indicated-enhanced) | supplemental | Does not apply, because it applies where the platform has no visible pointer (touch, eye tracking). Showing a pointer there is the platform's setting, and a page-drawn pointer would lag behind the real one |
 | [2.3.2.3 Pointer contrast sufficient](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#pointer-contrast-sufficient) | core | Does not apply, because it applies when the author changes the pointer's look. ui only names standard `cursor` keywords, which the operating system draws at the person's size and colour |
