@@ -304,8 +304,8 @@
         <form class="cp-form" novalidate>
           <div class="cp-notice" data-tone="danger" hidden id="f-summary"><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span><div data-part="body"></div></div>
           <div class="cp-field"><label class="cp-label" for="f2-kind">Kind</label><div class="cp-select"><select class="cp-input" id="f2-kind"><option>Sonarr</option><option>Radarr</option></select></div></div>
-          <div class="cp-field"><label class="cp-label" for="f2-url">Address</label><input class="cp-input" id="f2-url" type="url" spellcheck="false" aria-required="true" aria-describedby="f2-url-help"><span class="cp-help" id="f2-url-help">Required. It starts with http:// or https://, such as http://sonarr.lan:8989.</span></div>
-          <div class="cp-field"><label class="cp-label" for="f2-key">API key</label><input class="cp-input" id="f2-key" autocomplete="off" spellcheck="false" aria-required="true" aria-describedby="f2-key-help"><span class="cp-help" id="f2-key-help">Required. Settings, then General, in Sonarr.</span></div>
+          <div class="cp-field"><label class="cp-label" for="f2-url">Address <span class="cp-required">(Required)</span></label><input class="cp-input" id="f2-url" type="url" spellcheck="false" aria-required="true" aria-describedby="f2-url-help"><span class="cp-help" id="f2-url-help">It starts with http:// or https://, such as http://sonarr.lan:8989.</span></div>
+          <div class="cp-field"><label class="cp-label" for="f2-key">API key <span class="cp-required">(Required)</span></label><input class="cp-input" id="f2-key" autocomplete="off" spellcheck="false" aria-required="true" aria-describedby="f2-key-help"><span class="cp-help" id="f2-key-help">Settings, then General, in Sonarr.</span></div>
           <div class="cp-cluster"><button class="cp-button" data-variant="primary" type="submit" id="f2-save">Add source</button><button class="cp-button" data-variant="quiet" type="reset">Cancel</button></div>
         </form>
         <footer>Press Add source with the fields empty: a summary at the top links each field that needs a fix, and focus moves to it. Typed values stay.</footer>
