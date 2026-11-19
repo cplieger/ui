@@ -95,8 +95,8 @@
   padding-inline: var(--cp-space-2);
 }
 
-/* A row: a link or a button when the whole row opens something, or a div
- * holding its one worded action. */
+/* A row: a link or a button when the whole row is one action, else a div;
+ * installRowActions decides whether the div is a target. */
 .cp-list-row {
   display: flex;
   align-items: center;
@@ -539,9 +539,11 @@ button.cp-list-row[aria-pressed] .cp-badge {
 /* A row whose one action is a link or a button (installRowActions marks
  * it) is that action, whole: the action's box covers the row, over the
  * row's positioned parts, so a press anywhere follows it, and the action's
- * focus ring is drawn round the row. */
+ * focus ring is drawn round the row. The row is its own stacking context,
+ * so its lifted parts below do not rise over a sticky bar. */
 :is(.cp-list-row, .cp-table tbody tr, .cp-feed-entry)[data-cp-row-action] {
   position: relative;
+  isolation: isolate;
 }
 
 :is(.cp-list-row, .cp-table tbody tr, .cp-feed-entry)[data-cp-row-action] [data-cp-stretch]::after {
@@ -550,6 +552,15 @@ button.cp-list-row[aria-pressed] .cp-badge {
   inset: 0;
   z-index: 1;
   border-radius: inherit;
+}
+
+/* The row's own focusable parts, such as a step track or an info glyph,
+ * sit over the action's box, so they keep their hover, press and tap. */
+/* stylelint-disable-next-line selector-max-attribute, selector-max-pseudo-class -- a focusable part is a tabindex or a tip toggle, and the action itself stays under */
+:is(.cp-list-row, .cp-table tbody tr, .cp-feed-entry)[data-cp-row-action]
+  :where([tabindex]:not([tabindex="-1"]), [data-cp-tip-toggle]):not([data-cp-stretch]) {
+  position: relative;
+  z-index: 2;
 }
 
 /* A positioned or transformed action, such as a confirming button or a

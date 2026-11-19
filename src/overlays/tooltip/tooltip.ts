@@ -20,6 +20,7 @@ export interface TooltipOptions {
 }
 
 const TIP = "[data-cp-tip]";
+const STRETCH = "[data-cp-stretch]";
 const NAME = "--cp-tip-anchor";
 
 /** What a screen reader focuses for `el`: a tipped label's control. */
@@ -30,6 +31,24 @@ function described(el: HTMLElement): HTMLElement {
 function target(e: Event): HTMLElement | null {
   const t = e.composedPath()[0];
   return t instanceof Element ? t.closest<HTMLElement>(TIP) : null;
+}
+
+/** The stretched row action (`@cplieger/ui/list-row`) `e` lands on, whose
+ *  box covers its row's other parts. */
+function stretchOf(e: Event): Element | null {
+  const t = e.composedPath()[0];
+  return t instanceof Element ? t.closest(STRETCH) : null;
+}
+
+/** The tipped element a mouse in `stretch` points at: a part of its row
+ *  under the action's box, found by place, else the action's own tip. */
+function pointed(stretch: Element, e: PointerEvent): HTMLElement | null {
+  const row = stretch.closest("[data-cp-row-action]");
+  const part = document
+    .elementsFromPoint(e.clientX, e.clientY)
+    .find((el) => !stretch.contains(el))
+    ?.closest<HTMLElement>(TIP);
+  return row !== null && part != null && row.contains(part) ? part : target(e);
 }
 
 // Words that differ only in punctuation, spacing or case say the same thing.
@@ -122,12 +141,50 @@ function listen(signal: AbortSignal, delay: number): void {
     tip.showPopover();
   };
 
+  // Inside a stretched row action no pointerover tells its row's parts
+  // apart, so the mouse's moves there aim at the part under it.
+  let aimed: HTMLElement | null = null;
+  const aim = (el: HTMLElement | null): void => {
+    if (el === aimed) {
+      return;
+    }
+    if (aimed !== null && aimed === shownFor) {
+      hide();
+    } else {
+      clearTimeout(timer);
+    }
+    aimed = el;
+    if (el !== null && el !== shownFor) {
+      timer = setTimeout(() => {
+        show(el);
+      }, delay);
+    }
+  };
+
   const on = { capture: true, signal };
+  document.addEventListener(
+    "pointermove",
+    (e) => {
+      const stretch = e.pointerType === "mouse" ? stretchOf(e) : null;
+      if (stretch !== null) {
+        aim(pointed(stretch, e));
+      }
+    },
+    { ...on, passive: true },
+  );
   document.addEventListener(
     "pointerover",
     (e) => {
+      if (e.pointerType !== "mouse") {
+        return;
+      }
+      const stretch = stretchOf(e);
+      if (stretch !== null) {
+        aim(pointed(stretch, e));
+        return;
+      }
       const el = target(e);
-      if (e.pointerType !== "mouse" || el === null || el === shownFor) {
+      if (el === null || el === shownFor) {
         return;
       }
       clearTimeout(timer);
@@ -141,8 +198,15 @@ function listen(signal: AbortSignal, delay: number): void {
   document.addEventListener(
     "pointerout",
     (e) => {
-      const el = target(e);
       const to = e.relatedTarget;
+      const stretch = e.pointerType === "mouse" ? stretchOf(e) : null;
+      if (stretch !== null) {
+        if (!(to instanceof Node && stretch.contains(to))) {
+          aim(null);
+        }
+        return;
+      }
+      const el = target(e);
       if (el !== null && !(to instanceof Node && el.contains(to))) {
         if (el === shownFor) {
           hide();

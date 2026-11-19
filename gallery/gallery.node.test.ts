@@ -221,6 +221,14 @@ interface Probe {
   aimRow(i: number): Point | string;
   /** What hovering, then pressing, row `i` did wrong. */
   checkRow(i: number, step: "hover" | "press" | "ring"): Promise<string[]>;
+  /** Gathers one-action row `i`'s parts other than its action that are
+   *  focusable or carry a tip; returns whether each toggles on a tap. */
+  parts(i: number): boolean[];
+  /** Scrolls part `j` into view; the point to hover it at, its centre. */
+  aimPart(j: number): Point;
+  /** What part `j` did wrong under the mouse resting on it, a press on
+   *  it, or a tap on it. */
+  checkPart(j: number, step: "rest" | "press" | "tap"): Promise<string[]>;
 }
 
 /**
@@ -423,6 +431,7 @@ function installProbe(): void {
   let hoverables: Element[] = [];
   let shots: Shot[] = [];
   let rows: { row: Element; kind: Kind; action: HTMLElement | null }[] = [];
+  let parts: { part: HTMLElement; row: (typeof rows)[number]; at: Point }[] = [];
   let pressed: EventTarget | null = null;
   // Only a row's press is caught, so a layer's opener still opens it.
   let catching = false;
@@ -453,6 +462,21 @@ function installProbe(): void {
     return { row, kind: actions.length === 0 ? "none" : "many", action: null };
   };
 
+  const FOCUSABLE = '[tabindex]:not([tabindex="-1"]), [data-cp-tip-toggle]';
+  const tipSays = (): string | null => {
+    const tip = document.querySelector(".cp-tooltip");
+    return tip?.matches(":popover-open") === true ? tip.textContent : null;
+  };
+  /** Polls for the tip to say `words`, as long as a mouse rest takes. */
+  const tipFor = async (words: string): Promise<boolean> => {
+    for (let n = 0; n < 40; n++) {
+      if (tipSays() === words) {
+        return true;
+      }
+      await new Promise((ok) => setTimeout(ok, 50));
+    }
+    return false;
+  };
   const probe: Probe = {
     park: { x: innerWidth - 2, y: innerHeight - 2 },
     layers: () => layers.length,
@@ -615,6 +639,71 @@ function installProbe(): void {
             Math.abs(parseFloat(ring.height) - box.height) <= 1));
       r.action.blur();
       return drawn ? [] : [`${said} draws no ring round itself on focus`];
+    },
+    parts(i) {
+      const r = rows[i];
+      const action = r?.action;
+      if (r?.kind !== "one" || action == null) {
+        parts = [];
+        return [];
+      }
+      parts = [...r.row.querySelectorAll<HTMLElement>(`${FOCUSABLE}, [data-cp-tip]`)]
+        .filter((part) => !action.contains(part) && shown(part))
+        .map((part) => ({ part, row: r, at: { x: 0, y: 0 } }));
+      return parts.map(({ part }) => part.matches("[data-cp-tip-toggle]"));
+    },
+    aimPart(j) {
+      const p = parts[j];
+      if (p === undefined) {
+        return { x: 0, y: 0 };
+      }
+      reveal(p.part);
+      const box = p.part.getBoundingClientRect();
+      p.at = { x: box.left + box.width / 2, y: box.top + box.height / 2 };
+      pressed = null;
+      catching = true;
+      return p.at;
+    },
+    async checkPart(j, step) {
+      const p = parts[j];
+      if (p === undefined) {
+        return [];
+      }
+      const { part, row, at } = p;
+      const said = `${where(row.row)}: ${name(part)} in one-action row ${name(row.row)}`;
+      const own = part.matches(FOCUSABLE);
+      const words = part.dataset["cpTip"];
+      if (step === "rest") {
+        const hit = document.elementFromPoint(at.x, at.y);
+        const wrong =
+          own && (hit === null || !part.contains(hit))
+            ? [`${said} is covered by ${hit === null ? "nothing" : name(hit)}`]
+            : [];
+        return words === undefined || (await tipFor(words))
+          ? wrong
+          : [...wrong, `${said} shows no tip to a mouse resting on it`];
+      }
+      if (step === "press") {
+        catching = false;
+        const t = pressed instanceof Element ? pressed : null;
+        const followed = t !== null && row.action?.contains(t) === true;
+        if (own === followed) {
+          return [`${said}: a press on it ${own ? "followed" : "missed"} the row's action`];
+        }
+        return [];
+      }
+      const tap = () =>
+        document.elementFromPoint(at.x, at.y)?.dispatchEvent(
+          new PointerEvent("pointerdown", {
+            bubbles: true,
+            composed: true,
+            pointerType: "touch",
+          }),
+        );
+      tap();
+      const shows = tipSays() === words;
+      tap();
+      return shows ? [] : [`${said} shows no tip on a tap`];
     },
   };
   (globalThis as unknown as { cpProbe: () => Probe }).cpProbe = () => probe;
@@ -1027,6 +1116,20 @@ describe.each(browsers)("the gallery in %s", (name) => {
           // step's focus() matches :focus-visible after the mouse press.
           await tab.keyboard.press("Shift");
           wrong.push(...(await tab.evaluate((k) => cpProbe().checkRow(k, "ring"), i)));
+          const toggles = await tab.evaluate((k) => cpProbe().parts(k), i);
+          for (const [j, toggle] of toggles.entries()) {
+            await tab.mouse.move(park.x, park.y);
+            const part = await tab.evaluate((p) => cpProbe().aimPart(p), j);
+            await tab.mouse.move(part.x, part.y);
+            wrong.push(...(await tab.evaluate((p) => cpProbe().checkPart(p, "rest"), j)));
+            await tab.mouse.down();
+            await tab.mouse.up();
+            wrong.push(...(await tab.evaluate((p) => cpProbe().checkPart(p, "press"), j)));
+            if (toggle) {
+              await tab.mouse.move(park.x, park.y);
+              wrong.push(...(await tab.evaluate((p) => cpProbe().checkPart(p, "tap"), j)));
+            }
+          }
         }
         if (layer !== null) {
           await tab.evaluate((l) => {

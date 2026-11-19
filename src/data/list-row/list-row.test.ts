@@ -1,6 +1,16 @@
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  onTestFinished,
+} from "vitest";
 import { userEvent } from "vitest/browser";
 
+import { installTooltips } from "../../overlays/tooltip/tooltip.js";
 import { installRowActions, markKept } from "./list-row.js";
 
 let sheet: HTMLLinkElement;
@@ -455,6 +465,76 @@ describe("installRowActions", () => {
     grab.remove();
     await settle();
     expect(r.querySelector("[data-cp-stretch]")).toBe(r.querySelector("a"));
+  });
+
+  describe("a row's own tipped parts", () => {
+    const tip = () => document.querySelector(".cp-tooltip");
+    const tipSays = () => (tip()?.matches(":popover-open") === true ? tip()?.textContent : null);
+    /** `part`'s centre, as a position in `r`. */
+    const centreIn = (r: Element, part: Element) => {
+      const row = r.getBoundingClientRect();
+      const box = part.getBoundingClientRect();
+      return { x: box.left - row.left + box.width / 2, y: box.top - row.top + box.height / 2 };
+    };
+    const tapAt = (r: Element, at: { x: number; y: number }) => {
+      const row = r.getBoundingClientRect();
+      document
+        .elementFromPoint(row.left + at.x, row.top + at.y)
+        ?.dispatchEvent(
+          new PointerEvent("pointerdown", { bubbles: true, composed: true, pointerType: "touch" }),
+        );
+    };
+    beforeEach(() => {
+      const tips = new AbortController();
+      installTooltips({ signal: tips.signal, delay: 100 });
+      onTestFinished(() => {
+        tips.abort();
+      });
+    });
+
+    it("puts a focusable part over the row's action: its own target, its tip shown to a mouse and a tap", async () => {
+      const r = row(
+        '<a href="#frieren">Frieren</a>',
+        '<span tabindex="0" data-cp-tip-toggle data-cp-tip="Step 2 of 4: grabbing">2/4</span>',
+      );
+      await settle();
+      const link = r.querySelector("a") as HTMLAnchorElement;
+      const part = r.querySelector("span[tabindex]") as HTMLElement;
+      const at = centreIn(r, part);
+      const box = r.getBoundingClientRect();
+      expect(document.elementFromPoint(box.left + at.x, box.top + at.y)).toBe(part);
+      const heard = clicks(link);
+      await userEvent.hover(r, { position: at });
+      await expect.poll(tipSays).toBe("Step 2 of 4: grabbing");
+      await userEvent.click(r, { position: at });
+      expect(heard).toEqual([]);
+      await mouseAway();
+      expect(tipSays()).toBeNull();
+      tapAt(r, at);
+      expect(tipSays()).toBe("Step 2 of 4: grabbing");
+      tapAt(r, at);
+      expect(tipSays()).toBeNull();
+    });
+
+    it("shows a plain tipped part's tip to a mouse resting on it, while a press on it follows the action", async () => {
+      const r = row(
+        '<a href="#frieren">Frieren</a>',
+        '<time datetime="2026-11-18T10:00" data-cp-tip="18 Nov 2026, 10:00">2h ago</time>',
+      );
+      await settle();
+      const link = r.querySelector("a") as HTMLAnchorElement;
+      const at = centreIn(r, r.querySelector("time") as Element);
+      const heard = clicks(link);
+      await mouseAway();
+      await userEvent.hover(r, { position: at });
+      await expect.poll(tipSays).toBe("18 Nov 2026, 10:00");
+      await userEvent.hover(r, { position: { x: at.x, y: 2 } });
+      expect(tipSays()).toBeNull();
+      await userEvent.hover(r, { position: at });
+      await expect.poll(tipSays).toBe("18 Nov 2026, 10:00");
+      await userEvent.click(r, { position: at });
+      expect(heard).toEqual([link]);
+    });
   });
 
   it("makes a table row of one link that link, whole, and leaves a row of two to its cells", async () => {
