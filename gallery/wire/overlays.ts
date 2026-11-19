@@ -276,6 +276,11 @@ for (const d of document.querySelectorAll<HTMLDialogElement>("[data-filter-sheet
     apply.textContent = n === 0 ? "No results" : `Show ${String(n)} results`;
     apply.toggleAttribute("aria-disabled", n === 0);
   };
+  // The count is a status message (WCAG 4.1.3), said as a choice moves it.
+  const sayCount = (): void => {
+    const n = results();
+    announce(n === 0 ? "No results" : `${String(n)} results`);
+  };
   const showApplied = (): void => {
     const verdicts = inputs.filter((i, k) => i.name === "verdict" && applied[k] === true).length;
     const n = verdicts + (kindOf(applied) === "all" ? 0 : 1);
@@ -288,10 +293,14 @@ for (const d of document.querySelectorAll<HTMLDialogElement>("[data-filter-sheet
       i.checked = i.name === "kind" && i.value === "all";
     }
   };
-  d.addEventListener("change", recount);
+  d.addEventListener("change", () => {
+    recount();
+    sayCount();
+  });
   d.querySelector("[data-sheet-clear]")?.addEventListener("click", () => {
     clear();
     recount();
+    sayCount();
   });
   // A choice that shows nothing is not applied: its button only says so.
   apply.addEventListener("click", (e) => {

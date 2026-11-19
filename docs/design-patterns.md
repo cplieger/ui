@@ -184,7 +184,7 @@ A sheet is a `.cp-dialog` marked `data-variant="sheet"`, with the same header, b
 1. Below 60rem, a Filters button in the page toolbar opens the rail's filters in a sheet. Its label carries the count of active filters, such as "Filters, 2", and while any filter is active, a "Clear filters" button sits beside it. Both carry `.cp-rail-toggle`, which marks a toolbar control that serves the rail once it is gone: the stylesheet shows them only below 60rem, where the rail is hidden.
 2. The head holds the title "Filters" and a Close button.
 3. A sheet with one group of filters whose results come back fast applies each change at once and writes the URL. Its foot holds "Clear all" and "Done", and Close and Escape keep the changes.
-4. A sheet with several groups, or whose results are slow, stages the changes. Its foot holds "Clear all" and "Show 41 results", which applies them as one URL entry and closes the sheet. Close and Escape discard what was staged.
+4. A sheet with several groups, or whose results are slow, stages the changes. Its foot holds "Clear all" and "Show 41 results", which applies them as one URL entry and closes the sheet. Each change of the count is also said politely through `@cplieger/ui/announce`, such as "41 results", so a screen reader hears it without leaving the choice. Close and Escape discard what was staged.
 5. A filter set too long for a sheet is a page of its own, with Back returning to the list.
 
 ## Notifications

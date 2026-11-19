@@ -261,6 +261,25 @@ describe.each(browsers)("the gallery in %s", (name) => {
     expect(state).toEqual({ heading: label, current: label, focused: true });
   }, 60_000);
 
+  // WCAG 4.1.3: a result count that follows a choice is a status message, so it reaches a
+  // screen reader without focus moving to the button that shows it.
+  it("says a staged filter sheet's result count as each choice changes it", async () => {
+    const tab = await (browser as Browser).newPage({ viewport: { width: 1440, height: 900 } });
+    await tab.goto(`${origin}/overlays.html`);
+    await tab.click("[commandfor='d-filters'][command='show-modal']");
+    const said = async (choice: string): Promise<string | undefined> => {
+      await tab.check(`#d-filters input[value='${choice}']`);
+      await tab.waitForTimeout(400);
+      return tab.evaluate(() =>
+        document.querySelector("#d-filters [data-cp-politeness='polite']")?.textContent.trim(),
+      );
+    };
+    // The gallery's counts: 268 on the best and 33 not, of which films are a fifth.
+    const heard = [await said("best"), await said("film")];
+    await tab.close();
+    expect(heard).toEqual(["301 results", "60 results"]);
+  }, 60_000);
+
   it.each(pageNames)(
     "runs %s's script to its end inside a sandboxed frame, as a preview tab shows it",
     async (page) => {
