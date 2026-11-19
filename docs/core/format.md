@@ -32,8 +32,8 @@ Every writer takes `locale` last, a BCP 47 language tag, except `relative`, whic
   - `"digital"` writes a clock: "0:42" and "14:05" under an hour, "1:02:03" and "25:00:00" from one, days folded into hours. A second shows once it has passed, so 41.6 seconds reads "0:41", and a negative span keeps its sign, "-0:42".
   - A value that is not finite throws a `RangeError` in every style.
 - `date(at, style?, locale?)` writes a `Date` or a number of ms since the epoch. `style` is `"datetime"` by default:
-  - `"date"` is the medium date, "Nov 19, 2026"; `"time"` the short time, "6:40 PM"; `"datetime"` both, "Nov 19, 2026, 6:40 PM".
-  - `"near"` is the short time alone on today's date, else the day, the short month and the time, "Nov 18, 4:47 AM", with the year added outside the present year, "Nov 13, 2025, 9:30 AM". Its hour takes the digits the locale's short time does, so British English writes "12 Nov, 09:30".
+  - `"date"` is the medium date, "Nov 19, 2026". `"time"` is the short time, "6:40 PM". `"datetime"` is both, "Nov 19, 2026, 6:40 PM".
+  - `"near"` is the short time alone on today's date. Another day adds the day and the short month, "Nov 18, 4:47 AM", and a day outside the present year adds its year too, "Nov 13, 2025, 9:30 AM". Its hour takes the digits the locale's short time does, so British English writes "12 Nov, 09:30".
   - Every style joins its parts with no-break spaces, so a date never breaks across a line.
   - An invalid date throws Intl's `RangeError`.
 - `relative(at, opts?)` writes how long ago or ahead `at` is, in the locale's fewest words. `opts` is `{ now?, style?, locale? }`: `now` is the moment to count from, by default the present, and `style` is `"narrow"` by default, "4m ago", then `"short"` or `"long"`, "4 minutes ago". The words and their units are [relative-time](../data/relative-time.md#the-words)'s. An invalid date throws a `TypeError`.
@@ -45,12 +45,12 @@ With no `locale`, a writer writes in the `lang` of the `<html>` element, read at
 
 ## Byte sizes
 
-- The units are decimal: a kilobyte is 1,000 bytes, as drives, downloads and network speeds count them. "512 MiB", 536,870,912 bytes, reads "536.9 MB".
+- The units are decimal. A kilobyte is 1,000 bytes, as drives, downloads and network speeds count them. "512 MiB", 536,870,912 bytes, reads "536.9 MB".
 - Whole bytes have no fraction digit, and every larger unit one: "999 byte", "1.0 kB", "999.9 kB".
-- The unit is the largest that keeps the size at 1 or more once rounded to print. So 999,949 bytes reads "999.9 kB" and 999,950 bytes "1.0 MB", never "1,000.0 kB". The same holds at each step up to a petabyte, the largest unit; past 1,000 PB the number grows, "2,000.0 PB".
+- The unit is the largest that keeps the size at 1 or more once rounded to print. So 999,949 bytes reads "999.9 kB" and 999,950 bytes "1.0 MB", never "1,000.0 kB". The same holds at each step up to a petabyte, the largest unit. Past 1,000 PB the number grows, "2,000.0 PB".
 - The unit words are the platform's, in the locale: German writes "1,0 MB" and French "1,0 ko". An app carries no size words of its own.
 
 ## Not here
 
-- The app's own words: a writer translates a unit Intl knows, never a sentence. `count` takes its nouns from the app.
+- The app's own words. A writer translates a unit Intl knows, never a sentence. `count` takes its nouns from the app.
 - Parsing: no writer reads a number, a size or a date back from text.
