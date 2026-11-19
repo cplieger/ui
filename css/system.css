@@ -7357,7 +7357,17 @@ th[aria-sort="descending"] > .cp-sort::after {
 /* A video under the library's controls (@cplieger/ui/video): the native
  * element 16:9 on black, its captions on a dark plate, then a bar of play
  * and pause, the seek bar and both times. */
+
+/* Registered, so video.ts reads it back in px. */
+@property --cp-video-caption-margin {
+  syntax: "<length>";
+  inherits: true;
+  initial-value: 0;
+}
+
 .cp-video {
+  --cp-video-caption-margin: var(--cp-space-3);
+
   display: grid;
   gap: var(--cp-space-2);
   max-inline-size: 40rem;
@@ -7374,6 +7384,13 @@ th[aria-sort="descending"] > .cp-sort::after {
   background: oklch(0% 0 0deg / 70%);
   color: oklch(100% 0 0deg);
   font-family: var(--cp-font-body);
+}
+
+/* With its own controls off, each engine draws an auto-placed caption on the
+ * picture's bottom edge. Firefox has no such box, so video.ts seats its cues
+ * by their line instead. */
+.cp-video[data-cp-auto-cues] > video::-webkit-media-text-track-container {
+  translate: 0 calc(-1 * var(--cp-video-caption-margin));
 }
 
 .cp-video > [data-part="bar"] {
