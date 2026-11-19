@@ -7640,6 +7640,13 @@ th[aria-sort="descending"] > .cp-sort::after {
     margin-inline-end: var(--cp-space-1);
     vertical-align: middle;
   }
+
+  /* The line under a title link is one space down, so a base link's
+   * underline would run into that line's capitals. */
+  &:where(a:nth-child(1 of :not([hidden]))) {
+    text-decoration-thickness: 0.0625rem;
+    text-underline-offset: 0.0625rem;
+  }
 }
 
 /* The untrimmed line boxes: a mono title is set smaller, a .cp-meta line

@@ -130,6 +130,43 @@ function lineMetrics(line: Element): { baseline: number; cap: number; lh: number
   };
 }
 
+// The bottom edge, in page px, of the ink in an element's screenshot, or
+// null when it paints nothing over its background (its commonest colour). A
+// part-covered last row counts by its ink's strength against the fullest row.
+async function inkBottom(el: Element): Promise<number | null> {
+  const r = el.getBoundingClientRect();
+  const shot = await page.screenshot({ element: el, base64: true, save: false });
+  const img = await createImageBitmap(await (await fetch(`data:image/png;base64,${shot}`)).blob());
+  const ctx = new OffscreenCanvas(img.width, img.height).getContext("2d");
+  if (ctx === null) {
+    throw new Error("no 2d context");
+  }
+  ctx.drawImage(img, 0, 0);
+  const px = ctx.getImageData(0, 0, img.width, img.height).data;
+  const counts = new Map<string, number>();
+  for (let at = 0; at < px.length; at += 4) {
+    const c = px.slice(at, at + 3).join(",");
+    counts.set(c, (counts.get(c) ?? 0) + 1);
+  }
+  const bg = ([...counts].sort((a, b) => b[1] - a[1])[0] as [string, number])[0]
+    .split(",")
+    .map(Number);
+  const strength = Array.from({ length: img.height }, (_, y) => {
+    let most = 0;
+    for (let x = 0; x < img.width; x++) {
+      const at = (y * img.width + x) * 4;
+      most = Math.max(most, ...[0, 1, 2].map((ch) => Math.abs((px[at + ch] ?? 0) - (bg[ch] ?? 0))));
+    }
+    return most;
+  });
+  const full = Math.max(...strength);
+  const last = strength.findLastIndex((v) => v > 8);
+  if (last < 0) {
+    return null;
+  }
+  return r.top + (last + (strength[last] ?? 0) / full) * (r.height / img.height);
+}
+
 const media = (name: string, value: string) =>
   cdp().send("Emulation.setEmulatedMedia", { features: [{ name, value }] });
 
@@ -6133,6 +6170,57 @@ describe("css/system.css data tables", () => {
         ).toBeLessThanOrEqual(0.5);
         const cover = (box.querySelector(".cp-cover") as Element).getBoundingClientRect().height;
         expect(r.height, `${at} height`).toBeCloseTo(cover, 1);
+      }
+    }
+  });
+
+  it("keeps a two-line title link's underline 1.5px clear of the line under it, hovered or focused", async () => {
+    theme("light");
+    const titleCell = (title: string, line: string) =>
+      `<table class="cp-table"><tbody><tr><td><div class="cp-title-cell"><span class="cp-cover" data-harmony="4"><span class="cp-icon" data-cp-icon="film"></span></span>` +
+      `<div class="cp-cell-stack">${title}${line}</div></div></td></tr></tbody></table>`;
+    const listRow = (title: string, line: string) =>
+      `<ul class="cp-list" style="inline-size: 20rem"><li><div class="cp-list-row"><span class="cp-cell-stack">${title}${line}</span></div></li></ul>`;
+    const markup =
+      titleCell('<a href="#t">Perfect Blue</a>', '<span class="cp-meta">OVA, 1997</span>') +
+      titleCell('<a class="cp-truncate" href="#t">Mushishi</a>', "<small>TV, 2005</small>") +
+      listRow('<a href="#t">Frieren</a>', "<small>TV, 2023</small>") +
+      listRow(
+        '<a class="cp-mono" href="#t">Perfect Blue</a>',
+        '<span class="cp-meta">TV, 2005</span>',
+      );
+    for (const tier of ["fine", "coarse"]) {
+      root.dataset["pointer"] = tier;
+      const el = build(markup);
+      for (const [i, stack] of [...el.querySelectorAll(".cp-cell-stack")].entries()) {
+        const [link, sub] = [...stack.children] as [HTMLElement, HTMLElement];
+        const s = lineMetrics(sub);
+        const capTop = s.baseline - s.cap;
+        // The text is unpainted and the underline drawn solid, so the
+        // underline is the stack's only ink, in whichever state.
+        for (const line of [link, sub]) {
+          line.style.setProperty("-webkit-text-fill-color", "transparent");
+        }
+        link.style.textDecorationColor = "rgb(255, 0, 0)";
+        link.style.outlineStyle = "none";
+        const states: [string, () => Promise<void>][] = [
+          ["hover", () => userEvent.hover(link)],
+          [
+            "focus-visible",
+            async () => {
+              await userEvent.unhover(link);
+              link.focus({ focusVisible: true } as FocusOptions);
+            },
+          ],
+        ];
+        for (const [state, enter] of states) {
+          await enter();
+          const bottom = await inkBottom(stack);
+          const at = `${tier} ${state} stack ${String(i)} underline ${String(bottom)} caps ${String(capTop)}`;
+          expect(bottom, at).not.toBeNull();
+          expect(capTop - (bottom ?? Infinity), at).toBeGreaterThanOrEqual(1.5);
+        }
+        link.blur();
       }
     }
   });
