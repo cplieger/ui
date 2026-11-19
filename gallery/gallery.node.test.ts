@@ -280,6 +280,23 @@ describe.each(browsers)("the gallery in %s", (name) => {
     expect(heard).toEqual(["301 results", "60 results"]);
   }, 60_000);
 
+  it("says the jump field's count once typing stops, one entry in the singular", async () => {
+    const tab = await (browser as Browser).newPage({ viewport: { width: 1440, height: 900 } });
+    await tab.goto(`${origin}/navigation.html`);
+    const said = async (text: string): Promise<string | undefined> => {
+      await tab.fill("#jump-in", "");
+      await tab.locator("#jump-in").pressSequentially(text);
+      await tab.waitForTimeout(900);
+      return tab.evaluate(() =>
+        document.querySelector("[data-cp-politeness='polite']")?.textContent.trim(),
+      );
+    };
+    // The card's three entries: Frieren alone holds "fri", Mushishi and the Heron hold "m".
+    const heard = [await said("fri"), await said("m")];
+    await tab.close();
+    expect(heard).toEqual(["1 entry", "2 entries"]);
+  }, 60_000);
+
   it.each(pageNames)(
     "runs %s's script to its end inside a sandboxed frame, as a preview tab shows it",
     async (page) => {
