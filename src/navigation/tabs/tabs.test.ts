@@ -132,6 +132,19 @@ describe("enhanceTabs", () => {
     expect(onSelect).toHaveBeenCalledTimes(3);
   });
 
+  it("keeps Home on the first tab and End on the last from scrolling the page", () => {
+    const { list, tabs } = strip();
+    enhanceTabs(list, { signal: life.signal });
+    const press = (on: HTMLElement | undefined, key: string) =>
+      (on as HTMLElement).dispatchEvent(
+        new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }),
+      );
+    tabs[0]?.focus();
+    expect(press(tabs[0], "Home"), "Home").toBe(false);
+    tabs[2]?.focus();
+    expect(press(tabs[2], "End"), "End").toBe(false);
+  });
+
   it("selects on a press, and a press on the selected tab changes nothing", async () => {
     const { list, tabs, panels } = strip();
     const onSelect = vi.fn();
@@ -300,6 +313,35 @@ describe("enhanceTabs", () => {
     await scrolled;
     expect(inView(list, tabs[2])).toBe(true);
   });
+
+  it.each([
+    { dir: "ltr", start: "left", end: "right" },
+    { dir: "rtl", start: "right", end: "left" },
+  ] as const)(
+    "stops a tab it scrolls to at the strip's padding, the inset its other edges have ($dir)",
+    ({ dir, start, end }) => {
+      const { list, tabs } = strip();
+      list.dir = dir;
+      narrow(list, tabs);
+      list.style.padding = "4px";
+      const api = enhanceTabs(list, { signal: life.signal });
+      const inset = (tab: HTMLElement | undefined) => {
+        const port = list.getBoundingClientRect();
+        const box = (tab as HTMLElement).getBoundingClientRect();
+        return {
+          left: box.left - port.left,
+          right: port.right - box.right,
+          top: box.top - port.top,
+        };
+      };
+      const [first, , last] = tabs;
+      api.select(last as HTMLElement);
+      expect(inset(last)[end]).toBeCloseTo(4, 0);
+      expect(inset(last).top).toBeCloseTo(4, 0);
+      api.select(first as HTMLElement);
+      expect(inset(first)[start]).toBeCloseTo(4, 0);
+    },
+  );
 
   it.each([
     { dir: "ltr", scroll: 32, start: (r: DOMRect) => r.left },

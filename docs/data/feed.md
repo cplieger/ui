@@ -44,13 +44,62 @@ for (const t of list.querySelectorAll("time[datetime*='T']")) {
 ## The parts
 
 - `ol.cp-feed` holds the entries as `li.cp-feed-entry`, oldest first. `li.cp-feed-day` separators, each a `<time>` with the day, fall between them, and at most one `li.cp-since`, "New since your last visit", the marker a [list](list-row.md) holds too, comes before the first entry the person has not seen. The feed is a list rather than a live region, because a live region would read every arrival in full. The New messages button says what arrived.
-- An entry's `<header>` holds the author's link, any origin as a `.cp-chip` and the `<time>` at the end, which [relative-time](relative-time.md) keeps current in its narrow words, "3m ago". Then an `<h3>` subject, the body and a `<footer>`. A plain-text body is `p.cp-feed-text`, which keeps its line breaks and wraps a long path rather than widening the feed. Keep rendered markdown out of `.cp-feed-text`, whose rule would draw the spaces between its blocks.
+- An entry's `<header>` holds the author's link, any origin as a `.cp-chip`, or as an `a.cp-filter-chip` in its `data-tone` when it links to its conversation, and the `<time>` at the end, which [relative-time](relative-time.md) keeps current in its narrow words, "3m ago". Then an `<h3>` subject, the body and a `<footer>`. A plain-text body is `p.cp-feed-text`, which keeps its line breaks and wraps a long path rather than widening the feed. Keep rendered markdown out of `.cp-feed-text`, whose rule would draw the spaces between its blocks.
 - `data-own` marks the person's own entry, whose author reads "You". It sits on the sunken fill, with its text on the same edge as everyone else's.
 - An own entry still sending carries `data-state="sending"` and `aria-busy="true"`, and its footer holds a `.cp-inline-load` "Sending…". One that failed carries `data-state="failed"`, and its footer holds a danger `.cp-state` "Not sent." and a small plain Retry button.
 - The read summary, "Read by 3 of 5", is a quiet small button opening a `.cp-popover.cp-feed-readers` with a `<section>` each for "Read" and "Not read yet", an `h4` over a list of links. The names load on each open through [loading-region](../feedback/loading-region.md), since people read the message while the popover is closed: on the first open the popover holds a `.cp-inline-load`, such as "Loading who read it…", and a later open reloads them under the accent line over the last names. When the first load fails, a danger `.cp-notice`, such as "The readers could not be loaded.", takes their place with Retry. When a reload fails, a warning one sits above the last names.
 - While the entries load, the feed carries `aria-busy="true"` and holds `li.cp-feed-entry[data-skeleton]` items of four `.cp-skeleton` lines. With none, the detail says so in a sentence, such as "No messages in the last 72 hours.", in place of the feed.
 - `.cp-feed-head` comes before the feed in its scroller, not pinned, and holds the button that shows older entries above the first, such as "Show older", which [load-more](load-more.md) drives with `edge: "start"`. Its press moves focus to the oldest entry it added, so the reader reads down to where they were, and the feed takes that as the reader's new place. Once the oldest page is in, the head goes.
 - `.cp-feed-foot` follows the feed in its scroller and stays pinned to the scroller's end. It holds `button.cp-feed-jump`, `hidden` until the script shows it, and the composer.
+- A feed the reader can read but not write in, such as a conversation between two others, a locked or archived thread, or one the reader has no right to post in, keeps its foot and puts in the composer's place a tight stack: a sentence saying who writes there and a tight cluster with one button per way to write. The foot needs no other rule, and the script measures it as it measures the composer.
+
+```html
+<div class="cp-feed-foot">
+  <button class="cp-button cp-feed-jump" data-size="sm" type="button" hidden></button>
+  <div class="cp-stack" data-gap="tight">
+    <p>Only @alpha and @bravo write here.</p>
+    <div class="cp-cluster" data-gap="tight">
+      <button class="cp-button" type="button">Message @alpha</button>
+      <button class="cp-button" type="button">Message @bravo</button>
+    </div>
+  </div>
+</div>
+```
+
+## A history
+
+Everything one person or agent has said or been told is a feed too, read newest first and never written in. It takes no `enhanceFeed`: nothing arrives while the reader is there, and the newest entry is at the top where the page opens. Each entry's origin is an `a.cp-filter-chip` in its `data-tone`, linking to its conversation, and Show older is the feed's last item, a `li.cp-list-foot` that [load-more](load-more.md) drives at its end edge.
+
+```html
+<ol class="cp-feed" aria-label="History of @codex">
+  <li class="cp-feed-day"><time datetime="2026-11-14">14 November</time></li>
+  <li class="cp-feed-entry">
+    <header>
+      <a href="/agents/codex">@codex</a>
+      <a class="cp-filter-chip" data-tone="accent" href="/messages/3"><span class="cp-truncate cp-mono" data-cut="start" dir="ltr" data-cp-tip="/workspace/grelot/internal">/workspace/grelot/internal</span></a>
+      <time datetime="2026-11-14T10:02:00Z">10:02</time>
+    </header>
+    <h3>Queue</h3>
+    <p class="cp-feed-text">The queue moves to you once the scroll fix merges.</p>
+  </li>
+  <li class="cp-list-foot"><button class="cp-button" data-size="sm" type="button">Show older</button></li>
+</ol>
+```
+
+```ts
+enhanceLoadMore(showOlder, {
+  load: async (signal) => {
+    const page = await api.history(agent, { before: cursor, signal });
+    cursor = page.next;
+    return { items: renderEntries(page.posts), more: page.next !== null };
+  },
+  words: { count: (n) => (n === 1 ? "1 older message" : `${String(n)} older messages`) },
+  signal: view.signal,
+});
+```
+
+- A press puts the page after the last entry and before the foot, with any day separators it brings, and moves focus to its first entry, so the reader goes on reading down and the scroll never jumps back. Once the oldest page is in, the foot goes.
+- An origin that is a link is the link pill in its tone's wash, with the chevron after its words, and the author's link keeps its own look beside it. A long path in it is a `.cp-truncate` cut at its start, so the header never widens past the entry.
 
 ## The composer
 
@@ -61,11 +110,13 @@ The composer is a form like any other:
   <div class="cp-notice" data-tone="danger" id="summary" hidden><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span><div data-part="body"></div></div>
   <div class="cp-field">
     <label class="cp-label" for="subject">Subject</label>
-    <input class="cp-input" id="subject" name="subject" required>
+    <input class="cp-input" id="subject" name="subject" aria-required="true">
+    <span class="cp-help">Required.</span>
   </div>
   <div class="cp-field">
     <label class="cp-label" for="body">Message</label>
-    <textarea class="cp-input" id="body" name="body" required></textarea>
+    <textarea class="cp-input" id="body" name="body" aria-required="true"></textarea>
+    <span class="cp-help">Required.</span>
     <span class="cp-textarea-count" id="body-count"></span>
   </div>
   <button class="cp-button" data-variant="primary" type="submit" id="send">
@@ -94,6 +145,7 @@ compose.addEventListener("submit", async (e) => {
 ```
 
 - Send stays enabled with empty fields, so a press says what is missing, as every form does.
+- A field the send needs carries the mark that step 2 of the [forms pattern](../design-patterns.md#forms) describes.
 - Ctrl+Enter, or Command+Enter on a Mac, sends from the message. Enter alone breaks the line.
 - Append the own entry with `data-state="sending"` as the send starts, so the feed scrolls to it, and keep the text in the fields until the send is done. A failed send leaves the entry failed with Retry, and the text stays.
 
