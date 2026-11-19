@@ -345,6 +345,8 @@ describe.each(browsers)("the gallery in %s", (name) => {
       | `load ${string}`
       | `press #${string}`
       | `chip #${string}`
+      | `svg #${string}`
+      | `area #${string}`
       | `unseen #${string}`
       | `unseen-chip #${string}`
       | `filter ${string}`
@@ -540,11 +542,53 @@ describe.each(browsers)("the gallery in %s", (name) => {
             break;
           }
           case "press":
-          case "chip": {
+          case "chip":
+          case "svg":
+          case "area": {
+            if (verb === "svg" || verb === "area") {
+              // A link to `arg` under the detail's heading: an SVG <a>, or an image map's <area>.
+              await tab.evaluate(
+                ([kind, href]) => {
+                  document.getElementById("probe-link")?.closest(".probe")?.remove();
+                  const box = document.createElement("p");
+                  box.className = "probe";
+                  if (kind === "svg") {
+                    const ns = "http://www.w3.org/2000/svg";
+                    const svg = document.createElementNS(ns, "svg");
+                    svg.setAttribute("width", "80");
+                    svg.setAttribute("height", "20");
+                    const a = document.createElementNS(ns, "a");
+                    a.id = "probe-link";
+                    a.setAttribute("href", href);
+                    const text = document.createElementNS(ns, "text");
+                    text.setAttribute("y", "15");
+                    text.textContent = "Open";
+                    a.append(text);
+                    svg.append(a);
+                    box.append(svg);
+                  } else {
+                    const img = document.createElement("img");
+                    Object.assign(img, { src: "media/graph.svg", alt: "", width: 80, height: 20 });
+                    img.useMap = "#probe-map";
+                    const map = document.createElement("map");
+                    map.name = "probe-map";
+                    const area = document.createElement("area");
+                    Object.assign(area, { id: "probe-link", shape: "rect", coords: "0,0,80,20" });
+                    Object.assign(area, { href, alt: "Open" });
+                    map.append(area);
+                    box.append(img, map);
+                  }
+                  document.getElementById("msg-title")?.after(box);
+                },
+                [verb, arg] as const,
+              );
+            }
             const selector =
               verb === "press"
                 ? `#msg-list a.cp-list-row[href="${arg}"]`
-                : `#agent-history a.cp-filter-chip[href="${arg}"]`;
+                : verb === "chip"
+                  ? `#agent-history a.cp-filter-chip[href="${arg}"]`
+                  : "#probe-link";
             if (before?.hidden === false && new URL(before.href).hash === arg) {
               // Invariant 4: a press on what is shown keeps history and both
               // scrolls, and focuses its heading. The page leaves 10px of the
@@ -1064,6 +1108,47 @@ describe.each(browsers)("the gallery in %s", (name) => {
           ["back", "/index.html"],
         ],
       ],
+      ...(["svg", "area"] as const).flatMap(
+        (kind): (readonly [string, number, boolean, readonly Step[]])[] => [
+          [
+            `the list, a press, an ${kind} link to another conversation, Close, Back`,
+            W,
+            AFTER,
+            [
+              ["load messages.html", `${M}#c-internal`],
+              ["close", M],
+              ["press #c-marotte", `${M}#c-marotte`],
+              [`${kind} #c-leads`, `${M}#c-leads`],
+              ["close", M],
+              ["back", `${M}#c-internal`],
+            ],
+          ],
+          [
+            `a phone's press, an ${kind} link in the sheet to another conversation, Close`,
+            P,
+            AFTER,
+            [
+              ["load messages.html", M],
+              ["press #c-marotte", `${M}#c-marotte`],
+              [`${kind} #c-leads`, `${M}#c-leads`],
+              ["close", M],
+              ["back", "/index.html"],
+            ],
+          ],
+          [
+            `an ${kind} link to the open conversation, then Close`,
+            W,
+            AFTER,
+            [
+              ["load messages.html#c-internal", `${M}#c-internal`],
+              [`${kind} #c-internal`, `${M}#c-internal`],
+              ["close", M],
+              ["back", `${M}#c-internal`],
+              ["back", "/index.html"],
+            ],
+          ],
+        ],
+      ),
     ])(
       "holds after each step of %s",
       async (_, width, fresh, steps) => {

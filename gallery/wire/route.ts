@@ -26,7 +26,7 @@ const stamp = (from: boolean, url?: string): void => {
  *  then "the rules for choosing a navigable"
  *  (https://html.spec.whatwg.org/multipage/document-sequences.html#the-rules-for-choosing-a-navigable),
  *  keywords compared ASCII case-insensitively. */
-const navigatesHere = (link: HTMLAnchorElement): boolean => {
+const navigatesHere = (link: Element): boolean => {
   const target = link.hasAttribute("target")
     ? (link.getAttribute("target") ?? "")
     : (document.querySelector("base[target]")?.getAttribute("target") ?? "");
@@ -111,22 +111,21 @@ export function routeListDetail(options: ListRouteOptions): ListRoute {
       // an entry, the detail is one panel whose content a link to another
       // entry changes, so that link replaces the entry, keeping its state.
       document.addEventListener("click", (e) => {
-        const link = e.target instanceof Element ? e.target.closest("a[href]") : null;
+        const link = e.target instanceof Element ? e.target.closest("a[href], area[href]") : null;
         const plain = e.button === 0 && !(e.metaKey || e.ctrlKey || e.shiftKey || e.altKey);
-        if (
-          !(link instanceof HTMLAnchorElement) ||
-          !plain ||
-          e.defaultPrevented ||
-          !navigatesHere(link) ||
-          location.hash === "" ||
-          link.href.split("#")[0] !== location.href.split("#")[0]
-        ) {
+        if (link === null || !plain || e.defaultPrevented || !navigatesHere(link)) {
           return;
         }
-        if (link.href !== location.href) {
-          if (names(location.hash) && names(link.hash)) {
+        // From the attribute, since an SVG <a> has no HTML href getter; SVG 2
+        // deprecates xlink:href (https://www.w3.org/TR/SVG2/linking.html#AElementHrefAttribute).
+        const to = new URL(link.getAttribute("href") ?? "", link.baseURI);
+        if (location.hash === "" || to.href.split("#")[0] !== location.href.split("#")[0]) {
+          return;
+        }
+        if (to.href !== location.href) {
+          if (names(location.hash) && names(to.hash)) {
             e.preventDefault();
-            stamp(fromList(history.state) ?? false, link.href);
+            stamp(fromList(history.state) ?? false, to.href);
             sync(false);
           }
           return;
