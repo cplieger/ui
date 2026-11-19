@@ -149,8 +149,7 @@ function appendColumn(c: Checks, d: Door, f: SeriesFrame, o: Record<string, unkn
   };
 }
 
-// A bin starts after the last bin starts, ends at or after it ends, and ends
-// after it starts; `before` is the bin it follows, if any.
+// `before` is the index of the bin the new one follows, -1 for none.
 function bin(
   c: Checks,
   o: Record<string, unknown>,
@@ -234,6 +233,12 @@ function reset(d: Door, f: Frame, at: number): Frame {
   const resets = line.resets ?? [];
   if (resets.includes(at)) {
     return { ...line };
+  }
+  if (resets.length >= MAX_VALUES) {
+    d.fail(
+      `event.at must not take the frame's resets past ${String(MAX_VALUES)} entries, the most values a frame holds`,
+      RangeError,
+    );
   }
   const i = firstAt(resets, (r) => r > at);
   return { ...line, resets: [...resets.slice(0, i), at, ...resets.slice(i)] };

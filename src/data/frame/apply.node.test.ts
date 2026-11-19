@@ -382,6 +382,27 @@ describe("applyEvent", () => {
     });
   });
 
+  it("clips a set frame to the span an append gave a frame with no domain", () => {
+    const given = {
+      ...SERIES,
+      x: [0, 50, 100],
+      series: [{ key: "p50", values: [1, 2, 3] }],
+    } as Frame;
+    const appended = applyEvent(given, { kind: "append", key: "k", x: 110, values: [4] });
+    const sent = {
+      ...SERIES,
+      x: [0, 100, 200, 300, 400, 500],
+      series: [{ key: "p50", values: [1, 2, 3, 4, 5, 6] }],
+      domain: [0, 500],
+    };
+    expect(applyEvent(appended, { kind: "set", key: "k", series: sent })).toStrictEqual({
+      ...SERIES,
+      x: [400, 500],
+      series: [{ key: "p50", values: [5, 6] }],
+      domain: [400, 500],
+    });
+  });
+
   it("draws a set frame with no domain as sent", () => {
     const sent = {
       ...SERIES,
@@ -487,6 +508,22 @@ describe("applyEvent", () => {
     const e = refusal(() => applyEvent(given, { kind: "append", key: "k", x: n, values: [1] }));
     expect(e).toBeInstanceOf(RangeError);
     expect(e.message).toMatch(naming("event"));
+  });
+
+  const FULL = Array.from({ length: MAX_VALUES }, (_, i) => i);
+  const CAPPED: readonly (readonly [string, Frame])[] = [
+    ["series", { ...SERIES, x: [0], series: [{ key: "a", values: [1] }], resets: FULL } as Frame],
+    [
+      "bins",
+      { ...BINS, x1: [0], x2: [1], series: [{ key: "a", values: [1] }], resets: FULL } as Frame,
+    ],
+  ];
+
+  it.each(CAPPED)("refuses a reset past the most resets a %s frame holds", (_, given) => {
+    const e = refusal(() => applyEvent(given, { kind: "reset", key: "k", at: MAX_VALUES }));
+    expect(e).toBeInstanceOf(RangeError);
+    expect(e.message).toMatch(naming("event.at"));
+    expect(applyEvent(given, { kind: "reset", key: "k", at: 0 })).toStrictEqual(given);
   });
 
   // A slid domain must still be one a frame holds: a span, its start within

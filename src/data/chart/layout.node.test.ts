@@ -854,7 +854,7 @@ describe("a category name above its marks under 30rem", () => {
     ["grouped bars", (x) => stacked("group", x)],
     ["100% stacked bars", (x) => stacked("share", x)],
     [
-      "dots",
+      "points",
       (x) => rows(["lead-ui", "codex-review"], [["Runs", [12, 30]]], { mark: "point" }, { x }),
     ],
   ];
