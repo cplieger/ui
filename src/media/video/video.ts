@@ -19,7 +19,7 @@ export interface VideoWords {
 
 export interface VideoOptions {
   /** Removes the bar and the listeners, and gives back the native controls
-   *  and each caption's own times; after it aborts, setting `offset` and
+   *  and each caption's own times and line; after it aborts, setting `offset` and
    *  `load()` do nothing. */
   readonly signal?: AbortSignal;
   /** Seconds added to every caption's times. Default 0. */
@@ -45,6 +45,9 @@ export interface Video {
 }
 
 const ERROR = "data-cp-error";
+/** On `root` while every showing cue is auto-placed; video.css lifts the
+ *  caption area only under it, so a cue the app placed is never moved. */
+const AUTO_CUES = "data-cp-auto-cues";
 
 /** m:ss, or h:mm:ss from an hour. */
 function clock(seconds: number): string {
@@ -82,7 +85,7 @@ function place(
   if (times === undefined) {
     return undefined;
   }
-  track.removeCue(cue);
+  TextTrack.prototype.removeCue.call(track, cue);
   [cue.startTime, cue.endTime] = times;
   TextTrack.prototype.addCue.call(track, cue);
   return times;
@@ -92,6 +95,22 @@ type Times = readonly [number, number];
 
 const carries = (cue: TextTrackCue, [start, end]: Times): boolean =>
   cue.startTime === start && cue.endTime === end;
+
+type Line = readonly [snap: boolean, line: LineAndPositionSetting, align: LineAlignSetting];
+
+const lineOf = (cue: VTTCue): Line => [cue.snapToLines, cue.line, cue.lineAlign];
+
+const sameLine = (a: Line, b: Line): boolean => a[0] === b[0] && a[1] === b[1] && a[2] === b[2];
+
+const setLine = (cue: VTTCue, [snap, line, align]: Line): void => {
+  cue.snapToLines = snap;
+  cue.line = line;
+  cue.lineAlign = align;
+};
+
+/** A horizontal cue the browser places, as against one the app gave a line. */
+const autoPlaced = (cue: TextTrackCue): cue is VTTCue =>
+  cue instanceof VTTCue && cue.line === "auto" && cue.vertical === "";
 
 /** `root` is a `.cp-video` holding the `<video>`, which carries `controls`
  *  so a page with no script still plays it. */
@@ -140,6 +159,11 @@ export function enhanceVideo(root: HTMLElement, options: VideoOptions = {}): Vid
     const m = moved.get(cue);
     return m !== undefined && carries(cue, m.wrote) ? m.own : [cue.startTime, cue.endTime];
   };
+  /** Chromium and WebKit draw every cue in this one box, which video.css
+   *  lifts; elsewhere each auto-placed cue is seated by its line. */
+  const liftsArea = CSS.supports("selector(::-webkit-media-text-track-container)");
+  /** Each seated cue's own line settings and the ones the module gave it. */
+  const seated = new Map<VTTCue, { readonly own: Line; readonly wrote: Line }>();
   let held = false;
   let busy = video.readyState < HTMLMediaElement.HAVE_METADATA && video.currentSrc !== "";
 
@@ -274,6 +298,74 @@ export function enhanceVideo(root: HTMLElement, options: VideoOptions = {}): Vid
     );
   };
 
+  /** Gives `cue` back its own line, unless the app has set one since. */
+  const unseat = (cue: VTTCue): void => {
+    const s = seated.get(cue);
+    seated.delete(cue);
+    if (s !== undefined && sameLine(lineOf(cue), s.wrote)) {
+      setLine(cue, s.own);
+    }
+  };
+
+  /** Seats an auto-placed `cue` with its box's bottom the caption margin
+   *  above the video's bottom edge. Gecko moves a `center` cue up by its whole
+   *  height, where the spec moves it by half (adjustBoxPosition in
+   *  https://searchfox.org/mozilla-central/source/dom/media/webvtt/vtt.sys.mjs),
+   *  so the line is where the box ends; the caption tests catch a change. */
+  const seat = (cue: TextTrackCue): void => {
+    if (!(cue instanceof VTTCue)) {
+      return;
+    }
+    const s = seated.get(cue);
+    // A cue the app has given a line since keeps it.
+    if (s === undefined ? !autoPlaced(cue) : !sameLine(lineOf(cue), s.wrote)) {
+      seated.delete(cue);
+      return;
+    }
+    const h = video.clientHeight;
+    const m = Number.parseFloat(
+      getComputedStyle(root).getPropertyValue("--cp-video-caption-margin"),
+    );
+    if (!(m > 0) || h <= m) {
+      unseat(cue);
+      return;
+    }
+    const wrote: Line = [false, 100 * (1 - m / h), "center"];
+    seated.set(cue, { own: s?.own ?? lineOf(cue), wrote });
+    setLine(cue, wrote);
+  };
+
+  /** Seats the caption track's cues and gives back the line of every other. */
+  const seatAll = (): void => {
+    if (liftsArea || dead) {
+      return;
+    }
+    const track = captionTrack();
+    for (const cue of [...seated.keys()]) {
+      if (cue.track !== track) {
+        unseat(cue);
+      }
+    }
+    for (const cue of track?.cues ?? []) {
+      seat(cue);
+    }
+  };
+
+  /** Tracks whose `cuechange` redraws the mark. */
+  const watched = new WeakSet<TextTrack>();
+  const drawMark = (): void => {
+    if (!liftsArea || dead) {
+      return;
+    }
+    const placed = [...video.textTracks].some(
+      (t) =>
+        isCaption(t) &&
+        t.mode === "showing" &&
+        [...(t.activeCues ?? [])].some((c) => !autoPlaced(c)),
+    );
+    root.toggleAttribute(AUTO_CUES, !placed);
+  };
+
   /** Gives `t` back its cues' own times, its own `addCue` and its mode. */
   const release = (t: TextTrack): void => {
     for (const cue of movedIn.get(t) ?? []) {
@@ -290,6 +382,7 @@ export function enhanceVideo(root: HTMLElement, options: VideoOptions = {}): Vid
     }
     movedIn.delete(t);
     Reflect.deleteProperty(t, "addCue");
+    Reflect.deleteProperty(t, "removeCue");
     placing.delete(t);
     if (turnedOn.delete(t)) {
       t.mode = "disabled";
@@ -299,6 +392,12 @@ export function enhanceVideo(root: HTMLElement, options: VideoOptions = {}): Vid
   const applyOffset = (): void => {
     if (dead) {
       return;
+    }
+    for (const t of video.textTracks) {
+      if (!watched.has(t)) {
+        watched.add(t);
+        t.addEventListener("cuechange", drawMark, listen);
+      }
     }
     // A track the app turned off since keeps the mode the app gave it.
     for (const t of [...turnedOn]) {
@@ -313,6 +412,8 @@ export function enhanceVideo(root: HTMLElement, options: VideoOptions = {}): Vid
       }
     }
     if (track === undefined) {
+      seatAll();
+      drawMark();
       return;
     }
     if (!seen.has(track)) {
@@ -334,6 +435,15 @@ export function enhanceVideo(root: HTMLElement, options: VideoOptions = {}): Vid
           record(track, cue, own, times);
         }
         TextTrack.prototype.addCue.call(track, cue);
+        if (!liftsArea) {
+          seat(cue);
+        }
+      };
+      track.removeCue = (cue: TextTrackCue): void => {
+        if (cue instanceof VTTCue) {
+          unseat(cue);
+        }
+        TextTrack.prototype.removeCue.call(track, cue);
       };
     }
     for (const cue of [...(track.cues ?? [])]) {
@@ -343,6 +453,8 @@ export function enhanceVideo(root: HTMLElement, options: VideoOptions = {}): Vid
         record(track, cue, own, wrote);
       }
     }
+    seatAll();
+    drawMark();
   };
 
   play.addEventListener(
@@ -513,6 +625,10 @@ export function enhanceVideo(root: HTMLElement, options: VideoOptions = {}): Vid
     }
   });
   shown.observe(root);
+  // The seated line is a share of the video's height, which a resize or full
+  // screen changes.
+  const resized = liftsArea ? undefined : new ResizeObserver(seatAll);
+  resized?.observe(video);
 
   /** The move a load() makes once its source's metadata loads. */
   let pending:
@@ -529,12 +645,17 @@ export function enhanceVideo(root: HTMLElement, options: VideoOptions = {}): Vid
   whenAborted(signal, () => {
     dead = true;
     shown.disconnect();
+    resized?.disconnect();
     bar.remove();
     root.removeAttribute(ERROR);
+    root.removeAttribute(AUTO_CUES);
     root.removeAttribute("aria-busy");
     video.controls = hadControls;
     for (const t of [...placing]) {
       release(t);
+    }
+    for (const cue of [...seated.keys()]) {
+      unseat(cue);
     }
   });
 

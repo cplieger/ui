@@ -997,10 +997,19 @@ describe("enhanceVideo captions", () => {
     });
   }
 
-  it("leaves a caption the app placed on the top line where it is", async () => {
+  it("leaves a caption the app placed on the top line where it is, uncut", async () => {
+    const auto = await captioned([cue("A caption line")]);
+    const lifted = await caption(auto.video, auto.track);
+    const height = auto.video.getBoundingClientRect().height - lifted.above - lifted.below;
     const top = cue("A caption line", 0);
     const { video, track } = await captioned([top]);
-    expect((await caption(video, track)).above).toBeLessThan(1);
+    const placed = await caption(video, track);
+    expect(placed.above).toBeLessThan(1);
+    // A box pushed past the top edge is clipped there, so it paints fewer rows.
+    expect(video.getBoundingClientRect().height - placed.above - placed.below).toBeCloseTo(
+      height,
+      0,
+    );
     expect([top.snapToLines, top.line]).toEqual([true, 0]);
   });
 
