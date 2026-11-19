@@ -11848,8 +11848,9 @@ button.cp-figure[aria-expanded="true"]::after {
  * combobox (.cp-listbox), a select panel and a palette. A row is a lead
  * (.cp-icon, a check box, a .cp-cover), its words, and an end: keys in a
  * <kbd>, a muted <small> or a quiet .cp-badge. The option the keys reach,
- * where Enter goes, takes the selected wash; a pointer over a row takes the
- * fill. A menu's keys move focus and the others' aria-activedescendant, and
+ * where Enter goes, takes the selected wash and the focus ring inside it; a
+ * pointer over a row takes the fill alone. A menu's keys move focus and the
+ * others' aria-activedescendant, and
  * a select panel's aria-selected means checked, so each marks the reached
  * option its own way. */
 :is(.cp-menu, .cp-listbox, .cp-select-panel, .cp-palette) {
@@ -11934,6 +11935,15 @@ button.cp-figure[aria-expanded="true"]::after {
   outline: none;
   background: var(--cp-selected);
   color: var(--cp-accent-12);
+}
+
+/* Inset, so a scrolling list never clips it. A menu item focused after a
+ * click on its opener shows no ring, as any button would not. */
+.cp-menu [role^="menuitem"]:focus-visible,
+:is(.cp-listbox, .cp-palette) [role="option"][aria-selected="true"],
+.cp-select-panel [role="option"][data-cp-active] {
+  outline: var(--cp-focus-w) solid var(--cp-focus-ring);
+  outline-offset: calc(-1 * var(--cp-focus-w));
 }
 
 .cp-menu [role^="menuitem"]:focus > .cp-icon,
@@ -12080,6 +12090,12 @@ button.cp-figure[aria-expanded="true"]::after {
   .cp-select-panel [role="option"][data-cp-active] {
     background: Highlight;
     color: HighlightText;
+  }
+
+  .cp-menu [role^="menuitem"]:focus-visible,
+  :is(.cp-listbox, .cp-palette) [role="option"][aria-selected="true"],
+  .cp-select-panel [role="option"][data-cp-active] {
+    outline-color: Highlight;
   }
 
   .cp-menu [role^="menuitem"]:focus :is(kbd, small, .cp-icon),

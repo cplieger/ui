@@ -8,6 +8,10 @@ import { enhanceMeter } from "../data/meter/meter.js";
 import { enhanceRankedBars } from "../data/ranked-bars/ranked-bars.js";
 import { renderSparkline } from "../data/sparkline/sparkline.js";
 import { enhanceRange } from "../forms/range/range.js";
+import { enhanceCombobox } from "../forms/combobox/combobox.js";
+import { enhanceMenu } from "../overlays/menu/menu.js";
+import { enhancePalette } from "../overlays/palette/palette.js";
+import { enhanceSelectPanel } from "../overlays/select-panel/select-panel.js";
 
 const root = document.documentElement;
 let sheet: HTMLLinkElement;
@@ -7110,7 +7114,6 @@ describe("css/system.css popup option row", () => {
     for (const row of popups()) {
       const cs = getComputedStyle(row);
       expect([cs.backgroundColor, cs.color], row.textContent).toEqual([wash, ink]);
-      expect(cs.outlineStyle, row.textContent).toBe("none");
       // A checked select panel option the keys have not reached is not lit.
       expect(getComputedStyle(rest(row)).backgroundColor, rest(row).textContent).toBe(
         "rgba(0, 0, 0, 0)",
@@ -7133,6 +7136,166 @@ describe("css/system.css popup option row", () => {
       );
     });
   }
+
+  // Each popup enhanced and opened from the keyboard, then one Arrow press:
+  // the row it reached, a row it did not, and the popup's own surface.
+  const KINDS = ["menu", "listbox", "select panel", "palette"] as const;
+  let opened = 0;
+  async function reach(kind: (typeof KINDS)[number]) {
+    const id = `ring-${String(++opened)}`;
+    const life = new AbortController();
+    onTestFinished(() => {
+      life.abort();
+      for (const p of document.querySelectorAll<HTMLElement>(":popover-open")) {
+        p.hidePopover();
+      }
+    });
+    const { signal } = life;
+    const rows = (n: number, tag: string, role: string) =>
+      Array.from(
+        { length: n },
+        (_, i) => `<${tag} role="${role}" aria-selected="false">Row ${String(i + 1)}</${tag}>`,
+      ).join("");
+    let popup: HTMLElement;
+    if (kind === "menu") {
+      const el = build(
+        `<button type="button" popovertarget="${id}">Actions</button><div id="${id}" class="cp-popover cp-menu" popover role="menu">${rows(3, "button", "menuitem").replaceAll(' aria-selected="false"', ' type="button"')}</div>`,
+      );
+      popup = el.querySelector(".cp-menu") as HTMLElement;
+      popup.style.transition = "none";
+      enhanceMenu(popup, { signal });
+      (el.querySelector("button") as HTMLElement).focus();
+      await userEvent.keyboard("{Enter}");
+    } else if (kind === "listbox") {
+      const el = build(
+        `<input aria-label="Language"><ul class="cp-popover cp-listbox" role="listbox" aria-label="Languages">${rows(3, "li", "option")}</ul>`,
+      );
+      popup = el.querySelector(".cp-listbox") as HTMLElement;
+      popup.style.transition = "none";
+      enhanceCombobox(el.querySelector("input") as HTMLInputElement, popup, {
+        onAccept: () => undefined,
+        signal,
+      });
+      (el.querySelector("input") as HTMLElement).focus();
+    } else if (kind === "select panel") {
+      const el = build(
+        `<button type="button" popovertarget="${id}">Lists</button><div id="${id}" class="cp-popover cp-select-panel" popover><form><input aria-label="Filter lists"><ul role="listbox" aria-label="Lists" aria-multiselectable="true">${rows(3, "li", "option")}</ul><button type="submit">Apply</button></form></div>`,
+      );
+      popup = el.querySelector(".cp-select-panel") as HTMLElement;
+      popup.style.transition = "none";
+      enhanceSelectPanel(popup, { onApply: () => undefined, signal });
+      (el.querySelector("button") as HTMLElement).focus();
+      await userEvent.keyboard("{Enter}");
+    } else {
+      const el = build(
+        `<dialog class="cp-dialog cp-palette"><div class="cp-palette-field"><input aria-label="Search"></div><ul role="listbox" aria-label="Actions">${rows(3, "li", "option")}</ul></dialog>`,
+      );
+      const d = el.querySelector("dialog") as HTMLDialogElement;
+      d.style.transition = "none";
+      popup = d;
+      enhancePalette(d, { onRun: () => undefined, key: null, signal }).open();
+    }
+    // A closed combobox's first ArrowDown opens it on its first row; the
+    // other popups open there.
+    const presses = kind === "listbox" ? 2 : 1;
+    await userEvent.keyboard("{ArrowDown}".repeat(presses));
+    const all = [...popup.querySelectorAll<HTMLElement>('[role^="menuitem"], [role="option"]')];
+    const row = all[1] as HTMLElement;
+    const rest = all[2] as HTMLElement;
+    const lit =
+      kind === "menu"
+        ? document.activeElement === row
+        : kind === "select panel"
+          ? row.hasAttribute("data-cp-active")
+          : row.getAttribute("aria-selected") === "true";
+    expect(lit, `${kind}: the Arrow key reached the second row`).toBe(true);
+    return { row, rest, surface: getComputedStyle(popup).backgroundColor };
+  }
+  const ring = (row: HTMLElement) => {
+    const cs = getComputedStyle(row);
+    return [cs.outlineStyle, cs.outlineWidth, cs.outlineOffset];
+  };
+
+  for (const kind of KINDS) {
+    it(`rings the ${kind} row an Arrow key reaches inside it, and no other row`, async () => {
+      theme("light");
+      root.setAttribute("data-pointer", "fine");
+      const { row, rest } = await reach(kind);
+      expect(ring(row)).toEqual(["solid", "2px", "-2px"]);
+      expect(getComputedStyle(row).outlineColor).toBe(resolve("color", "var(--cp-focus-ring)"));
+      expect(ring(rest)[0]).toBe("none");
+    });
+
+    it(`keeps a ${kind} row under a mouse to its fill, with no ring`, async () => {
+      theme("light");
+      root.setAttribute("data-pointer", "fine");
+      const { rest } = await reach(kind);
+      await userEvent.hover(rest);
+      expect(getComputedStyle(rest).backgroundColor).toBe(
+        resolve("backgroundColor", "var(--cp-fill)"),
+      );
+      expect(ring(rest)[0]).toBe("none");
+    });
+
+    it(`draws the ${kind}'s ring at 3:1 on the wash and on the popup, in both themes`, async () => {
+      for (const t of ["light", "dark"] as const) {
+        theme(t);
+        const { row, surface } = await reach(kind);
+        const cs = getComputedStyle(row);
+        expect(cs.outlineStyle, t).toBe("solid");
+        expect(contrast(cs.outlineColor, cs.backgroundColor), `${t} wash`).toBeGreaterThanOrEqual(
+          3,
+        );
+        expect(contrast(cs.outlineColor, surface), `${t} surface`).toBeGreaterThanOrEqual(3);
+        for (const p of document.querySelectorAll<HTMLElement>(":popover-open")) {
+          p.hidePopover();
+        }
+        for (const d of document.querySelectorAll("dialog")) {
+          d.close();
+        }
+      }
+    });
+  }
+
+  it("rings no menu item a mouse click opened the menu on, until a key moves", async () => {
+    theme("light");
+    root.setAttribute("data-pointer", "fine");
+    const el = build(
+      '<button type="button" popovertarget="ring-click">Actions</button><div id="ring-click" class="cp-popover cp-menu" popover role="menu"><button role="menuitem" type="button">Edit</button><button role="menuitem" type="button">Export</button></div>',
+    );
+    const menu = el.querySelector(".cp-menu") as HTMLElement;
+    menu.style.transition = "none";
+    const life = new AbortController();
+    onTestFinished(() => {
+      life.abort();
+      menu.hidePopover();
+    });
+    enhanceMenu(menu, { signal: life.signal });
+    await userEvent.click(el.querySelector("button") as HTMLElement);
+    const [first, second] = [...menu.children] as [HTMLElement, HTMLElement];
+    expect(document.activeElement).toBe(first);
+    expect(ring(first)[0]).toBe("none");
+    await userEvent.keyboard("{ArrowDown}");
+    expect(document.activeElement).toBe(second);
+    expect(ring(second)[0]).toBe("solid");
+  });
+
+  it.skipIf(!emulates)("rings the reached row in Highlight in forced colours", async () => {
+    await media("forced-colors", "active");
+    theme("light");
+    for (const kind of KINDS) {
+      const { row } = await reach(kind);
+      const cs = getComputedStyle(row);
+      expect(cs.outlineStyle, kind).toBe("solid");
+      expect(cs.outlineColor, kind).toBe(resolve("color", "Highlight"));
+      for (const p of document.querySelectorAll<HTMLElement>(":popover-open")) {
+        p.hidePopover();
+      }
+      for (const d of document.querySelectorAll("dialog")) {
+        d.close();
+      }
+    }
+  });
 
   it("fills no option under a finger", async () => {
     theme("light");
