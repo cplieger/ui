@@ -833,6 +833,47 @@ describe("mountSetup: a second factor first", () => {
     expect(names).toEqual(["auth.setup", "auth.enrol_totp", "auth.enrol_totp"]);
   });
 
+  it("sends nothing from the code once a passkey finished the enrolment", async () => {
+    const fake = new Fake().answer("state", ok(SETUP)).answer("setupPassword", enrol);
+    const { region, went } = mount(fake);
+    await drawn(region);
+    await create(region);
+    await vi.waitFor(() => {
+      expect(input(region, "code")).not.toBeNull();
+    });
+    await userEvent.click(button(region, "Register a passkey"));
+    await vi.waitFor(() => {
+      expect(went).toEqual(["/"]);
+    });
+    await userEvent.fill(input(region, "code"), "123456");
+    await userEvent.click(button(region, "Turn on"));
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    expect(fake.named("pendingTOTPFinish")).toHaveLength(0);
+    expect(went).toEqual(["/"]);
+  });
+
+  it("hands on once when the code answers after a passkey finished the enrolment", async () => {
+    const fake = new Fake().answer("state", ok(SETUP)).answer("setupPassword", enrol);
+    const { region, went } = mount(fake);
+    await drawn(region);
+    await create(region);
+    await vi.waitFor(() => {
+      expect(input(region, "code")).not.toBeNull();
+    });
+    const release = fake.hold("pendingTOTPFinish");
+    await userEvent.fill(input(region, "code"), "123456");
+    await userEvent.click(button(region, "Turn on"));
+    // Pressed at once: Turn on's busy words can move it under a pointer.
+    button(region, "Register a passkey").click();
+    await vi.waitFor(() => {
+      expect(went).toEqual(["/"]);
+    });
+    release();
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    expect(fake.named("pendingTOTPFinish")).toHaveLength(1);
+    expect(went).toEqual(["/"]);
+  });
+
   it("goes back to the form with the token when the person starts again", async () => {
     const fake = new Fake().always("state", ok(SETUP)).answer("setupPassword", enrol);
     const { region } = mount(fake, { token: { help: "Run setup-token.", value: "tok-1" } });
@@ -880,6 +921,11 @@ describe("mountSetup: a second factor first", () => {
       "mika",
       "lantern harbour quietly",
     ]);
+    // Handed on once: the form drawn again sends nothing.
+    await create(region);
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    expect(fake.named("setupPassword")).toHaveLength(1);
+    expect(went).toEqual(["/"]);
   });
 
   it("shows no failure of the authenticator key's read once the person started again", async () => {

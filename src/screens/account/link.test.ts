@@ -249,6 +249,47 @@ describe("mountSignIn: create a new account for the identity", () => {
     });
     expect(button(panel, "Create account").getAttribute("aria-disabled")).toBe("true");
   });
+
+  it("hands on once when the autofill's pick signs in after the account was created", async () => {
+    const late = Promise.withResolvers<unknown>();
+    const fake = new Fake()
+      .answer("oidcPending", CAN_CREATE)
+      .answer("passkeySupport", { webauthn: true, conditional: true })
+      .answer("signInWithPasskey", () => late.promise);
+    const { panel, went } = linkScreen(fake);
+    await drawn(panel);
+    expect(fake.named("signInWithPasskey")).toHaveLength(1);
+    await userEvent.click(button(panel, "Create account"));
+    await vi.waitFor(() => {
+      expect(went).toEqual(["/"]);
+    });
+    late.resolve({ kind: "signed-in", result: signedIn });
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(went).toEqual(["/"]);
+    expect(fake.named("oidcLinkPending")).toHaveLength(0);
+  });
+
+  it("draws no refusal of Create that answers after the autofill's pick signed in", async () => {
+    const late = Promise.withResolvers<unknown>();
+    const created = Promise.withResolvers<unknown>();
+    const fake = new Fake()
+      .answer("oidcPending", CAN_CREATE)
+      .answer("passkeySupport", { webauthn: true, conditional: true })
+      .answer("signInWithPasskey", () => late.promise)
+      .answer("oidcCreatePending", () => created.promise);
+    const { panel, went } = linkScreen(fake);
+    await drawn(panel);
+    await userEvent.click(button(panel, "Create account"));
+    late.resolve({ kind: "signed-in", result: signedIn });
+    await vi.waitFor(() => {
+      expect(went).toEqual(["/"]);
+    });
+    created.resolve(refuse(409, "auth_username_taken"));
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    expect(input(panel, "new_username").getAttribute("aria-invalid")).toBeNull();
+    expect(fake.named("oidcCreatePending")).toHaveLength(1);
+    expect(went).toEqual(["/"]);
+  });
 });
 
 describe("mountSignIn: link with an admin's temporary password", () => {

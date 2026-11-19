@@ -61,6 +61,10 @@ export interface PendingContext<C extends PendingClient> {
   readonly restart: (said?: Said) => void;
   /** Ends when the screen takes `body` back to draw in it. */
   readonly loan?: AbortSignal;
+  /** Aborts once the screen took a sign-in by another way: the step then
+   *  sends nothing and draws nothing, and keeps its listeners, so a form
+   *  never falls back to the browser's own submit. */
+  readonly handed?: AbortSignal;
   /** The screen's own life. */
   readonly signal?: AbortSignal;
 }
@@ -95,13 +99,27 @@ export function continueSignIn<C extends PendingClient>(
     [over.signal, x.loan, x.signal].filter((s): s is AbortSignal => s !== undefined),
   );
   const life = { signal };
+  // Aborts once this step or another way signed in.
+  const taken = new AbortController();
+  const handedOn = AbortSignal.any(
+    [taken.signal, x.handed].filter((s): s is AbortSignal => s !== undefined),
+  );
+  const stop = AbortSignal.any([signal, handedOn]);
   let current: Pending | undefined;
   let hold: Hold | undefined;
-  const held = (): boolean => hold?.active() === true;
-  const ended = (): boolean => signal.aborted;
+  const held = (): boolean => handedOn.aborted || hold?.active() === true;
+  const ended = (): boolean => stop.aborted;
   const restart = (said?: Said): void => {
     over.abort();
     x.restart(said);
+  };
+  /** Hands the sign-in on, once. */
+  const hand = (s: SignedIn): void => {
+    if (handedOn.aborted) {
+      return;
+    }
+    taken.abort();
+    x.finish(s);
   };
 
   const can = (p: Pending, m: PendingMethod): boolean => {
@@ -151,7 +169,7 @@ export function continueSignIn<C extends PendingClient>(
         await showRecoveryCode(code, w, x.signal);
       }
       if ("signed_in" in a && x.signal?.aborted !== true) {
-        x.finish(a.signed_in);
+        hand(a.signed_in);
       }
       return;
     }
@@ -169,7 +187,7 @@ export function continueSignIn<C extends PendingClient>(
     if ("waiting_approval" in a) {
       restart({ tone: "neutral", text: w["pending.waiting"] });
     } else {
-      x.finish(a.signed_in);
+      hand(a.signed_in);
     }
   };
 
@@ -239,7 +257,7 @@ export function continueSignIn<C extends PendingClient>(
           notices,
           at.hold ?? [],
           { text: w.auth_rate_limited, again: w["signIn.again"] },
-          signal,
+          stop,
         );
         return;
       }
@@ -365,7 +383,15 @@ export function continueSignIn<C extends PendingClient>(
     const b = el("button", "cp-button", text);
     b.type = "button";
     b.dataset["variant"] = "quiet";
-    b.addEventListener("click", then, life);
+    b.addEventListener(
+      "click",
+      () => {
+        if (!handedOn.aborted) {
+          then();
+        }
+      },
+      life,
+    );
     return b;
   };
 

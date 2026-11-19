@@ -3,7 +3,7 @@ import { userEvent } from "vitest/browser";
 
 import type { StateResponse } from "./client.js";
 import { mountInvite, type InviteOptions } from "./invite.js";
-import type { AccountAction } from "./run.js";
+import type { AccountAction, Runner } from "./run.js";
 import { Fake, ok, refuse, signedIn, type FakeClient } from "./test-helpers/fake.js";
 
 let life = new AbortController();
@@ -294,15 +294,20 @@ describe("mountInvite: the answers", () => {
 
   it("runs each write under its action name", async () => {
     const names: AccountAction[] = [];
-    const { panel } = mount(new Fake(), {
-      run: (name, work) => {
-        names.push(name);
-        return work();
-      },
+    const run: Runner = (name, work) => {
+      names.push(name);
+      return work();
+    };
+    const byPassword = mount(new Fake(), { run });
+    await drawn(byPassword.panel);
+    await accept(byPassword.panel);
+    await vi.waitFor(() => {
+      expect(names).toEqual(["auth.invite_accept"]);
     });
-    await drawn(panel);
-    await accept(panel);
-    await userEvent.click(button(panel, "Accept with Authelia"));
+    byPassword.panel.remove();
+    const byProvider = mount(new Fake(), { run });
+    await drawn(byProvider.panel);
+    await userEvent.click(button(byProvider.panel, "Accept with Authelia"));
     await vi.waitFor(() => {
       expect(names).toEqual(["auth.invite_accept", "auth.invite_accept_oidc"]);
     });
@@ -449,6 +454,11 @@ describe("mountInvite: a second factor first", () => {
     await vi.waitFor(() => {
       expect(joined).toEqual(["mika"]);
     });
+    // Handed on once: the form drawn again sends nothing.
+    await accept(panel);
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    expect(fake.named("inviteAcceptPassword")).toHaveLength(1);
+    expect(joined).toEqual(["mika"]);
   });
 
   it("continues into the sign-in's own enrolment, and joins once it finishes", async () => {

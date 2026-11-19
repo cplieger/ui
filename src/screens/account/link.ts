@@ -32,9 +32,15 @@ export interface LinkContext {
   readonly redraw: (said: Said) => void;
   /** Shows a refusal no form words itself. */
   readonly refused: (r: Refusal) => void;
+  /** A hold, or a sign-in already taken: either stops a send. */
   readonly held: () => boolean;
+  /** Aborts once the screen took a sign-in; an answer after it draws nothing. */
+  readonly taken: AbortSignal;
   readonly signal?: AbortSignal;
 }
+
+/** The screen ended, or took a sign-in: an answer then draws nothing. */
+const ended = (x: LinkContext): boolean => x.signal?.aborted === true || x.taken.aborted;
 
 /** The words for a pending link that cannot go on: its sign-in lapsed,
  *  or the read was refused. */
@@ -140,7 +146,7 @@ export function adminLinkForm(x: LinkContext): HTMLFormElement {
         ),
       (answer) => answer?.ok === true,
     );
-    if (got === undefined || signal?.aborted === true) {
+    if (got === undefined || ended(x)) {
       return;
     }
     const answer = got.answer;
@@ -151,6 +157,9 @@ export function adminLinkForm(x: LinkContext): HTMLFormElement {
     } else if (codeOf(answer) === "auth_invalid_credentials") {
       // access answers a mode that is no longer "only" the same way.
       const state = await read(() => client.state());
+      if (ended(x)) {
+        return;
+      }
       if (state.ok && (state.data.sso ?? "alongside") !== "only") {
         x.redraw({ tone: "warning", text: w["link.notNow"] });
         return;
@@ -220,7 +229,7 @@ export function createSection(x: LinkContext, pending: PendingLinkView): HTMLEle
         ),
       (answer) => answer?.ok === true,
     );
-    if (got === undefined || signal?.aborted === true) {
+    if (got === undefined || ended(x)) {
       return;
     }
     const answer = got.answer;

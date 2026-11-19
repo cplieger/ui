@@ -655,6 +655,119 @@ describe("mountSignIn: passkey", () => {
   });
 
   it.each([
+    ["a next step", ok({ pending: { ticket: "t1", next: "second_factor", methods: ["totp"] } })],
+    ["a refusal", refuse(401, "auth_invalid_credentials")],
+  ] as const)(
+    "draws nothing of %s the password answers after the autofill's pick signed in",
+    async (_, answer) => {
+      const late = Promise.withResolvers<unknown>();
+      const password = Promise.withResolvers<unknown>();
+      const fake = new Fake()
+        .answer("passkeySupport", { webauthn: true, conditional: true })
+        .answer("signInWithPasskey", () => late.promise)
+        .answer("loginPassword", () => password.promise);
+      const went: string[] = [];
+      const { panel } = mount(fake, {
+        onSignedIn: ({ next }) => {
+          went.push(next);
+        },
+      });
+      await drawn(panel);
+      await signIn(panel);
+      late.resolve({ kind: "signed-in", result: signedIn });
+      await vi.waitFor(() => {
+        expect(went).toEqual(["/"]);
+      });
+      password.resolve(answer);
+      // Past the 400 ms a confirm cycle's shown busy state holds an answer.
+      await new Promise((resolve) => setTimeout(resolve, 600));
+      expect(panel.querySelector("input[name='code']")).toBeNull();
+      expect(noticeOf(panel)).toBeNull();
+      expect(fake.named("signInWithPasskey")).toHaveLength(1);
+      expect(went).toEqual(["/"]);
+    },
+  );
+
+  it("draws no miss of the passkey button's request after the autofill's pick signed in", async () => {
+    const late = Promise.withResolvers<unknown>();
+    const pressed = Promise.withResolvers<unknown>();
+    const fake = new Fake().answer("passkeySupport", { webauthn: true, conditional: true }).answer(
+      "signInWithPasskey",
+      () => late.promise,
+      () => pressed.promise,
+    );
+    const went: string[] = [];
+    const { panel } = mount(fake, {
+      navigate: (url) => {
+        went.push(url);
+      },
+    });
+    await drawn(panel);
+    await userEvent.click(button(panel, "Sign in with a passkey"));
+    late.resolve({ kind: "signed-in", result: signedIn });
+    await vi.waitFor(() => {
+      expect(went).toEqual(["/"]);
+    });
+    pressed.resolve({ kind: "verification-failed" });
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    expect(noticeOf(panel)).toBeNull();
+    expect(fake.named("signInWithPasskey")).toHaveLength(2);
+    expect(went).toEqual(["/"]);
+  });
+
+  it("sends nothing from the code step once the autofill's pick signed in", async () => {
+    const late = Promise.withResolvers<unknown>();
+    const fake = new Fake()
+      .answer("passkeySupport", { webauthn: true, conditional: true })
+      .answer("signInWithPasskey", () => late.promise)
+      .answer(
+        "loginPassword",
+        ok({ pending: { ticket: "t1", next: "second_factor", methods: ["totp"] } }),
+      );
+    const went: string[] = [];
+    const { panel } = mount(fake, {
+      navigate: (url) => {
+        went.push(url);
+      },
+    });
+    await drawn(panel);
+    await signIn(panel);
+    await vi.waitFor(() => {
+      expect(input(panel, "code")).not.toBeNull();
+    });
+    late.resolve({ kind: "signed-in", result: signedIn });
+    await vi.waitFor(() => {
+      expect(went).toEqual(["/"]);
+    });
+    await userEvent.fill(input(panel, "code"), "123456");
+    await userEvent.click(submit(panel));
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    expect(fake.named("loginCode")).toHaveLength(0);
+    expect(went).toEqual(["/"]);
+  });
+
+  it("hands on once when the password signed in before the autofill's pick", async () => {
+    const late = Promise.withResolvers<unknown>();
+    const fake = new Fake()
+      .answer("passkeySupport", { webauthn: true, conditional: true })
+      .answer("signInWithPasskey", () => late.promise);
+    const went: string[] = [];
+    const { panel } = mount(fake, {
+      navigate: (url) => {
+        went.push(url);
+      },
+    });
+    await drawn(panel);
+    await signIn(panel);
+    await vi.waitFor(() => {
+      expect(went).toEqual(["/"]);
+    });
+    late.resolve({ kind: "signed-in", result: signedIn });
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(went).toEqual(["/"]);
+  });
+
+  it.each([
     [
       "a refused begin",
       { ok: false, status: 503, error: "unavailable", code: "auth_unavailable" },
@@ -802,18 +915,20 @@ describe("mountSignIn: lifetime", () => {
   it("stops the countdown and the autofill request when its signal aborts", async () => {
     const fake = new Fake()
       .answer("passkeySupport", { webauthn: true, conditional: true })
-      .answer("signInWithPasskey", () => new Promise<never>(() => undefined))
+      .always("signInWithPasskey", () => new Promise<never>(() => undefined))
       .answer(
         "loginPassword",
         refuse(429, "auth_rate_limited", undefined, { "Retry-After": "30" }),
       );
     const { panel } = mount(fake);
     await drawn(panel);
-    const o = fake.named("signInWithPasskey")[0]?.args[1] as { signal?: AbortSignal };
     await signIn(panel);
     await vi.waitFor(() => {
       expect(submit(panel).getAttribute("aria-disabled")).toBe("true");
+      expect(fake.named("signInWithPasskey")).toHaveLength(2);
     });
+    const o = fake.named("signInWithPasskey")[1]?.args[1] as { signal?: AbortSignal };
+    expect(o.signal?.aborted).toBe(false);
     endScreen();
     expect(o.signal?.aborted).toBe(true);
     expect(submit(panel).hasAttribute("aria-disabled")).toBe(false);

@@ -131,12 +131,19 @@ export function mountSetup<C extends SetupClient>(
   region.replaceChildren(stack);
 
   let hold: Hold | undefined;
-  const held = (): boolean => hold?.active() === true;
+  // The account is handed on once; after it no form sends and no answer
+  // draws a step or a notice.
+  const taken = new AbortController();
+  const held = (): boolean => taken.signal.aborted || hold?.active() === true;
   let holdable: HTMLElement[] = [];
   let passwordLength = passwordLengthOf(undefined);
   let webauthn = false;
 
   const done = (): void => {
+    if (taken.signal.aborted) {
+      return;
+    }
+    taken.abort();
     if (options.onDone === undefined) {
       navigate("/");
     } else {
@@ -353,7 +360,7 @@ export function mountSetup<C extends SetupClient>(
       },
       (answer) => answer?.ok === true && !("pending" in answer.data),
     );
-    if (got === undefined || signal?.aborted === true) {
+    if (got === undefined || signal?.aborted === true || taken.signal.aborted) {
       return;
     }
     const answer = got.answer;
@@ -382,6 +389,7 @@ export function mountSetup<C extends SetupClient>(
             },
             // After `lend`, whose loan it ends.
             loan: part.life(),
+            handed: taken.signal,
             ...life,
           },
           answer.data,
@@ -490,6 +498,9 @@ export function mountSetup<C extends SetupClient>(
             return;
           }
           const outcome: PasskeySignInOutcome | null = got.answer;
+          if (outcome?.kind !== "signed-in" && taken.signal.aborted) {
+            return;
+          }
           if (outcome === null) {
             notices.show("danger", w["generic.server"]);
           } else if (outcome.kind === "signed-in") {

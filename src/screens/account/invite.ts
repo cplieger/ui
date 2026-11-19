@@ -121,13 +121,20 @@ export function mountInvite<C extends InviteClient>(
   panel.replaceChildren(stack);
 
   let hold: Hold | undefined;
-  const held = (): boolean => hold?.active() === true;
+  // The sign-in is handed on once; after it no form sends and no answer
+  // draws a step or a notice.
+  const taken = new AbortController();
+  const held = (): boolean => taken.signal.aborted || hold?.active() === true;
   let holdable: HTMLElement[] = [];
   let providerButton: HTMLButtonElement | undefined;
   let passwordLength = passwordLengthOf(undefined);
   let webauthn = false;
 
   const signedIn = (result: SignedIn): void => {
+    if (taken.signal.aborted) {
+      return;
+    }
+    taken.abort();
     if (options.onSignedIn === undefined) {
       navigate("/");
     } else {
@@ -321,7 +328,7 @@ export function mountInvite<C extends InviteClient>(
       },
       (answer) => answer?.ok === true && !("pending" in answer.data),
     );
-    if (got === undefined || signal?.aborted === true) {
+    if (got === undefined || signal?.aborted === true || taken.signal.aborted) {
       return;
     }
     const answer = got.answer;
@@ -358,6 +365,7 @@ export function mountInvite<C extends InviteClient>(
             },
             // After `lend`, whose loan it ends.
             loan: part.life(),
+            handed: taken.signal,
             ...life,
           },
           step,
@@ -464,7 +472,7 @@ export function mountInvite<C extends InviteClient>(
             ),
           (answer) => answer?.ok === true,
         ).then((got) => {
-          if (got === undefined || signal?.aborted === true) {
+          if (got === undefined || signal?.aborted === true || taken.signal.aborted) {
             return;
           }
           const answer = got.answer;

@@ -187,7 +187,12 @@ export function mountSignIn<C extends SignInClient>(
   panel.replaceChildren(stack);
 
   let hold: Hold | undefined;
-  const held = (): boolean => hold?.active() === true;
+  // The host is handed on once: a later way that also signs in makes its
+  // own session, and the browser keeps the cookie set last. Once `taken`
+  // aborts, no form sends and no answer draws a step or a notice.
+  const taken = new AbortController();
+  const held = (): boolean => taken.signal.aborted || hold?.active() === true;
+  const until = signal === undefined ? taken.signal : AbortSignal.any([signal, taken.signal]);
   let holdable: HTMLElement[] = [];
   let conditionalOn = false;
   let waiting: AbortController | undefined;
@@ -206,14 +211,11 @@ export function mountSignIn<C extends SignInClient>(
     client.oidcPending !== undefined &&
     client.oidcLinkPending !== undefined;
 
-  // A sign-in is taken once: a late answer of another way that also signed
-  // in names the same session.
-  let finished = false;
   const finish = (result: SignedIn): void => {
-    if (finished) {
+    if (taken.signal.aborted) {
       return;
     }
-    finished = true;
+    taken.abort();
     stopConditional();
     if (linking) {
       void link(result);
@@ -476,7 +478,7 @@ export function mountSignIn<C extends SignInClient>(
         notices,
         holdable,
         { text: w.auth_rate_limited, again: w["signIn.again"] },
-        signal,
+        until,
       );
     } else if (code === "auth_origin_refused") {
       notices.show("danger", w.auth_origin_refused);
@@ -555,7 +557,7 @@ export function mountSignIn<C extends SignInClient>(
     holdable,
     done: (result) => {
       linking = false;
-      leave(result);
+      finish(result);
     },
     reload: (said) => {
       linking = false;
@@ -566,6 +568,7 @@ export function mountSignIn<C extends SignInClient>(
     },
     refused,
     held,
+    taken: taken.signal,
     ...life,
   });
 
@@ -763,7 +766,8 @@ export function mountSignIn<C extends SignInClient>(
       },
       (answer) => answer?.ok === true && !("pending" in answer.data),
     );
-    if (got === undefined || signal?.aborted === true) {
+    // Once another way signed in, a pending answer made only a ticket.
+    if (got === undefined || signal?.aborted === true || taken.signal.aborted) {
       return;
     }
     const answer = got.answer;
@@ -787,6 +791,7 @@ export function mountSignIn<C extends SignInClient>(
           },
           // After `lend`, whose loan it ends.
           loan: part.life(),
+          handed: taken.signal,
           ...life,
         },
         stepOf(answer.data),
@@ -865,7 +870,12 @@ export function mountSignIn<C extends SignInClient>(
   /** The autofill request, which offers the person's passkeys in the
    *  username field's suggestions. */
   const startConditional = (): void => {
-    if (!conditionalOn || waiting !== undefined || signal?.aborted === true) {
+    if (
+      !conditionalOn ||
+      waiting !== undefined ||
+      signal?.aborted === true ||
+      taken.signal.aborted
+    ) {
       return;
     }
     const mine = new AbortController();
@@ -929,8 +939,8 @@ export function mountSignIn<C extends SignInClient>(
           }
           const outcome = got.answer;
           // A sign-in is taken whatever is drawn; a miss is said only over
-          // the form that asked, never over a step the form handed on to.
-          if (outcome?.kind !== "signed-in" && drawn.aborted) {
+          // the form that asked, and only while no other way signed in.
+          if (outcome?.kind !== "signed-in" && (drawn.aborted || taken.signal.aborted)) {
             return;
           }
           if (outcome === null) {

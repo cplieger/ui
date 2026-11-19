@@ -468,10 +468,10 @@ export function drawLog(
 
   /** The page `v` names. It asks for one entry more than it shows, so the
    *  side it reads toward has a next page exactly when that entry came; the
-   *  other side has one when a bound reached the page. One past the end
-   *  reads the first page instead, and a newest-first page that reached the
-   *  newest end is the first page; either corrects the address while `v` is
-   *  still the view. */
+   *  other side has one when a bound reached the page. A read past the end,
+   *  or a newest-first `after` read that reached the newest end, is answered
+   *  by reading the first page, so its rows, `past` and `future` all come
+   *  from that read; the address is corrected while `v` is still the view. */
   const pageOf = async (v: View): Promise<Result<Page>> => {
     const ascending = v.after !== undefined || (v.before === undefined && v.order === "oldest");
     const [got] = await Promise.all([
@@ -488,23 +488,20 @@ export function drawLog(
     const page = got.data.entries;
     const more = page.length > limit;
     const newestEnd = v.order === "newest" && v.after !== undefined && !more;
-    let at = v;
     if (newestEnd || (page.length === 0 && (v.before !== undefined || v.after !== undefined))) {
-      at = first(v);
+      const at = first(v);
       if (view === v) {
         view = at;
         syncFilters();
         onQuery(paramsOf(at), true);
       }
-      if (page.length === 0) {
-        return pageOf(at);
-      }
+      return pageOf(at);
     }
     const shown = ordered(page, ascending ? "oldest" : "newest").slice(0, limit);
     return {
       ok: true,
       data: {
-        view: at,
+        view: v,
         log: got.data,
         entries: ordered(shown, v.order),
         past: ascending ? v.after !== undefined : more,
