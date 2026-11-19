@@ -50,7 +50,7 @@
   appearance: textfield;
 }
 
-:root[data-pointer="fine"] .cp-stepper > input {
+:root[data-pointer="fine"] .cp-stepper > :is(input, .cp-stepper-value) {
   font-size: var(--cp-text-ui);
 }
 
@@ -65,12 +65,13 @@
 
 /* Wide enough for "100%": three tabular digits and a percent sign, which is
  * up to two digits wide in the fallback fonts. A shorter value sits centred
- * and the plus never moves. It reads in the ink a field's value takes, over
- * a quiet button's muted ink. */
+ * and the plus never moves. It reads in the ink and size a field's value
+ * takes, over a quiet button's. */
 .cp-stepper > .cp-button.cp-stepper-value {
   justify-content: center;
   min-inline-size: calc(5ch + 2 * var(--cp-control-pad-x));
   color: var(--cp-ink);
+  font-size: max(16px, var(--cp-text-ui));
   font-variant-numeric: tabular-nums;
 }
 

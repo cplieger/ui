@@ -41,7 +41,7 @@ const ROLLING = "data-cp-rolling";
  * many steps a press moves: `"-1"` for the minus, `"1"` for the plus. A
  * text `<input>` takes its range and step from `data-min`, `data-max` and
  * `data-step` and steps on Up and Down. Shift moves ten steps in either field.
- * A `data-reset` button outside the stepper whose `aria-controls` is the
+ * A `data-reset` button outside the stepper whose `aria-controls` names the
  * field's id sets the field to that attribute's value, else the markup's. A
  * change fires `input` and `change` and is said through announce.
  */
@@ -175,22 +175,22 @@ export function enhanceStepper(stepper: HTMLElement, options: StepperOptions = {
     },
     listen,
   );
-  const resets =
-    input.id === ""
-      ? []
-      : document.querySelectorAll<HTMLButtonElement>(
-          `button[data-reset][aria-controls="${CSS.escape(input.id)}"]`,
-        );
-  for (const b of resets) {
-    b.addEventListener(
-      "click",
-      () => {
-        const to = b.dataset["reset"] ?? "";
-        move({ to: to === "" ? input.defaultValue : to });
-      },
-      listen,
-    );
-  }
+  // Found at the click, so a Reset rendered after the stepper, or before it
+  // was attached, still works.
+  stepper.ownerDocument.addEventListener(
+    "click",
+    (e) => {
+      const t = e.target instanceof Element ? e.target : null;
+      const b = t?.closest<HTMLButtonElement>("button[data-reset]");
+      const ids = b?.getAttribute("aria-controls")?.split(/\s+/) ?? [];
+      if (b === null || b === undefined || input.id === "" || !ids.includes(input.id)) {
+        return;
+      }
+      const to = b.dataset["reset"] ?? "";
+      move({ to: to === "" ? input.defaultValue : to });
+    },
+    listen,
+  );
   input.addEventListener(
     "keydown",
     (e) => {

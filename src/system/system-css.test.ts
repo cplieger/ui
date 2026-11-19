@@ -1421,44 +1421,50 @@ describe("css/system.css", () => {
     }
   });
 
-  it("draws a signed stepper with steps of several sizes as the zoom stepper is drawn", () => {
+  it("draws a signed stepper with steps of several sizes as the zoom stepper is drawn, on either pointer", () => {
     theme("light");
-    root.dataset["pointer"] = "fine";
-    const el = build(
-      '<div class="cp-stepper" id="zoom" role="group" aria-label="Zoom"><button class="cp-button" data-variant="quiet" type="button" aria-label="Zoom out">-</button><button class="cp-button cp-stepper-value" data-variant="quiet" type="button">100%</button><button class="cp-button" data-variant="quiet" type="button" aria-label="Zoom in">+</button></div>' +
-        '<div class="cp-field"><label class="cp-label" for="offset">Offset, in seconds</label><div class="cp-stepper" id="offset-bar" role="group"><button class="cp-button" data-variant="quiet" type="button" data-step="-10">−1 s</button><button class="cp-button" data-variant="quiet" type="button" data-step="-1">−0.1 s</button><input id="offset" value="+1.25" inputmode="decimal" data-min="-60" data-max="60" data-step="0.1"><button class="cp-button" data-variant="quiet" type="button" data-step="1">+0.1 s</button><button class="cp-button" data-variant="quiet" type="button" data-step="10">+1 s</button><button class="cp-button" data-variant="quiet" type="button" data-reset="0">Reset</button></div></div>',
-    );
-    const zoom = el.querySelector("#zoom") as HTMLElement;
-    const bar = el.querySelector("#offset-bar") as HTMLElement;
-    const input = el.querySelector("#offset") as HTMLInputElement;
-    const look = (s: HTMLElement): string => {
-      const edge = getComputedStyle(s);
-      const b = s.querySelector(".cp-button") as HTMLElement;
-      return [
-        edge.borderTopWidth,
-        edge.borderTopStyle,
-        edge.borderTopColor,
-        getComputedStyle(s).borderTopLeftRadius,
-        String(s.getBoundingClientRect().height),
-        String(b.getBoundingClientRect().height),
-        getComputedStyle(b).backgroundColor,
-      ].join(" ");
-    };
-    expect(look(bar)).toBe(look(zoom));
-    const type = (v: Element): string => {
-      const cs = getComputedStyle(v);
-      return [cs.fontFamily, cs.fontSize, cs.fontWeight, cs.fontVariantNumeric, cs.color].join(" ");
-    };
-    expect(type(input)).toBe(type(zoom.querySelector(".cp-stepper-value") as Element));
-    // Its widest value, a sign, two digits, a point and two decimals, fits
-    // the one width every value keeps.
-    const width = input.getBoundingClientRect().width;
-    for (const v of ["−60.00", "+1.25", "0.00", "−0.10"]) {
-      input.value = v;
-      expect(input.getBoundingClientRect().width).toBe(width);
-      expect(input.scrollWidth <= input.clientWidth).toBe(true);
+    for (const tier of ["fine", "coarse"]) {
+      root.dataset["pointer"] = tier;
+      const el = build(
+        '<div class="cp-stepper" id="zoom" role="group" aria-label="Zoom"><button class="cp-button" data-variant="quiet" type="button" aria-label="Zoom out">-</button><button class="cp-button cp-stepper-value" data-variant="quiet" type="button">100%</button><button class="cp-button" data-variant="quiet" type="button" aria-label="Zoom in">+</button></div>' +
+          '<div class="cp-field"><label class="cp-label" for="offset">Offset, in seconds</label><div class="cp-stepper" id="offset-bar" role="group"><button class="cp-button" data-variant="quiet" type="button" data-step="-10">−1 s</button><button class="cp-button" data-variant="quiet" type="button" data-step="-1">−0.1 s</button><input id="offset" value="+1.25" inputmode="decimal" data-min="-60" data-max="60" data-step="0.1"><button class="cp-button" data-variant="quiet" type="button" data-step="1">+0.1 s</button><button class="cp-button" data-variant="quiet" type="button" data-step="10">+1 s</button></div><div class="cp-cluster" data-gap="tight"><button class="cp-button" data-variant="quiet" type="button" data-reset="0" aria-controls="offset">Reset</button></div></div>',
+      );
+      const zoom = el.querySelector("#zoom") as HTMLElement;
+      const bar = el.querySelector("#offset-bar") as HTMLElement;
+      const input = el.querySelector("#offset") as HTMLInputElement;
+      const look = (s: HTMLElement): string => {
+        const edge = getComputedStyle(s);
+        const b = s.querySelector(".cp-button") as HTMLElement;
+        return [
+          edge.borderTopWidth,
+          edge.borderTopStyle,
+          edge.borderTopColor,
+          getComputedStyle(s).borderTopLeftRadius,
+          String(s.getBoundingClientRect().height),
+          String(b.getBoundingClientRect().height),
+          getComputedStyle(b).backgroundColor,
+        ].join(" ");
+      };
+      expect(look(bar)).toBe(look(zoom));
+      const type = (v: Element): string => {
+        const cs = getComputedStyle(v);
+        return [cs.fontFamily, cs.fontSize, cs.fontWeight, cs.fontVariantNumeric, cs.color].join(
+          " ",
+        );
+      };
+      expect(type(input)).toBe(type(zoom.querySelector(".cp-stepper-value") as Element));
+      // Its widest value, a sign, two digits, a point and two decimals, fits
+      // the one width every value keeps.
+      const width = input.getBoundingClientRect().width;
+      for (const v of ["−60.00", "+1.25", "0.00", "−0.10"]) {
+        input.value = v;
+        expect(input.getBoundingClientRect().width).toBe(width);
+        expect(input.scrollWidth <= input.clientWidth).toBe(true);
+      }
+      expect(input.labels?.[0]?.textContent).toBe("Offset, in seconds");
+      // The next tier's fixture reuses the field's id.
+      el.remove();
     }
-    expect(input.labels?.[0]?.textContent).toBe("Offset, in seconds");
   });
 
   it("shows a saved secret's Saved part or its field, never both", () => {
@@ -3600,10 +3606,8 @@ describe("css/system.css buttons and arrangements", () => {
 
   it("holds an icon-only fixed button at its icon's width through a cycle and across 44rem both ways", async () => {
     await fontsIn("Grab Grabbing… Grabbed");
-    // A narrow rule that shows a row action's icon alone hides its words
-    // and its faces' words together, as docs/buttons/confirm.md asks.
     const el = build(
-      `<style>@container (width < 44rem) { .t-narrow .cp-button > .cp-roll, .t-narrow .cp-button > [data-part="faces"] > ::after { display: none; } }</style><div class="t-narrow" style="container-type: inline-size; inline-size: 48rem"><span data-col="actions">${faces(true, "Grab")}</span></div>`,
+      `<style>@container (width < 44rem) { .t-narrow .cp-button > .cp-roll { display: none; } }</style><div class="t-narrow" style="container-type: inline-size; inline-size: 48rem"><span data-col="actions">${faces(true, "Grab")}</span></div>`,
     );
     const box = el.querySelector(".t-narrow") as HTMLElement;
     const b = el.querySelector("button") as HTMLButtonElement;
@@ -5290,6 +5294,32 @@ describe("css/system.css lists, feeds and counts", () => {
           );
           expect(box.height, `${at} height`).toBeCloseTo(was, 1);
         }
+      }
+    }
+  });
+
+  it("leaves a row whose second line is hidden at one line's height, its title untrimmed", () => {
+    theme("light");
+    for (const tier of ["fine", "coarse"]) {
+      root.dataset["pointer"] = tier;
+      for (const density of ["compact", "", "tall"]) {
+        const row = (lines: string) =>
+          `<li><a class="cp-list-row" href="#l"><span class="cp-icon"></span><span class="cp-cell-stack"><span class="cp-truncate">Frieren</span>${lines}</span><span data-part="end"><time>4 min ago</time></span></a></li>`;
+        const el = build(
+          `<ul class="cp-list" data-density="${density}">${row("")}${row("<small hidden>TV, 2023</small>")}</ul>`,
+        );
+        const [alone, hidden] = [...el.querySelectorAll<HTMLElement>(".cp-list-row")] as [
+          HTMLElement,
+          HTMLElement,
+        ];
+        const at = `${tier} ${density || "regular"}`;
+        expect(hidden.getBoundingClientRect().height, at).toBe(
+          alone.getBoundingClientRect().height,
+        );
+        const title = hidden.querySelector(".cp-truncate") as Element;
+        expect(title.getBoundingClientRect().height, at).toBe(
+          (alone.querySelector(".cp-truncate") as Element).getBoundingClientRect().height,
+        );
       }
     }
   });

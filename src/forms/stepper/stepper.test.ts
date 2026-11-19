@@ -191,6 +191,36 @@ describe("enhanceStepper with a signed text field", () => {
     expect(input.value).toBe("+1.25");
   });
 
+  it("resets from a Reset rendered after it was enhanced, before it was attached", async () => {
+    const { s, input, button } = nudge();
+    const wrap = s.parentElement as HTMLElement;
+    wrap.remove();
+    for (const b of wrap.querySelectorAll("[data-reset]")) {
+      b.remove();
+    }
+    enhanceStepper(s, { signal: life.signal });
+    document.body.append(wrap);
+    wrap.insertAdjacentHTML(
+      "beforeend",
+      '<button type="button" data-reset="0" aria-controls="offset">Reset</button>',
+    );
+    await userEvent.click(button("Reset"));
+    expect(input.value).toBe("0.00");
+  });
+
+  it("resets from a Reset whose aria-controls lists its field among others, and not from one naming another", async () => {
+    const { s, input, button } = nudge();
+    s.parentElement?.insertAdjacentHTML(
+      "beforeend",
+      '<button type="button" data-reset="1" aria-controls="other  offset">Both</button><button type="button" data-reset="-1" aria-controls="offsets">Near</button>',
+    );
+    enhanceStepper(s, { signal: life.signal });
+    await userEvent.click(button("Near"));
+    expect(input.value).toBe("+1.25");
+    await userEvent.click(button("Both"));
+    expect(input.value).toBe("+1.00");
+  });
+
   it("settles a typed value to its form within the range, and puts back the last for text", async () => {
     const { s, input } = nudge();
     enhanceStepper(s, { format: (v) => `${v.toFixed(1)} s`, signal: life.signal });

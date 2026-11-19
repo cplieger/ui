@@ -4507,7 +4507,7 @@ input.cp-input:is([type^="date"], [type="time"]) {
   appearance: textfield;
 }
 
-:root[data-pointer="fine"] .cp-stepper > input {
+:root[data-pointer="fine"] .cp-stepper > :is(input, .cp-stepper-value) {
   font-size: var(--cp-text-ui);
 }
 
@@ -4522,12 +4522,13 @@ input.cp-input:is([type^="date"], [type="time"]) {
 
 /* Wide enough for "100%": three tabular digits and a percent sign, which is
  * up to two digits wide in the fallback fonts. A shorter value sits centred
- * and the plus never moves. It reads in the ink a field's value takes, over
- * a quiet button's muted ink. */
+ * and the plus never moves. It reads in the ink and size a field's value
+ * takes, over a quiet button's. */
 .cp-stepper > .cp-button.cp-stepper-value {
   justify-content: center;
   min-inline-size: calc(5ch + 2 * var(--cp-control-pad-x));
   color: var(--cp-ink);
+  font-size: max(16px, var(--cp-text-ui));
   font-variant-numeric: tabular-nums;
 }
 
@@ -7590,7 +7591,9 @@ th[aria-sort="descending"] > .cp-sort::after {
 /* stylelint-disable-next-line selector-max-pseudo-class, selector-max-attribute, selector-max-combinators, selector-max-compound-selectors -- two shown lines, outside a tile and a skeleton row, which draw their lines their own way */
 :where(.cp-list:not([data-layout="grid"]) > li)
   > .cp-list-row:not([data-skeleton])
-  > .cp-cell-stack:where(:has(> :nth-child(2)):not(:has(> :nth-child(3 of :not([hidden]))))) {
+  > .cp-cell-stack:where(
+    :has(> :nth-child(2 of :not([hidden]))):not(:has(> :nth-child(3 of :not([hidden]))))
+  ) {
   align-content: center;
   gap: var(--cp-space-1);
   min-block-size: calc(
@@ -7610,7 +7613,7 @@ th[aria-sort="descending"] > .cp-sort::after {
   > .cp-cell-stack
   > :where(
     :is(.cp-cell-stack > *):not(:only-child):is(
-        :nth-child(1 of :not([hidden])):nth-last-child(-n + 2 of :not([hidden])),
+        :nth-child(1 of :not([hidden])):nth-last-child(2 of :not([hidden])),
         :nth-child(2 of :not([hidden])):nth-last-child(1 of :not([hidden]))
       )
   ) {
@@ -12052,11 +12055,12 @@ button.cp-figure[aria-expanded="true"]::after {
 /* A fixed button is as wide as its widest state: every state's icon and
  * words sit hidden in one cell across the button, and the state on show
  * sits centred over them between two free tracks. The gap moves onto the
- * words, because a grid gap would also open beside the empty free tracks,
- * and words hidden to show the icon alone take their gap with them.
- * It is always laid out at its widest state's width: Gecko gives an item
- * spanning free tracks no min-content size, which a table's 1% actions
- * cell asks for, and a fixed button's words never wrap anyway. */
+ * words, because a grid gap would also open beside the empty free tracks.
+ * The hidden cell is a .cp-roll too, so a rule that hides the button's
+ * words to show its icon alone, `> .cp-roll`, takes every reserved word
+ * and gap with them. It is always laid out at its widest state's width:
+ * Gecko gives an item spanning free tracks no min-content size, which a
+ * table's 1% actions cell asks for. */
 .cp-button[data-cp-confirm="fixed"] {
   display: inline-grid;
   grid-template-columns: 1fr auto auto 1fr;
@@ -12081,9 +12085,13 @@ button.cp-figure[aria-expanded="true"]::after {
   margin-inline-start: var(--cp-space-2);
 }
 
-.cp-button[data-cp-confirm="fixed"] > [data-part="faces"] {
-  display: grid;
+/* No display here: a grid item is a block anyway, and one here would beat
+ * the rule that hides the words. */
+.cp-button[data-cp-confirm="fixed"] > .cp-roll[data-part="faces"] {
   grid-area: 1 / 1 / 2 / -1;
+  block-size: auto;
+  margin-inline-start: 0;
+  overflow: visible;
   visibility: hidden;
 }
 

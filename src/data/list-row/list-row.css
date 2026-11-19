@@ -213,7 +213,9 @@
 /* stylelint-disable-next-line selector-max-pseudo-class, selector-max-attribute, selector-max-combinators, selector-max-compound-selectors -- two shown lines, outside a tile and a skeleton row, which draw their lines their own way */
 :where(.cp-list:not([data-layout="grid"]) > li)
   > .cp-list-row:not([data-skeleton])
-  > .cp-cell-stack:where(:has(> :nth-child(2)):not(:has(> :nth-child(3 of :not([hidden]))))) {
+  > .cp-cell-stack:where(
+    :has(> :nth-child(2 of :not([hidden]))):not(:has(> :nth-child(3 of :not([hidden]))))
+  ) {
   align-content: center;
   gap: var(--cp-space-1);
   min-block-size: calc(
@@ -233,7 +235,7 @@
   > .cp-cell-stack
   > :where(
     :is(.cp-cell-stack > *):not(:only-child):is(
-        :nth-child(1 of :not([hidden])):nth-last-child(-n + 2 of :not([hidden])),
+        :nth-child(1 of :not([hidden])):nth-last-child(2 of :not([hidden])),
         :nth-child(2 of :not([hidden])):nth-last-child(1 of :not([hidden]))
       )
   ) {

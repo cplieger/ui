@@ -111,6 +111,7 @@ export function enhanceConfirm(button: HTMLButtonElement, options: ConfirmOption
     );
   };
   if (faces !== null) {
+    faces.className = "cp-roll";
     faces.dataset["part"] = "faces";
     faces.setAttribute("aria-hidden", "true");
     button.append(faces);
