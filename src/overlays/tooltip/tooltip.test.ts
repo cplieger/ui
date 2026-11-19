@@ -27,7 +27,9 @@ function control(tip: string, label?: string): HTMLButtonElement {
   if (label !== undefined) {
     b.setAttribute("aria-label", label);
   }
-  document.body.append(b);
+  const holder = document.createElement("div");
+  holder.append(b);
+  document.body.append(holder);
   return b;
 }
 
@@ -499,6 +501,30 @@ describe("installTooltips with the system sheet", () => {
         b.hidden = true;
       },
     ],
+    [
+      "turns visibility: hidden",
+      (b: HTMLElement) => {
+        b.style.visibility = "hidden";
+      },
+    ],
+    [
+      "fades to opacity 0",
+      (b: HTMLElement) => {
+        b.style.opacity = "0";
+      },
+    ],
+    [
+      "has its parent turn hidden",
+      (b: HTMLElement) => {
+        (b.parentElement as HTMLElement).hidden = true;
+      },
+    ],
+    [
+      "has its parent turn display: none",
+      (b: HTMLElement) => {
+        (b.parentElement as HTMLElement).style.display = "none";
+      },
+    ],
   ] as const;
 
   it.each(drops)(
@@ -545,7 +571,7 @@ describe("installTooltips with the system sheet", () => {
     ["a button", () => placed({})],
     ["an inline toggle", inline],
   ])(
-    "hides a keyboard tip of %s when its control leaves the document or turns hidden, with no further input",
+    "hides a keyboard tip of %s when its control leaves the document, hides or fades, or its parent hides, with no further input",
     async (_kind, make) => {
       installTooltips({ signal: life.signal });
       for (const [, drop] of drops) {
@@ -570,8 +596,12 @@ describe("installTooltips with the system sheet", () => {
       });
       io.observe(el);
     });
-  /** The element of `el`'s that is the body's child. */
-  const outer = (el: HTMLElement) => el.closest<HTMLElement>("body > *") ?? el;
+  /** The element of `el`'s that is the body's child, across a shadow root. */
+  const outer = (el: HTMLElement) => {
+    const root = el.getRootNode();
+    const top = root instanceof ShadowRoot ? (root.host as HTMLElement) : el;
+    return top.closest<HTMLElement>("body > *") ?? top;
+  };
   /** A blank taller than the window, to scroll past. */
   const blank = () => {
     const d = document.createElement("div");
@@ -619,14 +649,43 @@ describe("installTooltips with the system sheet", () => {
     };
   };
   const button = () => control("Opens the sources you connected", "Sources");
+  /** A tipped button in a wrapper in an open shadow root. Its tip, which
+   *  no anchor in a shadow tree can place, sits in the window's corner. */
+  const shadowed = () => {
+    const corner = document.createElement("style");
+    corner.textContent = ".cp-tooltip { inset: auto 0 0 auto; }";
+    const host = document.createElement("div");
+    const holder = document.createElement("div");
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = "⚙";
+    b.dataset["cpTip"] = "Opens the sources you connected";
+    b.setAttribute("aria-label", "Sources");
+    holder.append(b);
+    host.attachShadow({ mode: "open" }).append(holder);
+    document.body.append(corner, host);
+    return b;
+  };
+  /** Rests the mouse on `el`, by place so a shadow control is reached too,
+   *  until its tip shows, then moves it onto the tip. It starts from a
+   *  corner, since a move to where the mouse already is sends no event. */
+  const onTipOf = async (el: HTMLElement) => {
+    const r = el.getBoundingClientRect();
+    await moveTo({ x: 1, y: 1 });
+    await moveTo({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
+    await expect.poll(showing).toBe(true);
+    await userEvent.hover(tip());
+  };
 
   it.each([
     ["a button", "the window", button, inWindowAbove],
     ["an inline toggle", "the window", inline, inWindowAbove],
     ["a button", "an overflow box", button, inBoxAbove],
     ["an inline toggle", "an overflow box", inline, inBoxAbove],
+    ["a shadow root's button", "the window", shadowed, inWindowAbove],
+    ["a shadow root's button", "an overflow box", shadowed, inBoxAbove],
   ])(
-    "hides a keyboard tip of %s scrolled out of %s when its control leaves the document or turns hidden, with no further input",
+    "hides a keyboard tip of %s scrolled out of %s when its control leaves the document, hides or fades, or its parent hides, with no further input",
     async (_kind, _scroller, make, place) => {
       installTooltips({ signal: life.signal });
       // A mouse over what scrolls or moves gets the engine's own boundary
@@ -675,13 +734,108 @@ describe("installTooltips with the system sheet", () => {
     },
   );
 
-  it("hides a mouse's tip the mouse rests on when its control in view turns visibility: hidden", async () => {
+  it.each(drops)(
+    "hides a mouse's tip the mouse rests on when a shadow root's control in view %s, with no further input",
+    async (_how, drop) => {
+      installTooltips({ signal: life.signal, delay: 100 });
+      const b = shadowed();
+      outer(b).style.marginBlockStart = "8rem";
+      await onTipOf(b);
+      drop(b);
+      await expect.poll(showing).toBe(false);
+    },
+  );
+
+  it("hides a mouse's tip once the mouse leaves a shadow root's control, and shows none for a mouse that left before its rest", async () => {
+    installTooltips({ signal: life.signal, delay: 800 });
+    const b = shadowed();
+    outer(b).style.marginBlockStart = "8rem";
+    const r = b.getBoundingClientRect();
+    const away = { x: r.right + 200, y: r.top + r.height / 2 };
+    await moveTo({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
+    await expect.poll(showing, { timeout: 3000 }).toBe(true);
+    await moveTo(away);
+    await expect.poll(showing).toBe(false);
+    await moveTo({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
+    await moveTo(away);
+    await new Promise((ok) => setTimeout(ok, 1200));
+    expect(showing()).toBe(false);
+  });
+
+  it.each([
+    ...drops,
+    [
+      "has its shadow host leave the document",
+      (b: HTMLElement) => {
+        outer(b).remove();
+      },
+    ],
+  ] as const)(
+    "hides a mouse's tip the mouse rests on when a shadow root's control, scrolled out of an overflow box, %s, with no further input",
+    async (_how, drop) => {
+      installTooltips({ signal: life.signal, delay: 100 });
+      const b = shadowed();
+      const { scroll } = inBoxAbove(b);
+      await onTipOf(b);
+      const edge = scroll();
+      await outOfView(b);
+      expect(b.getBoundingClientRect().bottom).toBeLessThanOrEqual(edge);
+      expect(showing()).toBe(true);
+      drop(b);
+      await expect.poll(showing).toBe(false);
+    },
+  );
+
+  it("keeps a keyboard tip of a control in a popover still fading in from opacity 0 through a change to the page", async () => {
+    installTooltips({ signal: life.signal });
+    const pop = document.createElement("div");
+    pop.className = "cp-popover";
+    pop.popover = "manual";
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = "⚙";
+    b.dataset["cpTip"] = "Opens the sources you connected";
+    b.setAttribute("aria-label", "Sources");
+    pop.append(b);
+    document.body.append(pop);
+    pop.showPopover();
+    b.focus({ focusVisible: true });
+    expect(showing()).toBe(true);
+    expect(getComputedStyle(pop).opacity).toBe("0");
+    document.body.append(document.createElement("p"));
+    await Promise.resolve();
+    expect(showing()).toBe(true);
+  });
+
+  it("hides a mouse's tip the mouse rests on when a data attribute on its control's parent hides it by a stylesheet", async () => {
     installTooltips({ signal: life.signal, delay: 100 });
+    const sheet = document.createElement("style");
+    sheet.textContent = "[data-shut] { visibility: hidden; }";
+    document.body.append(sheet);
     const b = placed({});
-    await userEvent.hover(b);
-    await expect.poll(showing).toBe(true);
-    await userEvent.hover(tip());
-    b.style.visibility = "hidden";
+    await onTipOf(b);
+    (b.parentElement as HTMLElement).dataset["shut"] = "";
+    await expect.poll(showing).toBe(false);
+  });
+
+  it("hides a mouse's tip the mouse rests on when a checkbox's :checked hides its control in view by a stylesheet", async () => {
+    installTooltips({ signal: life.signal, delay: 100 });
+    const sheet = document.createElement("style");
+    // The tip sits in the window's corner, shown whatever its anchor does,
+    // so no engine's boundary event, as a tip whose anchor layout hid
+    // moves or hides under the mouse, runs the listeners.
+    sheet.textContent =
+      ".gate:checked + div { display: none; } .cp-tooltip { position-area: none; position-visibility: always; inset: auto 0 0 auto; }";
+    const gate = document.createElement("input");
+    gate.type = "checkbox";
+    gate.className = "gate";
+    const b = placed({});
+    const holder = b.parentElement as HTMLElement;
+    holder.before(gate);
+    document.body.append(sheet);
+    await onTipOf(b);
+    gate.checked = true;
+    expect(gate.hasAttribute("checked")).toBe(false);
     await expect.poll(showing).toBe(false);
   });
 

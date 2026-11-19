@@ -7,6 +7,7 @@
  */
 
 import { announce } from "../../feedback/announce/announce.js";
+import { cancelRegion, writeRegion } from "../../feedback/announce/region.js";
 import { markKept } from "../../data/list-row/list-row.js";
 import { focusOn, landing } from "../../data/list-row/row.js";
 import { enhanceRelativeTime } from "../../data/relative-time/relative-time.js";
@@ -407,7 +408,9 @@ const item = (key: string | undefined, kid: Node): HTMLLIElement =>
 function place(parent: Element, kids: readonly Element[]): void {
   const keep = new Set(kids);
   for (const child of [...parent.children]) {
-    if (!keep.has(child)) {
+    // A question asked from the panel, `@cplieger/ui/ask`'s, is mounted in
+    // it so the panel stays open under it.
+    if (!keep.has(child) && !(child instanceof HTMLDialogElement)) {
       child.remove();
     }
   }
@@ -499,6 +502,14 @@ function syncList(list: Element, fresh: readonly HTMLElement[]): void {
 
 let seq = 0;
 
+/** A place focus held in the panel: its row's key, the keys of the rows
+ *  after it, and its section's name. */
+interface Spot {
+  readonly key: string | undefined;
+  readonly after: readonly string[];
+  readonly name: string | undefined;
+}
+
 /**
  * Takes over `parts.button`'s state and words and writes `parts.panel`'s
  * content, which it enhances with `enhancePanel`, and `parts.banner`'s. The
@@ -534,6 +545,8 @@ export function createHeaderStatus(
   let toldIds = new Set<string>();
   /** Trouble was said and the return to all good not yet. */
   let troubled = false;
+  /** Retry was pressed since the stream went offline. */
+  let retried = false;
   /** Each stop in flight by id, its token telling a late answer from an
    *  earlier stop of an item that left and came back. */
   const stopping = new Map<string, object>();
@@ -548,6 +561,12 @@ export function createHeaderStatus(
 
   const id = `cp-status-${String(++seq)}`;
   const title = h("h2", { id: `${id}-h`, tabindex: "-1" });
+  // What the person's own press in the panel did, said from inside it.
+  const said = h("div", {
+    class: "cp-visually-hidden",
+    "aria-live": "polite",
+    "aria-atomic": "true",
+  });
   const retry = h(
     "button",
     { class: "cp-button", "data-size": "sm", type: "button", "data-cp-retry": "" },
@@ -556,7 +575,7 @@ export function createHeaderStatus(
   const head = h("header", {}, title);
   const foot = h("footer");
   const sections = new Map<string, HTMLElement>();
-  panel.replaceChildren(head);
+  panel.replaceChildren(head, said);
   if (!panel.hasAttribute("aria-label") && !panel.hasAttribute("aria-labelledby")) {
     panel.setAttribute("aria-labelledby", title.id);
   }
@@ -866,6 +885,7 @@ export function createHeaderStatus(
       }
       kids.push(foot);
     }
+    kids.push(said);
     place(panel, kids);
     enhanceTimes(panel);
     if (offline) {
@@ -891,20 +911,10 @@ export function createHeaderStatus(
     }
   };
 
-  /** Renders, keeping focus in the panel: a focused row that leaves hands
-   *  it to the next row of its section, else that section's heading, else
-   *  the panel's heading. */
-  const render = (): void => {
-    const pill: Pill =
-      link === "offline" ? { state: "offline", words: w.offline } : pillOf(model, w);
-    const shown = link === "lost" ? { ...pill, detail: w.reconnecting } : pill;
-    writePill(button, shown);
-    const active = document.activeElement;
-    const inside = active instanceof HTMLElement && active !== panel && panel.contains(active);
-    const li = inside ? active.closest<HTMLElement>("li[data-cp-key]") : null;
-    const name = inside
-      ? active.closest<HTMLElement>("section[data-cp-status]")?.dataset["cpStatus"]
-      : undefined;
+  /** Where focus is in the panel: its row, the rows after it and its
+   *  section, for land(). */
+  const spotOf = (el: Element): Spot => {
+    const li = el.closest<HTMLElement>("li[data-cp-key]");
     const after: string[] = [];
     for (let n = li?.nextElementSibling; n instanceof HTMLElement; n = n.nextElementSibling) {
       const key = n.dataset["cpKey"];
@@ -912,22 +922,18 @@ export function createHeaderStatus(
         after.push(key);
       }
     }
-    renderPanel(shown);
-    renderBanner();
-    releaseTimes();
-    if (!inside || document.activeElement === active) {
-      return;
-    }
-    if (active.isConnected && panel.contains(active)) {
-      active.focus({ preventScroll: true });
-      return;
-    }
-    const s = name === undefined ? undefined : sections.get(name);
+    const name = el.closest<HTMLElement>("section[data-cp-status]")?.dataset["cpStatus"];
+    return { key: li?.dataset["cpKey"], after, name };
+  };
+  /** Focuses `spot`'s row, else the next row of its section that is
+   *  there, else that section's heading, else the panel's heading. */
+  const land = (spot: Spot): void => {
+    const s = spot.name === undefined ? undefined : sections.get(spot.name);
     const rows =
       s?.isConnected === true ? [...s.querySelectorAll<HTMLElement>("li[data-cp-key]")] : [];
     const find = (key: string | undefined): HTMLElement | undefined =>
       rows.find((r) => r.dataset["cpKey"] === key);
-    const target = find(li?.dataset["cpKey"]) ?? after.map(find).find((r) => r !== undefined);
+    const target = find(spot.key) ?? spot.after.map(find).find((r) => r !== undefined);
     if (target !== undefined) {
       focusOn(landing(target), { preventScroll: true });
     } else {
@@ -935,14 +941,45 @@ export function createHeaderStatus(
       (heading ?? title).focus({ preventScroll: true });
     }
   };
+  /** The element focus is on in the panel, if any. */
+  const focusIn = (): HTMLElement | null => {
+    const active = document.activeElement;
+    return active instanceof HTMLElement && active !== panel && panel.contains(active)
+      ? active
+      : null;
+  };
 
-  const tell = (): void => {
+  /** Renders, keeping focus in the panel: a focused row that leaves hands
+   *  it on as land() does. */
+  const render = (): void => {
+    const pill: Pill =
+      link === "offline" ? { state: "offline", words: w.offline } : pillOf(model, w);
+    const shown = link === "lost" ? { ...pill, detail: w.reconnecting } : pill;
+    writePill(button, shown);
+    const active = focusIn();
+    const spot = active === null ? undefined : spotOf(active);
+    renderPanel(shown);
+    renderBanner();
+    releaseTimes();
+    if (active === null || spot === undefined || document.activeElement === active) {
+      return;
+    }
+    if (active.isConnected && panel.contains(active)) {
+      active.focus({ preventScroll: true });
+      return;
+    }
+    land(spot);
+  };
+
+  /** Says what got worse or the return to all good; true when it said one. */
+  const tell = (): boolean => {
     const ordered = conditionOrder(model.conditions);
     const level = severity(ordered);
     const problems = ordered.filter(isProblem).length;
     const fresh = ordered.filter((c) => !toldIds.has(c.id));
     const newUrgent = fresh.find((c) => c.urgent === true);
     const worse = level > toldLevel || (level === 2 && problems > toldProblems);
+    let told = false;
     if (newUrgent !== undefined || worse) {
       const cause =
         newUrgent ?? fresh.find((c) => (level === 2 ? isProblem(c) : true)) ?? ordered[0];
@@ -953,14 +990,17 @@ export function createHeaderStatus(
             : `${level === 2 ? w.problems(problems) : w.warnings(ordered.length)}: ${cause.title}`,
         );
         troubled = true;
+        told = true;
       }
     } else if (troubled && pillOf(model, w).state === "ok") {
       announce(w.ok);
       troubled = false;
+      told = true;
     }
     toldLevel = level;
     toldProblems = problems;
     toldIds = new Set(ordered.map((c) => c.id));
+    return told;
   };
 
   // Read after an await, where a destroy() may have run meanwhile.
@@ -974,7 +1014,21 @@ export function createHeaderStatus(
     const question = work.stop.ask;
     if (question !== undefined) {
       const { message, ...rest } = question;
-      if (!(await ask(message, { ...rest, signal: life.signal })) || ended()) {
+      // The question's dialog gives focus back to what held it, which a
+      // press does not give a button in Safari
+      // (https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/button#clicking_and_focus),
+      // so Stop takes it first.
+      const stopper = panel.querySelector<HTMLElement>(`[data-cp-stop="${CSS.escape(key)}"]`);
+      stopper?.focus({ preventScroll: true });
+      const spot = spotOf(stopper ?? title);
+      const yes = await ask(message, { ...rest, signal: life.signal });
+      if (ended()) {
+        return;
+      }
+      if (focusIn() === null && panel.matches(":popover-open")) {
+        land(spot);
+      }
+      if (!yes) {
         return;
       }
     }
@@ -1040,6 +1094,10 @@ export function createHeaderStatus(
       announce(reason);
     }
     render();
+    const settled = panel.querySelector(`[data-cp-start="${CSS.escape(key)}"]`);
+    if (reason === undefined && settled !== null) {
+      writeRegion(said, settled.textContent);
+    }
   };
 
   panel.addEventListener(
@@ -1053,6 +1111,7 @@ export function createHeaderStatus(
       } else if (starter !== null && starter !== undefined) {
         void start(starter.dataset["cpStart"] ?? "");
       } else if (target?.closest("[data-cp-retry]") !== null && target !== null) {
+        retried = true;
         model.reconnect?.();
       } else if (
         target?.closest("a[href]") !== null &&
@@ -1119,9 +1178,11 @@ export function createHeaderStatus(
         const was = link;
         link = "live";
         render();
-        if (was === "offline") {
-          tell();
+        // Retry's answer is what the pill now says, unless tell() said more.
+        if (was === "offline" && !tell() && retried) {
+          writeRegion(said, title.textContent);
         }
+        retried = false;
         return;
       }
       if (link !== "live") {
@@ -1141,6 +1202,7 @@ export function createHeaderStatus(
     destroy() {
       gone = true;
       clearTimeout(timer);
+      cancelRegion(said);
       life.abort();
     },
   };

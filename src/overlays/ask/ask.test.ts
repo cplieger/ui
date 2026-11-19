@@ -241,3 +241,68 @@ describe("ask", () => {
     expect(document.querySelector("dialog")).toBeNull();
   });
 });
+
+describe("ask from inside an open popover", () => {
+  /** An open auto popover of `role`, a panel's by default, holding a
+   *  focused button, and a button outside it. */
+  const opened = (role = "dialog") => {
+    const pop = document.createElement("div");
+    pop.popover = "auto";
+    pop.setAttribute("role", role);
+    const inside = document.createElement("button");
+    inside.textContent = "Stop";
+    pop.append(inside);
+    const outside = document.createElement("button");
+    outside.textContent = "Elsewhere";
+    document.body.append(outside, pop);
+    pop.showPopover();
+    inside.focus();
+    return { pop, inside, outside };
+  };
+
+  it.each([
+    ["declined", "Cancel", false],
+    ["answered", "OK", true],
+  ])(
+    "keeps the popover open while asked and once %s, and gives focus back to the button",
+    async (_how, words, yes) => {
+      const { pop, inside } = opened();
+      const reply = ask("Stop the scan?");
+      expect(open().parentElement).toBe(pop);
+      expect(pop.matches(":popover-open")).toBe(true);
+      await userEvent.click(button(words));
+      await expect(reply).resolves.toBe(yes);
+      expect(pop.matches(":popover-open")).toBe(true);
+      expect(document.activeElement).toBe(inside);
+      expect(document.querySelector("dialog")).toBeNull();
+    },
+  );
+
+  it("asks from the body when the focus is in no open popover", async () => {
+    const { pop, outside } = opened();
+    outside.focus();
+    const reply = ask("Stop the scan?");
+    expect(open().parentElement).toBe(document.body);
+    expect(pop.matches(":popover-open")).toBe(false);
+    await userEvent.click(button("Cancel"));
+    await expect(reply).resolves.toBe(false);
+  });
+
+  it("asks from the body when the focus is in an open menu, which closes as it is chosen", async () => {
+    const { pop } = opened("menu");
+    const reply = ask("Stop the scan?");
+    expect(open().parentElement).toBe(document.body);
+    expect(pop.matches(":popover-open")).toBe(false);
+    await userEvent.click(button("OK"));
+    await expect(reply).resolves.toBe(true);
+  });
+
+  it("answers as declined and leaves the page usable when the popover holding it closes", async () => {
+    const { pop } = opened();
+    const reply = ask("Stop the scan?");
+    pop.hidePopover();
+    await expect(reply).resolves.toBe(false);
+    expect(document.querySelector("dialog")).toBeNull();
+    expect(document.querySelector(":modal")).toBeNull();
+  });
+});

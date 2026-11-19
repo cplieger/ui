@@ -64,6 +64,32 @@ function ms(time: string): number {
   return Number.parseFloat(time) * 1000;
 }
 
+/** Whether `el` is `node` or holds it, across shadow roots. */
+function holds(el: Element, node: Node): boolean {
+  for (let n: Node | null = node; n !== null; n = n instanceof ShadowRoot ? n.host : n.parentNode) {
+    if (n === el) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/** Whether `el` is in the page and seen: rendered, visible, and not at
+ *  opacity 0, apart from under an animation still running, as a popover or
+ *  a dialog that fades in from 0 as it opens. */
+function present(el: HTMLElement): boolean {
+  if (!el.isConnected || !el.checkVisibility({ visibilityProperty: true })) {
+    return false;
+  }
+  return (
+    el.checkVisibility({ opacityProperty: true }) ||
+    document.getAnimations().some((a) => {
+      const target = a.effect instanceof KeyframeEffect ? a.effect.target : null;
+      return a.playState === "running" && target !== null && holds(target, el);
+    })
+  );
+}
+
 /** How a tip opened, which decides what closes it besides Escape: the
  *  mouse leaving the control and the tip, the focus leaving the control,
  *  or a second tap on the control or a tap elsewhere. */
@@ -119,11 +145,12 @@ function listen(signal: AbortSignal, delay: number): void {
     }
   });
 
-  // The IntersectionObserver reports a control in the window that leaves
-  // the document or that layout hides; the MutationObserver reports a node
-  // removed, or an attribute, class or inline style that may hide one,
-  // wherever it is. Neither reports a stylesheet hiding a control outside
-  // the window, so every listener also asks gone() first.
+  // The MutationObserver reports, wherever the control is, any change to
+  // the nodes, attributes, classes or inline styles of the control's tree
+  // and of each tree its shadow hosts sit in. The IntersectionObserver
+  // reports a control in the window that layout hides with no such change,
+  // as by a stylesheet rule or a pseudo-class. Any other change waits for
+  // the next listener, each of which asks gone() first.
   const seen = new IntersectionObserver(() => {
     gone();
   });
@@ -170,12 +197,16 @@ function listen(signal: AbortSignal, delay: number): void {
     shownFor = el;
     opened = how;
     seen.observe(el);
-    tree.observe(document.documentElement, {
-      childList: true,
-      subtree: true,
-      attributes: true,
-      attributeFilter: ["hidden", "style", "class", "open"],
-    });
+    // A MutationObserver does not enter a shadow tree, and a shadow root's
+    // own observer misses its host's removal, so every root up to the
+    // document is observed. gone() writes nothing while the control
+    // stays, and close() disconnects it first, so no write loops.
+    for (let root = el.getRootNode(); ; root = root.host.getRootNode()) {
+      tree.observe(root, { childList: true, subtree: true, attributes: true });
+      if (!(root instanceof ShadowRoot)) {
+        break;
+      }
+    }
     watch.observe(el, {
       attributes: true,
       attributeFilter: ["data-cp-tip", "aria-label"],
@@ -201,6 +232,7 @@ function listen(signal: AbortSignal, delay: number): void {
     }
     clearTimeout(restTimer);
     resting = el;
+    hear(el);
     restTimer = setTimeout(() => {
       show(el, "mouse");
     }, delay);
@@ -221,10 +253,7 @@ function listen(signal: AbortSignal, delay: number): void {
     }
   };
   const gone = (): void => {
-    if (
-      shownFor !== null &&
-      !(shownFor.isConnected && shownFor.checkVisibility({ visibilityProperty: true }))
-    ) {
+    if (shownFor !== null && !present(shownFor)) {
       hide();
     }
   };
@@ -290,27 +319,34 @@ function listen(signal: AbortSignal, delay: number): void {
   );
   // pointerleave fires for each element the mouse leaves, by the engine's
   // own hit test, and does not bubble, so this capture listener hears it
-  // for the control and the tip.
-  document.addEventListener(
-    "pointerleave",
-    (e) => {
-      gone();
-      if (e.pointerType !== "mouse") {
-        return;
+  // for the control and the tip. It does not leave a shadow tree either,
+  // so rest() has each shadow root on a control's host chain hear it too.
+  const onLeave = (e: Event): void => {
+    gone();
+    if (!(e instanceof PointerEvent) || e.pointerType !== "mouse") {
+      return;
+    }
+    const t = at(e);
+    if (t === resting) {
+      unrest();
+    }
+    if (shownFor !== null && (t === shownFor || t === tip)) {
+      left();
+    }
+    if (t instanceof Element && t.matches(STRETCH)) {
+      aim(null);
+    }
+  };
+  document.addEventListener("pointerleave", onLeave, on);
+  const heard = new WeakSet<ShadowRoot>();
+  const hear = (el: HTMLElement): void => {
+    for (let r = el.getRootNode(); r instanceof ShadowRoot; r = r.host.getRootNode()) {
+      if (!heard.has(r)) {
+        heard.add(r);
+        r.addEventListener("pointerleave", onLeave, on);
       }
-      const t = at(e);
-      if (t === resting) {
-        unrest();
-      }
-      if (shownFor !== null && (t === shownFor || t === tip)) {
-        left();
-      }
-      if (t instanceof Element && t.matches(STRETCH)) {
-        aim(null);
-      }
-    },
-    on,
-  );
+    }
+  };
   document.addEventListener(
     "focusin",
     (e) => {

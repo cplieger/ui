@@ -1,5 +1,5 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { page } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 
 import { relative } from "../../core/format/format.js";
 import { installAnnouncer } from "../../feedback/announce/announce.js";
@@ -407,12 +407,20 @@ describe("at compact width", () => {
   });
 });
 
+/** The panel's parts in order, leaving out its live region. */
 const sections = (panel: HTMLElement) =>
-  [...panel.children].map((c) =>
-    c instanceof HTMLElement && c.dataset["cpStatus"] !== undefined
-      ? c.dataset["cpStatus"]
-      : c.tagName.toLowerCase(),
-  );
+  [...panel.children]
+    .filter((c) => !c.hasAttribute("aria-live"))
+    .map((c) =>
+      c instanceof HTMLElement && c.dataset["cpStatus"] !== undefined
+        ? c.dataset["cpStatus"]
+        : c.tagName.toLowerCase(),
+    );
+/** What the panel's own polite region says, once its pause has passed. */
+const panelSaid = (panel: HTMLElement) => {
+  vi.advanceTimersByTime(100);
+  return panel.querySelector('[aria-live="polite"]')?.textContent ?? "";
+};
 const rows = (panel: HTMLElement, name: string) => [
   ...panel.querySelectorAll<HTMLElement>(
     `[data-cp-status="${name}"] li[data-cp-key] > .cp-list-row`,
@@ -1041,6 +1049,98 @@ describe("the running section", () => {
     expect(before).not.toHaveBeenCalled();
   });
 
+  /** An open panel whose work items each ask before they stop, with the
+   *  exit motion off so a question's answer arrives at once. */
+  const asking = async (ids: readonly string[]) => {
+    vi.useRealTimers();
+    const real = matchMedia.bind(window);
+    vi.stubGlobal("matchMedia", (q: string) =>
+      q === "(prefers-reduced-motion: reduce)" ? { ...real(q), matches: true } : real(q),
+    );
+    const mounted = mount();
+    const opened = new Promise((resolve) => {
+      mounted.panel.addEventListener("toggle", resolve, { once: true });
+    });
+    mounted.panel.showPopover();
+    await opened;
+    const run = vi.fn(() => Promise.resolve());
+    const items = ids.map((id) => job(id, { stop: { run, ask: { message: `Stop ${id}?` } } }));
+    mounted.status.update(model({ work: items }));
+    return { ...mounted, run, items };
+  };
+  const question = () =>
+    vi.waitFor(() => {
+      const d = document.querySelector<HTMLDialogElement>("dialog[open]");
+      expect(d).not.toBeNull();
+      return d as HTMLDialogElement;
+    });
+  const presses = [
+    [
+      "the keys",
+      async (b: HTMLButtonElement) => {
+        b.focus({ focusVisible: true });
+        await userEvent.keyboard("{Enter}");
+      },
+    ],
+    [
+      "the mouse",
+      async (b: HTMLButtonElement) => {
+        await userEvent.click(b);
+      },
+    ],
+    [
+      "a press that leaves the focus where it was, as Safari's mouse does",
+      (b: HTMLButtonElement) => {
+        b.click();
+        return Promise.resolve();
+      },
+    ],
+  ] as const;
+
+  it.each(presses)(
+    "keeps the panel open over Stop's question pressed by %s, and gives focus back to Stop at either answer",
+    async (_by, press) => {
+      const { panel, run } = await asking(["Full check"]);
+      for (const [answer, calls] of [
+        ["footer > button:not([value])", 0],
+        ['button[value="confirm"]', 1],
+      ] as const) {
+        await press(stopButton(panel, "Full check"));
+        const d = await question();
+        expect(panel.matches(":popover-open")).toBe(true);
+        (d.querySelector(answer) as HTMLButtonElement).click();
+        await vi.waitFor(() => {
+          expect(document.querySelector("dialog")).toBeNull();
+        });
+        expect(panel.matches(":popover-open")).toBe(true);
+        expect(document.activeElement).toBe(stopButton(panel, "Full check"));
+        expect(run).toHaveBeenCalledTimes(calls);
+      }
+      expect(stopButton(panel, "Full check").firstChild?.textContent).toBe("Stopping…");
+    },
+  );
+
+  it.each([
+    ["declined", "footer > button:not([value])"],
+    ["answered", 'button[value="confirm"]'],
+  ])(
+    "gives focus to the next row's control when the asking row left before its question was %s",
+    async (_how, answer) => {
+      const { panel, status, run, items } = await asking(["a", "b"]);
+      await presses[0][1](stopButton(panel, "a"));
+      const d = await question();
+      status.update(model({ work: items.slice(1) }));
+      expect(panel.contains(d)).toBe(true);
+      (d.querySelector(answer) as HTMLButtonElement).click();
+      await vi.waitFor(() => {
+        expect(document.querySelector("dialog")).toBeNull();
+      });
+      expect(panel.matches(":popover-open")).toBe(true);
+      expect(document.activeElement).toBe(stopButton(panel, "b"));
+      expect(run).not.toHaveBeenCalled();
+    },
+  );
+
   it("drops a refusal that comes back after its item left", async () => {
     const { panel, status } = mount();
     let refuse = (_: Error): void => undefined;
@@ -1186,6 +1286,43 @@ describe("the starts", () => {
     expect(q.hasAttribute("aria-disabled")).toBe(false);
     expect(document.activeElement).toBe(q);
     expect(said()).toBe("");
+  });
+
+  it("says a start's settled words once from the panel when the app accepts it, again at the next", async () => {
+    const { panel, status } = mount();
+    panel.showPopover();
+    const run = vi.fn(() => Promise.resolve());
+    status.update(model({ starts: [begin("q", { label: "Quick check", run })] }));
+    const q = startButton(panel, "q");
+    q.click();
+    expect(q.textContent).toBe("Starting…");
+    expect(panelSaid(panel)).toBe("");
+    await vi.waitFor(() => {
+      expect(q.textContent).toBe("Quick check");
+    });
+    expect(panelSaid(panel)).toBe("Quick check");
+    expect(said()).toBe("");
+    q.click();
+    await vi.waitFor(() => {
+      expect(run).toHaveBeenCalledTimes(2);
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    const region = panel.querySelector('[aria-live="polite"]');
+    expect(region?.textContent).toBe("");
+    expect(panelSaid(panel)).toBe("Quick check");
+  });
+
+  it("says a refused start once, from the page and not the panel", async () => {
+    const { panel, status } = mount();
+    panel.showPopover();
+    const run = vi.fn((): Promise<void> => Promise.reject(new Error("No budget left")));
+    status.update(model({ starts: [begin("f", { label: "Full check", run })] }));
+    startButton(panel, "f").click();
+    await vi.waitFor(() => {
+      expect(startLine(panel, "f").textContent).toBe("No budget left");
+    });
+    expect(said()).toBe("No budget left");
+    expect(panelSaid(panel)).toBe("");
   });
 
   it("writes a refusal as the start's reason line, says it, and gives the button back", async () => {
@@ -1619,6 +1756,50 @@ describe("the panel while offline", () => {
     expect(row.hasAttribute("data-kept")).toBe(false);
     expect(row.querySelector(".cp-kept")).toBeNull();
     expect(row.querySelector("small:not([hidden])")?.textContent).toBe("Port changed");
+  });
+
+  /** A panel gone offline, with its model's `reconnect`. */
+  const offline = (m: Partial<StatusModel>) => {
+    const mounted = mount();
+    mounted.panel.showPopover();
+    const reconnect = vi.fn();
+    mounted.status.update(model({ ...m, reconnect }));
+    mounted.status.connection("lost");
+    vi.advanceTimersByTime(10_000);
+    expect(said()).toBe("Offline");
+    return { ...mounted, reconnect };
+  };
+  const retry = (panel: HTMLElement) => {
+    panel.querySelector<HTMLButtonElement>("[data-cp-retry]")?.click();
+  };
+
+  it("says the pill's words once from the panel when Retry brings the stream back", () => {
+    const { panel, status, reconnect } = offline({
+      work: [job("Full check", { value: 3, max: 8 })],
+    });
+    retry(panel);
+    expect(reconnect).toHaveBeenCalledOnce();
+    status.connection("live");
+    expect(heading(panel)).toBe("Full check 3/8");
+    expect(panelSaid(panel)).toBe("Full check 3/8");
+    expect(said()).toBe("Offline");
+    status.update(model({ work: [job("Full check", { value: 4, max: 8 })], reconnect }));
+    expect(panelSaid(panel)).toBe("Full check 3/8");
+  });
+
+  it("says nothing from the panel when the stream comes back with no Retry", () => {
+    const { panel, status } = offline({ work: [job("Full check", { value: 3, max: 8 })] });
+    status.connection("live");
+    expect(panelSaid(panel)).toBe("");
+    expect(said()).toBe("Offline");
+  });
+
+  it("says All good once, from the page, when Retry brings back nothing wrong", () => {
+    const { panel, status } = offline({});
+    retry(panel);
+    status.connection("live");
+    expect(said()).toBe("All good");
+    expect(panelSaid(panel)).toBe("");
   });
 });
 
