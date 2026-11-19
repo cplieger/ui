@@ -1468,6 +1468,20 @@ describe("mountSignIn: once the autofill's pick signed in", () => {
     expect(noticeOf(panel)).toBeNull();
   });
 
+  it("does not send the password again after a busy answer once the screen ended", async () => {
+    const fake = new Fake().answer("loginPassword", refuse(503, "auth_busy"), ok(signedIn));
+    const screen = new AbortController();
+    const { panel } = mount(fake, { signal: screen.signal });
+    await drawn(panel);
+    await signIn(panel);
+    await vi.waitFor(() => {
+      expect(fake.named("loginPassword")).toHaveLength(1);
+    });
+    screen.abort();
+    await new Promise((resolve) => setTimeout(resolve, 1200));
+    expect(fake.named("loginPassword")).toHaveLength(1);
+  });
+
   it("sends no passkey while the browser keeps the password that signed in", async () => {
     const fake = new Fake();
     const releaseStore = fake.hold("storePasswordCredential");

@@ -757,7 +757,8 @@ describe("continueSignIn: a step that ended, still drawn", () => {
       expect(input(panel, "code")).not.toBeNull();
     });
     const release = fake.hold("state");
-    await userEvent.click(button(panel, "Start again"));
+    // Before the read's sketch replaces the ended step.
+    button(panel, "Start again").click();
     const code = input(panel, "code");
     expect(code).not.toBeNull();
     let left = false;
@@ -836,6 +837,71 @@ describe("continueSignIn: once the step signed in", () => {
       expect(went).toEqual(["/feed"]);
     });
     expect(fake.named("loginSecondPasskey")).toHaveLength(0);
+  });
+
+  it("sends no sign-in from the form Start again drew while the new password is kept", async () => {
+    const fake = new Fake();
+    const { panel, went } = await stepped(
+      fake,
+      pending({ next: "set_credential", methods: ["password"] }),
+    );
+    const releaseSet = fake.hold("loginSetPassword");
+    await userEvent.fill(input(panel, "new_password"), "copper lantern harbour");
+    input(panel, "new_password").form?.requestSubmit();
+    await vi.waitFor(() => {
+      expect(fake.named("loginSetPassword")).toHaveLength(1);
+    });
+    button(panel, "Start again").click();
+    await vi.waitFor(() => {
+      expect(input(panel, "username")).not.toBeNull();
+    });
+    await drawn(panel);
+    const releaseStore = fake.hold("storePasswordCredential");
+    releaseSet();
+    await vi.waitFor(() => {
+      expect(fake.named("storePasswordCredential")).toHaveLength(1);
+    });
+    input(panel, "username").value = "mika";
+    input(panel, "password").value = "lantern harbour";
+    input(panel, "password").form?.requestSubmit();
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(fake.named("loginPassword")).toHaveLength(1);
+    expect(went).toEqual([]);
+    releaseStore();
+    await vi.waitFor(() => {
+      expect(went).toEqual(["/feed"]);
+    });
+    expect(fake.named("loginPassword")).toHaveLength(1);
+  });
+
+  it("sends no sign-in from the form Start again drew while the recovery code is shown", async () => {
+    const fake = new Fake();
+    const { panel, went } = await stepped(fake, pending({ methods: ["totp"] }));
+    const releaseCode = fake.hold("loginCode");
+    fake.answer("loginCode", ok({ signed_in: { ...signedIn, recovery_code: "WXYZ2345EFGH6789" } }));
+    await userEvent.fill(input(panel, "code"), "111111");
+    input(panel, "code").form?.requestSubmit();
+    await vi.waitFor(() => {
+      expect(fake.named("loginCode")).toHaveLength(1);
+    });
+    button(panel, "Start again").click();
+    await vi.waitFor(() => {
+      expect(input(panel, "username")).not.toBeNull();
+    });
+    await drawn(panel);
+    releaseCode();
+    const shown = await dialogOf("Your recovery code");
+    input(panel, "username").value = "mika";
+    input(panel, "password").value = "lantern harbour";
+    input(panel, "password").form?.requestSubmit();
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(fake.named("loginPassword")).toHaveLength(1);
+    await userEvent.click(shown.querySelector("input[type='checkbox']") as HTMLInputElement);
+    await userEvent.click(button(shown, "Continue"));
+    await vi.waitFor(() => {
+      expect(went).toEqual(["/feed"]);
+    });
+    expect(fake.named("loginPassword")).toHaveLength(1);
   });
 
   it("draws no other way in once another way signed in", async () => {

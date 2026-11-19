@@ -28,6 +28,7 @@ const CODE = "M9XRTB4HNW6P7KQ2";
 const WAIT = refuse(429, "auth_rate_limited", undefined, { "Retry-After": "30" });
 const ENROL = ok({ pending: { ticket: "t1", next: "enrol", methods: ["totp", "passkey"] } });
 const SECOND = ok({ pending: { ticket: "t1", next: "second_factor", methods: ["totp"] } });
+const SET = ok({ pending: { ticket: "t1", next: "set_credential", methods: ["password"] } });
 const SIGNED_IN_CODE = ok({ signed_in: { ...signedIn, recovery_code: CODE } });
 const PASSKEY_IN = { kind: "signed-in", result: signedIn };
 const STEP_IN = { kind: "answered", result: { signed_in: { ...signedIn, recovery_code: CODE } } };
@@ -44,7 +45,15 @@ const ANSWERS: Readonly<Record<string, readonly Answer[]>> = {
   loginPassword: [
     IN(ok(signedIn)),
     NOT(SECOND),
+    NOT(SET),
     NOT(refuse(401, "auth_invalid_credentials")),
+    NOT(WAIT),
+    NOT(refuse(503, "auth_busy")),
+  ],
+  loginSetPassword: [
+    IN(ok({ signed_in: signedIn })),
+    IN(SIGNED_IN_CODE, true),
+    NOT(refuse(400, "auth_bad_request", "password_too_short")),
     NOT(WAIT),
   ],
   passkey: [IN(PASSKEY_IN), NOT({ kind: "verification-failed" }), NOT({ kind: "cancelled" })],
@@ -101,8 +110,15 @@ interface Held {
   readonly resolve: (v: unknown) => void;
 }
 
+/** A first move: send the form at this index, or answer the first held
+ *  call of this name with its answer at this index. */
+type Start = readonly ["act", number] | readonly ["release", string, number];
+
 interface Screen {
   readonly name: string;
+  /** Openings that reach a screen's later steps, which random moves
+   *  alone reach too rarely; a run starts with none or one of them. */
+  readonly starts: readonly (readonly Start[])[];
   /** The calls whose answers the property holds and releases. */
   readonly held: readonly string[];
   /** What `state()` answers when it answers. */
@@ -130,7 +146,43 @@ const STATE: StateResponse = {
 const screens: readonly Screen[] = [
   {
     name: "Sign-in",
-    held: ["loginPassword", "passkey", "autofill", "loginCode", "storePasswordCredential"],
+    starts: [
+      [
+        ["release", "state", 0],
+        ["act", 0],
+        ["release", "loginPassword", 1],
+      ],
+      [
+        ["release", "state", 0],
+        ["act", 0],
+        ["release", "loginPassword", 1],
+        ["act", 0],
+      ],
+      [
+        ["release", "state", 0],
+        ["act", 0],
+        ["release", "loginPassword", 2],
+      ],
+      [
+        ["release", "state", 0],
+        ["act", 0],
+        ["release", "loginPassword", 2],
+        ["act", 0],
+      ],
+      [
+        ["release", "state", 0],
+        ["act", 0],
+        ["release", "loginPassword", 5],
+      ],
+    ],
+    held: [
+      "loginPassword",
+      "passkey",
+      "autofill",
+      "loginCode",
+      "loginSetPassword",
+      "storePasswordCredential",
+    ],
     state: STATE,
     fake: () => new Fake().always("passkeySupport", { webauthn: true, conditional: true }),
     mount: (region, fake, handOn, _gate, signal) => {
@@ -146,6 +198,7 @@ const screens: readonly Screen[] = [
   },
   {
     name: "Link this identity",
+    starts: [],
     held: ["oidcLinkByAdmin", "oidcCreatePending"],
     state: { ...STATE, totp: true, sso: "only" },
     fake: () =>
@@ -166,6 +219,13 @@ const screens: readonly Screen[] = [
   },
   {
     name: "Setup",
+    starts: [
+      [
+        ["release", "state", 0],
+        ["act", 0],
+        ["release", "setupPassword", 1],
+      ],
+    ],
     held: [
       "setupPassword",
       "setupWithPasskey",
@@ -192,6 +252,13 @@ const screens: readonly Screen[] = [
   },
   {
     name: "Invite",
+    starts: [
+      [
+        ["release", "state", 0],
+        ["act", 0],
+        ["release", "inviteAcceptPassword", 1],
+      ],
+    ],
     held: [
       "inviteAcceptPassword",
       "inviteAcceptOIDC",
@@ -219,6 +286,7 @@ const VALUES: Readonly<Record<string, string>> = {
   username: "mika",
   new_username: "mika",
   password: "lantern harbour quietly",
+  new_password: "copper lantern harbour",
   temporary_password: "ABCD-2345-EFGH-6789",
   code: "123456",
 };
@@ -232,6 +300,10 @@ class Run {
   readonly fake: Fake;
   readonly region = document.createElement("section");
   readonly life = new AbortController();
+  /** The screen's own life, which the host ends by unmounting it. */
+  readonly screen = new AbortController();
+  ended = false;
+  callsAtEnd = 0;
   readonly held: Held[] = [];
   handed = 0;
   /** Forms the browser would have sent itself, which would leave the page. */
@@ -243,7 +315,8 @@ class Run {
   drawnAtHandOn = new Set<Element>();
   invalidAtHandOn = 0;
   codesOwed = 0;
-  codesShown = 0;
+  /** Each recovery-code dialog seen open. */
+  readonly codesSeen = new Set<HTMLDialogElement>();
   /** An answer came while its button showed busy, which holds it 400 ms. */
   slow = false;
 
@@ -279,7 +352,7 @@ class Run {
         this.handOn();
       },
       () => this.hold("offerPasskey"),
-      this.life.signal,
+      this.screen.signal,
     );
   }
 
@@ -306,13 +379,15 @@ class Run {
     return this.region.querySelectorAll("[aria-invalid='true']").length;
   }
 
-  /** Saves the recovery code a dialog shows, as the person does. */
+  codeDialogs(): HTMLDialogElement[] {
+    return [...document.querySelectorAll<HTMLDialogElement>("dialog.cp-dialog")].filter(
+      (d) => d.open && (d.textContent ?? "").includes("M9XR-TB4H-NW6P-7KQ2"),
+    );
+  }
+
+  /** Saves the recovery code each open dialog shows, as the person does. */
   saveCodes(): void {
-    for (const d of document.querySelectorAll<HTMLDialogElement>("dialog.cp-dialog")) {
-      if (!d.open || !(d.textContent ?? "").includes("M9XR-TB4H-NW6P-7KQ2")) {
-        continue;
-      }
-      this.codesShown += 1;
+    for (const d of this.codeDialogs()) {
       d.querySelector<HTMLInputElement>("input[type='checkbox']")?.click();
       [...d.querySelectorAll<HTMLButtonElement>("button")]
         .find((b) => b.textContent.includes("Continue"))
@@ -322,11 +397,17 @@ class Run {
 
   async check(step: string): Promise<void> {
     await settle();
-    this.saveCodes();
-    await settle();
+    for (const d of this.codeDialogs()) {
+      this.codesSeen.add(d);
+    }
     const where = `${this.s.name}, after ${step}`;
     expect(this.native, `${where}: no form left to the browser`).toEqual([]);
     expect(this.handed, `${where}: handed on at most once`).toBeLessThanOrEqual(1);
+    if (this.ended) {
+      expect(this.serverCalls(), `${where}: nothing sent once the screen ended`).toBe(
+        this.callsAtEnd,
+      );
+    }
     if (this.callsAtSignIn !== undefined) {
       expect(this.serverCalls(OFFER), `${where}: nothing sent once signed in`).toBe(
         this.callsAtSignIn,
@@ -349,7 +430,22 @@ class Run {
     );
   }
 
+  /** The browser keeps every password it was asked to, and the person
+   *  saves every code shown, as each eventually does. */
+  async settleUp(): Promise<void> {
+    for (let i = 0; i < 3; i += 1) {
+      for (const h of this.held.filter((x) => x.name === "storePasswordCredential")) {
+        this.held.splice(this.held.indexOf(h), 1);
+        h.resolve(undefined);
+      }
+      await this.check("the browser kept the passwords");
+      this.saveCodes();
+      await this.check("the codes saved");
+    }
+  }
+
   end(): void {
+    this.screen.abort();
     this.life.abort();
     for (const h of this.held.splice(0)) {
       h.resolve({ kind: "cancelled" });
@@ -366,7 +462,7 @@ type Command = fc.AsyncCommand<Run, Run>;
 /** Presses one of the screen's buttons, or sends one of its forms filled. */
 class Act implements Command {
   constructor(readonly at: number) {}
-  check = (): boolean => true;
+  check = (m: Run): boolean => !m.ended;
   async run(_m: Run, r: Run): Promise<void> {
     const forms = [...r.region.querySelectorAll("form")];
     const buttons = [
@@ -390,18 +486,47 @@ class Act implements Command {
   toString = (): string => `act(${String(this.at)})`;
 }
 
+/** Saves the recovery codes the open dialogs show. */
+class Save implements Command {
+  check = (m: Run): boolean => m.codeDialogs().length > 0;
+  async run(_m: Run, r: Run): Promise<void> {
+    r.saveCodes();
+    await r.check(this.toString());
+  }
+  toString = (): string => "save codes";
+}
+
+/** The host ends the screen and takes its region away. */
+class End implements Command {
+  check = (m: Run): boolean => !m.ended;
+  async run(_m: Run, r: Run): Promise<void> {
+    await r.check("before the end");
+    r.ended = true;
+    r.callsAtEnd = r.serverCalls();
+    r.screen.abort();
+    r.region.remove();
+    await r.check(this.toString());
+  }
+  toString = (): string => "end";
+}
+
 /** Answers one held call. */
 class Release implements Command {
   constructor(
     readonly at: number,
     readonly answer: number,
+    readonly name?: string,
   ) {}
-  check = (m: Run): boolean => m.held.length > 0;
+  check = (m: Run): boolean => m.held.some((h) => this.name === undefined || h.name === this.name);
   async run(_m: Run, r: Run): Promise<void> {
-    const h = r.held.splice(this.at % r.held.length, 1)[0]!;
+    const at =
+      this.name === undefined
+        ? this.at % r.held.length
+        : r.held.findIndex((h) => h.name === this.name);
+    const h = r.held.splice(at, 1)[0]!;
     const choices = ANSWERS[h.name] ?? [NOT(undefined)];
     const [value, code, signed] = choices[this.answer % choices.length]!;
-    if (code) {
+    if (code && !r.ended) {
       r.codesOwed += 1;
     }
     if (signed) {
@@ -411,17 +536,22 @@ class Release implements Command {
     h.resolve(value === "ok" ? ok(r.s.state) : value);
     await r.check(`${this.toString()} of ${h.name}`);
   }
-  toString = (): string => `release(${String(this.at)}, ${String(this.answer)})`;
+  toString = (): string => `release(${this.name ?? String(this.at)}, ${String(this.answer)})`;
 }
+
+const commandOf = (s: Start): Command =>
+  s[0] === "act" ? new Act(s[1]) : new Release(0, s[2], s[1]);
 
 const commands = fc.commands(
   [
     fc.oneof(
-      { arbitrary: fc.nat(9).map((i): Command => new Act(i)), weight: 2 },
+      { arbitrary: fc.nat(9).map((i): Command => new Act(i)), weight: 8 },
       {
-        arbitrary: fc.tuple(fc.nat(5), fc.nat(3)).map(([i, a]): Command => new Release(i, a)),
-        weight: 3,
+        arbitrary: fc.tuple(fc.nat(5), fc.nat(5)).map(([i, a]): Command => new Release(i, a)),
+        weight: 12,
       },
+      { arbitrary: fc.constant<Command>(new Save()), weight: 4 },
+      { arbitrary: fc.constant<Command>(new End()), weight: 1 },
     ),
   ],
   { maxCommands: 20 },
@@ -440,7 +570,7 @@ describe("every way into an account, answered in any order", () => {
       const started = performance.now();
       while (runs < RUNS) {
         await fc.assert(
-          fc.asyncProperty(commands, async (cmds) => {
+          fc.asyncProperty(fc.constantFrom([], ...s.starts), commands, async (start, cmds) => {
             // A run the time limit cut off still runs: the next waits for it.
             await inflight.catch(() => undefined);
             runs += 1;
@@ -448,13 +578,24 @@ describe("every way into an account, answered in any order", () => {
             const going = (async () => {
               try {
                 await run.check("the first read");
+                for (const c of start.map(commandOf)) {
+                  if (c.check(run)) {
+                    await c.run(run, run);
+                  }
+                }
                 await fc.asyncModelRun(() => ({ model: run, real: run }), cmds);
                 if (run.slow) {
                   // Past the 400 ms a confirm cycle's shown busy state holds an answer.
                   await new Promise((resolve) => setTimeout(resolve, 450));
                 }
+                await run.settleUp();
                 await run.check("the last answers");
-                expect(run.codesShown, `${s.name}: every recovery code shown`).toBe(run.codesOwed);
+                // Once the host ended the screen, it owes no showing.
+                if (!run.ended) {
+                  expect(run.codesSeen.size, `${s.name}: every recovery code shown`).toBe(
+                    run.codesOwed,
+                  );
+                }
               } finally {
                 run.end();
               }

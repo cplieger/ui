@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { LogEntryView, LogQuery, Result, SecurityLogView } from "./client.js";
 import { mountSecurityLog } from "./log.js";
-import { Fake, ok } from "./test-helpers/fake.js";
+import { Fake, ok, refuse } from "./test-helpers/fake.js";
 import { useScreen } from "./test-helpers/security.js";
 
 useScreen();
@@ -53,8 +53,12 @@ class Model {
   }
 
   /** access's SecurityLog: `after` and `before` exclusive, newest first
-   *  unless `oldestFirst`, at most `limit` entries. */
+   *  unless `oldestFirst`, at most `limit` entries, a bound past JSON's
+   *  exact range refused. */
   answer(q: LogQuery = {}): Result<SecurityLogView> {
+    if ((q.after ?? 0) > Number.MAX_SAFE_INTEGER || (q.before ?? 0) > Number.MAX_SAFE_INTEGER) {
+      return refuse(400, "auth_bad_request", "log_range") as Result<SecurityLogView>;
+    }
     this.seen = [...this.seqs];
     const match = this.seqs.filter(
       (s) => (q.after === undefined || s > q.after) && (q.before === undefined || s < q.before),
@@ -108,6 +112,7 @@ class Run {
   readonly model: Model;
   region = document.createElement("div");
   refresh!: () => Promise<void>;
+  show!: (search: string) => void;
   address = "";
   life = new AbortController();
   limit: number;
@@ -136,6 +141,9 @@ class Run {
       signal: this.life.signal,
     });
     this.refresh = () => screen.refresh();
+    this.show = (search) => {
+      screen.show(search);
+    };
   }
 
   end(): void {
@@ -294,6 +302,43 @@ class Limit implements Command {
   toString = (): string => `limit(${String(this.limit)})`;
 }
 
+/** An address the pager never writes: a host's `show()`, or a page mounted
+ *  from a search, with a bound anywhere in or past the log. */
+class Open implements Command {
+  constructor(
+    readonly how: "show" | "mount",
+    readonly order: "newest" | "oldest",
+    readonly side: "before" | "after" | undefined,
+    readonly at: number,
+  ) {}
+  check = (): boolean => true;
+  async run(_m: Run, r: Run): Promise<void> {
+    const p = new URLSearchParams();
+    if (this.order === "oldest") {
+      p.set("order", "oldest");
+    }
+    if (this.side !== undefined) {
+      p.set(this.side, String(this.at));
+    }
+    const search = p.toString();
+    await step(
+      r,
+      this.toString(),
+      () => {
+        r.address = search;
+        if (this.how === "show") {
+          r.show(search);
+        } else {
+          r.mount();
+        }
+      },
+      none,
+    );
+  }
+  toString = (): string =>
+    `${this.how}(${this.order}${this.side === undefined ? "" : ` ${this.side}=${String(this.at)}`})`;
+}
+
 const commands = fc.commands(
   [
     fc.integer({ min: 1, max: 6 }).map((n): Command => new Arrive(n)),
@@ -302,6 +347,14 @@ const commands = fc.commands(
     fc.constant<Command>(new Refresh()),
     fc.constant<Command>(new Order()),
     fc.integer({ min: 1, max: 5 }).map((n): Command => new Limit(n)),
+    fc
+      .tuple(
+        fc.constantFrom<"show" | "mount">("show", "mount"),
+        fc.constantFrom<"newest" | "oldest">("newest", "oldest"),
+        fc.constantFrom<"before" | "after" | undefined>("before", "after", undefined),
+        fc.oneof(fc.integer({ min: 1, max: 40 }), fc.constant(Number.MAX_SAFE_INTEGER - 1)),
+      )
+      .map(([how, order, side, at]): Command => new Open(how, order, side, at)),
   ],
   { maxCommands: 14 },
 );

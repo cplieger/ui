@@ -421,6 +421,9 @@ export function mountSetup<C extends SetupClient>(
               void kept().then(done, done);
             }
           },
+          take: () => {
+            taken.abort();
+          },
           restart: (said) => {
             void load(said);
           },

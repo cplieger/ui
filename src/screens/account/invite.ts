@@ -390,6 +390,9 @@ export function mountInvite<C extends InviteClient>(
               },
             );
           },
+          take: () => {
+            taken.abort();
+          },
           restart: (said) => {
             void load(said);
           },

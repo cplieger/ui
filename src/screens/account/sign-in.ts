@@ -770,7 +770,7 @@ export function mountSignIn<C extends SignInClient>(
         let answer = await login();
         if (answer?.ok === false && codeOf(answer) === "auth_busy") {
           await sleep(1000, until);
-          if (!taken.signal.aborted) {
+          if (!until.aborted) {
             answer = await login();
           }
         }
@@ -808,6 +808,7 @@ export function mountSignIn<C extends SignInClient>(
           username: credentials.username,
           passwordLength,
           finish,
+          take,
           restart: (said) => {
             void load(said);
           },

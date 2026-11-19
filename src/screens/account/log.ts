@@ -183,9 +183,10 @@ const WHEN: Intl.DateTimeFormatOptions = { dateStyle: "medium", timeStyle: "shor
 const DAY: Intl.DateTimeFormatOptions = { dateStyle: "medium" };
 const CLOCK: Intl.DateTimeFormatOptions = { timeStyle: "short" };
 
-/** A positive whole number the address holds, within JSON's exact range. */
+/** A positive whole number the address holds, below the top of JSON's
+ *  exact range, so a page's probe one past its bound stays in access's. */
 function seqOf(value: string | null): number | undefined {
-  return value !== null && SEQ.test(value) && Number(value) <= Number.MAX_SAFE_INTEGER
+  return value !== null && SEQ.test(value) && Number(value) < Number.MAX_SAFE_INTEGER
     ? Number(value)
     : undefined;
 }
@@ -467,23 +468,27 @@ export function drawLog(
     list.toSorted((a, b) => (order === "newest" ? b.seq - a.seq : a.seq - b.seq));
 
   /** The page `v` names. It asks for one entry more than it shows, so the
-   *  side it reads toward has a next page exactly when that entry came. An
-   *  `after` page asks beside it for one entry at or below its bound, since
-   *  the size limit may have removed every older one; a `before` page has
-   *  newer ones, which the limit removes last. A read past the end,
-   *  or a newest-first `after` read that reached the newest end, is answered
-   *  by reading the first page, so its rows, `past` and `future` all come
-   *  from that read; the address is corrected while `v` is still the view. */
+   *  side it reads toward has a next page exactly when that entry came. A
+   *  bounded page asks beside it for one entry past its bound's other side,
+   *  which the size limit's pruning or a bound past the newest may empty. A
+   *  read past the end, or a newest-first page at the newest end, is
+   *  answered by reading the first page, so its rows, `past` and `future`
+   *  come from that read; the address is corrected while `v` is the view. */
   const pageOf = async (v: View): Promise<Result<Page>> => {
     const ascending = v.after !== undefined || (v.before === undefined && v.order === "oldest");
-    const [got, older] = await Promise.all([
+    // Both probes go once access's log read answers its cursors (its List
+    // shape). access reads a 0 bound as none, and a `before=1` page is
+    // empty, so it reads the first page anyway.
+    const [got, older, newer] = await Promise.all([
       query(v, {
         ...(ascending ? { oldestFirst: true } : {}),
         ...(v.before === undefined ? {} : { before: v.before }),
         ...(v.after === undefined ? {} : { after: v.after }),
       }),
-      // Goes once access's log read answers a `prev_cursor` (its List shape).
       v.after === undefined ? undefined : query(v, { before: v.after + 1, limit: 1 }),
+      v.before === undefined || v.before < 2
+        ? undefined
+        : query(v, { after: v.before - 1, limit: 1 }),
       peopleRead,
     ]);
     if (!got.ok) {
@@ -492,9 +497,14 @@ export function drawLog(
     if (older?.ok === false) {
       return older;
     }
+    if (newer?.ok === false) {
+      return newer;
+    }
     const page = got.data.entries;
     const more = page.length > limit;
-    const newestEnd = v.order === "newest" && v.after !== undefined && !more;
+    const newestEnd =
+      v.order === "newest" &&
+      ((v.after !== undefined && !more) || newer?.data.entries.length === 0);
     if (newestEnd || (page.length === 0 && (v.before !== undefined || v.after !== undefined))) {
       const at = first(v);
       if (view === v) {
@@ -512,7 +522,7 @@ export function drawLog(
         log: got.data,
         entries: ordered(shown, v.order),
         past: older === undefined ? !ascending && more : older.data.entries.length > 0,
-        future: ascending ? more : v.before !== undefined,
+        future: ascending ? more : newer !== undefined && newer.data.entries.length > 0,
         arrived: 0,
       },
     };

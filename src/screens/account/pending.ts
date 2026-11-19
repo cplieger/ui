@@ -57,6 +57,9 @@ export interface PendingContext<C extends PendingClient> {
   /** The bounds of a password the person chooses. */
   readonly passwordLength: PasswordLength;
   readonly finish: (signedIn: SignedIn) => void;
+  /** Marks the screen's sign-in taken, the moment a step's answer signs
+   *  in: before the password is kept and before the recovery code shows. */
+  readonly take: () => void;
   /** Back to the sign-in form, saying why. */
   readonly restart: (said?: Said) => void;
   /** Ends when the screen takes `body` back to draw in it. */
@@ -101,6 +104,10 @@ export function continueSignIn<C extends PendingClient>(
   // Aborts the moment an answer of this step signs in, before anything it
   // awaits, or once another way did.
   const taken = new AbortController();
+  const take = (): void => {
+    taken.abort();
+    x.take();
+  };
   let handed = false;
   const handedOn = AbortSignal.any(
     [taken.signal, x.handed].filter((s): s is AbortSignal => s !== undefined),
@@ -168,7 +175,7 @@ export function continueSignIn<C extends PendingClient>(
   const took = async (a: Answer): Promise<void> => {
     const code = recoveryOf(a);
     if ("signed_in" in a) {
-      taken.abort();
+      take();
       if (code !== undefined) {
         await showRecoveryCode(code, w, x.signal);
       }
@@ -313,7 +320,7 @@ export function continueSignIn<C extends PendingClient>(
       (a) => a?.ok === true && !("pending" in a.data),
       (a) => {
         if (a?.ok === true && "signed_in" in a.data) {
-          taken.abort();
+          take();
         }
       },
     );
@@ -361,7 +368,7 @@ export function continueSignIn<C extends PendingClient>(
           (o) => o?.kind === "answered" && !("pending" in o.result),
           (o) => {
             if (o?.kind === "answered" && "signed_in" in o.result) {
-              taken.abort();
+              take();
             }
           },
         ).then(async (got) => {
