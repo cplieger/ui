@@ -2393,6 +2393,10 @@
   --cp-dur-medium: 240ms;
   --cp-dur-long: 360ms;
   --cp-dur-exit: 120ms;
+  /* How long something the pointer left waits before it closes, long enough
+   * for a slow move across a gap (WCAG 1.4.13 hoverable). It is a wait, not
+   * motion, so reduced motion keeps it. */
+  --cp-dur-grace: 300ms;
   --cp-ease-out: cubic-bezier(0.2, 0, 0, 1);
   --cp-ease-in: cubic-bezier(0.4, 0, 1, 1);
   --cp-ease-move: cubic-bezier(0.4, 0, 0.2, 1);

@@ -214,6 +214,8 @@ interface Probe {
   aim(i: number): Point | string | null;
   /** What hovering hoverable `i` changed. */
   diff(i: number): Promise<string[]>;
+  /** Whether the paint the last aim took still holds, the mouse parked. */
+  rested(): Promise<boolean>;
   /** Gathers the rows in layer `i` or the page; returns their kinds. */
   rows(layer: number | null): Kind[];
   /** Scrolls row `i` into view and takes its paint: a one-action row's
@@ -221,6 +223,8 @@ interface Probe {
   aimRow(i: number): Point | string;
   /** What hovering, then pressing, row `i` did wrong. */
   checkRow(i: number, step: "hover" | "press" | "ring"): Promise<string[]>;
+  /** Whether row `i` is still the kind its last aim found. */
+  same(i: number): boolean;
   /** Gathers one-action row `i`'s parts other than its action that are
    *  focusable or carry a tip; returns whether each toggles on a tap. */
   parts(i: number): boolean[];
@@ -576,6 +580,10 @@ function installProbe(): void {
         ? changes(shots).map((c) => `${said} changed ${c}`)
         : [`${said} did not hover it`];
     },
+    async rested() {
+      await frame();
+      return changes(shots).length === 0;
+    },
     rows(layer) {
       rows = [...scopeOf(layer).querySelectorAll(ROWS)].filter(shown).map(classify);
       return rows.map((r) => r.kind);
@@ -600,6 +608,10 @@ function installProbe(): void {
         blank(r.row) ??
         `${where(r.row)}: ${r.kind}-action row ${name(r.row)} has no part free of controls`
       );
+    },
+    same(i) {
+      const r = rows[i];
+      return r === undefined || classify(r.row).kind === r.kind;
     },
     async checkRow(i, step) {
       await frame();
@@ -1082,15 +1094,31 @@ describe.each(browsers)("the gallery in %s", (name) => {
           continue;
         }
         const count = await tab.evaluate((l) => cpProbe().hoverables(l), layer);
-        for (let i = 0; i < count; i++) {
+        /** What hovering hoverable `i` changed. */
+        const hover = async (i: number): Promise<string[]> => {
           await tab.mouse.move(park.x, park.y);
           const at = await tab.evaluate((k) => cpProbe().aim(k), i);
           if (typeof at === "string") {
-            wrong.push(at);
-          } else if (at !== null) {
-            await tab.mouse.move(at.x, at.y);
-            wrong.push(...(await tab.evaluate((k) => cpProbe().diff(k), i)));
+            return [at];
           }
+          if (at === null) {
+            return [];
+          }
+          await tab.mouse.move(at.x, at.y);
+          return tab.evaluate((k) => cpProbe().diff(k), i);
+        };
+        /** Whether what hovering changed stays with the mouse parked, so
+         *  the page changed by itself, as a live job that ends. */
+        const moved = async (): Promise<boolean> => {
+          await tab.mouse.move(park.x, park.y);
+          return !(await tab.evaluate(() => cpProbe().rested()));
+        };
+        for (let i = 0; i < count; i++) {
+          let found = await hover(i);
+          for (let n = 0; n < 2 && found.length > 0 && (await moved()); n++) {
+            found = await hover(i);
+          }
+          wrong.push(...found);
         }
         if (layer !== null) {
           await tab.evaluate((l) => {
@@ -1119,38 +1147,49 @@ describe.each(browsers)("the gallery in %s", (name) => {
           continue;
         }
         const kinds = await tab.evaluate((l) => cpProbe().rows(l), layer);
-        for (const [i] of kinds.entries()) {
+        /** What row `i` did wrong, through each step. */
+        const sweep = async (i: number): Promise<string[]> => {
+          const out: string[] = [];
           await tab.mouse.move(park.x, park.y);
           const at = await tab.evaluate((k) => cpProbe().aimRow(k), i);
           if (typeof at === "string") {
-            wrong.push(at);
-            continue;
+            return [at];
           }
           await tab.mouse.move(at.x, at.y);
-          wrong.push(...(await tab.evaluate((k) => cpProbe().checkRow(k, "hover"), i)));
+          out.push(...(await tab.evaluate((k) => cpProbe().checkRow(k, "hover"), i)));
           await tab.mouse.down();
           await tab.mouse.up();
-          wrong.push(...(await tab.evaluate((k) => cpProbe().checkRow(k, "press"), i)));
+          out.push(...(await tab.evaluate((k) => cpProbe().checkRow(k, "press"), i)));
           await tab.mouse.move(park.x, park.y);
           // A key press puts the page in keyboard modality, so the ring
           // step's focus() matches :focus-visible after the mouse press.
           await tab.keyboard.press("Shift");
-          wrong.push(...(await tab.evaluate((k) => cpProbe().checkRow(k, "ring"), i)));
+          out.push(...(await tab.evaluate((k) => cpProbe().checkRow(k, "ring"), i)));
           const toggles = await tab.evaluate((k) => cpProbe().parts(k), i);
           for (const [j, toggle] of toggles.entries()) {
             await tab.mouse.move(park.x, park.y);
             const part = await tab.evaluate((p) => cpProbe().aimPart(p), j);
             await tab.mouse.move(part.x, part.y);
-            wrong.push(...(await tab.evaluate((p) => cpProbe().checkPart(p, "rest"), j)));
+            out.push(...(await tab.evaluate((p) => cpProbe().checkPart(p, "rest"), j)));
             await tab.mouse.down();
-            wrong.push(...(await tab.evaluate((p) => cpProbe().checkPart(p, "down"), j)));
+            out.push(...(await tab.evaluate((p) => cpProbe().checkPart(p, "down"), j)));
             await tab.mouse.up();
-            wrong.push(...(await tab.evaluate((p) => cpProbe().checkPart(p, "press"), j)));
+            out.push(...(await tab.evaluate((p) => cpProbe().checkPart(p, "press"), j)));
             if (toggle) {
               await tab.mouse.move(park.x, park.y);
-              wrong.push(...(await tab.evaluate((p) => cpProbe().checkPart(p, "tap"), j)));
+              out.push(...(await tab.evaluate((p) => cpProbe().checkPart(p, "tap"), j)));
             }
           }
+          return out;
+        };
+        for (const [i] of kinds.entries()) {
+          // A live row, such as a job that ends, can change kind between
+          // its aim and its checks, so a changed row is swept again.
+          let found = await sweep(i);
+          for (let n = 0; n < 2 && !(await tab.evaluate((k) => cpProbe().same(k), i)); n++) {
+            found = await sweep(i);
+          }
+          wrong.push(...found);
         }
         if (layer !== null) {
           await tab.evaluate((l) => {

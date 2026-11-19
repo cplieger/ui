@@ -1,8 +1,15 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { server, userEvent } from "vitest/browser";
 
 import { useSystemSheet } from "../../system/test-helpers/css.js";
 import { installTooltips } from "./tooltip.js";
+
+declare module "vitest/browser" {
+  interface BrowserCommands {
+    /** vitest.config.ts owns it. */
+    glide: (points: readonly { x: number; y: number }[], interval: number) => Promise<void>;
+  }
+}
 
 let life = new AbortController();
 
@@ -351,8 +358,8 @@ describe("installTooltips with the system sheet", () => {
   /** Moves the mouse to `{x, y}` in the window. */
   const moveTo = (at: { x: number; y: number }) =>
     userEvent.hover(document.body, { position: inBox(document.body, at), force: true });
-  /** Waits well past the tip's wait for a mouse that left, the exit token. */
-  const pause = () => new Promise((ok) => setTimeout(ok, 400));
+  /** Waits well past the tip's wait for a mouse that left, the grace token. */
+  const pause = () => new Promise((ok) => setTimeout(ok, 500));
 
   /** The middle of the gap between the open tip and `el`, on whichever side the tip sits. */
   const gapBetween = (el: Element) => {
@@ -479,7 +486,7 @@ describe("installTooltips with the system sheet", () => {
     await expect.poll(showing).toBe(false);
   });
 
-  it.each([
+  const drops = [
     [
       "leaves the document",
       (b: HTMLElement) => {
@@ -492,14 +499,147 @@ describe("installTooltips with the system sheet", () => {
         b.hidden = true;
       },
     ],
-  ])("hides a mouse's tip at once when its control %s", async (_how, drop) => {
+  ] as const;
+
+  it.each(drops)(
+    "hides a mouse's tip resting on its control when the control %s, with no further input",
+    async (_how, drop) => {
+      installTooltips({ signal: life.signal, delay: 100 });
+      const b = placed({});
+      await userEvent.hover(b);
+      await expect.poll(showing).toBe(true);
+      drop(b);
+      await expect.poll(showing).toBe(false);
+    },
+  );
+
+  it.each(drops)(
+    "hides a mouse's tip the mouse rests on when its control %s, with no further input",
+    async (_how, drop) => {
+      installTooltips({ signal: life.signal, delay: 100 });
+      const b = placed({});
+      await userEvent.hover(b);
+      await expect.poll(showing).toBe(true);
+      await userEvent.hover(tip());
+      drop(b);
+      await expect.poll(showing).toBe(false);
+    },
+  );
+
+  /** A focusable inline tip toggle inside a line of text. */
+  const inline = () => {
+    const p = document.createElement("p");
+    p.style.marginBlockStart = "8rem";
+    p.textContent = "Seeders ";
+    const s = document.createElement("span");
+    s.tabIndex = 0;
+    s.textContent = "12";
+    s.dataset["cpTip"] = "People sharing the release right now";
+    s.dataset["cpTipToggle"] = "";
+    p.append(s);
+    document.body.append(p);
+    return s;
+  };
+
+  it.each([
+    ["a button", () => placed({})],
+    ["an inline toggle", inline],
+  ])(
+    "hides a keyboard tip of %s when its control leaves the document or turns hidden, with no further input",
+    async (_kind, make) => {
+      installTooltips({ signal: life.signal });
+      for (const [, drop] of drops) {
+        const b = make();
+        b.focus({ focusVisible: true });
+        expect(showing()).toBe(true);
+        drop(b);
+        await expect.poll(showing).toBe(false);
+      }
+    },
+  );
+
+  it("keeps a keyboard tip and the focus through a mouse press on its control", async () => {
+    installTooltips({ signal: life.signal, delay: 100 });
+    const b = control("Opens the sources you connected", "Sources");
+    b.style.marginBlockStart = "8rem";
+    b.focus({ focusVisible: true });
+    expect(showing()).toBe(true);
+    await userEvent.click(b);
+    await pause();
+    expect(document.activeElement).toBe(b);
+    expect(showing()).toBe(true);
+    expect(tip().textContent).toBe("Opens the sources you connected");
+  });
+
+  it("keeps a keyboard tip's words while the mouse rests on another tipped control", async () => {
+    installTooltips({ signal: life.signal, delay: 100 });
+    const b = control("Opens the sources you connected", "Sources");
+    b.style.marginBlockStart = "8rem";
+    const other = control("Refresh the list", "Refresh");
+    b.focus({ focusVisible: true });
+    expect(showing()).toBe(true);
+    await userEvent.hover(other);
+    await pause();
+    expect(showing()).toBe(true);
+    expect(tip().textContent).toBe("Opens the sources you connected");
+    expect(b.getAttribute("aria-describedby")).toBe(tip().id);
+  });
+
+  it.each([
+    ["the grace token", 250, true, ""],
+    ["the grace token", 350, false, ""],
+    ["a calc() grace token", 350, true, ":root { --cp-dur-grace: calc(200ms * 2); }"],
+    ["a calc() grace token", 450, false, ":root { --cp-dur-grace: calc(200ms * 2); }"],
+    ["a page that zeroes every transition", 250, true, "* { transition-duration: 0s !important; }"],
+  ])(
+    "under %s, a mouse reaching the tip %ims after leaving its control finds it open: %s",
+    (_under, crossing, open, css) => {
+      const page = document.createElement("style");
+      page.textContent = css;
+      document.head.append(page);
+      // The moves are dispatched, so a faked clock measures the crossing exactly.
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+      try {
+        installTooltips({ signal: life.signal, delay: 100 });
+        const b = control("Opens the sources you connected", "Sources");
+        b.style.marginBlockStart = "8rem";
+        const mouse = { pointerType: "mouse" };
+        const bubbling = { ...mouse, bubbles: true, composed: true };
+        b.dispatchEvent(new PointerEvent("pointerover", bubbling));
+        vi.advanceTimersByTime(100);
+        expect(showing()).toBe(true);
+        b.dispatchEvent(new PointerEvent("pointerout", bubbling));
+        b.dispatchEvent(new PointerEvent("pointerleave", mouse));
+        vi.advanceTimersByTime(crossing);
+        tip().dispatchEvent(new PointerEvent("pointerover", bubbling));
+        vi.advanceTimersByTime(1000);
+        expect(showing()).toBe(open);
+      } finally {
+        vi.useRealTimers();
+        page.remove();
+      }
+    },
+  );
+
+  it("keeps the tip for a mouse crossing the gap onto it in real 1px steps 16ms apart", async () => {
     installTooltips({ signal: life.signal, delay: 100 });
     const b = placed({});
     await userEvent.hover(b);
     await expect.poll(showing).toBe(true);
-    drop(b);
-    await moveTo({ x: 600, y: 450 });
-    expect(showing()).toBe(false);
+    const c = b.getBoundingClientRect();
+    const t = tip().getBoundingClientRect();
+    expect(t.bottom).toBeLessThanOrEqual(c.top);
+    const x = c.left + c.width / 2;
+    const top = Math.ceil(t.bottom) - 1;
+    expect(document.elementFromPoint(x, top)).toBe(tip());
+    const steps = Array.from({ length: Math.floor(c.top) + 1 - top + 1 }, (_, i) => ({
+      x,
+      y: Math.floor(c.top) + 1 - i,
+    }));
+    await server.commands.glide(steps, 16);
+    expect(showing()).toBe(true);
+    await pause();
+    expect(showing()).toBe(true);
   });
 
   it("keeps the lower of two stacked controls' tip while the mouse crosses the upper one onto it, and gives the upper its own tip after its rest", async () => {

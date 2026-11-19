@@ -59,10 +59,9 @@ function gist(text: string): string {
     .toLowerCase();
 }
 
-/** A CSS time, such as `120ms` or `0.12s`, in ms. */
+/** A computed CSS time, which every engine gives in seconds, in ms. */
 function ms(time: string): number {
-  const n = Number.parseFloat(time);
-  return time.trim().endsWith("ms") ? n : n * 1000;
+  return Number.parseFloat(time) * 1000;
 }
 
 /** How a tip opened, which decides what closes it besides Escape: the
@@ -76,21 +75,20 @@ function listen(signal: AbortSignal, delay: number): void {
   tip.id = "cp-tooltip";
   tip.popover = "manual";
   tip.setAttribute("role", "tooltip");
-  document.body.append(tip);
+  // Its transition-duration resolves the grace token, a calc() or var()
+  // in it included, which the custom property's own text does not. It is
+  // important so a page's reduced-motion reset that zeroes every
+  // transition leaves the wait.
+  const grace = document.createElement("div");
+  grace.hidden = true;
+  grace.style.setProperty("transition-duration", "var(--cp-dur-grace)", "important");
+  document.body.append(tip, grace);
   let shownFor: HTMLElement | null = null;
   let opened: Opened = "mouse";
   // The control a mouse rests on, waiting out `delay` before its tip shows.
   let resting: HTMLElement | null = null;
   let restTimer: ReturnType<typeof setTimeout> | undefined;
   let leaveTimer: ReturnType<typeof setTimeout> | undefined;
-
-  /** The wait between the mouse leaving the control or the tip and the tip
-   *  hiding, the exit motion token: long enough to cross the gap between
-   *  them, and entering either within it keeps the tip. */
-  const grace = (): number => {
-    const token = getComputedStyle(tip).getPropertyValue("--cp-dur-exit");
-    return token === "" ? 120 : ms(token);
-  };
 
   /** Writes `el`'s words into the tip, and describes the control by them
    *  only while they say more than its name: the control's `aria-label`,
@@ -121,10 +119,18 @@ function listen(signal: AbortSignal, delay: number): void {
     }
   });
 
+  // A control that leaves the document or turns hidden stops intersecting,
+  // inline or not, with no input event. One already outside the window
+  // reports no change, so every listener also asks gone() first.
+  const seen = new IntersectionObserver(() => {
+    gone();
+  });
+
   /** Hides the tip, and leaves a control the mouse rests on to show its own. */
   const close = (): void => {
     clearTimeout(leaveTimer);
     watch.disconnect();
+    seen.disconnect();
     if (shownFor !== null) {
       removeAnchorName(shownFor, NAME);
       const d = described(shownFor);
@@ -157,6 +163,7 @@ function listen(signal: AbortSignal, delay: number): void {
     addAnchorName(el, NAME);
     shownFor = el;
     opened = how;
+    seen.observe(el);
     watch.observe(el, {
       attributes: true,
       attributeFilter: ["data-cp-tip", "aria-label"],
@@ -174,9 +181,10 @@ function listen(signal: AbortSignal, delay: number): void {
     }
     tip.showPopover();
   };
-  // A rest of the pointer is a length of time, so a timer measures it.
+  // A rest of the pointer is a length of time, so a timer measures it. A
+  // keyboard tip stays until blur or Escape, so no rest replaces it.
   const rest = (el: HTMLElement): void => {
-    if (el === resting) {
+    if (el === resting || (shownFor !== null && opened === "keys")) {
       return;
     }
     clearTimeout(restTimer);
@@ -192,15 +200,14 @@ function listen(signal: AbortSignal, delay: number): void {
     unrest();
   };
   /** The mouse left the shown control or the tip. Only a tip the mouse
-   *  showed hides for it (WCAG 1.4.13). */
+   *  showed hides for it, once the mouse has been over neither for the
+   *  grace token's wait (WCAG 1.4.13). */
   const left = (): void => {
     if (shownFor !== null && opened === "mouse") {
       clearTimeout(leaveTimer);
-      leaveTimer = setTimeout(close, grace());
+      leaveTimer = setTimeout(close, ms(getComputedStyle(grace).transitionDuration));
     }
   };
-  // No event says a control left the document or turned hidden, so every
-  // listener asks first.
   const gone = (): void => {
     if (shownFor !== null && !(shownFor.isConnected && shownFor.checkVisibility())) {
       hide();
@@ -342,7 +349,9 @@ function listen(signal: AbortSignal, delay: number): void {
       }
       const el = target(e);
       if (e.pointerType === "mouse") {
-        hide();
+        if (opened !== "keys" || shownFor === null) {
+          hide();
+        }
         return;
       }
       if (el?.matches('[data-cp-tip-toggle], [aria-disabled="true"]') === true) {
@@ -362,6 +371,7 @@ function listen(signal: AbortSignal, delay: number): void {
     () => {
       hide();
       tip.remove();
+      grace.remove();
     },
     { once: true },
   );

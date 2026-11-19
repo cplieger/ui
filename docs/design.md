@@ -123,6 +123,7 @@ Motion shows what changed.
 | `--cp-dur-medium` | 240ms | a toast entering |
 | `--cp-dur-long` | 360ms | a view transition between screens |
 | `--cp-dur-exit` | 120ms | anything leaving |
+| `--cp-dur-grace` | 300ms | the wait before something the pointer left closes, such as a tip, kept under reduced motion |
 | `--cp-dur-spring` | 520ms | a spring, such as a switch's thumb, a checkbox's turn or a radio's dot |
 
 - Entrances ease out (`--cp-ease-out`), exits ease in (`--cp-ease-in`) and are shorter, and moves between two places use `--cp-ease-move`.
