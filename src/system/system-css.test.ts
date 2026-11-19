@@ -4697,6 +4697,34 @@ describe("css/system.css overlays", () => {
     d.close();
     expect(getComputedStyle(root).overflow).not.toBe("hidden");
   });
+
+  it.each([
+    [320, 256],
+    [640, 360],
+  ])("keeps a palette's actions inside it at %ix%i, scrolling the list", async (w, h) => {
+    await page.viewport(w, h);
+    theme("light");
+    const d = document.createElement("dialog");
+    d.className = "cp-dialog cp-palette";
+    d.style.transition = "none";
+    const options = Array.from(
+      { length: 14 },
+      (_, i) => `<li role="option"><span>Action ${String(i + 1)}</span></li>`,
+    ).join("");
+    d.innerHTML = `<div class="cp-palette-field"><input aria-label="Search"></div><ul role="listbox" aria-label="Actions">${options}</ul>`;
+    hosts.push(d as unknown as HTMLElement);
+    document.body.append(d);
+    d.showModal();
+    const box = d.getBoundingClientRect();
+    const list = d.querySelector("ul") as HTMLElement;
+    expect(Math.round(box.bottom)).toBeLessThanOrEqual(innerHeight);
+    expect(list.getBoundingClientRect().bottom).toBeLessThanOrEqual(box.bottom + 0.5);
+    expect(list.scrollHeight).toBeGreaterThan(list.clientHeight);
+    list.scrollTop = list.scrollHeight;
+    const last = (list.lastElementChild as Element).getBoundingClientRect();
+    expect(last.bottom).toBeLessThanOrEqual(box.bottom + 0.5);
+    d.close();
+  });
 });
 
 describe("css/system.css feedback and steps", () => {

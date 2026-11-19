@@ -9,6 +9,13 @@
   }
 }
 
+/* The list shrinks to the room the dialog's height leaves under the field
+ * and scrolls, so at 400% zoom every action stays reachable. */
+.cp-palette[open] {
+  display: flex;
+  flex-direction: column;
+}
+
 .cp-palette-field {
   display: flex;
   align-items: center;
