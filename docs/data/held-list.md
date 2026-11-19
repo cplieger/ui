@@ -9,13 +9,13 @@ A list that holds its place. While the reader is in it, a change that would add 
   <li>
     <div class="cp-list-row">
       <span class="cp-icon" data-cp-icon="download" aria-hidden="true"></span>
-      <span class="cp-cell-stack">Frieren, Season 1<small>Grabbed <time datetime="2026-11-12T14:02:00Z">14:02</time></small></span>
+      <span class="cp-cell-stack"><span>Frieren, Season 1</span><small>Grabbed <time datetime="2026-11-12T14:02:00Z">14:02</time></small></span>
     </div>
   </li>
   <li>
     <div class="cp-list-row" data-kept>
       <span class="cp-icon" data-cp-icon="radio-tower" aria-hidden="true"></span>
-      <span class="cp-cell-stack">Sonarr's queue<small class="cp-kept">Kept from 03:00: Sonarr walk partial</small></span>
+      <span class="cp-cell-stack"><span>Sonarr's queue</span><small class="cp-kept">Kept from 03:00: Sonarr walk partial</small></span>
     </div>
   </li>
 </ul>

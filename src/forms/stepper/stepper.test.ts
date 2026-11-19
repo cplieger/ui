@@ -130,19 +130,19 @@ function nudge(value = "+1.25"): {
   input: HTMLInputElement;
   button: (label: string) => HTMLButtonElement;
 } {
-  const s = document.createElement("div");
-  s.className = "cp-stepper";
-  s.dataset["variant"] = "nudge";
+  const wrap = document.createElement("div");
   // Static test markup, never caller text.
-  s.setHTMLUnsafe(
-    `<button type="button" data-step="-10">-1 s</button><button type="button" data-step="-1">-0.1 s</button><input class="cp-input" value="${value}" inputmode="decimal" data-min="-2" data-max="2" data-step="0.1" aria-label="Offset"><button type="button" data-step="1">+0.1 s</button><button type="button" data-step="10">+1 s</button><button type="button" data-reset="0">Reset</button><button type="button" data-reset>Undo</button>`,
+  wrap.setHTMLUnsafe(
+    `<div class="cp-stepper"><button type="button" data-step="-10">-1 s</button><button type="button" data-step="-1">-0.1 s</button><input id="offset" value="${value}" inputmode="decimal" data-min="-2" data-max="2" data-step="0.1" aria-label="Offset"><button type="button" data-step="1">+0.1 s</button><button type="button" data-step="10">+1 s</button></div><button type="button" data-reset="0" aria-controls="offset">Reset</button><button type="button" data-reset aria-controls="offset">Undo</button><button type="button" data-reset="1" aria-controls="other">Other</button>`,
   );
-  document.body.append(s);
+  document.body.append(wrap);
   return {
-    s,
-    input: s.querySelector("input") as HTMLInputElement,
+    s: wrap.querySelector(".cp-stepper") as HTMLElement,
+    input: wrap.querySelector("input") as HTMLInputElement,
     button: (label) =>
-      [...s.querySelectorAll("button")].find((b) => b.textContent === label) as HTMLButtonElement,
+      [...wrap.querySelectorAll("button")].find(
+        (b) => b.textContent === label,
+      ) as HTMLButtonElement,
   };
 }
 
@@ -174,9 +174,11 @@ describe("enhanceStepper with a signed text field", () => {
     expect(input.value).toBe("\u22120.90");
   });
 
-  it("resets to its data-reset, or else to the markup's value", async () => {
+  it("resets from a button beside it that controls its field, to its data-reset or else the markup's value", async () => {
     const { s, input, button } = nudge();
     enhanceStepper(s, { signal: life.signal });
+    await userEvent.click(button("Other"));
+    expect(input.value).toBe("+1.25");
     await userEvent.click(button("Reset"));
     expect(input.value).toBe("0.00");
     // The roll lays its words beside the field while it runs, which moves the
@@ -184,6 +186,63 @@ describe("enhanceStepper with a signed text field", () => {
     await expect.poll(() => s.hasAttribute("data-cp-rolling")).toBe(false);
     await userEvent.click(button("Undo"));
     expect(input.value).toBe("+1.25");
+    life.abort();
+    await userEvent.click(button("Reset"));
+    expect(input.value).toBe("+1.25");
+  });
+
+  it("resets from a Reset rendered after it was enhanced, before it was attached", async () => {
+    const { s, input, button } = nudge();
+    const wrap = s.parentElement as HTMLElement;
+    wrap.remove();
+    for (const b of wrap.querySelectorAll("[data-reset]")) {
+      b.remove();
+    }
+    enhanceStepper(s, { signal: life.signal });
+    document.body.append(wrap);
+    wrap.insertAdjacentHTML(
+      "beforeend",
+      '<button type="button" data-reset="0" aria-controls="offset">Reset</button>',
+    );
+    await userEvent.click(button("Reset"));
+    expect(input.value).toBe("0.00");
+  });
+
+  it("resets from a Reset whose aria-controls lists its field among others, and not from one naming another", async () => {
+    const { s, input, button } = nudge();
+    s.parentElement?.insertAdjacentHTML(
+      "beforeend",
+      '<button type="button" data-reset="1" aria-controls="other  offset">Both</button><button type="button" data-reset="-1" aria-controls="offsets">Near</button>',
+    );
+    enhanceStepper(s, { signal: life.signal });
+    await userEvent.click(button("Near"));
+    expect(input.value).toBe("+1.25");
+    await userEvent.click(button("Both"));
+    expect(input.value).toBe("+1.00");
+  });
+
+  it("does nothing from a Reset marked unavailable", async () => {
+    const { s, input, button } = nudge();
+    button("Reset").setAttribute("aria-disabled", "true");
+    enhanceStepper(s, { signal: life.signal });
+    // A press reaches a button marked unavailable, which Playwright only sends forced.
+    await userEvent.click(button("Reset"), { force: true });
+    expect(input.value).toBe("+1.25");
+  });
+
+  it("does nothing from a Reset once its stepper is gone from the page, with no signal to end it", async () => {
+    installAnnouncer({ signal: life.signal });
+    const { s, input, button } = nudge();
+    const heard: string[] = [];
+    for (const type of ["input", "change"]) {
+      input.addEventListener(type, () => heard.push(type));
+    }
+    enhanceStepper(s);
+    s.remove();
+    await userEvent.click(button("Reset"));
+    await new Promise((r) => setTimeout(r, 200));
+    expect([input.value, heard]).toEqual(["+1.25", []]);
+    expect(document.querySelector('[aria-live="polite"]')?.textContent).toBe("");
   });
 
   it("settles a typed value to its form within the range, and puts back the last for text", async () => {

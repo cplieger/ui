@@ -10,7 +10,7 @@ A list the person puts in order, such as audio languages by preference or subtit
     <div class="cp-list-row">
       <span data-part="handle" aria-hidden="true"><span class="cp-icon" data-cp-icon="grip-vertical"></span></span>
       <span data-part="rank">1</span>
-      <span class="cp-cell-stack">Japanese<small>Original audio</small></span>
+      <span class="cp-cell-stack"><span>Japanese</span><small>Original audio</small></span>
       <span data-part="move">
         <button class="cp-button" data-variant="quiet" data-size="sm" type="button" data-move="up" aria-label="Move Japanese up" data-cp-tip="Move Japanese up"><span class="cp-icon" data-cp-icon="arrow-up" aria-hidden="true"></span></button>
         <button class="cp-button" data-variant="quiet" data-size="sm" type="button" data-move="down" aria-label="Move Japanese down" data-cp-tip="Move Japanese down"><span class="cp-icon" data-cp-icon="arrow-down" aria-hidden="true"></span></button>

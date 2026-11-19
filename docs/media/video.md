@@ -18,7 +18,7 @@ import { enhanceVideo } from "@cplieger/ui/video";
 const video = enhanceVideo(pane, { signal: page.signal });
 video.load(URL.createObjectURL(mediaSource));
 offsetField.addEventListener("change", () => {
-  // The nudge stepper writes a typographic minus, which Number() refuses.
+  // A signed stepper writes a typographic minus, which Number() refuses.
   video.offset = Number(offsetField.value.replace("\u2212", "-"));
 });
 ```

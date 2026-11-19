@@ -96,7 +96,7 @@ describe.each(browsers)("the gallery in %s", (name) => {
   });
 
   it.each([...pageNames, ...frameNames, ...templateNames])(
-    "loads %s with no error, every icon painted, nothing wider than a phone and each account button named by its text",
+    "loads %s with no error, every icon painted, every row title an element, nothing wider than a phone and each account button named by its text",
     async (page) => {
       const report: Record<string, unknown> = {};
       for (const width of [1440, 390]) {
@@ -111,7 +111,17 @@ describe.each(browsers)("the gallery in %s", (name) => {
             unpainted: [...document.querySelectorAll<HTMLElement>(".cp-icon")].filter(
               (i) =>
                 getComputedStyle(i).getPropertyValue("--cp-icon-image") === "" &&
-                i.checkVisibility(),
+                i.checkVisibility({ visibilityProperty: true }),
+            ).length,
+            // A row's lines are set as a pair only when its title is an element.
+            bareTitles: [
+              ...document.querySelectorAll(".cp-list > li > .cp-list-row > .cp-cell-stack"),
+            ].filter(
+              (s) =>
+                s.childElementCount > 0 &&
+                [...s.childNodes].some(
+                  (n) => n.nodeType === Node.TEXT_NODE && (n.textContent ?? "").trim() !== "",
+                ),
             ).length,
           }))),
           misnamed: await tab.evaluate(misnamedAccounts),
@@ -120,6 +130,7 @@ describe.each(browsers)("the gallery in %s", (name) => {
           errors.length > 0 ||
           (width === 390 && state.wide) ||
           state.unpainted > 0 ||
+          state.bareTitles > 0 ||
           state.misnamed.length > 0
         ) {
           report[String(width)] = { errors, ...state };
