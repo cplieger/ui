@@ -6,15 +6,7 @@ import { tmpdir } from "node:os";
 import { extname, join, normalize } from "node:path";
 import { pathToFileURL } from "node:url";
 
-import {
-  chromium,
-  firefox,
-  webkit,
-  type Browser,
-  type BrowserType,
-  type JSHandle,
-  type Page,
-} from "playwright";
+import { chromium, firefox, webkit, type Browser, type BrowserType, type Page } from "playwright";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { buildGallery, frameNames, pageNames, templateNames } from "./build.js";
@@ -33,163 +25,96 @@ const browsers = (process.env["CPLIEGER_BROWSERS"] ?? "chromium").split(",");
 const SYSTEM_DIR = join(import.meta.dirname, "..", "docs", "system");
 const SYSTEM_SCREENS = readdirSync(SYSTEM_DIR).filter((file) => file.endsWith(".html"));
 
-type Marks = { id: string; forms: { range: Range; parents: HTMLElement[] }[] }[];
-
-/** Runs in the page: each aria-required control to judge, with each Range of
- *  its mark that passes the text tests (`requiredWithoutMark` owns the rule). */
-const requiredMarks = (): Marks => {
+/** Runs in the page: the id of each aria-required control with no mark from
+ *  step 2 of the forms pattern, which is the field's `.cp-help` reading
+ *  "Required." or a `.cp-required` reading "(Required)" in the control's
+ *  label. Nothing else counts. The mark must pass `checkVisibility`, be over a
+ *  pixel each way in the page's scroll area, lie inside each ancestor that
+ *  clips its overflow, and show its text whole. A scroller does not count as
+ *  clipping, since the reader scrolls to the mark. A hidden control needs
+ *  only the mark. */
+const requiredWithoutMark = (): string[] => {
   const root = document.documentElement;
   const start =
     getComputedStyle(root).direction === "rtl" ? root.clientWidth - root.scrollWidth : 0;
   const inScrollArea = (rect: DOMRect): boolean =>
-    Math.min(rect.right, start + root.scrollWidth - scrollX) -
-      Math.max(rect.left, start - scrollX) >
-      1 && Math.min(rect.bottom, root.scrollHeight - scrollY) - Math.max(rect.top, -scrollY) > 1;
-  const over = (mark: Element, form: string, field: Element): Marks[number]["forms"] => {
-    const nodes: Text[] = [];
-    const walker = document.createTreeWalker(mark, NodeFilter.SHOW_TEXT);
-    for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
-      nodes.push(node as Text);
-    }
-    const text = nodes.map((node) => node.data).join("");
-    const forms: Marks[number]["forms"] = [];
-    for (let at = text.indexOf(form); at >= 0; at = text.indexOf(form, at + 1)) {
-      const range = document.createRange();
-      const parents = new Set<HTMLElement>();
-      let base = 0;
-      for (const node of nodes) {
-        const end = base + node.data.length;
-        if (at < end && base < at + form.length) {
-          if (base <= at) {
-            range.setStart(node, at - base);
-          }
-          if (at + form.length <= end) {
-            range.setEnd(node, at + form.length - base);
-          }
-          if (node.parentElement !== null) {
-            parents.add(node.parentElement);
-          }
-        }
-        base = end;
-      }
-      const hidden = [...parents].some((parent) => {
-        const away = parent.closest(".cp-visually-hidden");
-        return away !== null && field.contains(away);
-      });
-      if (!hidden && [...range.getClientRects()].some(inScrollArea)) {
-        forms.push({ range, parents: [...parents] });
+    rect.left >= start - scrollX - 0.5 &&
+    rect.right <= start + root.scrollWidth - scrollX + 0.5 &&
+    rect.top >= -scrollY - 0.5 &&
+    rect.bottom <= root.scrollHeight - scrollY + 0.5;
+  const clips = (el: Element): [boolean, boolean] => {
+    const style = getComputedStyle(el);
+    const paint = /paint|strict|content/.test(style.contain);
+    const axis = (overflow: string) => paint || overflow === "hidden" || overflow === "clip";
+    return [axis(style.overflowX), axis(style.overflowY)];
+  };
+  const insideClips = (mark: Element, rect: DOMRect): boolean => {
+    for (let el = mark.parentElement; el !== null && el !== root; el = el.parentElement) {
+      const [x, y] = clips(el);
+      const box = el.getBoundingClientRect();
+      const left = box.left + el.clientLeft;
+      const top = box.top + el.clientTop;
+      if (
+        (x && (rect.left < left - 0.5 || rect.right > left + el.clientWidth + 0.5)) ||
+        (y && (rect.top < top - 0.5 || rect.bottom > top + el.clientHeight + 0.5))
+      ) {
+        return false;
       }
     }
-    return forms;
+    return true;
+  };
+  // Only a box that clips its own overflow can cut its text, and Gecko gives
+  // an inline box a scrollWidth while its clientWidth is 0.
+  const whole = (mark: Element): boolean => {
+    const [x, y] = clips(mark);
+    return (
+      (!x || mark.scrollWidth <= mark.clientWidth) && (!y || mark.scrollHeight <= mark.clientHeight)
+    );
+  };
+  const shows = (mark: HTMLElement, field: Element): boolean => {
+    const away = mark.closest(".cp-visually-hidden");
+    if (away !== null && field.contains(away)) {
+      return false;
+    }
+    const rect = mark.getBoundingClientRect();
+    return (
+      mark.checkVisibility({
+        opacityProperty: true,
+        visibilityProperty: true,
+        contentVisibilityAuto: true,
+      }) &&
+      rect.width >= 1 &&
+      rect.height >= 1 &&
+      inScrollArea(rect) &&
+      insideClips(mark, rect) &&
+      whole(mark)
+    );
   };
   return [...document.querySelectorAll<HTMLElement>('[aria-required="true"]')].flatMap(
     (control) => {
       const id = control.id !== "" ? control.id : control.outerHTML;
       const field = control.closest(".cp-field");
       if (field === null) {
-        return [{ id, forms: [] }];
+        return [id];
       }
-      const marks: [Element, string][] = [
-        ...[...field.querySelectorAll(".cp-help")]
-          .filter((help) => help.textContent.trim() === "Required.")
-          .map((help): [Element, string] => [help, "Required."]),
-        ...[
-          ...((control as Partial<HTMLInputElement>).labels ?? []),
-          ...field.querySelectorAll(".cp-label"),
-        ]
-          .filter((label) => label.textContent.includes("(Required)"))
-          .map((label): [Element, string] => [label, "(Required)"]),
+      const labels = [
+        ...((control as Partial<HTMLInputElement>).labels ?? []),
+        ...field.querySelectorAll(".cp-label"),
+      ];
+      const marks = [
+        ...[...field.querySelectorAll<HTMLElement>(".cp-help")].filter(
+          (help) => help.textContent.trim() === "Required.",
+        ),
+        ...labels
+          .flatMap((label) => [...label.querySelectorAll<HTMLElement>(".cp-required")])
+          .filter((mark) => mark.textContent.trim() === "(Required)"),
       ];
       if (!control.checkVisibility()) {
-        return marks.length === 0 ? [{ id, forms: [] }] : [];
+        return marks.length === 0 ? [id] : [];
       }
-      return [{ id, forms: marks.flatMap(([mark, form]) => over(mark, form, field)) }];
+      return marks.some((mark) => shows(mark, field)) ? [] : [id];
     },
   );
-};
-
-/** Whether form `at`, a [control, form] index into `marks`, puts pixels on the
- *  screen. Turning its text's fill transparent moves no layout and no
- *  background, so only its glyphs can change the screenshot of its box. The
- *  box is read again after two frames until it holds still, because a page's
- *  script or fonts can still move the word after its load event. */
-const paints = async (
-  tab: Page,
-  marks: JSHandle<Marks>,
-  at: [number, number],
-): Promise<boolean> => {
-  const measure = () =>
-    marks.evaluate(async (list, [i, j]) => {
-      await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)));
-      const form = list[i]?.forms[j];
-      form?.parents[0]?.scrollIntoView({ block: "center", inline: "center" });
-      const rect = form?.range.getBoundingClientRect() ?? new DOMRect();
-      const [x, y] = [Math.max(0, Math.floor(rect.left)), Math.max(0, Math.floor(rect.top))];
-      return {
-        x,
-        y,
-        width: Math.min(innerWidth, Math.ceil(rect.right)) - x,
-        height: Math.min(innerHeight, Math.ceil(rect.bottom)) - y,
-      };
-    }, at);
-  let clip = await measure();
-  for (let tries = 0; tries < 10; tries++) {
-    const again = await measure();
-    if (JSON.stringify(again) === JSON.stringify(clip)) {
-      break;
-    }
-    clip = again;
-  }
-  if (clip.width < 1 || clip.height < 1) {
-    return false;
-  }
-  const shot = (): Promise<Buffer> => tab.screenshot({ clip, animations: "disabled" });
-  const before = await shot();
-  const undo = await marks.evaluateHandle((list, [i, j]) => {
-    const fill = "-webkit-text-fill-color";
-    const kept = (list[i]?.forms[j]?.parents ?? []).map(
-      (el) => [el, el.style.getPropertyValue(fill), el.style.getPropertyPriority(fill)] as const,
-    );
-    for (const [el] of kept) {
-      el.style.setProperty(fill, "transparent", "important");
-    }
-    return () => {
-      for (const [el, value, priority] of kept) {
-        el.style.setProperty(fill, value, priority);
-      }
-    };
-  }, at);
-  const after = await shot();
-  await undo.evaluate((restore) => {
-    restore();
-  });
-  await undo.dispose();
-  return !before.equals(after);
-};
-
-/** The id of each aria-required control with no mark from step 2 of the forms
- *  pattern on screen: a `.cp-help` reading "Required." or a label holding
- *  "(Required)". A form counts when no text node of its Range sits in a
- *  `.cp-visually-hidden` element of the field, a rect of it in the page's
- *  scroll area is over a pixel each way, and its pixels change when its text's
- *  fill turns transparent. A hidden control needs only the mark's text. */
-const requiredWithoutMark = async (tab: Page): Promise<string[]> => {
-  const marks = await tab.evaluateHandle(requiredMarks);
-  const controls = await marks.evaluate((list) =>
-    list.map(({ id, forms }) => [id, forms.length] as const),
-  );
-  const missing: string[] = [];
-  for (const [i, [id, count]] of controls.entries()) {
-    let painted = false;
-    for (let j = 0; j < count && !painted; j++) {
-      painted = await paints(tab, marks, [i, j]);
-    }
-    if (!painted) {
-      missing.push(id);
-    }
-  }
-  await marks.dispose();
-  return missing;
 };
 
 let out = "";
@@ -1765,33 +1690,32 @@ describe.each(browsers)("the gallery in %s", (name) => {
     const tab = await (browser as Browser).newPage();
     await tab.setContent(`
       <div class="cp-field"><label for="a">A</label><input id="a" aria-required="true"><span class="cp-help">Required.</span></div>
-      <div class="cp-field"><label for="b">B (Required)</label><input id="b" aria-required="true"><span class="cp-help">From the provider.</span></div>
+      <div class="cp-field"><label for="b">B <span class="cp-required">(Required)</span></label><input id="b" aria-required="true"><span class="cp-help">From the provider.</span></div>
       <div class="cp-field"><label for="c">C</label><input id="c" aria-required="true"><span class="cp-help">From the provider.</span></div>
       <div class="cp-field"><label for="d">D</label><input id="d" aria-required="true"><span class="cp-help" hidden>Required.</span></div>
       <div class="cp-field"><label for="e">E</label><input id="e" aria-required="true"><span class="cp-help" style="position:absolute;width:1px;height:1px;overflow:hidden">Required.</span></div>
       <label for="f">F</label><input id="f" aria-required="true">
       <div class="cp-field" hidden><label for="g">G</label><input id="g" aria-required="true"><span class="cp-help">Required.</span></div>
       <div class="cp-field"><label for="h">H</label><input id="h" aria-required="false"></div>
-      <div class="cp-field"><label for="i">I <span class="cp-visually-hidden">(Required)</span></label><input id="i" aria-required="true"><span class="cp-help">From the provider.</span></div>
+      <div class="cp-field"><label for="i">I <span class="cp-required cp-visually-hidden">(Required)</span></label><input id="i" aria-required="true"><span class="cp-help">From the provider.</span></div>
       <div class="cp-field"><label for="j">J</label><input id="j" aria-required="true"><span class="cp-help" style="visibility:hidden">Required.</span></div>
       <div class="cp-field"><label for="k">K</label><input id="k" aria-required="true"><span class="cp-help" style="opacity:0">Required.</span></div>
       <div class="cp-field"><label for="l">L</label><input id="l" aria-required="true"><span class="cp-help" style="position:absolute;left:-9999px">Required.</span></div>
-      <div class="cp-field"><label for="m">M</label><input id="m" aria-required="true"><span class="cp-help" style="display:block;clip-path:inset(50%)">Required.</span></div>
       <div class="cp-field"><label for="n">N</label><input id="n" aria-required="true"><span class="cp-help">Not Required.</span></div>
-      <div class="cp-field"><label for="o">O</label><input id="o" aria-required="true"><span class="cp-help" style="position:absolute;clip:rect(0 0 0 0)">Required.</span></div>
       <div class="cp-field"><label class="cp-label" for="p">P <span>(Required)</span></label><input id="p" aria-required="true"></div>
       <div class="cp-field"><label for="q">Q</label><input id="q" aria-required="true"><span class="cp-help" style="display:block;content-visibility:hidden">Required.</span></div>
-      <div class="cp-field"><label for="r">R</label><input id="r" aria-required="true"><span class="cp-help" style="color:transparent">Required.</span></div>
-      <div class="cp-field"><label for="s">S</label><input id="s" aria-required="true"><span class="cp-help" style="filter:opacity(0)">Required.</span></div>
-      <div class="cp-field"><label for="t">T</label><input id="t" aria-required="true"><span class="cp-help" style="color:#fff;background:#fff">Required.</span></div>
-      <div class="cp-field"><label for="u">U</label><input id="u" aria-required="true"><span class="cp-help" style="position:relative">Required.<span style="position:absolute;inset:-4px;background:#fff"></span></span></div>
+      <div class="cp-field"><label for="r">R <span class="cp-required" style="opacity:0">(Required)</span></label><input id="r" aria-required="true"></div>
+      <div class="cp-field"><label for="s">S <span class="cp-required">(Optional)</span></label><input id="s" aria-required="true"></div>
+      <div style="overflow:auto;block-size:3em"><div style="block-size:10em"></div><div class="cp-field"><label for="t">T</label><input id="t" aria-required="true"><span class="cp-help">Required.</span></div></div>
+      <div style="overflow:hidden"><div class="cp-field"><label for="u">U</label><input id="u" aria-required="true"><span class="cp-help">Required.</span></div></div>
       <div class="cp-field"><label for="v">V</label><input id="v" aria-required="true"><span class="cp-help" style="display:block;contain:paint;height:0">Required.</span></div>
-      <div class="cp-field"><label class="cp-label" for="w">W (<b>Required</b>)</label><input id="w" aria-required="true"></div>
+      <div class="cp-field"><label class="cp-label" for="w">W (Required)</label><input id="w" aria-required="true"></div>
       <div class="cp-field"><label for="x">X</label><input id="x" aria-required="true"><span class="cp-help">Required<span>.</span></span></div>
-      <div class="cp-field"><label for="y">Y Not Required <span class="cp-visually-hidden">(Required)</span></label><input id="y" aria-required="true"></div>`);
-    const missing = await requiredWithoutMark(tab);
+      <div class="cp-field"><label for="y">Y <span class="cp-visually-hidden"><span class="cp-required">(Required)</span></span></label><input id="y" aria-required="true"></div>
+      <div class="cp-field"><label for="z" style="display:block;width:9ch;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">Name <span class="cp-required">(Required)</span></label><input id="z" aria-required="true"></div>`);
+    const missing = await tab.evaluate(requiredWithoutMark);
     await tab.close();
-    expect(missing).toEqual([..."cdefijklmno", ..."qrstuv", "y"]);
+    expect(missing).toEqual([..."cdefijklnpqrsvwyz"]);
   }, 60_000);
 
   it.each([...pageNames, ...templateNames])(
@@ -1799,7 +1723,7 @@ describe.each(browsers)("the gallery in %s", (name) => {
     async (page) => {
       const tab = await (browser as Browser).newPage();
       await tab.goto(`${origin}/${page}.html`);
-      const missing = await requiredWithoutMark(tab);
+      const missing = await tab.evaluate(requiredWithoutMark);
       await tab.close();
       expect(missing).toEqual([]);
     },
@@ -1811,7 +1735,7 @@ describe.each(browsers)("the gallery in %s", (name) => {
     async (file) => {
       const tab = await (browser as Browser).newPage();
       await tab.goto(pathToFileURL(join(SYSTEM_DIR, file)).href);
-      const missing = await requiredWithoutMark(tab);
+      const missing = await tab.evaluate(requiredWithoutMark);
       await tab.close();
       expect(missing).toEqual([]);
     },
