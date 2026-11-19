@@ -1,10 +1,7 @@
 /**
- * pie.ts — a pie's circle and its slices' angles, and a share of a whole in
- * words.
+ * pie.ts — a pie's circle and its slices' angles.
  * @module
  */
-
-import { writer } from "../scale/format.js";
 
 import type { PieModel } from "./model.js";
 
@@ -48,22 +45,3 @@ export const rimPoint = (p: Disc, a: number, r: number): { x: number; y: number 
   x: p.cx + r * Math.sin(a),
   y: p.cy - r * Math.cos(a),
 });
-
-/**
- * A share of a whole as the chart writes it in `locale`: a percentage of
- * two significant digits, each share rounded alone, so no share above 0
- * reads "0%"; a share below 1 that would read as the whole takes three,
- * cut toward 0, so it never reads "100%".
- */
-export function shareWriter(locale: string | undefined): (share: number) => string {
-  const two = writer({ style: "percent", maximumSignificantDigits: 2 }, locale);
-  const three = writer(
-    { style: "percent", maximumSignificantDigits: 3, roundingMode: "trunc" },
-    locale,
-  );
-  const whole = two(1);
-  return (v) => {
-    const text = two(v);
-    return v < 1 && text === whole ? three(v) : text;
-  };
-}

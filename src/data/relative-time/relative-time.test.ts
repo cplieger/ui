@@ -1,11 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { enhanceRelativeTime, formatRelative } from "./relative-time.js";
+import { date } from "../../core/format/format.js";
+
+import { enhanceRelativeTime } from "./relative-time.js";
 
 const NOW = Date.parse("2026-11-11T12:00:00Z");
 const MIN = 60_000;
 const HOUR = 60 * MIN;
-const DAY = 24 * HOUR;
 
 let life = new AbortController();
 
@@ -30,108 +31,10 @@ function shown(t: HTMLTimeElement): string {
   return t.firstChild?.textContent ?? "";
 }
 
-describe("formatRelative", () => {
-  it("picks the largest unit that fits and rounds to it", () => {
-    const at = (ago: number): string =>
-      formatRelative(NOW - ago, { now: NOW, locale: "en", style: "long" });
-    expect([
-      at(4 * MIN + 29_000),
-      at(100 * MIN),
-      at(DAY),
-      at(3 * DAY),
-      at(15 * DAY),
-      at(60 * DAY),
-      at(800 * DAY),
-    ]).toEqual([
-      "4 minutes ago",
-      "2 hours ago",
-      "yesterday",
-      "3 days ago",
-      "2 weeks ago",
-      "2 months ago",
-      "2 years ago",
-    ]);
-  });
-
-  it("moves to the larger unit before the smaller one's count would reach it", () => {
-    const at = (s: number): string =>
-      formatRelative(NOW - s * 1000, { now: NOW, locale: "en", style: "long" });
-    const ahead = (s: number): string =>
-      formatRelative(NOW + s * 1000, { now: NOW, locale: "en", style: "long" });
-    expect([at(3569), at(3571), at(84_599), at(86_399), at(561_599), at(561_600)]).toEqual([
-      "59 minutes ago",
-      "1 hour ago",
-      "23 hours ago",
-      "yesterday",
-      "6 days ago",
-      "last week",
-    ]);
-    expect([at(24 * 86_400), at(25 * 86_400), at(344 * 86_400), at(346 * 86_400)]).toEqual([
-      "3 weeks ago",
-      "last month",
-      "11 months ago",
-      "last year",
-    ]);
-    expect([ahead(3569), ahead(3571)]).toEqual(["in 59 minutes", "in 1 hour"]);
-  });
-
-  it("speaks the locale's words", () => {
-    const fr = (ms: number): string =>
-      formatRelative(NOW + ms, { now: NOW, locale: "fr", style: "long" });
-    expect([fr(-4 * MIN), fr(25 * MIN), fr(-DAY), fr(-10_000)]).toEqual([
-      "il y a 4 minutes",
-      "dans 25 minutes",
-      "hier",
-      "maintenant",
-    ]);
-  });
-
-  it("says a time ahead and one under a minute either way", () => {
-    const en = (ms: number): string =>
-      formatRelative(NOW + ms, { now: NOW, locale: "en", style: "long" });
-    expect([en(25 * MIN), en(DAY), en(-59_000), en(59_000)]).toEqual([
-      "in 25 minutes",
-      "tomorrow",
-      "now",
-      "now",
-    ]);
-  });
-
-  it("gives a number in the compact forms where the long one names the day", () => {
-    const always = (style: "short" | "narrow"): string =>
-      new Intl.RelativeTimeFormat("en", { style, numeric: "always" }).format(-1, "day");
-    const day = (style: "long" | "short" | "narrow"): string =>
-      formatRelative(NOW - DAY, { now: NOW, locale: "en", style });
-    expect([day("long"), day("short"), day("narrow")]).toEqual([
-      "yesterday",
-      always("short"),
-      always("narrow"),
-    ]);
-    expect(always("narrow")).toMatch(/1/);
-  });
-
-  it("writes the narrow form by default, as Intl gives it", () => {
-    const narrow = (n: number, unit: Intl.RelativeTimeFormatUnit): string =>
-      new Intl.RelativeTimeFormat("en", { style: "narrow", numeric: "always" }).format(n, unit);
-    const at = (ago: number): string => formatRelative(NOW - ago, { now: NOW, locale: "en" });
-    expect([at(15 * MIN), at(3 * HOUR), at(DAY), at(10_000)]).toEqual([
-      narrow(-15, "minute"),
-      narrow(-3, "hour"),
-      narrow(-1, "day"),
-      new Intl.RelativeTimeFormat("en", { style: "narrow", numeric: "auto" }).format(0, "second"),
-    ]);
-    expect(at(15 * MIN)).toBe("15m ago");
-    const t = time(Date.now() - 3 * HOUR);
-    enhanceRelativeTime(t, { locale: "en", signal: life.signal });
-    expect(shown(t)).toBe(narrow(-3, "hour"));
-  });
-
-  it("counts from the present by default, and refuses an invalid date", () => {
-    expect(formatRelative(new Date(Date.now() - 3 * HOUR), { locale: "en", style: "long" })).toBe(
-      "3 hours ago",
-    );
-    expect(() => formatRelative(new Date("soon"))).toThrow(TypeError);
-    expect(() => formatRelative(Number.NaN)).toThrow(TypeError);
+describe("the module", () => {
+  it("exports the element alone, its words being format's relative", async () => {
+    const mod = await import("./relative-time.js");
+    expect(Object.keys(mod).toSorted()).toEqual(["enhanceRelativeTime"]);
   });
 });
 
@@ -140,9 +43,7 @@ describe("enhanceRelativeTime", () => {
     const at = Date.now() - 4 * MIN;
     const t = time(at);
     enhanceRelativeTime(t, { locale: "en", style: "long", signal: life.signal });
-    const exact = new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" }).format(
-      at,
-    );
+    const exact = date(at, "datetime", "en");
     expect(t.childNodes).toHaveLength(2);
     expect(shown(t)).toBe("4 minutes ago");
     const hidden = t.lastElementChild;
@@ -150,6 +51,15 @@ describe("enhanceRelativeTime", () => {
     expect(hidden?.textContent).toBe(` ${exact}`);
     expect(t.dataset["cpTip"]).toBe(exact);
     expect(t.textContent).toBe(`4 minutes ago ${exact}`);
+    expect(exact).not.toMatch(/ /u);
+  });
+
+  it("writes the narrow form by default", () => {
+    const t = time(Date.now() - 3 * HOUR);
+    enhanceRelativeTime(t, { locale: "en", signal: life.signal });
+    expect(shown(t)).toBe(
+      new Intl.RelativeTimeFormat("en", { style: "narrow", numeric: "always" }).format(-3, "hour"),
+    );
   });
 
   it("turns to the next minute when the rounded minutes change", () => {

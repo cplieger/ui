@@ -3,7 +3,7 @@
  * @module
  */
 
-import type { Unit } from "../scale/format.js";
+import type { Unit } from "../../core/format/format.js";
 
 type Kind =
   | "stackedColumn"

@@ -4,6 +4,15 @@
  * @module
  */
 
+import {
+  dates,
+  durationRecord,
+  durationWords,
+  numbers,
+  pluralRules,
+  unsignedZero,
+} from "../../core/format/intl.js";
+
 import { dateAt, grainBefore, type Grain, type TimeUnit } from "./time.js";
 
 /** How a scale writes its values; see `docs/data/chart.md` "Formats". */
@@ -15,37 +24,8 @@ export type Format =
   | Intl.NumberFormatOptions
   | ((value: number) => string);
 
-/** A noun by plural category, as `Intl.PluralRules` picks it. */
-export type Unit = { readonly other: string } & Readonly<
-  Partial<Record<Intl.LDMLPluralRule, string>>
->;
-
-const NBSP = "\u00A0";
-
 // A duration value is seconds, as a frame carries it; its words are built from ms.
 const toMs = (seconds: number): number => seconds * 1_000;
-
-// Intl objects are slow to build and a chart writes thousands of values.
-const cache = new Map<string, unknown>();
-
-function cached<T>(key: string, make: () => T): T {
-  let hit = cache.get(key) as T | undefined;
-  if (hit === undefined) {
-    hit = make();
-    cache.set(key, hit);
-  }
-  return hit;
-}
-
-// JSON writes NaN and the infinities as null, which Intl reads as 0.
-const optionKey = (_: string, v: unknown): unknown =>
-  typeof v === "number" && !Number.isFinite(v) ? String(v) : v;
-
-const numbers = (locale: string | undefined, options: Intl.NumberFormatOptions = {}) =>
-  cached(
-    `n|${locale ?? ""}|${JSON.stringify(options, optionKey)}`,
-    () => new Intl.NumberFormat(locale, options),
-  );
 
 const PRESETS = {
   number: {},
@@ -103,20 +83,7 @@ export function writer(
   }
   const own: Intl.NumberFormatOptions =
     typeof format === "object" ? format : PRESETS[format ?? "number"];
-  const display = own.signDisplay ?? "auto";
-  // Only "always" and "auto" sign a zero; any other value, an invalid one
-  // included, reaches Intl as given, which throws a RangeError on the invalid.
-  const base = {
-    ...own,
-    signDisplay:
-      display === "always"
-        ? ("exceptZero" as const)
-        : display === "auto"
-          ? signed
-            ? ("exceptZero" as const)
-            : ("negative" as const)
-          : display,
-  };
+  const base = { ...own, signDisplay: unsignedZero(own.signDisplay, signed) };
   if (
     digits === undefined ||
     (format !== undefined && format !== "number" && format !== "percent")
@@ -226,54 +193,8 @@ export function widthKey(
   };
 }
 
-type DurationUnit = "days" | "hours" | "minutes" | "seconds";
-
-const UNITS = [
-  ["days", 86_400_000],
-  ["hours", 3_600_000],
-  ["minutes", 60_000],
-  ["seconds", 1_000],
-] as const satisfies readonly (readonly [DurationUnit, number])[];
-
-/**
- * The record `ms` is written from: milliseconds under one second; else the
- * largest unit and, while its count is under 10, the next one, each whole and
- * a zero dropped. Rounding carries, so 59_600 is one minute.
- */
-export function durationRecord(ms: number): Partial<Record<DurationUnit | "milliseconds", number>> {
-  const sign = ms < 0 ? -1 : 1;
-  const abs = Math.round(Math.abs(ms));
-  const at = UNITS.findIndex(([, size]) => abs >= size);
-  if (at === -1) {
-    return { milliseconds: sign * abs || 0 };
-  }
-  const [big, bigSize] = UNITS[at] ?? UNITS[0];
-  const next = UNITS[at + 1];
-  if (abs / bigSize >= 10 || next === undefined) {
-    const count = Math.round(abs / bigSize);
-    const up = UNITS[at - 1];
-    // A carry past the next unit up, such as 23.6 hours to a day, starts over there.
-    return up !== undefined && count * bigSize >= up[1]
-      ? durationRecord(sign * count * bigSize)
-      : { [big]: sign * count };
-  }
-  const [small, smallSize] = next;
-  const total = Math.round(abs / smallSize);
-  const per = bigSize / smallSize;
-  const whole = Math.floor(total / per);
-  const rest = total - whole * per;
-  return whole >= 10
-    ? durationRecord(sign * whole * bigSize)
-    : rest === 0
-      ? { [big]: sign * whole }
-      : { [big]: sign * whole, [small]: sign * rest };
-}
-
 const FIELDS = ["days", "hours", "minutes", "seconds", "milliseconds"] as const;
 const FORMS = ["zero", "one", "two", "few", "many", "other"] as const;
-
-const pluralRules = (locale: string | undefined) =>
-  cached(`p|${locale ?? ""}`, () => new Intl.PluralRules(locale));
 
 // The digits of whole number `n`, which with the locale fix its separators.
 function digitCount(n: number): number {
@@ -314,28 +235,6 @@ function durationKey(locale: string | undefined): WidthKey {
   };
 }
 
-/** A plain space between a number and the word after it, made non-breaking. */
-export const keepUnit = (text: string): string => text.replace(/(\p{Nd}) (?=\p{L})/gu, `$1${NBSP}`);
-
-// `record` in Intl.DurationFormat's `style`.
-function durationWords(
-  record: Partial<Record<Intl.DurationFormatUnit, number>>,
-  style: "short" | "long",
-  locale: string | undefined,
-): string {
-  // The style's "auto" display writes nothing for a lone zero.
-  const zero = record.milliseconds === 0;
-  const df = cached(
-    `d|${locale ?? ""}|${style}|${String(zero)}`,
-    () =>
-      new Intl.DurationFormat(locale, {
-        style,
-        ...(zero ? { millisecondsDisplay: "always" as const } : {}),
-      }),
-  );
-  return keepUnit(df.format(record));
-}
-
 // `ms` by the duration rule, in the short style.
 const formatDuration = (ms: number, locale: string | undefined): string =>
   durationWords(durationRecord(ms), "short", locale);
@@ -347,25 +246,6 @@ export const grainStep = (
   grain: Exclude<Grain, "minute">,
   locale: string | undefined,
 ): string => durationWords({ [`${grain}s`]: count }, "long", locale);
-
-/** `unit`'s noun for `count` in `locale`. */
-export function noun(unit: Unit, count: number, locale: string | undefined): string {
-  return unit[pluralRules(locale).select(count)] ?? unit.other;
-}
-
-/** A written number and its noun, joined by a non-breaking space. */
-export const withNoun = (value: string, word: string): string => `${value}${NBSP}${word}`;
-
-const dates = (
-  locale: string | undefined,
-  timeZone: string | undefined,
-  options: Intl.DateTimeFormatOptions,
-) =>
-  cached(
-    `t|${locale ?? ""}|${timeZone ?? ""}|${JSON.stringify(options)}`,
-    () =>
-      new Intl.DateTimeFormat(locale, timeZone === undefined ? options : { ...options, timeZone }),
-  );
 
 const writes =
   (df: Intl.DateTimeFormat) =>

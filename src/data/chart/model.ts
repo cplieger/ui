@@ -4,6 +4,7 @@
  * @module
  */
 
+import { shares, type Unit } from "../../core/format/intl.js";
 import { MAX_MAGNITUDE } from "../frame/limits.js";
 import {
   instantFormat,
@@ -12,7 +13,6 @@ import {
   writer,
   type Reach,
   type Span,
-  type Unit,
   type WidthKey,
 } from "../scale/format.js";
 import { lowerBound, upperBound } from "../scale/reduce.js";
@@ -20,7 +20,6 @@ import { localDay, localYear, spansDay, type Grain } from "../scale/time.js";
 
 import { dayFormat, weekCount, weekRow, weekStartOf } from "./calendar.js";
 import { classes, type Classes } from "./classes.js";
-import { shareWriter } from "./pie.js";
 import {
   rScale,
   ruleAt,
@@ -586,7 +585,8 @@ export interface Model {
    *  format, or under "share", whose axis writes shares, the share mark's
    *  `format`, else a plain number. */
   readonly amountText: (v: number) => string;
-  /** A share of a whole, a pie's slice's or a tree's part's (`shareWriter`). */
+  /** A share of a whole, a pie's slice's or a tree's part's (`percent` in
+   *  `@cplieger/ui/format`). */
   readonly shareText: (v: number) => string;
   /** The width keys of `xText` off a time x and named columns, `yText`, `rText`
    *  and `amountText`; undefined where a format has none. */
@@ -1191,7 +1191,7 @@ function build(
     colourText,
     dateText,
     amountText: whole !== undefined || share ? writer(amount, locale) : bars ? xText : yText,
-    shareText: shareWriter(locale),
+    shareText: shares(locale),
     widthKeys: {
       x: xKey,
       y: yKey,
