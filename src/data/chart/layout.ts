@@ -221,7 +221,8 @@ const BAR_SPACE = 8;
 const MIRROR_SPACE = 2;
 /** The room between a name above a bar and the bar. */
 const NAME_GAP = 2;
-/** The room between a bar's end and its value label. */
+/** The room between a bar's end and its value label, and between the axis
+ *  and a category name above its marks. */
 const VALUE_GAP = 4;
 /** The room between panels: a split bar chart's, and small multiples' rows and columns. */
 export const PANEL_GAP = 16;
@@ -1203,7 +1204,7 @@ export function layout(
   const left = reverse ? labelW : axisW;
   if (band !== undefined && above) {
     const face = mono ? metrics.mono : measure;
-    names = band.rows.map((n) => cutName(n, plotW, face.text));
+    names = band.rows.map((n) => cutName(n, plotW - VALUE_GAP, face.text));
   }
 
   // Value labels sit past each bar's end, so x ends short of each side by
@@ -1397,11 +1398,16 @@ export function layout(
           reverse
             ? {
                 text: name,
-                x: left + plotW,
+                x: left + plotW - VALUE_GAP,
                 y: top + i * rowH + metrics.nameLine / 2,
                 anchor: "end",
               }
-            : { text: name, x: left, y: top + i * rowH + metrics.nameLine / 2, anchor: "start" },
+            : {
+                text: name,
+                x: left + VALUE_GAP,
+                y: top + i * rowH + metrics.nameLine / 2,
+                anchor: "start",
+              },
         );
         return;
       }

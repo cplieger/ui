@@ -359,13 +359,13 @@ describe("a bar chart", () => {
     expect(l.projection.height).toBe(3 * 44);
     // The name's 18 px line, 2 px, then the 16 px bar centred in the row's 24 px.
     expect(l.rows.map((r) => r.y)).toEqual([28, 72, 116]);
-    expect(l.yLabels[1]).toEqual({ text: "Monaco", x: 0, y: 44 + 9, anchor: "start" });
+    expect(l.yLabels[1]).toEqual({ text: "Monaco", x: 4, y: 44 + 9, anchor: "start" });
   });
 
-  it("cuts a name above its bar to the plot's width", () => {
+  it("cuts a name above its bar to the plot's width less its inset", () => {
     const long = rows(["A very long country name"], [["a", [1]]], { mark: "bar" });
     const l = lay(long, 100);
-    expect((l.yLabels[0]?.text.length ?? 0) * 7.5).toBeLessThanOrEqual(100);
+    expect((l.yLabels[0]?.text.length ?? 0) * 7.5).toBeLessThanOrEqual(100 - 4);
     expect(l.yLabels[0]?.text.endsWith("…")).toBe(true);
   });
 
@@ -744,7 +744,7 @@ describe("a point chart", () => {
     expect(l.projection.height).toBe(3 * 38);
     // The name's 18 px line, 2 px, then the 10 px dots and 8 px.
     expect(l.rows.map((r) => r.y)).toEqual([25, 63, 101]);
-    expect(l.yLabels[1]).toEqual({ text: "Monaco", x: 0, y: 38 + 9, anchor: "start" });
+    expect(l.yLabels[1]).toEqual({ text: "Monaco", x: 4, y: 38 + 9, anchor: "start" });
   });
 
   it("draws an x axis 7 px inside each end with its title, and no value labels", () => {
@@ -835,6 +835,44 @@ describe("an x rule's label on bar rows", () => {
   it("starts at its one line on a stacked bar chart", () => {
     const l = lay(ruled(undefined), 600);
     expect(l.ruleLabels[0]).toMatchObject({ text: "Aim 10", x: l.left + l.projection.xAt(10) });
+  });
+});
+
+describe("a category name above its marks under 30rem", () => {
+  const stacked = (arrange: "stack" | "group" | "share", x: NonNullable<ChartSpec["x"]> = {}) =>
+    rows(
+      ["lead-ui", "codex-review"],
+      [
+        ["Passed", [12, 30]],
+        ["Failed", [3, 5]],
+      ],
+      { mark: "bar", arrange },
+      { x },
+    );
+  const marks: readonly (readonly [string, (x: NonNullable<ChartSpec["x"]>) => ChartSpec])[] = [
+    ["stacked bars", (x) => stacked("stack", x)],
+    ["grouped bars", (x) => stacked("group", x)],
+    ["100% stacked bars", (x) => stacked("share", x)],
+    [
+      "dots",
+      (x) => rows(["lead-ui", "codex-review"], [["Runs", [12, 30]]], { mark: "point" }, { x }),
+    ],
+  ];
+
+  it.each(marks)("insets each name of %s 4 px from the axis, as a value from its bar", (_, s) => {
+    const l = lay(s({}), 400);
+    expect(l.yLabels.map((t) => [t.x, t.anchor])).toEqual([
+      [l.left + 4, "start"],
+      [l.left + 4, "start"],
+    ]);
+  });
+
+  it.each(marks)("mirrors the inset on reversed %s, 4 px inside the right edge", (_, s) => {
+    const l = lay(s({ reverse: true }), 400);
+    expect(l.yLabels.map((t) => [t.x, t.anchor])).toEqual([
+      [l.left + l.projection.width - 4, "end"],
+      [l.left + l.projection.width - 4, "end"],
+    ]);
   });
 });
 
@@ -1252,7 +1290,7 @@ describe("a box plot", () => {
     expect(one.gutters.axis).toBe(0);
     expect(one.projection.height).toBe(176);
     expect(one.rows[0]?.y).toBe(18 + 2 + 8);
-    expect(one.yLabels[1]).toEqual({ text: "export", x: 0, y: 44 + 9, anchor: "start" });
+    expect(one.yLabels[1]).toEqual({ text: "export", x: 4, y: 44 + 9, anchor: "start" });
     expect(lay(latency(2), 320).projection.height).toBe(240);
   });
 
