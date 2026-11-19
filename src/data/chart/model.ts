@@ -684,7 +684,7 @@ const boxSeries = (list: BoxInput["series"]): BoxSeriesModel[] =>
             high: s.high[r] ?? low,
           },
     ),
-    outliers: Array.from(s.low, (_, r) => [...(s.outliers?.[r] ?? [])].sort((a, b) => a - b)),
+    outliers: Array.from(s.low, (_, r) => (s.outliers?.[r] ?? []).toSorted((a, b) => a - b)),
   }));
 
 // A dot outside a passed domain is not drawn, and with no position, or a

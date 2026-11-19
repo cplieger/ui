@@ -170,7 +170,7 @@ function orders(m: ScatterModel): Orders {
     }
   });
   const all = dots.map((_, d) => d);
-  const byX = [...all].sort(
+  const byX = all.toSorted(
     (a, b) => (x[a] ?? 0) - (x[b] ?? 0) || (y[a] ?? 0) - (y[b] ?? 0) || a - b,
   );
   const byY = all.sort((a, b) => (y[a] ?? 0) - (y[b] ?? 0) || (x[a] ?? 0) - (x[b] ?? 0) || a - b);
@@ -331,7 +331,7 @@ function along(
       const room = tickRoom(lay, from) - 0.5;
       const far = (i: number) => (rightward ? px(i) - from : from - px(i)) >= room;
       // Stops run one way along px, so the first far one is the nearest.
-      const order = forward(key) ? stops : [...stops].reverse();
+      const order = forward(key) ? stops : stops.toReversed();
       next = order.find(far) ?? order.at(-1);
       break;
     }
@@ -891,7 +891,7 @@ export function navigator(model: Model, lay: Layout): Navigator {
             }
           });
           // Groups come in data order, which runs against px on a reversed x.
-          const g = f.x.reverse ? [...groups(r)].reverse() : groups(r);
+          const g = f.x.reverse ? groups(r).toReversed() : groups(r);
           const ats = g.map((d) => d.at);
           const k = lowerBound(ats, px);
           const near = [k - 1, k]

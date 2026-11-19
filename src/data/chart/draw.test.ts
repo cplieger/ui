@@ -697,7 +697,7 @@ describe("labels", () => {
     const xs = [...d.svg.querySelectorAll<SVGTextElement>('[data-part="x"] text')].map(
       (t) => t.getBBox().x,
     );
-    expect(xs).toEqual([...xs].sort((a, b) => a - b));
+    expect(xs).toEqual(xs.toSorted((a, b) => a - b));
     expect(d.lay.left).toBe(d.lay.gutters.axis);
     const [first, last] = [d.legend.firstElementChild, d.legend.lastElementChild].map((e) =>
       (e as Element).getBoundingClientRect(),

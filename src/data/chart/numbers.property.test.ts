@@ -180,7 +180,7 @@ describe("a chart's numbers", () => {
       fc.record({
         thresholds: fc
           .uniqueArray(near, { minLength: 1, maxLength: 8, comparator: (a, b) => a === b })
-          .map((t) => [...t].sort((a, b) => a - b)),
+          .map((t) => t.toSorted((a, b) => a - b)),
       }),
     );
     fc.assert(
