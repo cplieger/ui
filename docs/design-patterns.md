@@ -298,7 +298,7 @@ The interface may ship in one language and still show titles, names and file nam
 
 - Set `lang` on `<html>`, and `lang` on an element whose text is known to be in another language, such as a Japanese title.
 - Wrap text from outside the app, such as a title or a release name, in `<bdi>` or give its element `dir="auto"`, so a right-to-left name cannot reorder the text around it.
-- Format dates, times, numbers, sizes and durations with `Intl`, in the person's locale.
+- Write dates, times, numbers, sizes and durations with [format](core/format.md), which writes them through `Intl` in the page's language.
 - The stylesheet uses logical properties throughout, so it mirrors under `dir="rtl"`. Write app CSS with `inline` and `block` properties the same way. Icons that point along the text mirror on their own.
 - Test a screen with long words and with a right-to-left title in a table cell, and test one whole screen under `dir="rtl"` at compact and expanded widths, with its sheet open.
 

@@ -5,21 +5,26 @@ import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
 // The chart's modules, the frame reader and the scales they share, and the
-// sparkline.
-const DATA = join(import.meta.dirname, "..");
-const DIRS = ["chart", "frame", "scale", "sparkline"];
+// sparkline, under src/data; and the Intl writers they call.
+const SRC = join(import.meta.dirname, "../..");
+const DATA = join(SRC, "data");
+const DIRS = ["data/chart", "data/frame", "data/scale", "data/sparkline"];
+const INTL = "core/format";
 
 // Comments name these calls without making them.
 const code = (text: string): string => text.replaceAll(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/gu, "");
 
-async function sources(strip = code): Promise<{ readonly name: string; readonly text: string }[]> {
+async function sources(
+  strip = code,
+  dirs = DIRS,
+): Promise<{ readonly name: string; readonly text: string }[]> {
   const out = [];
-  for (const dir of DIRS) {
-    for (const file of (await readdir(join(DATA, dir))).sort()) {
+  for (const dir of dirs) {
+    for (const file of (await readdir(join(SRC, dir))).sort()) {
       if (file.endsWith(".ts") && !file.endsWith(".test.ts")) {
         out.push({
           name: `${dir}/${file}`,
-          text: strip(await readFile(join(DATA, dir, file), "utf8")),
+          text: strip(await readFile(join(SRC, dir, file), "utf8")),
         });
       }
     }
@@ -46,13 +51,13 @@ function callSpreads(name: string, text: string): string[] {
 }
 
 describe("one path from a number to its words", () => {
-  it("leaves Intl.NumberFormat, toFixed, toPrecision and toLocaleString to format.ts", async () => {
-    const calls = (await sources()).flatMap(({ name, text }) =>
+  it("leaves Intl.NumberFormat, toFixed, toPrecision and toLocaleString to intl.ts", async () => {
+    const calls = (await sources(code, [...DIRS, INTL])).flatMap(({ name, text }) =>
       [
         ...text.matchAll(/\bIntl\.NumberFormat\b|\.(?:toFixed|toPrecision|toLocaleString)\s*\(/gu),
       ].map((m) => `${name}: ${m[0]}`),
     );
-    expect(calls).toEqual(["scale/format.ts: Intl.NumberFormat"]);
+    expect(calls).toEqual(["core/format/intl.ts: Intl.NumberFormat"]);
   });
 
   it("builds a number format only for writer, widthKey reading its options alone", async () => {
@@ -72,7 +77,7 @@ describe("one maker of a Date", () => {
     const calls = (await sources()).flatMap(({ name, text }) =>
       [...text.matchAll(/\bnew\s+Date\b|\bDate\.(?:UTC|parse)\b/gu)].map((m) => `${name}: ${m[0]}`),
     );
-    expect(calls).toEqual(["scale/time.ts: new Date"]);
+    expect(calls).toEqual(["data/scale/time.ts: new Date"]);
     const text = code(await readFile(join(DATA, "scale/time.ts"), "utf8"));
     const from = text.indexOf("export function dateAt(");
     expect(text.indexOf("new Date")).toBeGreaterThan(from);
@@ -88,13 +93,12 @@ describe("one maker of a Date", () => {
       ),
     );
     expect(calls).toEqual([
-      "scale/format.ts: .format(v",
-      "scale/format.ts: .format(v",
-      "scale/format.ts: .format(v",
-      "scale/format.ts: .format(Math.sign(v",
-      "scale/format.ts: .format(0",
-      "scale/format.ts: .format(v",
-      "scale/format.ts: .format(record",
+      "data/scale/format.ts: .format(v",
+      "data/scale/format.ts: .format(v",
+      "data/scale/format.ts: .format(v",
+      "data/scale/format.ts: .format(Math.sign(v",
+      "data/scale/format.ts: .format(0",
+      "data/scale/format.ts: .format(v",
     ]);
   });
 });
@@ -109,10 +113,10 @@ describe("no call spreads a list the spec sets", () => {
     );
     expect(spreads).toEqual([
       // At most the three of 1, 2 and 5 in a decade.
-      "scale/log.ts: all.push(...[1, 2, 5].map",
+      "data/scale/log.ts: all.push(...[1, 2, 5].map",
       // A column of four points or fewer, and the four a longer one keeps.
-      "scale/reduce.ts: run.push(...column",
-      "scale/reduce.ts: run.push(...column.filter",
+      "data/scale/reduce.ts: run.push(...column",
+      "data/scale/reduce.ts: run.push(...column.filter",
     ]);
   });
 });
