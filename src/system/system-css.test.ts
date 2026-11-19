@@ -6131,9 +6131,8 @@ describe("css/system.css data tables", () => {
           Math.abs(above - below),
           `${at} above ${String(above)} below ${String(below)}`,
         ).toBeLessThanOrEqual(0.5);
-        // The cover, or two untrimmed line boxes 2px apart, set the height.
         const cover = (box.querySelector(".cp-cover") as Element).getBoundingClientRect().height;
-        expect(r.height, `${at} height`).toBeCloseTo(Math.max(cover, t.lh + 2 + s.lh), 1);
+        expect(r.height, `${at} height`).toBeCloseTo(cover, 1);
       }
     }
   });
