@@ -467,23 +467,30 @@ export function drawLog(
     list.toSorted((a, b) => (order === "newest" ? b.seq - a.seq : a.seq - b.seq));
 
   /** The page `v` names. It asks for one entry more than it shows, so the
-   *  side it reads toward has a next page exactly when that entry came; the
-   *  other side has one when a bound reached the page. A read past the end,
+   *  side it reads toward has a next page exactly when that entry came. An
+   *  `after` page asks beside it for one entry at or below its bound, since
+   *  the size limit may have removed every older one; a `before` page has
+   *  newer ones, which the limit removes last. A read past the end,
    *  or a newest-first `after` read that reached the newest end, is answered
    *  by reading the first page, so its rows, `past` and `future` all come
    *  from that read; the address is corrected while `v` is still the view. */
   const pageOf = async (v: View): Promise<Result<Page>> => {
     const ascending = v.after !== undefined || (v.before === undefined && v.order === "oldest");
-    const [got] = await Promise.all([
+    const [got, older] = await Promise.all([
       query(v, {
         ...(ascending ? { oldestFirst: true } : {}),
         ...(v.before === undefined ? {} : { before: v.before }),
         ...(v.after === undefined ? {} : { after: v.after }),
       }),
+      // Goes once access's log read answers a `prev_cursor` (its List shape).
+      v.after === undefined ? undefined : query(v, { before: v.after + 1, limit: 1 }),
       peopleRead,
     ]);
     if (!got.ok) {
       return got;
+    }
+    if (older?.ok === false) {
+      return older;
     }
     const page = got.data.entries;
     const more = page.length > limit;
@@ -504,7 +511,7 @@ export function drawLog(
         view: v,
         log: got.data,
         entries: ordered(shown, v.order),
-        past: ascending ? v.after !== undefined : more,
+        past: older === undefined ? !ascending && more : older.data.entries.length > 0,
         future: ascending ? more : v.before !== undefined,
         arrived: 0,
       },

@@ -571,3 +571,87 @@ describe("mountInvite: a re-read refused once the form is drawn", () => {
     expect(panel.querySelector("form")).not.toBeNull();
   });
 });
+
+describe("mountInvite: once one way signed the person in", () => {
+  const later = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 600));
+
+  it("does not follow the provider's address once the password signed in", async () => {
+    const fake = new Fake();
+    const releaseProvider = fake.hold("inviteAcceptOIDC");
+    const { panel, went, joined } = mount(fake);
+    await drawn(panel);
+    await userEvent.click(button(panel, "Accept with Authelia"));
+    await accept(panel);
+    await vi.waitFor(() => {
+      expect(joined).toEqual(["mika"]);
+    });
+    releaseProvider();
+    await later();
+    expect(went).toEqual([]);
+    expect(joined).toEqual(["mika"]);
+  });
+
+  it("draws no refusal of the password once the page left for the provider", async () => {
+    const answer = Promise.withResolvers<unknown>();
+    const fake = new Fake().answer("inviteAcceptPassword", () => answer.promise);
+    const { panel, went, joined } = mount(fake);
+    await drawn(panel);
+    await accept(panel);
+    await userEvent.click(button(panel, "Accept with Authelia"));
+    await vi.waitFor(() => {
+      expect(went).toEqual(["https://id.example/authorize?state=invite"]);
+    });
+    answer.resolve(refuse(409, "auth_username_taken"));
+    await later();
+    expect(noticeOf(panel)).toBeNull();
+    expect(input(panel, "username").hasAttribute("aria-invalid")).toBe(false);
+    expect(joined).toEqual([]);
+  });
+
+  it("ends the rate-limit wait once the page left for the provider", async () => {
+    const fake = new Fake().answer(
+      "inviteAcceptPassword",
+      refuse(429, "auth_rate_limited", undefined, { "Retry-After": "30" }),
+    );
+    const releaseProvider = fake.hold("inviteAcceptOIDC");
+    const { panel, went } = mount(fake);
+    await drawn(panel);
+    await userEvent.click(button(panel, "Accept with Authelia"));
+    await accept(panel);
+    await vi.waitFor(() => {
+      expect(noticeOf(panel)?.textContent).toBe("Too many attempts. Try again in 0:30.");
+    });
+    releaseProvider();
+    await vi.waitFor(() => {
+      expect(went).toHaveLength(1);
+    });
+    expect(noticeOf(panel)).toBeNull();
+  });
+
+  it("sends nothing from the form drawn again while the browser keeps the password", async () => {
+    const fake = new Fake().answer(
+      "inviteAcceptPassword",
+      ok({ pending: { ticket: "t1", next: "enrol", methods: ["passkey"] } }),
+    );
+    const releaseEnrol = fake.hold("pendingPasskey");
+    const { panel, joined } = mount(fake);
+    await drawn(panel);
+    await accept(panel);
+    await userEvent.click(button(panel, "Register a passkey"));
+    await userEvent.click(button(panel, "Start again"));
+    await vi.waitFor(() => {
+      expect(input(panel, "password")).not.toBeNull();
+    });
+    const releaseStore = fake.hold("storePasswordCredential");
+    releaseEnrol();
+    await later();
+    expect(joined).toEqual([]);
+    await accept(panel);
+    await later();
+    expect(fake.named("inviteAcceptPassword")).toHaveLength(1);
+    releaseStore();
+    await vi.waitFor(() => {
+      expect(joined).toEqual(["mika"]);
+    });
+  });
+});

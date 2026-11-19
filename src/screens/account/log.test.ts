@@ -297,8 +297,9 @@ describe("mountSecurityLog: the address and the pages", () => {
       expect(seqs(await rows(region))).toEqual([12, 11, 10, 9, 8]);
     });
     // Newer reached the newest end, which is read as the first page.
-    expect(asked(fake).slice(-2)).toEqual([
+    expect(asked(fake).slice(-3)).toEqual([
       { limit: 6, oldestFirst: true, after: 7 },
+      { limit: 1, before: 8 },
       { limit: 6 },
     ]);
     expect(queries.at(-1)).toBe("");
@@ -606,9 +607,31 @@ describe("mountSecurityLog: refresh", () => {
     });
     log.push(entry(8));
     await refresh();
-    expect(asked(fake).at(-1)).toEqual({ limit: 6, oldestFirst: true, after: 5 });
+    expect(asked(fake).slice(-2)).toEqual([
+      { limit: 6, oldestFirst: true, after: 5 },
+      { limit: 1, before: 6 },
+    ]);
     expect(seqs(await rows(region))).toEqual([6, 7, 8]);
     expect(pagerLink(region, "Later").getAttribute("aria-disabled")).toBe("true");
+  });
+
+  it("oldest first, Later offers no Earlier once every earlier entry was pruned", async () => {
+    const log = range(1, 2);
+    const fake = new Fake().always("adminSecurityLog", server(log));
+    const { region } = mount(fake, { limit: 1, search: "?order=oldest" });
+    expect(seqs(await rows(region))).toEqual([1]);
+    log.push(entry(3), entry(4));
+    log.splice(0, 1);
+    await userEvent.click(pagerLink(region, "Later"));
+    await vi.waitFor(async () => {
+      expect(seqs(await rows(region))).toEqual([2]);
+    });
+    expect(asked(fake).slice(-2)).toEqual([
+      { limit: 2, oldestFirst: true, after: 1 },
+      { limit: 1, before: 2 },
+    ]);
+    expect(pagerLink(region, "Earlier").getAttribute("aria-disabled")).toBe("true");
+    expect(pagerLink(region, "Later").hasAttribute("href")).toBe(true);
   });
 
   it("oldest first, a full end page offers Later once one more entry comes", async () => {
@@ -641,7 +664,11 @@ describe("mountSecurityLog: refresh", () => {
     await vi.waitFor(async () => {
       expect(seqs(await rows(region))).toEqual([8, 7, 6, 5, 4]);
     });
-    expect(asked(fake)).toEqual([{ limit: 6, oldestFirst: true, after: 5 }, { limit: 6 }]);
+    expect(asked(fake)).toEqual([
+      { limit: 6, oldestFirst: true, after: 5 },
+      { limit: 1, before: 6 },
+      { limit: 6 },
+    ]);
     expect(pagerLink(region, "Newer").getAttribute("aria-disabled")).toBe("true");
     expect(new URL(pagerLink(region, "Older").href).searchParams.get("before")).toBe("4");
     expect(written).toEqual([["", true]]);
@@ -668,8 +695,9 @@ describe("mountSecurityLog: refresh", () => {
     await vi.waitFor(async () => {
       expect(seqs(await rows(region))).toEqual([10, 9, 8, 7, 6]);
     });
-    expect(asked(fake).slice(-2)).toEqual([
+    expect(asked(fake).slice(-3)).toEqual([
       { limit: 6, oldestFirst: true, after: 5 },
+      { limit: 1, before: 6 },
       { limit: 6 },
     ]);
     expect(queries.at(-1)).toBe("");

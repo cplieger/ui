@@ -746,3 +746,93 @@ describe("mountSignIn: the end of a pending sign-in", () => {
     expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(320);
   });
 });
+
+describe("continueSignIn: a step that ended, still drawn", () => {
+  it("keeps its code in the page while the form is read again after Start again", async () => {
+    const fake = new Fake().answer("loginPassword", pending({ methods: ["totp"] }));
+    const { panel } = mount(fake);
+    await drawn(panel);
+    await signIn(panel);
+    await vi.waitFor(() => {
+      expect(input(panel, "code")).not.toBeNull();
+    });
+    const release = fake.hold("state");
+    await userEvent.click(button(panel, "Start again"));
+    const code = input(panel, "code");
+    expect(code).not.toBeNull();
+    let left = false;
+    const stay = (e: SubmitEvent): void => {
+      left = !e.defaultPrevented;
+      e.preventDefault();
+    };
+    window.addEventListener("submit", stay);
+    try {
+      code.value = "123456";
+      code.form?.requestSubmit();
+    } finally {
+      window.removeEventListener("submit", stay);
+    }
+    expect(left).toBe(false);
+    expect(fake.named("loginCode")).toHaveLength(0);
+    release();
+    await vi.waitFor(() => {
+      expect(input(panel, "password")).not.toBeNull();
+    });
+  });
+});
+
+describe("continueSignIn: once the step signed in", () => {
+  it("sends nothing from the step while its recovery code is shown", async () => {
+    const fake = new Fake().answer(
+      "loginCode",
+      ok({ signed_in: { ...signedIn, recovery_code: "WXYZ2345EFGH6789" } }),
+    );
+    const { panel, went } = await stepped(fake);
+    await userEvent.fill(input(panel, "code"), "111111");
+    await userEvent.click(submit(panel));
+    const shown = await dialogOf("Your recovery code");
+    button(panel, "Use a passkey").click();
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(fake.named("loginSecondPasskey")).toHaveLength(0);
+    await userEvent.click(shown.querySelector("input[type='checkbox']") as HTMLInputElement);
+    await userEvent.click(button(shown, "Continue"));
+    await vi.waitFor(() => {
+      expect(went).toEqual(["/feed"]);
+    });
+  });
+
+  it("sends no code while the recovery code a passkey's answer carried is shown", async () => {
+    const fake = new Fake().answer("loginSecondPasskey", {
+      kind: "answered",
+      result: { signed_in: { ...signedIn, recovery_code: "WXYZ2345EFGH6789" } },
+    });
+    const { panel, went } = await stepped(fake, pending({ methods: ["totp", "passkey"] }));
+    button(panel, "Use a passkey").click();
+    const shown = await dialogOf("Your recovery code");
+    input(panel, "code").value = "111111";
+    input(panel, "code").form?.requestSubmit();
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(fake.named("loginCode")).toHaveLength(0);
+    await userEvent.click(shown.querySelector("input[type='checkbox']") as HTMLInputElement);
+    await userEvent.click(button(shown, "Continue"));
+    await vi.waitFor(() => {
+      expect(went).toEqual(["/feed"]);
+    });
+  });
+
+  it("draws no other way in once another way signed in", async () => {
+    const late = Promise.withResolvers<unknown>();
+    const fake = new Fake()
+      .answer("passkeySupport", { webauthn: true, conditional: true })
+      .always("signInWithPasskey", () => late.promise);
+    const { panel, went } = await stepped(fake);
+    late.resolve({ kind: "signed-in", result: signedIn });
+    await vi.waitFor(() => {
+      expect(went).toEqual(["/feed"]);
+    });
+    button(panel, "Use your recovery code").click();
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(input(panel, "recovery_code")).toBeNull();
+    expect(input(panel, "code")).not.toBeNull();
+  });
+});

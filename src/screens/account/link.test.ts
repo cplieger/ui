@@ -390,6 +390,26 @@ describe("mountSignIn: link with an admin's temporary password", () => {
     expect(button(panel, "Link account").getAttribute("aria-disabled")).toBe("true");
   });
 
+  it("reads nothing after a wrong pair answers once Create signed in", async () => {
+    const pair = Promise.withResolvers<unknown>();
+    const fake = onlyFake()
+      .answer("oidcPending", CAN_CREATE)
+      .answer("oidcLinkByAdmin", () => pair.promise);
+    const { panel, went } = linkScreen(fake);
+    await drawn(panel);
+    await send(panel);
+    await userEvent.click(button(panel, "Create account"));
+    await vi.waitFor(() => {
+      expect(went).toEqual(["/"]);
+    });
+    const reads = fake.named("state").length;
+    pair.resolve(refuse(401, "auth_invalid_credentials"));
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    expect(fake.named("state")).toHaveLength(reads);
+    expect(noticeOf(panel)).toBeNull();
+    expect(went).toEqual(["/"]);
+  });
+
   it("signs in as linked, with no second link call", async () => {
     const { panel, fake } = linkScreen(onlyFake().answer("oidcLinkByAdmin", ok(signedIn)));
     await drawn(panel);

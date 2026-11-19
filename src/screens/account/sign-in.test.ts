@@ -1344,3 +1344,180 @@ describe("mountSignIn: a re-read refused once the form is drawn", () => {
     expect(panel.querySelector("form")).not.toBeNull();
   });
 });
+
+describe("mountSignIn: once the autofill's pick signed in", () => {
+  const CODE_STEP = ok({ pending: { ticket: "t1", next: "second_factor", methods: ["totp"] } });
+  const WAIT = refuse(429, "auth_rate_limited", undefined, { "Retry-After": "30" });
+  const later = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 600));
+
+  /** The screen with the autofill's request held, and what it handed on. */
+  function picking(fake: Fake): {
+    panel: HTMLElement;
+    went: string[];
+    pick: () => Promise<void>;
+  } {
+    const late = Promise.withResolvers<unknown>();
+    fake
+      .answer("passkeySupport", { webauthn: true, conditional: true })
+      .always("signInWithPasskey", () => late.promise);
+    const went: string[] = [];
+    const { panel } = mount(fake, {
+      onSignedIn: ({ next }) => {
+        went.push(next);
+      },
+    });
+    const pick = async (): Promise<void> => {
+      late.resolve({ kind: "signed-in", result: signedIn });
+      await vi.waitFor(() => {
+        expect(went).toEqual(["/"]);
+      });
+    };
+    return { panel, went, pick };
+  }
+
+  it("sends nothing from the password form", async () => {
+    const fake = new Fake();
+    const { panel, went, pick } = picking(fake);
+    await drawn(panel);
+    await pick();
+    await signIn(panel);
+    await later();
+    expect(fake.named("loginPassword")).toHaveLength(0);
+    expect(went).toEqual(["/"]);
+  });
+
+  it("draws no refusal of a code that was out", async () => {
+    const code = Promise.withResolvers<unknown>();
+    const fake = new Fake()
+      .answer("loginPassword", CODE_STEP)
+      .answer("loginCode", () => code.promise);
+    const { panel, pick } = picking(fake);
+    await drawn(panel);
+    await signIn(panel);
+    await vi.waitFor(() => {
+      expect(input(panel, "code")).not.toBeNull();
+    });
+    await userEvent.fill(input(panel, "code"), "123456");
+    await userEvent.click(submit(panel));
+    await pick();
+    code.resolve(refuse(401, "auth_code_invalid", "code_invalid"));
+    await later();
+    expect(noticeOf(panel)).toBeNull();
+    expect(input(panel, "code").hasAttribute("aria-invalid")).toBe(false);
+  });
+
+  it("ends the password's rate-limit wait without saying sign-in is open again", async () => {
+    const fake = new Fake().answer("loginPassword", WAIT);
+    const { panel, pick } = picking(fake);
+    await drawn(panel);
+    await signIn(panel);
+    await vi.waitFor(() => {
+      expect(noticeOf(panel)?.textContent).toBe("Too many attempts. Try again in 0:30.");
+    });
+    await pick();
+    expect(noticeOf(panel)).toBeNull();
+    expect(submit(panel).hasAttribute("aria-disabled")).toBe(false);
+    await later();
+    expect(said("polite")).not.toBe("You can sign in again.");
+  });
+
+  it("ends the code step's rate-limit wait", async () => {
+    const fake = new Fake().answer("loginPassword", CODE_STEP).answer("loginCode", WAIT);
+    const { panel, pick } = picking(fake);
+    await drawn(panel);
+    await signIn(panel);
+    await vi.waitFor(() => {
+      expect(input(panel, "code")).not.toBeNull();
+    });
+    await userEvent.fill(input(panel, "code"), "123456");
+    await userEvent.click(submit(panel));
+    await vi.waitFor(() => {
+      expect(noticeOf(panel)?.textContent).toBe("Too many attempts. Try again in 0:30.");
+    });
+    await pick();
+    expect(noticeOf(panel)).toBeNull();
+  });
+
+  it("leaves the code step on Start again, reading nothing", async () => {
+    const fake = new Fake().answer("loginPassword", CODE_STEP);
+    const { panel, pick } = picking(fake);
+    await drawn(panel);
+    await signIn(panel);
+    await vi.waitFor(() => {
+      expect(input(panel, "code")).not.toBeNull();
+    });
+    await pick();
+    await userEvent.click(button(panel, "Start again"));
+    await later();
+    expect(input(panel, "code")).not.toBeNull();
+    expect(input(panel, "password")).toBeNull();
+    expect(fake.named("state")).toHaveLength(1);
+  });
+
+  it("does not send the password again after a busy answer", async () => {
+    const fake = new Fake().answer("loginPassword", refuse(503, "auth_busy"));
+    const { panel, pick } = picking(fake);
+    await drawn(panel);
+    await signIn(panel);
+    await vi.waitFor(() => {
+      expect(fake.named("loginPassword")).toHaveLength(1);
+    });
+    await pick();
+    await new Promise((resolve) => setTimeout(resolve, 1200));
+    expect(fake.named("loginPassword")).toHaveLength(1);
+    expect(noticeOf(panel)).toBeNull();
+  });
+
+  it("sends no passkey while the browser keeps the password that signed in", async () => {
+    const fake = new Fake();
+    const releaseStore = fake.hold("storePasswordCredential");
+    const went: string[] = [];
+    const { panel } = mount(fake, {
+      onSignedIn: ({ next }) => {
+        went.push(next);
+      },
+    });
+    await drawn(panel);
+    await signIn(panel);
+    await vi.waitFor(() => {
+      expect(fake.named("storePasswordCredential")).toHaveLength(1);
+    });
+    button(panel, "Sign in with a passkey").click();
+    await later();
+    expect(fake.named("signInWithPasskey")).toHaveLength(0);
+    releaseStore();
+    await vi.waitFor(() => {
+      expect(went).toEqual(["/"]);
+    });
+  });
+
+  it("reads nothing and asks no autofill from a refused read's Retry", async () => {
+    let reads = 0;
+    const fake = new Fake()
+      .always("state", () =>
+        (reads += 1) === 1
+          ? ok({
+              setup_required: false,
+              password_login: true,
+              passkeys: true,
+              oidc: false,
+              secure: true,
+              https_required: [],
+            })
+          : refuse(503, "auth_unavailable"),
+      )
+      .answer("loginPassword", refuse(403, "auth_password_login_disabled"));
+    const { panel, pick } = picking(fake);
+    await drawn(panel);
+    await signIn(panel);
+    await vi.waitFor(() => {
+      expect(noticeOf(panel)?.querySelector("[data-cp-action='retry']")).not.toBeNull();
+    });
+    const asked = fake.named("signInWithPasskey").length;
+    await pick();
+    noticeOf(panel)?.querySelector<HTMLElement>("[data-cp-action='retry']")?.click();
+    await later();
+    expect(fake.named("state")).toHaveLength(2);
+    expect(fake.named("signInWithPasskey")).toHaveLength(asked);
+  });
+});

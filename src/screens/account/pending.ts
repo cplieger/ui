@@ -62,8 +62,7 @@ export interface PendingContext<C extends PendingClient> {
   /** Ends when the screen takes `body` back to draw in it. */
   readonly loan?: AbortSignal;
   /** Aborts once the screen took a sign-in by another way: the step then
-   *  sends nothing and draws nothing, and keeps its listeners, so a form
-   *  never falls back to the browser's own submit. */
+   *  sends nothing and draws nothing. */
   readonly handed?: AbortSignal;
   /** The screen's own life. */
   readonly signal?: AbortSignal;
@@ -99,8 +98,10 @@ export function continueSignIn<C extends PendingClient>(
     [over.signal, x.loan, x.signal].filter((s): s is AbortSignal => s !== undefined),
   );
   const life = { signal };
-  // Aborts once this step or another way signed in.
+  // Aborts the moment an answer of this step signs in, before anything it
+  // awaits, or once another way did.
   const taken = new AbortController();
+  let handed = false;
   const handedOn = AbortSignal.any(
     [taken.signal, x.handed].filter((s): s is AbortSignal => s !== undefined),
   );
@@ -113,12 +114,13 @@ export function continueSignIn<C extends PendingClient>(
     over.abort();
     x.restart(said);
   };
-  /** Hands the sign-in on, once. */
+  /** Hands this step's sign-in on, once; `x.finish` keeps the screen's
+   *  own once, across every way that signs in. */
   const hand = (s: SignedIn): void => {
-    if (handedOn.aborted) {
+    if (handed) {
       return;
     }
-    taken.abort();
+    handed = true;
     x.finish(s);
   };
 
@@ -158,18 +160,26 @@ export function continueSignIn<C extends PendingClient>(
         ? a.recovery_code
         : a.signed_in.recovery_code;
 
-  /** Takes a step's answer. Once the attempt ended, a next step or a wait
-   *  for approval is dropped, but the recovery code it carries is shown, as
-   *  that answer is the code's one showing, and a sign-in is still taken,
-   *  since the server already made its session. */
+  /** Takes a step's answer. A sign-in is taken however the attempt
+   *  ended, since the server already made its session. Once the attempt
+   *  ended, a next step or a wait for approval is dropped. The recovery
+   *  code an answer carries is shown either way, as that answer is the
+   *  code's one showing. */
   const took = async (a: Answer): Promise<void> => {
     const code = recoveryOf(a);
-    if (ended()) {
+    if ("signed_in" in a) {
+      taken.abort();
       if (code !== undefined) {
         await showRecoveryCode(code, w, x.signal);
       }
-      if ("signed_in" in a && x.signal?.aborted !== true) {
+      if (x.signal?.aborted !== true) {
         hand(a.signed_in);
+      }
+      return;
+    }
+    if (ended()) {
+      if (code !== undefined) {
+        await showRecoveryCode(code, w, x.signal);
       }
       return;
     }
@@ -181,13 +191,8 @@ export function continueSignIn<C extends PendingClient>(
     if (code !== undefined) {
       await showRecoveryCode(code, w, signal);
     }
-    if (ended()) {
-      return;
-    }
-    if ("waiting_approval" in a) {
+    if (!ended()) {
       restart({ tone: "neutral", text: w["pending.waiting"] });
-    } else {
-      hand(a.signed_in);
     }
   };
 
@@ -313,6 +318,7 @@ export function continueSignIn<C extends PendingClient>(
     const a = got.answer;
     if (a?.ok === true) {
       if ("signed_in" in a.data) {
+        taken.abort();
         await kept?.();
       }
       await took(a.data);
@@ -423,15 +429,18 @@ export function continueSignIn<C extends PendingClient>(
       life,
     );
     form.append(f.root, submit);
+    // On the screen's life, not the attempt's: an ended step stays drawn
+    // until the screen's read answers, and its form must not fall back to
+    // the browser's own submit, which puts the code in the address.
     form.addEventListener(
       "submit",
       (e) => {
         e.preventDefault();
-        if (!held()) {
+        if (!ended() && !held()) {
           onSubmit(submit, confirm);
         }
       },
-      life,
+      x.signal === undefined ? {} : { signal: x.signal },
     );
     return { form, submit };
   };

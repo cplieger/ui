@@ -189,8 +189,11 @@ export function mountSignIn<C extends SignInClient>(
   let hold: Hold | undefined;
   // The host is handed on once: a later way that also signs in makes its
   // own session, and the browser keeps the cookie set last. Once `taken`
-  // aborts, no form sends and no answer draws a step or a notice.
+  // aborts, no form sends, no read runs and no answer draws a step or a
+  // notice.
   const taken = new AbortController();
+  let handed = false;
+  const isTaken = (): boolean => taken.signal.aborted;
   const held = (): boolean => taken.signal.aborted || hold?.active() === true;
   const until = signal === undefined ? taken.signal : AbortSignal.any([signal, taken.signal]);
   let holdable: HTMLElement[] = [];
@@ -212,11 +215,12 @@ export function mountSignIn<C extends SignInClient>(
     client.oidcLinkPending !== undefined;
 
   const finish = (result: SignedIn): void => {
-    if (taken.signal.aborted) {
-      return;
-    }
     taken.abort();
     stopConditional();
+    if (handed) {
+      return;
+    }
+    handed = true;
     if (linking) {
       void link(result);
       return;
@@ -252,6 +256,9 @@ export function mountSignIn<C extends SignInClient>(
     notices,
     signal,
     read: async () => {
+      if (isTaken()) {
+        return undefined;
+      }
       const [state, support, pending] = await Promise.all([
         options.state === undefined || opened
           ? read(() => client.state())
@@ -259,6 +266,9 @@ export function mountSignIn<C extends SignInClient>(
         access.passkeySupport(),
         linking ? read(readPending) : Promise.resolve(undefined),
       ]);
+      if (isTaken()) {
+        return undefined;
+      }
       return state.ok ? { ok: true, data: { state: state.data, support, pending } } : state;
     },
     // `said` stays for the draw Retry brings.
@@ -756,21 +766,30 @@ export function mountSignIn<C extends SignInClient>(
       async () => {
         let answer = await login();
         if (answer?.ok === false && codeOf(answer) === "auth_busy") {
-          await sleep(1000, signal);
-          answer = await login();
+          await sleep(1000, until);
+          if (!taken.signal.aborted) {
+            answer = await login();
+          }
         }
-        if (answer?.ok === true && !temporary && !("pending" in answer.data)) {
-          await access.storePasswordCredential(credentials.username, credentials.password);
+        if (answer?.ok === true && !("pending" in answer.data)) {
+          taken.abort();
+          if (!temporary) {
+            await access.storePasswordCredential(credentials.username, credentials.password);
+          }
         }
         return answer;
       },
       (answer) => answer?.ok === true && !("pending" in answer.data),
     );
-    // Once another way signed in, a pending answer made only a ticket.
-    if (got === undefined || signal?.aborted === true || taken.signal.aborted) {
+    if (got === undefined || signal?.aborted === true) {
       return;
     }
     const answer = got.answer;
+    const signedInNow = answer?.ok === true && !("pending" in answer.data);
+    // Once another way signed in, a pending answer made only a ticket.
+    if (!signedInNow && taken.signal.aborted) {
+      return;
+    }
     if (answer === null) {
       notices.show("danger", w["generic.server"]);
     } else if (answer.ok) {
@@ -870,12 +889,7 @@ export function mountSignIn<C extends SignInClient>(
   /** The autofill request, which offers the person's passkeys in the
    *  username field's suggestions. */
   const startConditional = (): void => {
-    if (
-      !conditionalOn ||
-      waiting !== undefined ||
-      signal?.aborted === true ||
-      taken.signal.aborted
-    ) {
+    if (!conditionalOn || waiting !== undefined || signal?.aborted === true) {
       return;
     }
     const mine = new AbortController();

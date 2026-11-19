@@ -110,7 +110,6 @@ export function mountSetup<C extends SetupClient>(
       location.assign(url);
     });
   const life = signal === undefined ? {} : { signal };
-  const ended = (): boolean => signal?.aborted === true;
   // Before anything else runs, so the token leaves the address bar at once.
   const linked = options.token === undefined ? undefined : access.takeFragmentToken("token");
   installAnnouncer(life);
@@ -131,19 +130,25 @@ export function mountSetup<C extends SetupClient>(
   region.replaceChildren(stack);
 
   let hold: Hold | undefined;
-  // The account is handed on once; after it no form sends and no answer
-  // draws a step or a notice.
+  // `taken` aborts the moment an answer makes the account, before the
+  // password is kept or the passkey offer answers: from then no form sends,
+  // no read runs and no other answer draws. The host is handed on once.
   const taken = new AbortController();
+  let handed = false;
+  const until = signal === undefined ? taken.signal : AbortSignal.any([signal, taken.signal]);
+  const isTaken = (): boolean => taken.signal.aborted;
   const held = (): boolean => taken.signal.aborted || hold?.active() === true;
+  const ended = (): boolean => signal?.aborted === true || handed;
   let holdable: HTMLElement[] = [];
   let passwordLength = passwordLengthOf(undefined);
   let webauthn = false;
 
   const done = (): void => {
-    if (taken.signal.aborted) {
+    taken.abort();
+    if (handed) {
       return;
     }
-    taken.abort();
+    handed = true;
     if (options.onDone === undefined) {
       navigate("/");
     } else {
@@ -151,6 +156,11 @@ export function mountSetup<C extends SetupClient>(
     }
   };
   const alreadyDone = (): void => {
+    taken.abort();
+    if (handed) {
+      return;
+    }
+    handed = true;
     if (options.onSetupComplete === undefined) {
       navigate(`${options.signInPath ?? "/sign-in"}?arrived=setup-complete`);
     } else {
@@ -177,10 +187,16 @@ export function mountSetup<C extends SetupClient>(
     notices,
     signal,
     read: async () => {
+      if (isTaken()) {
+        return undefined;
+      }
       const [state, support] = await Promise.all([
         read(() => client.state()),
         access.passkeySupport(),
       ]);
+      if (isTaken()) {
+        return undefined;
+      }
       return state.ok
         ? { ok: true, data: { state: state.data, webauthn: support.webauthn } }
         : state;
@@ -354,58 +370,67 @@ export function mountSetup<C extends SetupClient>(
           client.setupPassword(request),
         );
         if (answer?.ok === true && !("pending" in answer.data)) {
+          taken.abort();
           await kept();
         }
         return answer;
       },
       (answer) => answer?.ok === true && !("pending" in answer.data),
     );
-    if (got === undefined || signal?.aborted === true || taken.signal.aborted) {
+    if (got === undefined || signal?.aborted === true) {
       return;
     }
     const answer = got.answer;
+    if (answer?.ok === true && !("pending" in answer.data)) {
+      // No offer once another way handed on while the password was kept.
+      const offer = !handed && (await options.offerPasskey?.()) === true;
+      if (ended()) {
+        return;
+      }
+      if (offer) {
+        offerPasskey();
+      } else {
+        done();
+      }
+      return;
+    }
+    if (taken.signal.aborted) {
+      return;
+    }
     if (answer === null) {
       notices.show("danger", w["generic.server"], resubmit(f));
-    } else if (answer.ok) {
-      if ("pending" in answer.data) {
-        // Under a second-factor rule the account exists only once the
-        // enrolment finishes, so the password is kept with the browser then.
-        continueSignIn(
-          {
-            client,
-            access,
-            words: w,
-            run,
-            body: part.lend(),
-            notices,
-            webauthn,
-            username: request.username,
-            passwordLength,
-            finish: () => {
-              void kept().then(done, done);
-            },
-            restart: (said) => {
-              void load(said);
-            },
-            // After `lend`, whose loan it ends.
-            loan: part.life(),
-            handed: taken.signal,
-            ...life,
-          },
-          answer.data,
-        );
-      } else {
-        const offer = (await options.offerPasskey?.()) === true;
-        if (!ended()) {
-          if (offer) {
-            offerPasskey();
-          } else {
-            done();
-          }
-        }
-      }
-    } else {
+    } else if (!answer.ok) {
       setupRefused(answer, f);
+    } else if ("pending" in answer.data) {
+      // Under a second-factor rule the account exists only once the
+      // enrolment finishes, so the password is kept with the browser then.
+      continueSignIn(
+        {
+          client,
+          access,
+          words: w,
+          run,
+          body: part.lend(),
+          notices,
+          webauthn,
+          username: request.username,
+          passwordLength,
+          finish: () => {
+            taken.abort();
+            if (!handed) {
+              void kept().then(done, done);
+            }
+          },
+          restart: (said) => {
+            void load(said);
+          },
+          // After `lend`, whose loan it ends.
+          loan: part.life(),
+          handed: taken.signal,
+          ...life,
+        },
+        answer.data,
+      );
     }
   };
 
@@ -460,7 +485,7 @@ export function mountSetup<C extends SetupClient>(
             notices,
             holdable,
             { text: w.auth_rate_limited, again: w["signIn.again"] },
-            signal,
+            until,
           );
           return;
         }
@@ -498,13 +523,12 @@ export function mountSetup<C extends SetupClient>(
             return;
           }
           const outcome: PasskeySignInOutcome | null = got.answer;
-          if (outcome?.kind !== "signed-in" && taken.signal.aborted) {
-            return;
-          }
-          if (outcome === null) {
-            notices.show("danger", w["generic.server"]);
-          } else if (outcome.kind === "signed-in") {
+          if (outcome?.kind === "signed-in") {
             done();
+          } else if (taken.signal.aborted) {
+            return;
+          } else if (outcome === null) {
+            notices.show("danger", w["generic.server"]);
           } else if (outcome.kind !== "failed") {
             ceremonyRefused(outcome.kind);
           } else if (typeof outcome.error === "string") {
@@ -571,6 +595,9 @@ export function mountSetup<C extends SetupClient>(
     add.addEventListener(
       "click",
       () => {
+        if (ended()) {
+          return;
+        }
         notices.clear();
         void cycle(
           confirm,

@@ -1,5 +1,5 @@
 import fc from "fast-check";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type {
   KeyView,
@@ -29,6 +29,10 @@ import { mount as mountAccount, useScreen } from "./test-helpers/security.js";
 import { mountUsers } from "./users.js";
 
 useScreen();
+
+/** Waits until `check` holds: a press's answer draws only once its
+ *  button's busy state, shown 150 ms in on a loaded host, has held. */
+const drawnBy = async <T>(check: () => T): Promise<T> => vi.waitFor(check, { timeout: 3_000 });
 
 /** Runs every task the screens queued, promise continuations included. */
 const settle = async (): Promise<void> => {
@@ -622,11 +626,14 @@ class Open implements Command {
     const before = new Set(r.region.querySelectorAll("tbody input.cp-input"));
     r.region.querySelector<HTMLElement>(`[data-cp-action="${r.s.rows!.key(id)}"]`)!.click();
     await settle();
-    const input = [...r.region.querySelectorAll<HTMLInputElement>("tbody input.cp-input")].find(
-      (x) => !before.has(x),
-    );
-    expect(input, `${r.s.name}, rename ${id} opens its field`).toBeDefined();
-    expect(document.activeElement).toBe(input);
+    const input = await drawnBy(() => {
+      const opened = [...r.region.querySelectorAll<HTMLInputElement>("tbody input.cp-input")].find(
+        (x) => !before.has(x),
+      );
+      expect(opened, `${r.s.name}, rename ${id} opens its field`).toBeDefined();
+      expect(document.activeElement).toBe(opened);
+      return opened;
+    });
     r.editors.push({ id, input: input! });
     r.focused = true;
     r.check(this.toString());
@@ -656,12 +663,17 @@ class Save implements Command {
     keydown(e.input, "Enter");
     await settle();
     if (this.refused) {
-      expect(e.input.isConnected, `${r.s.name}: a refused name keeps its field`).toBe(true);
-      expect(document.activeElement).toBe(e.input);
+      await drawnBy(() => {
+        expect(e.input.isConnected, `${r.s.name}: a refused name keeps its field`).toBe(true);
+        expect(r.region.querySelector("[data-cp-state='busy']")).toBeNull();
+        expect(document.activeElement).toBe(e.input);
+      });
     } else {
       r.editors.splice(i, 1);
-      expect(e.input.isConnected, `${r.s.name}: a saved name closes its field`).toBe(false);
-      r.backTo(e.id, this.toString());
+      await drawnBy(() => {
+        expect(e.input.isConnected, `${r.s.name}: a saved name closes its field`).toBe(false);
+        r.backTo(e.id, this.toString());
+      });
     }
     r.check(this.toString());
   }
@@ -689,8 +701,11 @@ async function enter(r: Run): Promise<HTMLInputElement> {
   r.s.step!.enter(r.fake);
   send(r.region);
   await settle();
-  const code = codeField(r.region);
-  expect(code, `${r.s.name}: the step asks for a code`).not.toBeNull();
+  const code = await drawnBy(() => {
+    const c = codeField(r.region);
+    expect(c, `${r.s.name}: the step asks for a code`).not.toBeNull();
+    return c;
+  });
   r.focused ||= r.region.contains(document.activeElement);
   return code!;
 }

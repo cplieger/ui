@@ -121,25 +121,36 @@ export function mountInvite<C extends InviteClient>(
   panel.replaceChildren(stack);
 
   let hold: Hold | undefined;
-  // The sign-in is handed on once; after it no form sends and no answer
-  // draws a step or a notice.
+  // `taken` aborts the moment an answer signs the person in, before the
+  // password is kept, or the page leaves for the provider: from then no
+  // form sends, no read runs and no other answer draws. The host is handed
+  // on once.
   const taken = new AbortController();
+  let handed = false;
+  const until = signal === undefined ? taken.signal : AbortSignal.any([signal, taken.signal]);
+  const isTaken = (): boolean => taken.signal.aborted;
   const held = (): boolean => taken.signal.aborted || hold?.active() === true;
   let holdable: HTMLElement[] = [];
   let providerButton: HTMLButtonElement | undefined;
   let passwordLength = passwordLengthOf(undefined);
   let webauthn = false;
 
-  const signedIn = (result: SignedIn): void => {
-    if (taken.signal.aborted) {
+  const leave = (go: () => void): void => {
+    taken.abort();
+    if (handed) {
       return;
     }
-    taken.abort();
-    if (options.onSignedIn === undefined) {
-      navigate("/");
-    } else {
-      options.onSignedIn(result);
-    }
+    handed = true;
+    go();
+  };
+  const signedIn = (result: SignedIn): void => {
+    leave(() => {
+      if (options.onSignedIn === undefined) {
+        navigate("/");
+      } else {
+        options.onSignedIn(result);
+      }
+    });
   };
 
   const attempt = async <T>(name: AccountAction, work: () => Promise<T>): Promise<T | null> => {
@@ -169,10 +180,16 @@ export function mountInvite<C extends InviteClient>(
     notices,
     signal,
     read: async () => {
+      if (isTaken()) {
+        return undefined;
+      }
       const [state, support] = await Promise.all([
         read(() => client.state()),
         access.passkeySupport(),
       ]);
+      if (isTaken()) {
+        return undefined;
+      }
       return state.ok
         ? { ok: true, data: { state: state.data, webauthn: support.webauthn } }
         : state;
@@ -322,59 +339,67 @@ export function mountInvite<C extends InviteClient>(
           client.inviteAcceptPassword(request),
         );
         if (answer?.ok === true && !("pending" in answer.data)) {
+          taken.abort();
           await kept();
         }
         return answer;
       },
       (answer) => answer?.ok === true && !("pending" in answer.data),
     );
-    if (got === undefined || signal?.aborted === true || taken.signal.aborted) {
+    if (got === undefined || signal?.aborted === true) {
       return;
     }
     const answer = got.answer;
+    const step = answer?.ok === true ? stepOf(answer.data) : undefined;
+    if (step !== undefined && "signed_in" in step) {
+      signedIn(step.signed_in);
+      return;
+    }
+    if (taken.signal.aborted) {
+      return;
+    }
     if (answer === null) {
       notices.show("danger", w["generic.server"]);
-    } else if (answer.ok) {
-      const step = stepOf(answer.data);
-      if ("pending" in step) {
-        // Under a second-factor rule the account exists only once the
-        // enrolment finishes, so the password is kept with the browser then.
-        continueSignIn(
-          {
-            client,
-            access,
-            words: w,
-            run,
-            body: part.lend(),
-            notices,
-            webauthn,
-            username: request.username,
-            passwordLength,
-            finish: (result) => {
-              void kept().then(
-                () => {
-                  signedIn(result);
-                },
-                () => {
-                  signedIn(result);
-                },
-              );
-            },
-            restart: (said) => {
-              void load(said);
-            },
-            // After `lend`, whose loan it ends.
-            loan: part.life(),
-            handed: taken.signal,
-            ...life,
-          },
-          step,
-        );
-      } else {
-        signedIn(step.signed_in);
-      }
-    } else {
+    } else if (!answer.ok) {
       refused(answer, f);
+    } else if (step !== undefined) {
+      // Under a second-factor rule the account exists only once the
+      // enrolment finishes, so the password is kept with the browser then.
+      continueSignIn(
+        {
+          client,
+          access,
+          words: w,
+          run,
+          body: part.lend(),
+          notices,
+          webauthn,
+          username: request.username,
+          passwordLength,
+          finish: (result) => {
+            taken.abort();
+            if (handed) {
+              return;
+            }
+            void kept().then(
+              () => {
+                signedIn(result);
+              },
+              () => {
+                signedIn(result);
+              },
+            );
+          },
+          restart: (said) => {
+            void load(said);
+          },
+          // After `lend`, whose loan it ends.
+          loan: part.life(),
+          handed: taken.signal,
+          ...life,
+        },
+        step,
+      );
     }
   };
 
@@ -433,7 +458,7 @@ export function mountInvite<C extends InviteClient>(
             notices,
             holdable,
             { text: w.auth_rate_limited, again: w["signIn.again"] },
-            signal,
+            until,
           );
           return;
         }
@@ -479,7 +504,10 @@ export function mountInvite<C extends InviteClient>(
           if (answer === null) {
             notices.show("danger", w["generic.server"]);
           } else if (answer.ok) {
-            navigate(answer.data.url);
+            const { url } = answer.data;
+            leave(() => {
+              navigate(url);
+            });
           } else {
             refused(answer);
           }

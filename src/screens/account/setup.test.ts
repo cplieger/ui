@@ -1093,3 +1093,201 @@ describe("mountSetup: a re-read refused once the form is drawn", () => {
     expect(region.querySelector("form")).not.toBeNull();
   });
 });
+
+describe("mountSetup: once one way made the account", () => {
+  const later = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 600));
+  const counted = (): { done: number[]; options: Options } => {
+    const done = [0, 0];
+    return {
+      done,
+      options: {
+        onDone: () => {
+          done[0] = (done[0] ?? 0) + 1;
+        },
+        onSetupComplete: () => {
+          done[1] = (done[1] ?? 0) + 1;
+        },
+      },
+    };
+  };
+
+  it("draws no passkey offer the host's gate answers after a passkey made the account", async () => {
+    const gate = Promise.withResolvers<boolean>();
+    const fake = new Fake().answer("state", ok(SETUP));
+    const releasePassword = fake.hold("setupPassword");
+    const { done, options } = counted();
+    const { region } = mount(fake, { ...options, offerPasskey: () => gate.promise });
+    await drawn(region);
+    await create(region);
+    button(region, "Create with a passkey").click();
+    await vi.waitFor(() => {
+      expect(done).toEqual([1, 0]);
+    });
+    releasePassword();
+    await later();
+    gate.resolve(true);
+    await later();
+    expect(button(region, "Add a passkey")).toBeUndefined();
+    expect(fake.named("registerPasskey")).toHaveLength(0);
+    expect(done).toEqual([1, 0]);
+  });
+
+  it("offers no passkey once a passkey made the account while the gate was asked", async () => {
+    const gate = Promise.withResolvers<boolean>();
+    const fake = new Fake().answer("state", ok(SETUP));
+    const releasePasskey = fake.hold("setupWithPasskey");
+    const { done, options } = counted();
+    const { region } = mount(fake, { ...options, offerPasskey: () => gate.promise });
+    await drawn(region);
+    await fillIn(region);
+    await userEvent.click(button(region, "Create with a passkey"));
+    await userEvent.click(button(region, "Create account"));
+    await vi.waitFor(() => {
+      expect(fake.named("setupPassword")).toHaveLength(1);
+    });
+    await later();
+    releasePasskey();
+    await vi.waitFor(() => {
+      expect(done).toEqual([1, 0]);
+    });
+    gate.resolve(true);
+    await later();
+    expect(button(region, "Add a passkey")).toBeUndefined();
+    expect(done).toEqual([1, 0]);
+  });
+
+  it("says nothing of a passkey setup found complete after the password made the account", async () => {
+    const gate = Promise.withResolvers<boolean>();
+    const fake = new Fake()
+      .answer("state", ok(SETUP))
+      .answer("setupWithPasskey", { kind: "failed", error: refuse(409, "auth_setup_complete") });
+    const releasePasskey = fake.hold("setupWithPasskey");
+    const { done, options } = counted();
+    const { region } = mount(fake, { ...options, offerPasskey: () => gate.promise });
+    await drawn(region);
+    await fillIn(region);
+    await userEvent.click(button(region, "Create with a passkey"));
+    await userEvent.click(button(region, "Create account"));
+    await vi.waitFor(() => {
+      expect(fake.named("setupPassword")).toHaveLength(1);
+    });
+    await later();
+    releasePasskey();
+    await later();
+    gate.resolve(true);
+    await vi.waitFor(() => {
+      expect(button(region, "Add a passkey")).toBeDefined();
+    });
+    expect(noticeOf(region)?.textContent).toBe("Your account is ready.");
+    expect(done).toEqual([0, 0]);
+  });
+
+  it("adds no passkey once Skip handed on", async () => {
+    const { done, options } = counted();
+    const { region, fake } = mount(undefined, { ...options, offerPasskey: () => true });
+    await drawn(region);
+    await create(region);
+    await vi.waitFor(() => {
+      expect(button(region, "Add a passkey")).toBeDefined();
+    });
+    const add = button(region, "Add a passkey");
+    button(region, "Skip").click();
+    expect(done).toEqual([1, 0]);
+    add.click();
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(fake.named("registerPasskey")).toHaveLength(0);
+    expect(done).toEqual([1, 0]);
+  });
+
+  it("draws no refusal of the password once a passkey made the account", async () => {
+    const answer = Promise.withResolvers<unknown>();
+    const fake = new Fake()
+      .answer("state", ok(SETUP))
+      .answer("setupPassword", () => answer.promise);
+    const { done, options } = counted();
+    const { region } = mount(fake, options);
+    await drawn(region);
+    await create(region);
+    await userEvent.click(button(region, "Create with a passkey"));
+    await vi.waitFor(() => {
+      expect(done).toEqual([1, 0]);
+    });
+    answer.resolve(refuse(400, "auth_username_invalid"));
+    await later();
+    expect(noticeOf(region)).toBeNull();
+    expect(input(region, "username").hasAttribute("aria-invalid")).toBe(false);
+  });
+
+  it("draws no miss of the passkey once the password made the account", async () => {
+    const fake = new Fake()
+      .answer("state", ok(SETUP))
+      .answer("setupWithPasskey", { kind: "verification-failed" });
+    const releasePasskey = fake.hold("setupWithPasskey");
+    const { done, options } = counted();
+    const { region } = mount(fake, options);
+    await drawn(region);
+    await fillIn(region);
+    await userEvent.click(button(region, "Create with a passkey"));
+    await userEvent.click(button(region, "Create account"));
+    await vi.waitFor(() => {
+      expect(done).toEqual([1, 0]);
+    });
+    releasePasskey();
+    await later();
+    expect(noticeOf(region)).toBeNull();
+  });
+
+  it("ends the rate-limit wait without saying setup is open again", async () => {
+    const fake = new Fake()
+      .answer("state", ok(SETUP))
+      .answer(
+        "setupPassword",
+        refuse(429, "auth_rate_limited", undefined, { "Retry-After": "30" }),
+      );
+    const releasePasskey = fake.hold("setupWithPasskey");
+    const { done, options } = counted();
+    const { region } = mount(fake, options);
+    await drawn(region);
+    await fillIn(region);
+    await userEvent.click(button(region, "Create with a passkey"));
+    await userEvent.click(button(region, "Create account"));
+    await vi.waitFor(() => {
+      expect(noticeOf(region)?.textContent).toBe("Too many attempts. Try again in 0:30.");
+    });
+    releasePasskey();
+    await vi.waitFor(() => {
+      expect(done).toEqual([1, 0]);
+    });
+    expect(noticeOf(region)).toBeNull();
+  });
+
+  it("sends nothing from the form drawn again while the browser keeps the password", async () => {
+    const fake = new Fake()
+      .always("state", ok(SETUP))
+      .answer(
+        "setupPassword",
+        ok({ pending: { ticket: "t1", next: "enrol", methods: ["passkey"] } }),
+      );
+    const releaseEnrol = fake.hold("pendingPasskey");
+    const { done, options } = counted();
+    const { region } = mount(fake, options);
+    await drawn(region);
+    await create(region);
+    await userEvent.click(button(region, "Register a passkey"));
+    await userEvent.click(button(region, "Start again"));
+    await vi.waitFor(() => {
+      expect(input(region, "password")).not.toBeNull();
+    });
+    const releaseStore = fake.hold("storePasswordCredential");
+    releaseEnrol();
+    await later();
+    expect(done).toEqual([0, 0]);
+    await create(region);
+    await later();
+    expect(fake.named("setupPassword")).toHaveLength(1);
+    releaseStore();
+    await vi.waitFor(() => {
+      expect(done).toEqual([1, 0]);
+    });
+  });
+});
