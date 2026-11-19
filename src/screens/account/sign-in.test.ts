@@ -1109,7 +1109,7 @@ describe("mountSignIn: a temporary password", () => {
       expect(input(panel, "new_password")).not.toBeNull();
     });
     expect(fake.named("loginPassword")[0]?.args).toEqual([
-      { username: "mika", password: "ABCD-2345-EFGH-6789" },
+      { username: "mika", password: "ABCD-2345-EFGH-6789" }, // gitleaks:allow
     ]);
     expect(fake.named("storePasswordCredential")).toHaveLength(0);
   });

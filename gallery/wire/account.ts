@@ -2109,7 +2109,7 @@ function usersFake(o: {
     return {
       ok: true,
       data: {
-        password: "K7QM-2XRA-PL9D-4HVT",
+        password: "K7QM-2XRA-PL9D-4HVT", // gitleaks:allow
         expires_at: expires,
         https_only: dormant,
         https_origin: "https://tracker.example",
@@ -2188,7 +2188,7 @@ function usersFake(o: {
           expires_at: expires,
         },
       ];
-      return { ok: true, data: { token: "inv_Q4mT9xVb2LcR7pWz", expires_at: expires } };
+      return { ok: true, data: { token: "inv_Q4mT9xVb2LcR7pWz", expires_at: expires } }; // gitleaks:allow
     },
     async adminTokens() {
       await wait(300);

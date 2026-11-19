@@ -306,13 +306,13 @@ describe("mountSignIn: link with an admin's temporary password", () => {
     expect(secret.type).toBe("password");
     expect(secret.getAttribute("autocomplete")).toBe("one-time-code");
     await userEvent.fill(input(panel, "username"), "mika");
-    await userEvent.fill(secret, "ABCD-2345-EFGH-6789");
+    await userEvent.fill(secret, "ABCD-2345-EFGH-6789"); // gitleaks:allow
     await userEvent.click(button(panel, "Link account"));
     await vi.waitFor(() => {
       expect(went).toEqual(["/"]);
     });
     expect(fake.named("oidcLinkByAdmin")[0]?.args).toEqual([
-      { username: "mika", temporary_password: "ABCD-2345-EFGH-6789" },
+      { username: "mika", temporary_password: "ABCD-2345-EFGH-6789" }, // gitleaks:allow
     ]);
     expect(fake.named("oidcLinkPending")).toHaveLength(0);
   });

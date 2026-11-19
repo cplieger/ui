@@ -287,7 +287,7 @@ const VALUES: Readonly<Record<string, string>> = {
   new_username: "mika",
   password: "lantern harbour quietly",
   new_password: "copper lantern harbour",
-  temporary_password: "ABCD-2345-EFGH-6789",
+  temporary_password: "ABCD-2345-EFGH-6789", // gitleaks:allow
   code: "123456",
 };
 

@@ -148,7 +148,7 @@ export const ALICE_USER: UserView = {
 
 /** A temporary password issued over HTTPS, valid for 24 hours. */
 export const TEMPORARY: TemporaryPasswordResponse = {
-  password: "K7QM-2XRA-PL9D-4HVT",
+  password: "K7QM-2XRA-PL9D-4HVT", // gitleaks:allow
   expires_at: "2099-01-01T18:00:00Z",
   https_only: false,
   dormant: false,
