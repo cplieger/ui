@@ -4751,6 +4751,82 @@ describe("css/system.css overlays", () => {
       d.close();
     },
   );
+
+  // A palette opened as an app opens it, from a focused opener, its field
+  // focused.
+  function openPalette(): {
+    d: HTMLDialogElement;
+    row: HTMLElement;
+    input: HTMLElement;
+    opener: HTMLElement;
+  } {
+    const opener = host("", { type: "button" }, "button");
+    opener.textContent = "Actions";
+    opener.focus();
+    const d = document.createElement("dialog");
+    d.className = "cp-dialog cp-palette";
+    d.style.transition = "none";
+    d.innerHTML =
+      '<div class="cp-palette-field"><span class="cp-icon" data-cp-icon="search" aria-hidden="true"></span><input aria-label="Search"></div><ul role="listbox" aria-label="Actions"><li role="option"><span>Open settings</span></li><li role="option"><span>Search</span></li></ul>';
+    hosts.push(d as unknown as HTMLElement);
+    document.body.append(d);
+    const life = new AbortController();
+    onTestFinished(() => {
+      life.abort();
+    });
+    enhancePalette(d, { onRun: () => undefined, key: null, signal: life.signal }).open();
+    const row = d.querySelector(".cp-palette-field") as HTMLElement;
+    const input = row.querySelector("input") as HTMLElement;
+    expect(document.activeElement).toBe(input);
+    return { d, row, input, opener };
+  }
+
+  it("rings a palette's whole field row inside the dialog's edge, and the input draws no second ring", async () => {
+    theme("light");
+    root.setAttribute("data-pointer", "fine");
+    const { d, row, input, opener } = openPalette();
+    const cs = getComputedStyle(row);
+    expect([cs.outlineStyle, cs.outlineWidth, cs.outlineOffset]).toEqual(["solid", "2px", "-2px"]);
+    const probe = host("");
+    probe.style.color = "var(--cp-focus-ring)";
+    expect(cs.outlineColor).toBe(getComputedStyle(probe).color);
+    expect(getComputedStyle(input).outlineStyle).toBe("none");
+    // The dialog clips at its padding box, so the ring's top corners curve
+    // with it: outer radius less the dialog's border.
+    const dcs = getComputedStyle(d);
+    const inner = `${String(Number.parseFloat(dcs.borderTopLeftRadius) - Number.parseFloat(dcs.borderTopWidth))}px`;
+    expect([cs.borderTopLeftRadius, cs.borderTopRightRadius]).toEqual([inner, inner]);
+    expect([cs.borderBottomLeftRadius, cs.borderBottomRightRadius]).toEqual(["0px", "0px"]);
+    await userEvent.keyboard("{Escape}");
+    expect(document.activeElement).toBe(opener);
+    expect(getComputedStyle(row).outlineStyle).toBe("none");
+  });
+
+  it("draws the palette field's ring at 3:1 on the dialog, in both themes", () => {
+    for (const t of ["light", "dark"] as const) {
+      theme(t);
+      const { d, row } = openPalette();
+      const cs = getComputedStyle(row);
+      expect(cs.outlineStyle, t).toBe("solid");
+      expect(
+        contrast(cs.outlineColor, getComputedStyle(d).backgroundColor),
+        t,
+      ).toBeGreaterThanOrEqual(3);
+      d.close();
+    }
+  });
+
+  it("rings the palette's field in Highlight in forced colours", async () => {
+    await forceColours();
+    theme("light");
+    const { d, row } = openPalette();
+    const probe = host("");
+    probe.style.color = "Highlight";
+    const cs = getComputedStyle(row);
+    expect(cs.outlineStyle).toBe("solid");
+    expect(cs.outlineColor).toBe(getComputedStyle(probe).color);
+    d.close();
+  });
 });
 
 describe("css/system.css feedback and steps", () => {

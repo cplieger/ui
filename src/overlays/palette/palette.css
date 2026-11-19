@@ -26,8 +26,22 @@
   border-block-end: var(--cp-line-w) solid var(--cp-line);
 }
 
-/* Focus stays in the field while the palette is open, so a ring would mark
- * nothing; the caret and the active option show where typing and Enter go. */
+/* The row rings as its input takes focus, inset because the dialog clips at
+ * its padding box, its top corners following that box's curve. */
+.cp-palette-field:focus-within {
+  border-start-start-radius: calc(var(--cp-radius-overlay) - var(--cp-line-w));
+  border-start-end-radius: calc(var(--cp-radius-overlay) - var(--cp-line-w));
+  outline: var(--cp-focus-w) solid var(--cp-focus-ring);
+  outline-offset: calc(-1 * var(--cp-focus-w));
+}
+
+@media (forced-colors: active) {
+  .cp-palette-field:focus-within {
+    outline-color: Highlight;
+  }
+}
+
+/* The row draws the ring, so the input draws none of its own. */
 .cp-palette-field > input {
   flex: 1;
   align-self: stretch;
