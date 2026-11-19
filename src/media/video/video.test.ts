@@ -849,7 +849,8 @@ describe("enhanceVideo captions", () => {
     document.head.append(sheet);
     await loaded;
     // Gecko keeps a cue box laid out in the fallback font after the web font
-    // swaps in, so the cues are drawn on a page already set in it.
+    // swaps in, so the cues are drawn on a page already set in it (measured:
+    // without this load, Firefox leaves a one-line caption 10px off the edge).
     await document.fonts.load(
       `1rem ${getComputedStyle(document.documentElement).getPropertyValue("--cp-font-body")}`,
     );
@@ -888,11 +889,12 @@ describe("enhanceVideo captions", () => {
     });
 
   /** The CSS pixels between the video's top and bottom edges and the box the
-   *  showing caption paints, found against a shot with `track` hidden. */
+   *  showing caption paints, and the height of the topmost painted box, found
+   *  against a shot with `track` hidden. */
   async function caption(
     video: HTMLVideoElement,
     track: TextTrack,
-  ): Promise<{ above: number; below: number }> {
+  ): Promise<{ above: number; below: number; first: number }> {
     await drawn();
     const shown = await pixels(video);
     track.mode = "hidden";
@@ -917,7 +919,13 @@ describe("enhanceVideo captions", () => {
       throw new Error("no caption painted");
     }
     const scale = video.getBoundingClientRect().height / shown.height;
-    return { above: top * scale, below: (shown.height - 1 - bottom) * scale };
+    const run = rows.findIndex((y, i) => y !== top + i);
+    const first = run === -1 ? rows.length : run;
+    return {
+      above: top * scale,
+      below: (shown.height - 1 - bottom) * scale,
+      first: first * scale,
+    };
   }
 
   /** A cue's own line settings; Chromium's VTTCue has no `lineAlign`. */
@@ -992,8 +1000,13 @@ describe("enhanceVideo captions", () => {
       try {
         expect((await caption(video, track)).below).toBeGreaterThanOrEqual(m);
       } finally {
+        const left = new Promise((resolve) => {
+          document.addEventListener("fullscreenchange", resolve, { once: true });
+        });
         await document.exitFullscreen();
+        await left;
       }
+      expect((await caption(video, track)).below).toBeGreaterThanOrEqual(m);
     });
   }
 
@@ -1010,6 +1023,20 @@ describe("enhanceVideo captions", () => {
       height,
       0,
     );
+    expect([top.snapToLines, top.line]).toEqual([true, 0]);
+  });
+
+  it("leaves a placed caption uncut beside an auto one, which only a cue line lifts", async () => {
+    const lone = await captioned([cue("A caption line")]);
+    const height = (await caption(lone.video, lone.track)).first;
+    const top = cue("A caption line", 0);
+    const { video, track } = await captioned([cue("A caption line"), top]);
+    const both = await caption(video, track);
+    expect(both.above).toBeLessThan(1);
+    expect(both.first).toBeCloseTo(height, 0);
+    // The caption area moves only while every caption on screen is auto-placed.
+    const liftsArea = CSS.supports("selector(::-webkit-media-text-track-container)");
+    expect(both.below >= margin()).toBe(!liftsArea);
     expect([top.snapToLines, top.line]).toEqual([true, 0]);
   });
 

@@ -337,7 +337,7 @@ export function enhanceVideo(root: HTMLElement, options: VideoOptions = {}): Vid
 
   /** Seats the caption track's cues and gives back the line of every other. */
   const seatAll = (): void => {
-    if (liftsArea || dead) {
+    if (liftsArea) {
       return;
     }
     const track = captionTrack();
@@ -351,10 +351,8 @@ export function enhanceVideo(root: HTMLElement, options: VideoOptions = {}): Vid
     }
   };
 
-  /** Tracks whose `cuechange` redraws the mark. */
-  const watched = new WeakSet<TextTrack>();
   const drawMark = (): void => {
-    if (!liftsArea || dead) {
+    if (!liftsArea) {
       return;
     }
     const placed = [...video.textTracks].some(
@@ -393,9 +391,8 @@ export function enhanceVideo(root: HTMLElement, options: VideoOptions = {}): Vid
     if (dead) {
       return;
     }
-    for (const t of video.textTracks) {
-      if (!watched.has(t)) {
-        watched.add(t);
+    if (liftsArea) {
+      for (const t of video.textTracks) {
         t.addEventListener("cuechange", drawMark, listen);
       }
     }
