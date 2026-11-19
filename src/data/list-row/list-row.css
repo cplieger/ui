@@ -209,8 +209,7 @@
 /* Two lines sit tight: each trimmed to its cap height and baseline, the
  * smallest space apart, centred in the height their untrimmed line boxes
  * took, so the freed room is shared above and below and no row changes
- * height. Each line's padding, taken back by its margin, keeps a cut
- * line's ascenders, descenders and underline inside its clip. */
+ * height. */
 /* stylelint-disable-next-line selector-max-pseudo-class, selector-max-attribute, selector-max-combinators, selector-max-compound-selectors -- two shown lines, outside a tile and a skeleton row, which draw their lines their own way */
 :where(.cp-list:not([data-layout="grid"]) > li)
   > .cp-list-row:not([data-skeleton])
@@ -220,21 +219,36 @@
   min-block-size: calc(
     var(--cp-line-1, 1lh) + 0.125rem + var(--cp-line-2, var(--cp-text-xs) * var(--cp-leading-ui))
   );
+}
 
-  & > * {
-    margin-block: -0.3em;
-    padding-block: 0.3em;
-    text-box: trim-both cap alphabetic;
-  }
+/* The same stack's lines, matched from their own side: a `:has()` left of
+ * `> *` makes Chromium restyle the whole page on every insertion. The
+ * parent test leads, because WebKit checks a compound in order and each
+ * count of shown siblings walks them. Each line's padding, taken back by
+ * its margin, keeps a cut line's ascenders, descenders and underline
+ * inside its clip. */
+/* stylelint-disable-next-line selector-max-pseudo-class, selector-max-attribute, selector-max-combinators, selector-max-compound-selectors -- the lines of the stack above */
+:where(.cp-list:not([data-layout="grid"]) > li)
+  > .cp-list-row:not([data-skeleton])
+  > .cp-cell-stack
+  > :where(
+    :is(.cp-cell-stack > *):not(:only-child):is(
+        :nth-child(1 of :not([hidden])):nth-last-child(-n + 2 of :not([hidden])),
+        :nth-child(2 of :not([hidden])):nth-last-child(1 of :not([hidden]))
+      )
+  ) {
+  margin-block: -0.3em;
+  padding-block: 0.3em;
+  text-box: trim-both cap alphabetic;
 
   /* A flex container is not trimmed, so a line led by a glyph flows as
    * text with the glyph inline. */
-  & > :is(.cp-kept, :has(> .cp-icon)) {
+  &:is(.cp-kept, :has(> .cp-icon)) {
     display: block;
   }
 
-  & > * > :where(.cp-icon),
-  & > :where(.cp-kept)::before {
+  & > :where(.cp-icon),
+  &:where(.cp-kept)::before {
     display: inline-block;
     margin-inline-end: var(--cp-space-1);
     vertical-align: middle;
