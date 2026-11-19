@@ -26,7 +26,7 @@ renderChart(
 
 ## Events
 
-A service keeps a drawn chart current with a `FrameEvent` on its own event stream, as chartdata's [events page](https://github.com/cplieger/go/blob/main/chartdata/docs/events.md) describes. `applyEvent(frame, event)` returns the frame the event makes of the drawn one, and leaves the drawn frame unchanged. The result shares the parts the event leaves as they were, so treat both frames as read-only.
+A service keeps a drawn chart current with a `FrameEvent` on its own event stream, as chartdata's [events page](https://github.com/cplieger/go/blob/chartdata/v1.0.0-dev.1/chartdata/docs/events.md) describes. `applyEvent(frame, event)` returns the frame the event makes of the drawn one, and leaves the drawn frame unchanged. The result shares the parts the event leaves as they were, so treat both frames as read-only.
 
 ```ts
 import { applyEvent, type Frame } from "@cplieger/ui/frame";
