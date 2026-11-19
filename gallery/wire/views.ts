@@ -1,7 +1,7 @@
 /**
  * views.ts — the gallery's wiring for the view cards that run on the
  * library: the list and detail, routed by the page's hash, and the video
- * preview whose caption offset the nudge stepper sets.
+ * preview whose caption offset the signed stepper sets.
  */
 
 import { type DetailOpenEvent, enhanceListDetail } from "@cplieger/ui/list-detail";

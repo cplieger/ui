@@ -258,8 +258,8 @@ describe("enhanceLoadMore", () => {
     const { button } = footed();
     button.textContent = "Show all 5 running";
     const wait = Promise.withResolvers<LoadMorePage>();
-    // The width is measured at enhance; with the page font settled first, a
-    // font that lands later can't re-measure it between the two readings.
+    // With the page font settled first, a font that lands later can't
+    // change the width between the two readings.
     await document.fonts.ready;
     enhance(button, { load: () => wait.promise });
     // The busy spinner turns about its centre, and a turned box's bounding
@@ -287,7 +287,10 @@ describe("enhanceLoadMore", () => {
       a.finish();
     }
     const busy = button.getBoundingClientRect();
-    expect([busy.left, busy.width]).toEqual([rest.left, rest.width]);
+    // Gecko lays out in 1/60px units, so the halves of the free width may
+    // round one unit apart.
+    expect(busy.left).toBeCloseTo(rest.left, 1);
+    expect(busy.width).toBeCloseTo(rest.width, 1);
     expect(Math.abs(content() - middle)).toBeLessThanOrEqual(1);
     expect(getComputedStyle(roll).transitionDuration).toBe("0s");
     wait.resolve(page([row()]));
