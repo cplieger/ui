@@ -136,7 +136,7 @@ describe("resquarify", () => {
       );
       const along = strip.map((b) => (row.dice ? b.left : b.top));
       expect(new Set(across).size).toBe(1);
-      expect(along).toEqual([...along].sort((a, b) => a - b));
+      expect(along).toEqual(along.toSorted((a, b) => a - b));
       i += row.count;
     }
   });

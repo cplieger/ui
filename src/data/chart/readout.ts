@@ -5,7 +5,9 @@
  * @module
  */
 
-import { noun, withNoun, writer, type Unit, type WidthKey } from "../scale/format.js";
+import { noun, withNoun } from "../../core/format/intl.js";
+import type { Unit } from "../../core/format/format.js";
+import { writer, type WidthKey } from "../scale/format.js";
 import type { Measure } from "../scale/measure.js";
 
 import {

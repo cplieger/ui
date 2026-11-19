@@ -3007,6 +3007,9 @@ describe("css/system.css", () => {
       probe?.style.setProperty("color", v);
       return probe ? getComputedStyle(probe).color : "";
     };
+    for (const a of el.querySelectorAll<HTMLElement>("a")) {
+      a.style.transition = "none";
+    }
     const link = (id: string) => getComputedStyle(el.querySelector(`#${id}`) as Element);
     expect(link("t").textDecorationColor).toBe("rgba(0, 0, 0, 0)");
     expect(link("t").color).toBe(colour("var(--cp-ink)"));

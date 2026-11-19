@@ -15,7 +15,8 @@ import type {
   SeriesFrame,
   TreeFrame,
 } from "../frame/frame.js";
-import type { Format, Unit } from "../scale/format.js";
+import type { Unit } from "../../core/format/format.js";
+import type { Format } from "../scale/format.js";
 
 type Slot = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
 

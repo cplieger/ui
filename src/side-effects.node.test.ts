@@ -31,6 +31,7 @@ const PURE = [
   "/feed",
   "/file",
   "/form",
+  "/format",
   "/frame",
   "/header-status",
   "/held-list",

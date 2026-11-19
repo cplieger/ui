@@ -232,7 +232,7 @@ const time = (d: Date | number | undefined): number =>
 /** Problems before warnings, urgent first within each; the longest-standing
  *  first within a rank, so a cause comes before what it causes. */
 function conditionOrder(conditions: readonly StatusCondition[]): StatusCondition[] {
-  return [...conditions].sort((a, b) => rankOf(a) - rankOf(b) || time(a.since) - time(b.since));
+  return conditions.toSorted((a, b) => rankOf(a) - rankOf(b) || time(a.since) - time(b.since));
 }
 
 const isProblem = (c: StatusCondition): boolean => c.level === "problem";

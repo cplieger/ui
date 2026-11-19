@@ -480,13 +480,21 @@ describe("enhanceLoadingRegion: a refresh", () => {
 });
 
 describe("enhanceLoadingRegion: the refresh failure's time", () => {
-  it("refuses a malformed language tag when it is wired", () => {
+  it("reads a malformed lang as none, and refuses a malformed locale when it is wired", async () => {
     const section = document.createElement("section");
     section.lang = "en_US";
     document.body.append(section);
     const region = panel("Old");
     section.append(region);
-    expect(() => wired(region)).toThrow(RangeError);
+    const at = new Date();
+    at.setHours(14, 2, 0, 0);
+    const { handle, loads } = wired(region, { loadedAt: at });
+    const done = handle.load();
+    loads[0]?.reject(new Error("no"));
+    await done;
+    const browser = new Intl.DateTimeFormat(undefined, { timeStyle: "short" }).format(at);
+    expect(notice(region)?.textContent).toContain(`What you see is from ${browser}.`);
+    expect(() => wired(panel("Old"), { locale: "en_US" })).toThrow(RangeError);
   });
 
   it("writes the time in the language of the region's nearest lang", async () => {
