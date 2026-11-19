@@ -1320,52 +1320,80 @@ describe.each(browsers)("the gallery in %s", (name) => {
       });
     }, 60_000);
 
-    it("leaves a press on another row's download link to the browser", async () => {
-      const tab = await (browser as Browser).newPage({ viewport: { width: 1280, height: 800 } });
+    /** Opens Frieren from the list at `width`, gives `href` a `download`
+     *  attribute (a row, or a link added to the detail when `inDetail`), presses
+     *  it, then Close, reading the address, history and scroll after each. */
+    const pressDownload = async (width: number, href: string, inDetail = false) => {
+      const tab = await (browser as Browser).newPage({ viewport: { width, height: 800 } });
       await tab.goto(`${origin}/index.html`);
       await tab.goto(`${origin}${N}`);
       await wired(tab);
       await press(tab, "#md/frieren");
-      await at(tab, `${N}#md/frieren`);
-      const opened = await tab.evaluate(() => {
-        document
-          .querySelector('#md a.cp-list-row[href="#md/mushishi"]')
-          ?.setAttribute("download", "");
-        // A window listener runs after the router's document listener.
-        addEventListener("click", (e) => {
-          document.documentElement.dataset["prevented"] = String(e.defaultPrevented);
-        });
-        return history.length;
-      });
-      const download = tab.waitForEvent("download", { timeout: 5000 }).catch(() => null);
-      await press(tab, "#md/mushishi");
-      const got = await download;
-      const url = got === null ? null : new URL(got.url());
-      await got?.cancel();
-      // Firefox 159 follows a same-document download link's fragment instead of
-      // downloading it, so there the browser's own push shows the row.
-      const follows = name === "firefox";
-      const stays = await at(tab, `${N}#md/${follows ? "mushishi" : "frieren"}`).catch(() =>
-        read(tab),
+      await at(tab, `${N}#md/frieren`, "md-title");
+      const marks = () =>
+        tab.evaluate(() => ({
+          length: history.length,
+          fromList: (history.state as Record<string, unknown> | null)?.["cp-gallery-from-list"],
+          y: Math.round(scrollY),
+        }));
+      const before = await marks();
+      const link = await tab.evaluate(
+        ([h, d]) => {
+          let a = document.querySelector<HTMLAnchorElement>(`#md a.cp-list-row[href="${h}"]`);
+          if (d) {
+            a = document.createElement("a");
+            a.href = h;
+            a.textContent = "Download";
+            document.getElementById("md-title")?.after(a);
+          }
+          a?.setAttribute("download", "");
+          a?.focus({ preventScroll: true });
+          return a?.closest("dialog") !== null;
+        },
+        [href, inDetail] as const,
       );
-      const state = await tab.evaluate(() => ({
-        length: history.length,
-        prevented: document.documentElement.dataset["prevented"],
-      }));
+      await tab.keyboard.press("Enter");
+      const pressed = await at(tab, `${N}${href}`, "md-title").catch(() => read(tab));
+      const afterPress = await marks();
+      await closeDetail(tab);
+      const closed = await at(tab, N, href).catch(() => read(tab));
+      const afterClose = await marks();
       await tab.close();
-      expect({
-        download: url === null ? null : url.pathname + url.hash,
-        address: stays.address,
-        shows: stays.shows,
-        ...state,
-      }).toEqual({
-        download: follows ? null : `${N}#md/mushishi`,
-        address: `${N}#md/${follows ? "mushishi" : "frieren"}`,
-        shows: follows ? "Mushishi" : "Frieren: Beyond Journey's End",
-        length: follows ? opened + 1 : opened,
-        prevented: "false",
-      });
-    }, 60_000);
+      return { link, before, pressed, afterPress, closed, afterClose };
+    };
+
+    it.each([
+      ["another row at 1280 wide", 1280, "#md/mushishi", false, "Mushishi"],
+      ["the open row at 1280 wide", 1280, "#md/frieren", false, "Frieren: Beyond Journey's End"],
+      [
+        "a link in the sheet at 390 wide",
+        390,
+        "#md/frieren",
+        true,
+        "Frieren: Beyond Journey's End",
+      ],
+    ] as const)(
+      "routes a press on a download link to an entry like any press, so Close is one Back, %s",
+      async (_, width, href, inDetail, shows) => {
+        const r = await pressDownload(width, href, inDetail);
+        // A press on the open entry also keeps the page's scroll.
+        const same = href === "#md/frieren";
+        expect({
+          inSheet: r.link,
+          pressed: [r.pressed.address, r.pressed.shows, r.pressed.focus],
+          afterPress: same ? r.afterPress : { ...r.afterPress, y: r.before.y },
+          closed: [r.closed.address, r.closed.shows, r.closed.focus],
+          afterClose: r.afterClose.length,
+        }).toEqual({
+          inSheet: inDetail,
+          pressed: [`${N}${href}`, shows, "md-title"],
+          afterPress: r.before,
+          closed: [N, "nothing", href],
+          afterClose: r.before.length,
+        });
+      },
+      60_000,
+    );
 
     it("ends on the list on Back after a press on another row while one is open", async () => {
       const tab = await (browser as Browser).newPage({ viewport: { width: 1280, height: 800 } });
