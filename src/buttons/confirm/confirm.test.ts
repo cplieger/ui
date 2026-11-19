@@ -202,66 +202,59 @@ describe("enhanceConfirm", () => {
     expect(words(b)).toBe("Grab 3");
   });
 
-  it("holds the widest word's footprint in a table's actions cell", async () => {
-    const cell = document.createElement("td");
-    cell.dataset["col"] = "actions";
-    document.body.append(cell);
-    const b = button("Grab", cell);
-    const c = confirm(b, { busy: "Grabbing…", done: "Grabbed" });
-    expect(b.dataset["cpConfirm"]).toBe("footprint");
-    const footprint = () =>
-      (b.querySelector(".cp-roll") as HTMLElement).getBoundingClientRect().width +
-      Number.parseFloat(b.style.marginInlineEnd);
-    await sleep(400);
-    const atRest = footprint();
-    expect(Number.parseFloat(b.style.marginInlineEnd)).toBeGreaterThan(0);
+  const faceTexts = (b: HTMLButtonElement) =>
+    [...(b.querySelector(':scope > [data-part="faces"]')?.children ?? [])].map(
+      (f) => (f as HTMLElement).dataset["words"],
+    );
+
+  for (const [where, cls, col] of [
+    ["a split button", "cp-split", undefined],
+    ["a table's actions cell", undefined, "actions"],
+  ] as const) {
+    it(`holds every state's face, hidden from the name, in ${where}`, () => {
+      const box = document.createElement("div");
+      if (cls !== undefined) {
+        box.className = cls;
+      }
+      if (col !== undefined) {
+        box.dataset["col"] = col;
+      }
+      document.body.append(box);
+      const b = button("Grab", box);
+      confirm(b, { busy: "Grabbing…", done: "Grabbed" });
+      expect(b.dataset["cpConfirm"]).toBe("fixed");
+      expect(faceTexts(b)).toEqual(["Grab", "Grabbing…", "Grabbed"]);
+      const faces = b.querySelector(':scope > [data-part="faces"]') as HTMLElement;
+      expect(faces.getAttribute("aria-hidden")).toBe("true");
+      expect(faces.children[0]?.querySelector(".cp-icon")).not.toBeNull();
+    });
+  }
+
+  it("lays a fixed button's faces again for new rest words and for the words at a press", async () => {
+    const b = button("Show more");
+    const c = confirm(b, { width: "fixed", busy: "Loading…", done: false });
+    expect(faceTexts(b)).toEqual(["Show more", "Loading…"]);
+    c.setRest("Show the last 3");
+    expect(faceTexts(b)).toEqual(["Show the last 3", "Loading…"]);
+    (b.querySelector(".cp-roll") as HTMLElement).textContent = "Show all 12";
     await c.run(() => Promise.resolve());
-    await sleep(400);
-    expect(footprint()).toBeCloseTo(atRest, 0);
+    expect(faceTexts(b)).toEqual(["Show all 12", "Loading…"]);
   });
 
-  it("keeps an end-aligned button flush with its cell's end, its footprint's slack before it", async () => {
-    const table = document.createElement("table");
-    const row = table.insertRow();
-    const cell = row.insertCell();
-    cell.dataset["col"] = "actions";
-    cell.style.cssText = "text-align: end; inline-size: 240px; padding: 0";
-    document.body.append(table);
-    const b = button("Grab", cell);
+  it("keeps a fixed button's text to the words it shows", () => {
+    const b = button(
+      "Grab",
+      Object.assign(document.createElement("div"), { className: "cp-split" }),
+    );
+    document.body.append(b.parentElement as HTMLElement);
     confirm(b, { busy: "Grabbing…", done: "Grabbed" });
-    await sleep(400);
-    expect(Number.parseFloat(b.style.marginInlineStart)).toBeGreaterThan(0);
-    expect(b.style.marginInlineEnd).toBe("");
-    expect(b.getBoundingClientRect().right).toBeCloseTo(cell.getBoundingClientRect().right, 0);
+    expect(b.textContent).toBe("Grab");
   });
 
-  it("holds the widest word's width in a split button", () => {
-    const split = document.createElement("div");
-    split.className = "cp-split";
-    document.body.append(split);
-    const b = button("Grab the best", split);
-    confirm(b, { busy: "Grabbing…", done: "Grabbed" });
-    expect(b.dataset["cpConfirm"]).toBe("fixed");
-    expect(Number.parseFloat(b.style.minInlineSize)).toBeGreaterThan(0);
-  });
-
-  it("measures its held width again once a web font loads", () => {
-    const split = document.createElement("div");
-    split.className = "cp-split";
-    document.body.append(split);
-    const b = button("Grab the best", split);
-    const stop = new AbortController();
-    confirm(b, { busy: "Grabbing…", done: "Grabbed", signal: stop.signal });
-    const held = () => Number.parseFloat(b.style.minInlineSize);
-    const before = held();
-    b.style.fontSize = "32px";
-    document.fonts.dispatchEvent(new Event("loadingdone"));
-    expect(held()).toBeGreaterThan(before * 1.5);
-    const grown = held();
-    stop.abort();
-    b.style.fontSize = "";
-    document.fonts.dispatchEvent(new Event("loadingdone"));
-    expect(held()).toBe(grown);
+  it("adds no faces to a gliding button", () => {
+    const b = button();
+    confirm(b);
+    expect(b.querySelector('[data-part="faces"]')).toBeNull();
   });
 
   it("glides elsewhere, and takes the width mode it is given", () => {
