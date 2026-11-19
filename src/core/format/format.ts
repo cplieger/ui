@@ -50,14 +50,17 @@ const page = (locale: string | undefined): string | undefined => {
 /**
  * `n` in `locale` (default: the page's language, read at each call, else
  * the platform's) under `Intl.NumberFormat` `options`, never with a signed
- * zero: `signDisplay` "always" writes 0 as "0". An invalid option throws
- * Intl's RangeError.
+ * zero: `signDisplay` "always" writes 0 as "0". A `style: "unit"` number
+ * is bound to its unit by a no-break space. An invalid option throws Intl's
+ * RangeError.
  */
 export function number(n: number, options: Intl.NumberFormatOptions = {}, locale?: string): string {
-  return numbers(page(locale), {
-    ...options,
-    signDisplay: unsignedZero(options.signDisplay, false),
-  }).format(n);
+  return bindUnit(
+    numbers(page(locale), {
+      ...options,
+      signDisplay: unsignedZero(options.signDisplay, false),
+    }).formatToParts(n),
+  );
 }
 
 /** `n` and the noun `unit` gives it by `Intl.PluralRules`, joined by a

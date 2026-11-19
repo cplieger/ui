@@ -107,6 +107,26 @@ describe("enhanceRelativeTime", () => {
     expect(t.dataset["cpTip"]).toBe(date(at, "datetime", "fr"));
   });
 
+  it("writes in the browser's language for an empty or invalid lang around it", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(NOW);
+    document.documentElement.lang = "fr";
+    const at = NOW - 4 * MIN;
+    const browser = new Intl.DateTimeFormat().resolvedOptions().locale;
+    const section = document.createElement("section");
+    section.lang = "en_US";
+    document.body.append(section);
+    const inSection = time(at);
+    section.append(inSection);
+    const empty = time(at);
+    empty.lang = "";
+    for (const t of [inSection, empty]) {
+      enhanceRelativeTime(t, { style: "long", signal: life.signal });
+      expect(shown(t)).toBe(relative(at, { now: NOW, style: "long", locale: browser }));
+      expect(t.dataset["cpTip"]).toBe(date(at, "datetime", browser));
+    }
+  });
+
   it("turns to the next minute when the rounded minutes change", () => {
     vi.useFakeTimers();
     vi.setSystemTime(NOW);

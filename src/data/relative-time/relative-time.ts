@@ -14,7 +14,9 @@ export interface RelativeTimeOptions {
   /** Default "narrow"; "long" for a time inside a sentence. */
   readonly style?: RelativeStyle;
   /** A BCP 47 language tag. Default: the lang of the time or its nearest
-   *  ancestor, else the page's, else the browser's. */
+   *  ancestor; with no lang on either, as for a time not yet in the page,
+   *  the page's. An empty lang, or one that is not a tag, means the
+   *  browser's language. */
   readonly locale?: string;
   /** Stops keeping the time current. Its words stay as they last read. */
   readonly signal?: AbortSignal;
@@ -117,7 +119,9 @@ export function enhanceRelativeTime(
   const {
     signal,
     style = "narrow",
-    locale = localeOf(time) ?? localeOf(document.documentElement),
+    // Only a time with no `lang` around it takes the page's: an empty or
+    // invalid one is an unknown language, as `localeOf` reads it.
+    locale = time.closest("[lang]") === null ? localeOf(document.documentElement) : localeOf(time),
   } = options;
   const at = Date.parse(time.dateTime);
   if (Number.isNaN(at)) {

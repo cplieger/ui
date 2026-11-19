@@ -24,7 +24,7 @@ relative(at, { style: "long", locale: "fr" }); // "il y a 4 minutes"
 
 Every writer takes `locale` last, a BCP 47 language tag, except `relative`, which takes it in its options.
 
-- `number(n, options?, locale?)` writes `n` under `Intl.NumberFormat` `options`. It never signs a zero: `signDisplay: "always"` writes 0 as "0" and +5 as "+5", and -0 reads "0". An invalid option throws Intl's `RangeError`.
+- `number(n, options?, locale?)` writes `n` under `Intl.NumberFormat` `options`. It never signs a zero: `signDisplay: "always"` writes 0 as "0" and +5 as "+5", and -0 reads "0". Under `style: "unit"` the number is bound to its unit, "5 km". An invalid option throws Intl's `RangeError`.
 - `count(n, unit, locale?)` writes `n` as `number` does and the noun `Intl.PluralRules` picks from `unit`, a `{ other, one?, two?, few?, many?, zero? }` of nouns: "1 run", "3 runs", "2,160 hours". The noun follows the written number, so a count Intl rounds to 1 takes the "one" noun.
 - `percent(ratio, locale?)` writes a share of a whole, 0 to 1, at two significant digits, so no share above 0 reads "0%": 0.509 is "51%", 0.023 is "2.3%". A share below 1 that would round to the whole takes three digits, cut toward 0, so 0.9999 reads "99.9%" and only 1 reads "100%".
 - `bytes(n, units?, locale?)` writes a size by the rule below. `units` is `"decimal"` by default, or `"binary"`. A negative size keeps its sign. A value that is not finite is written as Intl writes it, such as "NaN byte", and never throws.

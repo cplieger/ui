@@ -309,19 +309,30 @@ function besideNumber(parts: RelativeParts): readonly [number, number] {
     : [first - 1, parts.findLastIndex((p) => p.type !== "literal") + 1];
 }
 
+// The word of `literal` next to the number, its punctuation trimmed, so a
+// spelling variant such as "d’aquí a" and "d‘aquí a" reads as one word.
+const wordBeside = (literal: string | undefined, last: boolean): string => {
+  const words = (literal ?? "").trim().split(/\s+/u);
+  return (last ? words.at(-1) : words[0])?.replaceAll(/^\p{P}+|\p{P}+$/gu, "") ?? "";
+};
+
 // Which side of the number the unit word sits on, per locale, style and
-// direction: of 4 minutes and 4 hours, the side whose literal differs.
+// direction: over the six units, the side whose word next to the number
+// takes more values. An "in" or "ago" word that changes in one or two
+// units, such as Indonesian's "dlm" and "dalam", cannot outvote six unit
+// words, as it could in a comparison of two units; a tie binds neither.
 const unitSide = (locale: string | undefined, style: Intl.RelativeTimeFormatStyle, past: boolean) =>
   cached(`u|${locale ?? ""}|${style}|${String(past)}`, () => {
     const rf = relativeFormat(locale, style, "always");
-    const minute = rf.formatToParts(past ? -4 : 4, "minute");
-    const hour = rf.formatToParts(past ? -4 : 4, "hour");
-    const [mb, ma] = besideNumber(minute);
-    const [hb, ha] = besideNumber(hour);
-    return {
-      before: minute[mb]?.value !== hour[hb]?.value,
-      after: minute[ma]?.value !== hour[ha]?.value,
-    };
+    const before = new Set<string>();
+    const after = new Set<string>();
+    for (const [unit] of RELATIVE_UNITS) {
+      const parts = rf.formatToParts(past ? -4 : 4, unit);
+      const [b, a] = besideNumber(parts);
+      before.add(wordBeside(parts[b]?.value, true));
+      after.add(wordBeside(parts[a]?.value, false));
+    }
+    return { before: before.size > after.size, after: after.size > before.size };
   });
 
 /** `parts` joined, the space between the number and its unit word made

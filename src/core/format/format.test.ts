@@ -152,6 +152,16 @@ describe("number", () => {
     expect(number(-0.0001, { maximumFractionDigits: 2 }, "en")).toBe("0");
   });
 
+  it("binds a unit style's number to its unit, and writes other styles as Intl does", () => {
+    const km = { style: "unit", unit: "kilometer" } as const;
+    expect(number(5, km, "en")).toBe(`5${NB}km`);
+    expect(number(5, km, "sw")).toBe(`km${NB}5`);
+    expect(number(1234.5, undefined, "en")).toBe(new Intl.NumberFormat("en").format(1234.5));
+    expect(number(0.25, { style: "percent" }, "fr")).toBe(
+      new Intl.NumberFormat("fr", { style: "percent" }).format(0.25),
+    );
+  });
+
   it("is what the chart's scales write", () => {
     for (const locale of ["en", "de", "fr"]) {
       for (const x of [-0, -0.0001, 1234.5, -3]) {
@@ -431,6 +441,77 @@ describe("a unit written before its number", () => {
     expect(long(-DAY, "sw")).toBe(
       new Intl.RelativeTimeFormat("sw", { numeric: "auto" }).format(-1, "day"),
     );
+  });
+});
+
+describe("the side of a relative time's unit", () => {
+  const LENGTHS = {
+    year: 365 * DAY,
+    month: 30 * DAY,
+    week: 7 * DAY,
+    day: DAY,
+    hour: HOUR,
+    minute: MIN,
+  };
+  type Unit = keyof typeof LENGTHS;
+  const ALL = Object.keys(LENGTHS) as Unit[];
+
+  // Intl's own parts for 3 `unit`s, the one space between the number and
+  // the literal on `side` made non-breaking.
+  const bound = (
+    locale: string,
+    style: Intl.RelativeTimeFormatStyle,
+    ms: number,
+    unit: Unit,
+    side: "before" | "after",
+  ): string => {
+    const parts = new Intl.RelativeTimeFormat(locale, { style, numeric: "always" }).formatToParts(
+      Math.sign(ms) * 3,
+      unit,
+    );
+    const at = parts.findIndex((p) => p.type !== "literal");
+    return parts
+      .map((p, i) =>
+        side === "before" && i === at - 1
+          ? p.value.replace(/ $/u, NB)
+          : side === "after" && i === at + 1
+            ? p.value.replace(/^ /u, NB)
+            : p.value,
+      )
+      .join("");
+  };
+  const written = (locale: string, style: Intl.RelativeTimeFormatStyle, ms: number): string =>
+    relative(NOW + ms, { now: NOW, locale, style });
+
+  // Their word for "in" is spelt another way in one or two units, which must
+  // not read as a unit word: "om" and "om" with a no-break space, "d’aquí a"
+  // and "d‘aquí a", "dlm" and "dalam".
+  it.each([
+    ["sv", "short", ALL],
+    ["ca", "narrow", ALL],
+    ["id", "short", ["day", "minute"]],
+  ] as const)("binds only the unit word in %s %s, ahead", (locale, style, units) => {
+    for (const unit of units) {
+      expect(written(locale, style, 3 * LENGTHS[unit])).toBe(
+        bound(locale, style, 3 * LENGTHS[unit], unit, "after"),
+      );
+    }
+  });
+
+  it.each([
+    ["en", "after"],
+    ["fr", "after"],
+    ["de", "after"],
+    ["ja", "after"],
+    ["sw", "before"],
+  ] as const)("binds the unit word in %s on its own side", (locale, side) => {
+    for (const style of ["long", "short", "narrow"] as const) {
+      for (const unit of ["week", "hour", "minute"] as const) {
+        for (const ms of [-3 * LENGTHS[unit], 3 * LENGTHS[unit]]) {
+          expect(written(locale, style, ms)).toBe(bound(locale, style, ms, unit, side));
+        }
+      }
+    }
   });
 });
 

@@ -20,7 +20,7 @@ enhanceRelativeTime(inSentence, { style: "long", signal: page.signal }); // "4 m
 - `enhanceRelativeTime(time, opts?)` reads the time's `datetime` and replaces its content with the words, then a visually hidden span holding the exact time, and sets `data-cp-tip` to the same exact time. It throws a `TypeError` when `datetime` does not parse.
 - `RelativeTimeOptions` = `{ style?, locale?, signal? }`. `signal` stops keeping the time current, and its words stay as they last read. A second call on the same time replaces the first.
 - `style` is `"narrow"` by default, "3m ago", "5h ago", "2d ago", so a time in a row, a list's end or a feed's head takes little width. A time read inside a sentence, such as "Last full check at 14:02, 6 minutes ago.", passes `"long"`. `"short"` sits between them. The names are `Intl.RelativeTimeFormat`'s.
-- `locale` is a BCP 47 language tag. By default it is the `lang` of the time or its nearest ancestor, so a time writes in the language of the text around it. A time not yet in the page takes the page's `lang`, and with neither, the browser's language.
+- `locale` is a BCP 47 language tag. By default it is the `lang` of the time or its nearest ancestor, so a time writes in the language of the text around it. With no `lang` on the time or any ancestor, as for a time not yet in the page, it takes the page's `lang`. An empty `lang`, or one that is not a tag, means the browser's language.
 - The words without a `<time>` are `relative(at, { now, style, locale })` from [format](../core/format.md).
 
 ## The words
