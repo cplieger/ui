@@ -25,14 +25,14 @@ const browsers = (process.env["CPLIEGER_BROWSERS"] ?? "chromium").split(",");
 const SYSTEM_DIR = join(import.meta.dirname, "..", "docs", "system");
 const SYSTEM_SCREENS = readdirSync(SYSTEM_DIR).filter((file) => file.endsWith(".html"));
 
-/** Runs in the page: the id of each aria-required control with no mark from
- *  step 2 of the forms pattern, which is the field's `.cp-help` reading
- *  "Required." or a `.cp-required` reading "(Required)" in the control's
- *  label. Nothing else counts. The mark must pass `checkVisibility`, be over a
- *  pixel each way in the page's scroll area, lie inside each ancestor that
- *  clips its overflow, and show its text whole. A scroller does not count as
- *  clipping, since the reader scrolls to the mark. A hidden control needs
- *  only the mark. */
+/** Runs in the page, and changes it: the id of each aria-required control with
+ *  no mark from step 2 of the forms pattern, the field's `.cp-help` reading
+ *  "Required." or a `.cp-required` reading "(Required)" in the control's label
+ *  or a `.cp-label` of its field. Nothing else counts. A control with no box
+ *  first has its closed `details` and `dialog` ancestors opened and every
+ *  ancestor's `hidden` dropped; one still without a box is missing. The mark must
+ *  pass `checkVisibility`, be at least a pixel each way in the page's scroll area,
+ *  lie inside each ancestor clipping its overflow (not a scroller), and show its text uncut. */
 const requiredWithoutMark = (): string[] => {
   const root = document.documentElement;
   const start =
@@ -63,8 +63,8 @@ const requiredWithoutMark = (): string[] => {
     }
     return true;
   };
-  // Only a box that clips its own overflow can cut its text, and Gecko gives
-  // an inline box a scrollWidth while its clientWidth is 0.
+  // An inline box's clientWidth is 0 (https://www.w3.org/TR/cssom-view-1/#dom-element-clientwidth),
+  // and Gecko still reports its scrollWidth, so only a box that clips its own overflow is measured.
   const whole = (mark: Element): boolean => {
     const [x, y] = clips(mark);
     return (
@@ -90,6 +90,16 @@ const requiredWithoutMark = (): string[] => {
       whole(mark)
     );
   };
+  const reveal = (control: Element): void => {
+    for (let el = control.parentElement; el !== null; el = el.parentElement) {
+      if (el instanceof HTMLDetailsElement) {
+        el.open = true;
+      } else if (el instanceof HTMLDialogElement && !el.open) {
+        el.show();
+      }
+      el.removeAttribute("hidden");
+    }
+  };
   return [...document.querySelectorAll<HTMLElement>('[aria-required="true"]')].flatMap(
     (control) => {
       const id = control.id !== "" ? control.id : control.outerHTML;
@@ -110,7 +120,10 @@ const requiredWithoutMark = (): string[] => {
           .filter((mark) => mark.textContent.trim() === "(Required)"),
       ];
       if (!control.checkVisibility()) {
-        return marks.length === 0 ? [id] : [];
+        reveal(control);
+      }
+      if (!control.checkVisibility()) {
+        return [id];
       }
       return marks.some((mark) => shows(mark, field)) ? [] : [id];
     },
@@ -1797,10 +1810,13 @@ describe.each(browsers)("the gallery in %s", (name) => {
       <div class="cp-field"><label class="cp-label" for="w">W (Required)</label><input id="w" aria-required="true"></div>
       <div class="cp-field"><label for="x">X</label><input id="x" aria-required="true"><span class="cp-help">Required<span>.</span></span></div>
       <div class="cp-field"><label for="y">Y <span class="cp-visually-hidden"><span class="cp-required">(Required)</span></span></label><input id="y" aria-required="true"></div>
-      <div class="cp-field"><label for="z" style="display:block;width:9ch;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">Name <span class="cp-required">(Required)</span></label><input id="z" aria-required="true"></div>`);
+      <div class="cp-field"><label for="z" style="display:block;width:9ch;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">Name <span class="cp-required">(Required)</span></label><input id="z" aria-required="true"></div>
+      <dialog><div class="cp-field"><label for="dialog">Dialog</label><input id="dialog" aria-required="true"><span class="cp-help" style="opacity:0">Required.</span></div></dialog>
+      <details><summary>More</summary><div class="cp-field"><label for="details">Details</label><input id="details" aria-required="true"><span class="cp-help" style="opacity:0">Required.</span></div></details>
+      <div class="cp-field" hidden><label for="hidden">Hidden <span class="cp-visually-hidden"><span class="cp-required">(Required)</span></span></label><input id="hidden" aria-required="true"><span class="cp-help">From the provider.</span></div>`);
     const missing = await tab.evaluate(requiredWithoutMark);
     await tab.close();
-    expect(missing).toEqual([..."cdefijklnpqrsvwyz"]);
+    expect(missing).toEqual([..."cdefijklnpqrsvwyz", "dialog", "details", "hidden"]);
   }, 60_000);
 
   it.each([...pageNames, ...templateNames])(

@@ -128,6 +128,23 @@ Once your scroll fix merges, the queue moves to me. Tell me if it slips past noo
         </div>
         <footer>The conversations beside the open one, from a wide card. The list is one Tab stop: Up and Down move between conversations, Home and End go to its ends, and a long path is cut at its start so its leaf stays, with the whole path on hover. A message in another conversation moves it to the top, while the open one stays current and focus stays on its row; Show older at the end adds the next page and moves focus to its first conversation, and All, Threads and Direct replace the rows while the open conversation stays open. On a phone the conversation opens in a dialog and its reservations, queue and followers fold above the feed. Show older above the first message adds the day before it and moves focus to its oldest message, so you read down to where you were; the second press fails once and reads Retry, and the last day takes the button away. Arrivals while you read older messages wait behind the New messages button, your own message always scrolls into view, and a send that fails keeps your text with Retry. Ctrl+Enter sends. A direct conversation between two agents, such as @claude and @gpt, takes no reply from you: in the composer's place the foot says who writes there, with a button to message each of them.</footer>
       </div>
+      <div class="card" data-new>
+        <h2>New message</h2>
+        <form class="cp-form" method="dialog" novalidate>
+          <div class="cp-field">
+            <label class="cp-label" for="new-message-to">To <span class="cp-required">(Required)</span></label>
+            <input type="text" class="cp-input" id="new-message-to" name="to" autocomplete="off" aria-required="true" aria-describedby="new-message-to-help">
+            <p class="cp-help" id="new-message-to-help">An agent's name, or Announcements.</p>
+          </div>
+          <div class="cp-field">
+            <label class="cp-label" for="new-message-subject">Subject</label>
+            <input type="text" class="cp-input" id="new-message-subject" name="subject" maxlength="120" autocomplete="off" aria-required="true" aria-describedby="new-message-subject-help">
+            <p class="cp-help" id="new-message-subject-help">Required.</p>
+          </div>
+          <button class="cp-button" data-variant="primary" type="submit">Send</button>
+        </form>
+        <footer>Each field the send needs shows that it is needed before anything is typed, with one visible mark. A field that already has help keeps it and takes "(Required)" in its label, as To does; a field with no help takes "Required." as its help line, as Subject does. Screen readers hear the same from aria-required.</footer>
+      </div>
     </div>
   </section>
 
