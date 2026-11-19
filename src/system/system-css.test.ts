@@ -117,6 +117,60 @@ function build(markup: string): HTMLElement {
   return el;
 }
 
+/** A line's baseline, cap height and line box height, read from probes set
+ *  in its own font. */
+function lineMetrics(line: Element): { baseline: number; cap: number; lh: number } {
+  const base = document.createElement("span");
+  base.style.cssText = "display: inline-block; inline-size: 1px; block-size: 0";
+  const cap = document.createElement("span");
+  cap.style.cssText = "position: absolute; block-size: 100cap";
+  const lh = document.createElement("span");
+  lh.style.cssText = "position: absolute; block-size: 100lh";
+  line.append(base, cap, lh);
+  return {
+    baseline: base.getBoundingClientRect().bottom,
+    cap: cap.getBoundingClientRect().height / 100,
+    lh: lh.getBoundingClientRect().height / 100,
+  };
+}
+
+// The bottom edge, in page px, of the ink in an element's screenshot, or
+// null when it paints nothing over its background (its commonest colour). A
+// part-covered last row counts by its ink's strength against the fullest row.
+async function inkBottom(el: Element): Promise<number | null> {
+  const r = el.getBoundingClientRect();
+  const shot = await page.screenshot({ element: el, base64: true, save: false });
+  const img = await createImageBitmap(await (await fetch(`data:image/png;base64,${shot}`)).blob());
+  const ctx = new OffscreenCanvas(img.width, img.height).getContext("2d");
+  if (ctx === null) {
+    throw new Error("no 2d context");
+  }
+  ctx.drawImage(img, 0, 0);
+  const px = ctx.getImageData(0, 0, img.width, img.height).data;
+  const counts = new Map<string, number>();
+  for (let at = 0; at < px.length; at += 4) {
+    const c = px.slice(at, at + 3).join(",");
+    counts.set(c, (counts.get(c) ?? 0) + 1);
+  }
+  const bg = ([...counts].sort((a, b) => b[1] - a[1])[0] as [string, number])[0]
+    .split(",")
+    .map(Number);
+  const strength = Array.from({ length: img.height }, (_, y) => {
+    let most = 0;
+    for (let x = 0; x < img.width; x++) {
+      const at = (y * img.width + x) * 4;
+      most = Math.max(most, ...[0, 1, 2].map((ch) => Math.abs((px[at + ch] ?? 0) - (bg[ch] ?? 0))));
+    }
+    return most;
+  });
+  const full = Math.max(...strength);
+  const last = strength.findLastIndex((v) => v > 8);
+  if (last < 0) {
+    return null;
+  }
+  return r.top + (last + (strength[last] ?? 0) / full) * (r.height / img.height);
+}
+
 const media = (name: string, value: string) =>
   cdp().send("Emulation.setEmulatedMedia", { features: [{ name, value }] });
 
@@ -1538,44 +1592,50 @@ describe("css/system.css", () => {
     }
   });
 
-  it("draws a signed stepper with steps of several sizes as the zoom stepper is drawn", () => {
+  it("draws a signed stepper with steps of several sizes as the zoom stepper is drawn, on either pointer", () => {
     theme("light");
-    root.dataset["pointer"] = "fine";
-    const el = build(
-      '<div class="cp-stepper" id="zoom" role="group" aria-label="Zoom"><button class="cp-button" data-variant="quiet" type="button" aria-label="Zoom out">-</button><button class="cp-button cp-stepper-value" data-variant="quiet" type="button">100%</button><button class="cp-button" data-variant="quiet" type="button" aria-label="Zoom in">+</button></div>' +
-        '<div class="cp-field"><label class="cp-label" for="offset">Offset, in seconds</label><div class="cp-stepper" id="offset-bar" role="group"><button class="cp-button" data-variant="quiet" type="button" data-step="-10">−1 s</button><button class="cp-button" data-variant="quiet" type="button" data-step="-1">−0.1 s</button><input id="offset" value="+1.25" inputmode="decimal" data-min="-60" data-max="60" data-step="0.1"><button class="cp-button" data-variant="quiet" type="button" data-step="1">+0.1 s</button><button class="cp-button" data-variant="quiet" type="button" data-step="10">+1 s</button><button class="cp-button" data-variant="quiet" type="button" data-reset="0">Reset</button></div></div>',
-    );
-    const zoom = el.querySelector("#zoom") as HTMLElement;
-    const bar = el.querySelector("#offset-bar") as HTMLElement;
-    const input = el.querySelector("#offset") as HTMLInputElement;
-    const look = (s: HTMLElement): string => {
-      const edge = getComputedStyle(s, "::after");
-      const b = s.querySelector(".cp-button") as HTMLElement;
-      return [
-        edge.borderTopWidth,
-        edge.borderTopStyle,
-        edge.borderTopColor,
-        getComputedStyle(s).borderTopLeftRadius,
-        String(s.getBoundingClientRect().height),
-        String(b.getBoundingClientRect().height),
-        getComputedStyle(b).backgroundColor,
-      ].join(" ");
-    };
-    expect(look(bar)).toBe(look(zoom));
-    const type = (v: Element): string => {
-      const cs = getComputedStyle(v);
-      return [cs.fontFamily, cs.fontSize, cs.fontWeight, cs.fontVariantNumeric, cs.color].join(" ");
-    };
-    expect(type(input)).toBe(type(zoom.querySelector(".cp-stepper-value") as Element));
-    // Its widest value, a sign, two digits, a point and two decimals, fits
-    // the one width every value keeps.
-    const width = input.getBoundingClientRect().width;
-    for (const v of ["−60.00", "+1.25", "0.00", "−0.10"]) {
-      input.value = v;
-      expect(input.getBoundingClientRect().width).toBe(width);
-      expect(input.scrollWidth <= input.clientWidth).toBe(true);
+    for (const tier of ["fine", "coarse"]) {
+      root.dataset["pointer"] = tier;
+      const el = build(
+        '<div class="cp-stepper" id="zoom" role="group" aria-label="Zoom"><button class="cp-button" data-variant="quiet" type="button" aria-label="Zoom out">-</button><button class="cp-button cp-stepper-value" data-variant="quiet" type="button">100%</button><button class="cp-button" data-variant="quiet" type="button" aria-label="Zoom in">+</button></div>' +
+          '<div class="cp-field"><label class="cp-label" for="offset">Offset, in seconds</label><div class="cp-stepper" id="offset-bar" role="group"><button class="cp-button" data-variant="quiet" type="button" data-step="-10">−1 s</button><button class="cp-button" data-variant="quiet" type="button" data-step="-1">−0.1 s</button><input id="offset" value="+1.25" inputmode="decimal" data-min="-60" data-max="60" data-step="0.1"><button class="cp-button" data-variant="quiet" type="button" data-step="1">+0.1 s</button><button class="cp-button" data-variant="quiet" type="button" data-step="10">+1 s</button></div><div class="cp-cluster" data-gap="tight"><button class="cp-button" data-variant="quiet" type="button" data-reset="0" aria-controls="offset">Reset</button></div></div>',
+      );
+      const zoom = el.querySelector("#zoom") as HTMLElement;
+      const bar = el.querySelector("#offset-bar") as HTMLElement;
+      const input = el.querySelector("#offset") as HTMLInputElement;
+      const look = (s: HTMLElement): string => {
+        const edge = getComputedStyle(s, "::after");
+        const b = s.querySelector(".cp-button") as HTMLElement;
+        return [
+          edge.borderTopWidth,
+          edge.borderTopStyle,
+          edge.borderTopColor,
+          getComputedStyle(s).borderTopLeftRadius,
+          String(s.getBoundingClientRect().height),
+          String(b.getBoundingClientRect().height),
+          getComputedStyle(b).backgroundColor,
+        ].join(" ");
+      };
+      expect(look(bar), tier).toBe(look(zoom));
+      const type = (v: Element): string => {
+        const cs = getComputedStyle(v);
+        return [cs.fontFamily, cs.fontSize, cs.fontWeight, cs.fontVariantNumeric, cs.color].join(
+          " ",
+        );
+      };
+      expect(type(input), tier).toBe(type(zoom.querySelector(".cp-stepper-value") as Element));
+      // Its widest value, a sign, two digits, a point and two decimals, fits
+      // the one width every value keeps.
+      const width = input.getBoundingClientRect().width;
+      for (const v of ["−60.00", "+1.25", "0.00", "−0.10"]) {
+        input.value = v;
+        expect(input.getBoundingClientRect().width, `${tier} ${v}`).toBe(width);
+        expect(input.scrollWidth <= input.clientWidth, `${tier} ${v}`).toBe(true);
+      }
+      expect(input.labels?.[0]?.textContent, tier).toBe("Offset, in seconds");
+      // The next tier's fixture reuses the field's id.
+      el.remove();
     }
-    expect(input.labels?.[0]?.textContent).toBe("Offset, in seconds");
   });
 
   it("shows a saved secret's Saved part or its field, never both", () => {
@@ -3963,18 +4023,21 @@ describe("css/system.css buttons and arrangements", () => {
 
   for (const motion of ["allowed", "reduced"] as const) {
     for (const lead of [true, false]) {
-      it(`holds a fixed button's width and what follows it at every frame of a cycle, ${lead ? "with" : "without"} an icon at rest, motion ${motion}`, async () => {
-        if (motion === "reduced") {
-          await reduceMotion();
-        }
-        await fontsIn("Grab Grabbing… Grabbed Small");
-        const el = build(
-          `<div style="display: flex; gap: 8px">${faces(lead, "Grab")}<button class="cp-button" type="button">Small</button></div>`,
-        );
-        const [b, next] = [...el.querySelectorAll("button")] as [HTMLButtonElement, HTMLElement];
-        const seen = await everyFrame(b, () => `${box(b)} | ${box(next)}`, { width: "fixed" });
-        expect([...seen], [...seen].join(" / ")).toHaveLength(1);
-      });
+      it.skipIf(motion === "reduced" && !emulates)(
+        `holds a fixed button's width and what follows it at every frame of a cycle, ${lead ? "with" : "without"} an icon at rest, motion ${motion}`,
+        async () => {
+          if (motion === "reduced") {
+            await media("prefers-reduced-motion", "reduce");
+          }
+          await fontsIn("Grab Grabbing… Grabbed Small");
+          const el = build(
+            `<div style="display: flex; gap: 8px">${faces(lead, "Grab")}<button class="cp-button" type="button">Small</button></div>`,
+          );
+          const [b, next] = [...el.querySelectorAll("button")] as [HTMLButtonElement, HTMLElement];
+          const seen = await everyFrame(b, () => `${box(b)} | ${box(next)}`, { width: "fixed" });
+          expect([...seen], [...seen].join(" / ")).toHaveLength(1);
+        },
+      );
     }
   }
 
@@ -3993,12 +4056,10 @@ describe("css/system.css buttons and arrangements", () => {
     expect(b.dataset["cpConfirm"]).toBe("fixed");
   });
 
-  it("holds an icon-only fixed button at its icon's width through a cycle and across a resize", async () => {
+  it("holds an icon-only fixed button at its icon's width through a cycle and across 44rem both ways", async () => {
     await fontsIn("Grab Grabbing… Grabbed");
-    // A narrow rule that shows a row action's icon alone hides its words
-    // and its faces' words together, as docs/buttons/confirm.md asks.
     const el = build(
-      `<style>@container (width < 20rem) { .t-narrow .cp-button > .cp-roll, .t-narrow .cp-button > [data-part="faces"] > ::after { display: none; } }</style><div class="t-narrow" style="container-type: inline-size; inline-size: 30rem"><span data-col="actions">${faces(true, "Grab")}</span></div>`,
+      `<style>@container (width < 44rem) { .t-narrow .cp-button > .cp-roll { display: none; } }</style><div class="t-narrow" style="container-type: inline-size; inline-size: 48rem"><span data-col="actions">${faces(true, "Grab")}</span></div>`,
     );
     const box = el.querySelector(".t-narrow") as HTMLElement;
     const b = el.querySelector("button") as HTMLButtonElement;
@@ -4012,17 +4073,17 @@ describe("css/system.css buttons and arrangements", () => {
           .reduce((a, v) => a + v, 0)
       );
     };
-    box.style.inlineSize = "16rem";
+    box.style.inlineSize = "40rem";
     const widths = await everyFrame(b, () => b.getBoundingClientRect().width.toFixed(1));
     expect([...widths], [...widths].join(" / ")).toHaveLength(1);
     const narrow = b.getBoundingClientRect().width;
     expect(narrow).toBeCloseTo(iconOnly(), 0);
-    box.style.inlineSize = "30rem";
+    box.style.inlineSize = "48rem";
     const wide = b.getBoundingClientRect().width;
     expect(wide).toBeGreaterThan(narrow + 40);
-    box.style.inlineSize = "16rem";
+    box.style.inlineSize = "40rem";
     expect(b.getBoundingClientRect().width).toBeCloseTo(narrow, 1);
-    box.style.inlineSize = "30rem";
+    box.style.inlineSize = "48rem";
     expect(b.getBoundingClientRect().width).toBeCloseTo(wide, 1);
   });
 
@@ -5894,6 +5955,88 @@ describe("css/system.css lists, feeds and counts", () => {
     }
   });
 
+  it("sets a two-line row's lines a space apart and as much room above them as below, at every height", () => {
+    theme("light");
+    const two = (title: string, lines: string) =>
+      `<li><a class="cp-list-row" href="#l"><span class="cp-icon"></span><span class="cp-cell-stack">${title}${lines}</span><span data-part="end"><time>4 min ago</time><span class="cp-cluster"><span class="cp-badge" data-variant="quiet">3</span></span></span></a></li>`;
+    // A plain title, a mono one, a meta line led by a glyph, and a kept row
+    // whose facts line is hidden.
+    const rows =
+      two('<span class="cp-truncate">Frieren</span>', "<small>TV, 2023</small>") +
+      two('<code class="cp-mono">Frieren.S01E04.en.ass</code>', "<small>48 KB</small>") +
+      two(
+        "<span>Household</span>",
+        '<span class="cp-meta"><span class="cp-icon"></span>3 people</span>',
+      ) +
+      two(
+        "<span>Mushishi</span>",
+        '<small hidden>TV, 2005</small><small class="cp-kept">Kept</small>',
+      );
+    const space = (
+      build('<div style="block-size: var(--cp-space-1)"></div>').firstElementChild as Element
+    ).getBoundingClientRect().height;
+    for (const tier of ["fine", "coarse"]) {
+      root.dataset["pointer"] = tier;
+      for (const density of ["compact", "", "tall"]) {
+        const el = build(`<ul class="cp-list" data-density="${density}">${rows}</ul>`);
+        for (const [i, r] of [...el.querySelectorAll<HTMLElement>(".cp-list-row")].entries()) {
+          const [title, sub] = [...r.querySelectorAll(".cp-cell-stack > :not([hidden])")] as [
+            Element,
+            Element,
+          ];
+          const t = lineMetrics(title);
+          const s = lineMetrics(sub);
+          const box = r.getBoundingClientRect();
+          const at = `${tier} ${density || "regular"} row ${String(i)}`;
+          expect(s.baseline - s.cap - t.baseline, `${at} gap`).toBeCloseTo(space, 0);
+          const above = t.baseline - t.cap - box.top;
+          const below = box.bottom - s.baseline;
+          expect(
+            Math.abs(above - below),
+            `${at} above ${String(above)} below ${String(below)}`,
+          ).toBeLessThanOrEqual(0.5);
+          // The height two untrimmed line boxes 2px apart gave the row.
+          const cs = getComputedStyle(r);
+          const end = (r.querySelector('[data-part="end"]') as Element).getBoundingClientRect()
+            .height;
+          const was = Math.max(
+            parseFloat(cs.minBlockSize),
+            parseFloat(cs.paddingTop) +
+              parseFloat(cs.paddingBottom) +
+              Math.max(t.lh + 2 + s.lh, end),
+          );
+          expect(box.height, `${at} height`).toBeCloseTo(was, 1);
+        }
+      }
+    }
+  });
+
+  it("leaves a row whose second line is hidden at one line's height, its title untrimmed", () => {
+    theme("light");
+    for (const tier of ["fine", "coarse"]) {
+      root.dataset["pointer"] = tier;
+      for (const density of ["compact", "", "tall"]) {
+        const row = (lines: string) =>
+          `<li><a class="cp-list-row" href="#l"><span class="cp-icon"></span><span class="cp-cell-stack"><span class="cp-truncate">Frieren</span>${lines}</span><span data-part="end"><time>4 min ago</time></span></a></li>`;
+        const el = build(
+          `<ul class="cp-list" data-density="${density}">${row("")}${row("<small hidden>TV, 2023</small>")}</ul>`,
+        );
+        const [alone, hidden] = [...el.querySelectorAll<HTMLElement>(".cp-list-row")] as [
+          HTMLElement,
+          HTMLElement,
+        ];
+        const at = `${tier} ${density || "regular"}`;
+        expect(hidden.getBoundingClientRect().height, at).toBe(
+          alone.getBoundingClientRect().height,
+        );
+        const title = hidden.querySelector(".cp-truncate") as Element;
+        expect(title.getBoundingClientRect().height, at).toBe(
+          (alone.querySelector(".cp-truncate") as Element).getBoundingClientRect().height,
+        );
+      }
+    }
+  });
+
   it("runs a compact row's time and count along its one line", () => {
     theme("light");
     root.dataset["pointer"] = "fine";
@@ -6493,8 +6636,8 @@ describe("css/system.css lists, feeds and counts", () => {
       const [list, detail] = [".cp-list", ".cp-detail"].map(
         (s) => (el.querySelector(s) as Element).getBoundingClientRect().height,
       ) as [number, number];
-      // The default frame's columns share a height; the wide list hugs its rows.
-      expect(list, variant).toBeCloseTo(variant === "" ? detail : 2 * 52 + 3, 0);
+      expect(list, variant).toBeCloseTo(2 * 52 + 3, 0);
+      expect(detail, variant).toBeGreaterThan(list);
       el.remove();
     }
   });
@@ -6666,6 +6809,94 @@ describe("css/system.css data tables", () => {
       ).toBeLessThanOrEqual(13);
       expect(getComputedStyle(cover).borderStartStartRadius).toBe(radius);
       expect((cover.querySelector(".cp-icon") as Element).getBoundingClientRect().width).toBe(16);
+    }
+  });
+
+  it("sets a title cell's two lines a space apart, centred beside its cover, the row's height unchanged", () => {
+    theme("light");
+    const cell = (tag: "td" | "th", title: string, line: string) =>
+      `<tr><${tag}><div class="cp-title-cell"><span class="cp-cover" data-harmony="4"><span class="cp-icon" data-cp-icon="film"></span></span>` +
+      `<div class="cp-cell-stack">${title}${line}</div></div></${tag}><td data-col="num">1</td></tr>`;
+    const rows =
+      cell("td", '<a href="#t">Perfect Blue</a>', '<span class="cp-meta">Film, 1997</span>') +
+      cell("th", '<span class="cp-truncate">Mushishi</span>', "<small>TV, 2005</small>") +
+      cell("td", "<span>Frieren</span>", "<small hidden>TV</small><small>TV, 2023</small>");
+    const space = (
+      build('<div style="block-size: var(--cp-space-1)"></div>').firstElementChild as Element
+    ).getBoundingClientRect().height;
+    for (const tier of ["fine", "coarse"]) {
+      root.dataset["pointer"] = tier;
+      const el = build(`<table class="cp-table"><tbody>${rows}</tbody></table>`);
+      for (const [i, box] of [...el.querySelectorAll(".cp-title-cell")].entries()) {
+        const [title, sub] = [...box.querySelectorAll(".cp-cell-stack > :not([hidden])")] as [
+          Element,
+          Element,
+        ];
+        const t = lineMetrics(title);
+        const s = lineMetrics(sub);
+        const at = `${tier} row ${String(i)}`;
+        expect(s.baseline - s.cap - t.baseline, `${at} gap`).toBeCloseTo(space, 0);
+        const r = box.getBoundingClientRect();
+        const above = t.baseline - t.cap - r.top;
+        const below = r.bottom - s.baseline;
+        expect(
+          Math.abs(above - below),
+          `${at} above ${String(above)} below ${String(below)}`,
+        ).toBeLessThanOrEqual(0.5);
+        const cover = (box.querySelector(".cp-cover") as Element).getBoundingClientRect().height;
+        expect(r.height, `${at} height`).toBeCloseTo(cover, 1);
+      }
+    }
+  });
+
+  it("keeps a two-line title link's underline 1.5px clear of the line under it, hovered or focused", async () => {
+    theme("light");
+    const titleCell = (title: string, line: string) =>
+      `<table class="cp-table"><tbody><tr><td><div class="cp-title-cell"><span class="cp-cover" data-harmony="4"><span class="cp-icon" data-cp-icon="film"></span></span>` +
+      `<div class="cp-cell-stack">${title}${line}</div></div></td></tr></tbody></table>`;
+    const listRow = (title: string, line: string) =>
+      `<ul class="cp-list" style="inline-size: 20rem"><li><div class="cp-list-row"><span class="cp-cell-stack">${title}${line}</span></div></li></ul>`;
+    const markup =
+      titleCell('<a href="#t">Perfect Blue</a>', '<span class="cp-meta">OVA, 1997</span>') +
+      titleCell('<a class="cp-truncate" href="#t">Mushishi</a>', "<small>TV, 2005</small>") +
+      listRow('<a href="#t">Frieren</a>', "<small>TV, 2023</small>") +
+      listRow(
+        '<a class="cp-mono" href="#t">Perfect Blue</a>',
+        '<span class="cp-meta">TV, 2005</span>',
+      );
+    for (const tier of ["fine", "coarse"]) {
+      root.dataset["pointer"] = tier;
+      const el = build(markup);
+      for (const [i, stack] of [...el.querySelectorAll(".cp-cell-stack")].entries()) {
+        const [link, sub] = [...stack.children] as [HTMLElement, HTMLElement];
+        const s = lineMetrics(sub);
+        const capTop = s.baseline - s.cap;
+        // The text is unpainted and the underline drawn solid, so the
+        // underline is the stack's only ink, in whichever state.
+        for (const line of [link, sub]) {
+          line.style.setProperty("-webkit-text-fill-color", "transparent");
+        }
+        link.style.textDecorationColor = "rgb(255, 0, 0)";
+        link.style.outlineStyle = "none";
+        const states: [string, () => Promise<void>][] = [
+          ["hover", () => userEvent.hover(link)],
+          [
+            "focus-visible",
+            async () => {
+              await userEvent.unhover(link);
+              link.focus({ focusVisible: true } as FocusOptions);
+            },
+          ],
+        ];
+        for (const [state, enter] of states) {
+          await enter();
+          const bottom = await inkBottom(stack);
+          const at = `${tier} ${state} stack ${String(i)} underline ${String(bottom)} caps ${String(capTop)}`;
+          expect(bottom, at).not.toBeNull();
+          expect(capTop - (bottom ?? Infinity), at).toBeGreaterThanOrEqual(1.5);
+        }
+        link.blur();
+      }
     }
   });
 

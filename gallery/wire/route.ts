@@ -1,0 +1,148 @@
+import type { ListDetail } from "@cplieger/ui/list-detail";
+
+// Each entry this router owns records whether the entry before it showed the
+// list, beside the app's other `history.state` keys, so Close is one Back to
+// that list or else a push of the list's address: never a jump over several
+// entries.
+const FROM_LIST = "cp-gallery-from-list";
+
+const fromList = (state: unknown): boolean | undefined => {
+  const v: unknown =
+    typeof state === "object" && state !== null ? Reflect.get(state, FROM_LIST) : undefined;
+  return typeof v === "boolean" ? v : undefined;
+};
+
+const stamp = (from: boolean, url?: string): void => {
+  const own: unknown = history.state;
+  history.replaceState(
+    { ...(typeof own === "object" && own !== null ? own : {}), [FROM_LIST]: from },
+    "",
+    url,
+  );
+};
+
+/** Whether following `link` navigates this page: HTML's "get an element's target"
+ *  (https://html.spec.whatwg.org/multipage/semantics.html#get-an-element's-target)
+ *  then "the rules for choosing a navigable"
+ *  (https://html.spec.whatwg.org/multipage/document-sequences.html#the-rules-for-choosing-a-navigable),
+ *  keywords compared ASCII case-insensitively. */
+const navigatesHere = (link: Element): boolean => {
+  const target = link.hasAttribute("target")
+    ? (link.getAttribute("target") ?? "")
+    : (document.querySelector("base[target]")?.getAttribute("target") ?? "");
+  if (/[\t\n\r]/.test(target) && target.includes("<")) {
+    return false;
+  }
+  switch (target.replace(/[A-Z]/g, (c) => c.toLowerCase())) {
+    case "":
+    case "_self":
+      return true;
+    case "_top":
+      return window === window.top;
+    case "_parent":
+      return window === window.parent;
+    case "_blank":
+      return false;
+    default:
+      return target === window.name;
+  }
+};
+
+export interface ListRouteOptions {
+  /** Whether a fragment, with its `#`, names an entry the page can show. */
+  readonly names: (hash: string) => boolean;
+  /** The list's own address, which Close pushes when the entry before it showed no list. */
+  readonly list: string;
+  /** Renders what the address names, `still` on the page's load; called again
+   *  for the same address, it changes nothing. */
+  readonly sync: (still: boolean) => void;
+}
+
+export interface ListRoute {
+  /** The list-detail's `onDismiss`. */
+  readonly close: () => void;
+  /** Stamps the entry the page loaded on, rewriting its address to `url` when
+   *  given, renders it, and follows Back, Forward, a fragment's change and a
+   *  restore. */
+  start(detail: ListDetail, url?: string): void;
+}
+
+/** The gallery's sample router for a list-detail whose address is the page's fragment. */
+export function routeListDetail(options: ListRouteOptions): ListRoute {
+  const { names, list, sync } = options;
+  /** Set from a Close's Back until the page arrives, so a second Close leaves no further. */
+  let leaving = false;
+
+  const arrive = (e: Event): void => {
+    leaving = false;
+    if (e instanceof HashChangeEvent && fromList(history.state) === undefined) {
+      stamp(!names(new URL(e.oldURL).hash));
+    }
+    sync(false);
+  };
+
+  return {
+    close: () => {
+      if (leaving) {
+        return;
+      }
+      if (fromList(history.state) === true) {
+        leaving = true;
+        history.back();
+        return;
+      }
+      history.pushState({ [FROM_LIST]: false }, "", list);
+      sync(false);
+    },
+    start(detail, url) {
+      if (fromList(history.state) === undefined) {
+        stamp(false, url ?? location.href);
+      }
+      addEventListener("popstate", arrive);
+      addEventListener("hashchange", arrive);
+      addEventListener("pageshow", (e) => {
+        if (e.persisted) {
+          arrive(e);
+        }
+      });
+      // A press on a link to the address itself would replace its entry, which
+      // in Firefox drops its state (https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate-fragid);
+      // the page keeps the entry and only moves focus. While the address names
+      // an entry, the detail is one panel whose content a link to another
+      // entry changes, so that link replaces the entry, keeping its state.
+      document.addEventListener("click", (e) => {
+        const link = e.target instanceof Element ? e.target.closest("a[href], area[href]") : null;
+        const plain = e.button === 0 && !(e.metaKey || e.ctrlKey || e.shiftKey || e.altKey);
+        if (link === null || !plain || e.defaultPrevented || !navigatesHere(link)) {
+          return;
+        }
+        // From the attribute, since an SVG <a> has no HTML href getter; SVG 2
+        // deprecates xlink:href (https://www.w3.org/TR/SVG2/linking.html#AElementHrefAttribute).
+        // An address that does not parse is left to the browser.
+        const to = URL.parse(link.getAttribute("href") ?? "", link.baseURI);
+        if (
+          to === null ||
+          location.hash === "" ||
+          to.href.split("#")[0] !== location.href.split("#")[0]
+        ) {
+          return;
+        }
+        if (to.href !== location.href) {
+          if (names(location.hash) && names(to.hash)) {
+            e.preventDefault();
+            stamp(fromList(history.state) ?? false, to.href);
+            sync(false);
+          }
+          return;
+        }
+        e.preventDefault();
+        if (detail.key === null) {
+          document.getElementById(location.hash.slice(1))?.scrollIntoView();
+        } else {
+          detail.show(detail.key);
+        }
+      });
+      sync(true);
+    },
+  };
+}

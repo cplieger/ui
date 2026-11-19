@@ -286,11 +286,13 @@ const ARRIVALS: readonly Activity[] = [
 function activityRow(a: Activity): HTMLLIElement {
   const glyph = icon(a.glyph);
   glyph.dataset["tone"] = a.tone;
+  const what = document.createElement("span");
+  what.textContent = a.what;
   const facts = document.createElement("small");
   facts.textContent = a.facts;
   const text = document.createElement("span");
   text.className = "cp-cell-stack";
-  text.append(a.what, facts);
+  text.append(what, facts);
   const time = document.createElement("time");
   time.dateTime = new Date().toISOString();
   enhanceRelativeTime(time);

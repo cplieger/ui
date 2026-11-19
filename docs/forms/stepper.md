@@ -53,5 +53,5 @@ The same bar holds a signed value in a text field between steps of several sizes
 
 - The field is a text `<input>`, since a number field can show no "+". It takes its range and step from `data-min`, `data-max` and `data-step`, and Up and Down step it. It keeps one width, set for a value such as "−60.00".
 - It shows a sign before the value at the step's or the markup's decimals, whichever is finer, with a true minus: "+1.25", "−1.25" or "0.00". `format(value)` gives another form. A typed value settles to that form within the range once the field changes, and text that is no number puts back the last value.
-- A button marked `data-reset` whose `aria-controls` is the field's id sets the value to that attribute's value, or with no value back to the markup's value. The field needs its id for it.
+- A button marked `data-reset` whose `aria-controls` names the field's id sets the value to that attribute's value, or with no value back to the markup's value. The field needs its id for it.
 - Give each button a tip that says what it does, such as `data-cp-tip="1 second earlier"`, since "−1 s" alone reads as "minus 1 s". The tip describes the button, and its name stays its visible words, so speech input reaches it by what it shows.

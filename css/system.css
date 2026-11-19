@@ -4118,6 +4118,11 @@ a.cp-wordmark {
   font-size: var(--cp-text-xs);
 }
 
+.cp-required {
+  color: var(--cp-ink-muted);
+  font-weight: var(--cp-weight-body);
+}
+
 .cp-input {
   --cp-chart-surface: var(--cp-surface-raised);
 
@@ -4669,7 +4674,7 @@ input.cp-input:is([type^="date"], [type="time"]):focus-within {
   appearance: textfield;
 }
 
-:root[data-pointer="fine"] .cp-stepper > input {
+:root[data-pointer="fine"] .cp-stepper > :is(input, .cp-stepper-value) {
   font-size: var(--cp-text-ui);
 }
 
@@ -4684,12 +4689,13 @@ input.cp-input:is([type^="date"], [type="time"]):focus-within {
 
 /* Wide enough for "100%": three tabular digits and a percent sign, which is
  * up to two digits wide in the fallback fonts. A shorter value sits centred
- * and the plus never moves. It reads in the ink a field's value takes, over
- * a quiet button's muted ink. */
+ * and the plus never moves. It reads in the ink and size a field's value
+ * takes, over a quiet button's. */
 .cp-stepper > .cp-button.cp-stepper-value {
   justify-content: center;
   min-inline-size: calc(5ch + 2 * var(--cp-control-pad-x));
   color: var(--cp-ink);
+  font-size: max(16px, var(--cp-text-ui));
   font-variant-numeric: tabular-nums;
 }
 
@@ -6353,7 +6359,8 @@ th[aria-sort="descending"] > .cp-sort::after {
 }
 
 /* Facts: a native <dl>, the labels muted in one column and the values in
- * the next, in one column under 40rem as .cp-pairs stacks. A compared fact,
+ * the next, in one column under 40rem as .cp-pairs stacks, or in a panel
+ * narrower than 24rem, such as a side column's card. A compared fact,
  * data-variant="compare", holds a .cp-state word and a <small> note in its
  * <dd>, the three in aligned columns. */
 .cp-facts {
@@ -6414,7 +6421,7 @@ th[aria-sort="descending"] > .cp-sort::after {
     gap: 0;
   }
 
-  .cp-facts > dd {
+  .cp-facts > dd:not(:last-child) {
     margin-block-end: var(--cp-space-3);
   }
 
@@ -6428,7 +6435,36 @@ th[aria-sort="descending"] > .cp-sort::after {
     grid-column: 1 / -1;
   }
 
-  .cp-facts[data-variant="compare"] > dd > * {
+  .cp-facts[data-variant="compare"] > dd:not(:last-child) > * {
+    margin-block-end: var(--cp-space-3);
+  }
+}
+
+/* A panel holding facts is their container, as a flush panel is a table's. */
+.cp-panel:has(> .cp-facts) {
+  container: cp-facts / inline-size;
+}
+
+@container cp-facts (width < 24rem) {
+  .cp-facts {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+
+  .cp-facts > dd:not(:last-child) {
+    margin-block-end: var(--cp-space-3);
+  }
+
+  .cp-facts[data-variant="compare"] {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 0 var(--cp-space-3);
+  }
+
+  .cp-facts[data-variant="compare"] > dt {
+    grid-column: 1 / -1;
+  }
+
+  .cp-facts[data-variant="compare"] > dd:not(:last-child) > * {
     margin-block-end: var(--cp-space-3);
   }
 }
@@ -7514,7 +7550,17 @@ th[aria-sort="descending"] > .cp-sort::after {
 /* A video under the library's controls (@cplieger/ui/video): the native
  * element 16:9 on black, its captions on a dark plate, then a bar of play
  * and pause, the seek bar and both times. */
+
+/* Registered, so video.ts reads it back in px. */
+@property --cp-video-caption-margin {
+  syntax: "<length>";
+  inherits: true;
+  initial-value: 0;
+}
+
 .cp-video {
+  --cp-video-caption-margin: var(--cp-space-3);
+
   display: grid;
   gap: var(--cp-space-2);
   max-inline-size: 40rem;
@@ -7531,6 +7577,13 @@ th[aria-sort="descending"] > .cp-sort::after {
   background: oklch(0% 0 0deg / 70%);
   color: oklch(100% 0 0deg);
   font-family: var(--cp-font-body);
+}
+
+/* With its own controls off, each engine draws an auto-placed caption on the
+ * picture's bottom edge. Firefox has no such box, so video.ts seats its cues
+ * by their line instead. */
+.cp-video[data-cp-auto-cues] > video::-webkit-media-text-track-container {
+  translate: 0 calc(-1 * var(--cp-video-caption-margin));
 }
 
 .cp-video > [data-part="bar"] {
@@ -7751,11 +7804,86 @@ th[aria-sort="descending"] > .cp-sort::after {
 /* A name with no break point, such as a file's or a path, wraps inside the
  * row rather than widening it. */
 .cp-list-row > .cp-cell-stack {
+  --cp-two-lines: calc(
+    var(--cp-line-1, 1lh) + 0.125rem + var(--cp-line-2, var(--cp-text-xs) * var(--cp-leading-ui))
+  );
+
   flex: 1;
   justify-items: stretch;
   min-inline-size: 0;
   padding-block: 0;
   overflow-wrap: anywhere;
+}
+
+/* Two lines, in a list row or a table's title cell, sit tight: each
+ * trimmed to its cap height and baseline, the smallest space apart, and
+ * centred. A list row's stack keeps the height its untrimmed line boxes
+ * took, so the freed room is shared above and below; a title cell's
+ * cover sets its row's height. */
+/* stylelint-disable-next-line selector-max-pseudo-class, selector-max-attribute, selector-max-combinators, selector-max-compound-selectors -- two shown lines, outside a tile and a skeleton row, which draw their lines their own way */
+:is(
+    :where(.cp-list:not([data-layout="grid"]) > li) > .cp-list-row:not([data-skeleton]),
+    .cp-title-cell
+  )
+  > .cp-cell-stack:where(
+    :has(> :nth-child(2 of :not([hidden]))):not(:has(> :nth-child(3 of :not([hidden]))))
+  ) {
+  align-content: center;
+  gap: var(--cp-space-1);
+  min-block-size: var(--cp-two-lines, auto);
+}
+
+/* The same stack's lines, matched from their own side: a `:has()` left of
+ * `> *` makes Chromium restyle the whole page on every insertion. The
+ * parent test leads, because WebKit checks a compound in order and each
+ * count of shown siblings walks them. Each line's padding, taken back by
+ * its margin, keeps a cut line's ascenders, descenders and underline
+ * inside its clip. */
+/* stylelint-disable-next-line selector-max-pseudo-class, selector-max-attribute, selector-max-combinators, selector-max-compound-selectors -- the lines of the stack above */
+:is(
+    :where(.cp-list:not([data-layout="grid"]) > li) > .cp-list-row:not([data-skeleton]),
+    .cp-title-cell
+  )
+  > .cp-cell-stack
+  > :where(
+    :is(.cp-cell-stack > *):not(:only-child):is(
+        :nth-child(1 of :not([hidden])):nth-last-child(2 of :not([hidden])),
+        :nth-child(2 of :not([hidden])):nth-last-child(1 of :not([hidden]))
+      )
+  ) {
+  margin-block: -0.3em;
+  padding-block: 0.3em;
+  text-box: trim-both cap alphabetic;
+
+  /* A flex container is not trimmed, so a line led by a glyph flows as
+   * text with the glyph inline. */
+  &:is(.cp-kept, :has(> .cp-icon)) {
+    display: block;
+  }
+
+  & > :where(.cp-icon),
+  &:where(.cp-kept)::before {
+    display: inline-block;
+    margin-inline-end: var(--cp-space-1);
+    vertical-align: middle;
+  }
+
+  /* The line under a title link is one space down, so a base link's
+   * underline would run into that line's capitals. */
+  &:where(a:nth-child(1 of :not([hidden]))) {
+    text-decoration-thickness: 0.0625rem;
+    text-underline-offset: 0.0625rem;
+  }
+}
+
+/* The untrimmed line boxes: a mono title is set smaller, a .cp-meta line
+ * at the row's size. */
+.cp-list-row > .cp-cell-stack:has(> .cp-mono:first-child) {
+  --cp-line-1: 0.92lh;
+}
+
+.cp-list-row > .cp-cell-stack:has(> * + .cp-meta:not([hidden])) {
+  --cp-line-2: 1lh;
 }
 
 /* A row's title is its main text, so a cut title ends at the row's edge,
@@ -7929,6 +8057,20 @@ th[aria-sort="descending"] > .cp-sort::after {
 .cp-list[data-variant="timeline"] > li > .cp-list-row {
   align-items: start;
   padding: var(--cp-space-2) var(--cp-timeline-inset);
+}
+
+/* The words and the time start with their first line's cap band centred
+ * on the 2rem mark, whether the entry runs one line or several: the line
+ * is trimmed to its cap height and pushed down by half the mark less half
+ * a cap. The end is a grid or a flex box, which text-box does not trim,
+ * so its items are trimmed instead. */
+:where(.cp-list[data-variant="timeline"] > li) > .cp-list-row > [data-part="mark"] ~ * {
+  padding-block-start: calc(1rem - 0.5cap);
+  text-box: trim-start cap alphabetic;
+}
+
+:where(.cp-list[data-variant="timeline"] > li) > .cp-list-row > [data-part="end"] > * {
+  text-box: trim-start cap alphabetic;
 }
 
 .cp-list[data-variant="timeline"] > li:not(:last-child)::before {
@@ -8438,23 +8580,33 @@ div.cp-list-foot {
   gap: var(--cp-space-1) var(--cp-space-2);
 }
 
-.cp-feed-entry > header > a {
+.cp-feed-entry > header > a:not(.cp-filter-chip) {
   color: var(--cp-ink);
   font-weight: var(--cp-weight-medium);
   text-decoration-color: transparent;
 }
 
-.cp-feed-entry > header > a:focus-visible {
+.cp-feed-entry > header > a:not(.cp-filter-chip):focus-visible {
   color: var(--cp-accent-ink);
   text-decoration-color: currentcolor;
 }
 
 @media (any-hover: hover) {
   @scope (:root:not([data-pointer="coarse"])) {
-    .cp-feed-entry > header > a:hover {
+    .cp-feed-entry > header > a:not(.cp-filter-chip):hover {
       color: var(--cp-accent-ink);
     }
   }
+}
+
+/* An origin link never widens the header: a long one cuts in its
+ * .cp-truncate, at the header's width rather than the truncate's 14rem. */
+.cp-feed-entry > header > .cp-filter-chip {
+  max-inline-size: 100%;
+}
+
+.cp-feed-entry > header > .cp-filter-chip > .cp-truncate {
+  --cp-truncate-w: none;
 }
 
 .cp-feed-entry > header > time {
@@ -9151,12 +9303,15 @@ div.cp-list-foot {
 /* A side column beside the rest, such as a poster beside its facts or a
  * form's help beside the form. It stacks above the rest once the rest would
  * be narrower than half the box, with no media or container query: the
- * element sizes to whatever holds it. The side's width is --cp-side-width. */
+ * element sizes to whatever holds it. The side's width is --cp-side-width.
+ * Each column keeps its own height, so a card beside a longer column ends
+ * where its content does. */
 .cp-side-main {
   --cp-side-width: 16rem;
 
   display: flex;
   flex-wrap: wrap;
+  align-items: start;
   gap: var(--cp-space-4);
 }
 
@@ -9200,19 +9355,20 @@ div.cp-list-foot {
   gap: var(--cp-space-4);
 }
 
+/* Docked, both columns start at the top and the list keeps its own height,
+ * so a detail taller than the list leaves no empty band under its last row. */
 .cp-list-detail[data-cp-docked] {
   grid-template-columns: minmax(0, 1fr) var(--cp-detail-w);
+  align-items: start;
 }
 
 /* Wide: the detail is the work, such as an open conversation, and takes
  * the room left by a list of 30% of the box, kept within 16rem and 22rem.
  * Docked, it sticks under any sticky header and is at most the window's
  * height less that header, so the list and the detail scroll apart; its
- * second child fills the rest and scrolls inside it. The list keeps its own
- * height beside that window-tall detail. */
+ * second child fills the rest and scrolls inside it. */
 .cp-list-detail[data-variant="wide"][data-cp-docked] {
   grid-template-columns: clamp(16rem, 30%, 22rem) minmax(0, 1fr);
-  align-items: start;
 }
 
 .cp-list-detail[data-variant="wide"][data-cp-docked] > .cp-detail {
@@ -12282,11 +12438,10 @@ button.cp-figure[aria-expanded="true"]::after {
 /* A fixed button is as wide as its widest state: every state's icon and
  * words sit hidden in one cell across the button, and the state on show
  * sits centred over them between two free tracks. The gap moves onto the
- * words, because a grid gap would also open beside the empty free tracks,
- * and words hidden to show the icon alone take their gap with them.
- * It is always laid out at its widest state's width: Gecko gives an item
- * spanning free tracks no min-content size, which a table's 1% actions
- * cell asks for, and a fixed button's words never wrap anyway. */
+ * words, as a grid gap would also open beside the free tracks. The hidden
+ * cell is a .cp-roll, so `> .cp-roll { display: none }` drops it too. It is
+ * laid out at max-content: Gecko gives an item spanning free tracks no
+ * min-content size, which a table's 1% actions cell asks for. */
 .cp-button[data-cp-confirm="fixed"] {
   display: inline-grid;
   grid-template-columns: 1fr auto auto 1fr;
@@ -12311,9 +12466,12 @@ button.cp-figure[aria-expanded="true"]::after {
   margin-inline-start: var(--cp-space-2);
 }
 
-.cp-button[data-cp-confirm="fixed"] > [data-part="faces"] {
-  display: grid;
+/* Its grid is .cp-roll's: a display here would beat the rule that hides the words. */
+.cp-button[data-cp-confirm="fixed"] > .cp-roll[data-part="faces"] {
   grid-area: 1 / 1 / 2 / -1;
+  block-size: auto;
+  margin-inline-start: 0;
+  overflow: visible;
   visibility: hidden;
 }
 
@@ -12917,8 +13075,8 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
   margin-inline-end: 0;
   opacity: 0;
   transition:
-    inline-size 220ms var(--cp-ease-spring),
-    margin 220ms var(--cp-ease-spring),
+    inline-size var(--cp-dur-medium) var(--cp-ease-spring),
+    margin var(--cp-dur-medium) var(--cp-ease-spring),
     opacity 160ms var(--cp-ease-out);
 }
 
@@ -12973,6 +13131,18 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
   mask-image: url("../icons/svg/external-link.svg");
 }
 
+/* A link with a data-tone, such as a feed entry's origin, takes the tone's
+ * wash and ink in place of the outline, and keeps its mark. */
+:where(a).cp-filter-chip[data-tone] {
+  border-color: transparent;
+  background: var(--cp-tone-3);
+  color: var(--cp-tone-11);
+}
+
+:where(a).cp-filter-chip[data-tone]::after {
+  background: currentcolor;
+}
+
 @media (any-hover: hover) {
   @scope (:root:not([data-pointer="coarse"])) {
     :where(a).cp-filter-chip:hover {
@@ -12980,11 +13150,20 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
       background: var(--cp-fill);
     }
 
+    :where(a).cp-filter-chip[data-tone]:hover {
+      border-color: transparent;
+      background: var(--cp-tone-4);
+    }
+
     /* Forced colours would paint this ink as Canvas, so the mark keeps
      * its system colour there. */
     @media (forced-colors: none) {
       :where(a).cp-filter-chip:hover::after {
         background: var(--cp-ink);
+      }
+
+      :where(a).cp-filter-chip[data-tone]:hover::after {
+        background: currentcolor;
       }
     }
   }
@@ -13001,7 +13180,8 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
     color: HighlightText;
   }
 
-  :where(a).cp-filter-chip {
+  :where(a).cp-filter-chip,
+  :where(a).cp-filter-chip[data-tone] {
     border-color: LinkText;
   }
 

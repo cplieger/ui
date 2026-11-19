@@ -58,15 +58,16 @@ A field's error stays a `.cp-field-error` under its field.
 
 ## Forms
 
-A form never loses what the person typed, and every error is text that says how to fix it. [form](forms/form.md) shows and clears the errors as steps 3 to 5 ask, from the app's own checks.
+A form never loses what the person typed, and every error is text that says how to fix it. [form](forms/form.md) shows and clears the errors as steps 4 to 6 ask, from the app's own checks.
 
-1. Each control has a visible `<label>`, with `.cp-help` under it when a format or a source needs saying, and "Required." in it for a field that is. A required field takes `aria-required="true"`, never `required`, which some browsers read as an invalid entry before anything is typed. A search field in a toolbar is the one exception. It may go without a label when its placeholder starts with "Search" and names what it searches, such as "Search titles…", and its accessible name is the same words.
-2. Validate a field when it loses focus and when the form submits, never on every keystroke. Keep submit enabled, so a submit shows what is missing.
-3. A field with an error gets `aria-invalid="true"` and a `.cp-field-error` under it, with a `circle-x` icon and a sentence that names the fix, such as "Enter 5 minutes or more". Tie the error to the field with `aria-describedby`.
-4. On a submit with one error, focus its field. With two or more, show a danger notice at the top of the form that lists each field as a link to it. Head it with the count, such as "2 settings need a fix before they save", give it `tabindex="-1"` and focus it; [form](forms/form.md) names it by that heading.
-5. Clear a field's error as soon as its value is valid. Never clear what the person typed.
-6. While the form saves, the submit button is busy, and the fields stay as they are.
-7. A form with unsaved changes asks before a navigation or a close that would discard them. [form](forms/form.md#unsaved-changes)'s `guardChanges` counts the changes, asks, and takes in values saved elsewhere while keeping the person's.
+1. Each control has a visible `<label>`, with `.cp-help` under it when a format or a source needs saying. A search field in a toolbar is the one exception. It may go without a label when its placeholder starts with "Search" and names what it searches, such as "Search titles…", and its accessible name is the same words.
+2. A field the submit needs carries `aria-required="true"` and shows the word "Required." as its `.cp-help` line, or, when the field already has help, `<span class="cp-required">(Required)</span>` inside its label, such as "API key (Required)". Those two are the only marks: the gallery's form check counts nothing else, and needs the mark visible, uncut and unclipped, with a closed `details`, dialog or popover around the field opened first. A sighted person then sees what is needed before submitting ([WCAG 2.2 SC 3.3.2](https://www.w3.org/WAI/WCAG22/Understanding/labels-or-instructions)), and `aria-required` tells assistive technology the same. Never use `required`: an empty `required` field is invalid before anything is typed, and Firefox and WebKit then call it an invalid entry. The submit's own check finds what is missing.
+3. Validate a field when it loses focus and when the form submits, never on every keystroke. Keep submit enabled, so a submit shows what is missing.
+4. A field with an error gets `aria-invalid="true"` and a `.cp-field-error` under it, with a `circle-x` icon and a sentence that names the fix, such as "Enter 5 minutes or more". Tie the error to the field with `aria-describedby`.
+5. On a submit with one error, focus its field. With two or more, show a danger notice at the top of the form that lists each field as a link to it. Head it with the count, such as "2 settings need a fix before they save", give it `tabindex="-1"` and focus it; [form](forms/form.md) names it by that heading.
+6. Clear a field's error as soon as its value is valid. Never clear what the person typed.
+7. While the form saves, the submit button is busy, and the fields stay as they are.
+8. A form with unsaved changes asks before a navigation or a close that would discard them. [form](forms/form.md#unsaved-changes)'s `guardChanges` counts the changes, asks, and takes in values saved elsewhere while keeping the person's.
 
 **A value set elsewhere.** A value the page shows but cannot change, because a config file, the environment or an administrator sets it, is a `.cp-set-elsewhere` line where its control would be: the value as text, a neutral `.cp-chip` naming where it is set, such as "from config.yaml", and one sentence of help on how to change it. It is never a disabled control, which would hide the value from some readers and say nothing about why. A secret shows its state in place of its value.
 
@@ -136,12 +137,15 @@ A list is a column of rows that each open or name one thing, such as conversatio
   <li>
     <a class="cp-list-row" href="#c-feed" data-unread>
       <span class="cp-cell-stack">
-        <span class="cp-truncate cp-mono">/workspace/ui/src/data/feed</span>
+        <span class="cp-truncate cp-mono" data-cut="start" dir="ltr" data-cp-tip="/workspace/ui/src/data/feed">/workspace/ui/src/data/feed</span>
         <small class="cp-truncate">@codex: The queue moves to you once the scroll fix merges.</small>
       </span>
       <span data-part="end">
         <time datetime="2026-11-11T09:40:00Z">09:40</time>
-        <span class="cp-cluster"><span class="cp-badge">2<span class="cp-visually-hidden"> unread</span></span></span>
+        <span class="cp-cluster">
+          <span class="cp-meta"><span class="cp-icon" data-cp-icon="users" aria-hidden="true"></span>5<span class="cp-visually-hidden"> participants</span></span>
+          <span class="cp-badge" data-variant="quiet">2<span class="cp-visually-hidden"> unread</span></span>
+        </span>
       </span>
     </a>
   </li>
@@ -150,13 +154,14 @@ A list is a column of rows that each open or name one thing, such as conversatio
 
 1. A row is one target. When the whole row opens one thing, the row is the link (`a.cp-list-row`) or a button. Otherwise it is a `<div>` that holds at most a title link and, at its end, one worded action, a small plain button whose accessible name adds the row, such as "Download Frieren.S01E04.en.ass", or one ⋯ button that opens the row's menu of actions, named and tipped "More for Frieren".
 2. The title and the line under it stay on one line each, cut with an ellipsis at the row's edge. Machine text, such as a path, is `.cp-mono`, and a path or name whose end tells it apart is cut at its start, `data-cut="start"`, so "…/marotte/web" keeps its leaf. A time is a `<time>` through [relative-time](data/relative-time.md), which keeps its words current and gives the exact time on hover and to a screen reader.
-3. An unread row carries `data-unread`, which sets its title in the heading weight, beside a badge whose number has the word "unread" for a screen reader, so colour is never the only sign. The open row carries `aria-current="page"`, or `"true"` when the list sits inside the open view.
-4. While the list loads, it carries `aria-busy="true"` and holds skeleton rows (`data-skeleton`) in the rows' shape. Empty, it is a `.cp-empty` that names what belongs there and offers the action that fills it, such as "No conversations in the last 72 hours." with New message.
-5. Rows that arrive while the person is in the list never push the rows they are reading. [held-list](data/held-list.md) holds them behind a `.cp-list-pending` line above the list that says how many wait, and its Show puts them in and moves focus to the first. A list whose new rows go at its end, oldest first, lets them in below the reader and counts them on the same line pinned under the list, whose Show goes to the newest.
-6. A row the app could not refresh, in a list or a table, carries `data-kept`, muted, with a `clock`, the time it is from and the reason in place of its second line, such as "Kept from 03:00: Sonarr walk partial". `markKept()` in [list-row](data/list-row.md) writes both, and a step track in the row goes grey with it.
-7. A list whose rows change while it is read is keyed by [keyed-list](data/keyed-list.md): each row keeps its element through a live update, a reorder moves the other rows around the focused one, and the row at the top of the view stays where it was. A list too long to draw, such as a library of tens of thousands, is a `.cp-list[data-virtual]` or a table body that holds only the rows in view and the focused one, a page not loaded yet in skeleton rows. When a filter narrows it, the count of matches, "5 of 640 titles", is said once typing stops.
-8. A list that pages ends in a `.cp-list-foot` with one button, such as "Show older", which [load-more](data/load-more.md) drives: it adds the next page before the foot, moves focus to the first row it added and says how many came, and the foot goes once no page is left. A conversation's older messages come the same way from a `.cp-feed-head` above its first entry. "New since your last visit" is one `.cp-since` line, in a list or a feed, where the new rows start.
-9. A list the person puts in order uses [reorder](data/reorder.md): every item has Move up and Move down, so a drag is never the only way, the others slide aside and the new place is said.
+3. An unread row carries `data-unread`, which sets its title in the heading weight, beside a quiet badge whose number has the word "unread" for a screen reader, so colour is never the only sign. The open row carries `aria-current="page"`, or `"true"` when the list sits inside the open view.
+4. A list of many rows that the person moves through, such as conversations, is one Tab stop: [roving-focus](core/roving-focus.md) moves between its rows with Up and Down, and Home and End go to its ends. A short set of links, such as a rail's filters, keeps each in Tab order.
+5. While the list loads, it carries `aria-busy="true"` and holds skeleton rows (`data-skeleton`) in the rows' shape. Empty, it is a `.cp-empty` that names what belongs there and offers the action that fills it, such as "No conversations in the last 72 hours." with New message.
+6. Rows that arrive while the person is in the list never push the rows they are reading. [held-list](data/held-list.md) holds them behind a `.cp-list-pending` line above the list that says how many wait, and its Show puts them in and moves focus to the first. A list whose new rows go at its end, oldest first, lets them in below the reader and counts them on the same line pinned under the list, whose Show goes to the newest.
+7. A row the app could not refresh, in a list or a table, carries `data-kept`, muted, with a `clock`, the time it is from and the reason in place of its second line, such as "Kept from 03:00: Sonarr walk partial". `markKept()` in [list-row](data/list-row.md) writes both, and a step track in the row goes grey with it.
+8. A list whose rows change while it is read is keyed by [keyed-list](data/keyed-list.md): each row keeps its element through a live update, a reorder moves the other rows around the focused one, the open row keeps `aria-current` wherever it moves, and the row at the top of the view stays where it was. A move says nothing of its own: the event that caused it is said once, such as the feed's "New message from @codex". A list too long to draw, such as a library of tens of thousands, is a `.cp-list[data-virtual]` or a table body that holds only the rows in view and the focused one, a page not loaded yet in skeleton rows. When a filter narrows it, the count of matches, "5 of 640 titles", is said once typing stops.
+9. A list that pages ends in a `.cp-list-foot` with one button, such as "Show older", which [load-more](data/load-more.md) drives: it adds the next page before the foot, moves focus to the first row it added and says how many came, and the foot goes once no page is left. A conversation's older messages come the same way from a `.cp-feed-head` above its first entry. "New since your last visit" is one `.cp-since` line, in a list or a feed, where the new rows start.
+10. A list the person puts in order uses [reorder](data/reorder.md): every item has Move up and Move down, so a drag is never the only way, the others slide aside and the new place is said.
 
 ## Tabs
 
@@ -227,6 +232,8 @@ A conversation is a [feed](data/feed.md): its messages oldest first, with the co
 5. The composer is a form like any other. Send stays enabled, so a press with an empty field says what is missing. Ctrl+Enter, or Command+Enter on a Mac, sends, and Enter breaks the line. On a phone the composer stays above the on-screen keyboard, and it never covers the last message.
 6. "Read by 3 of 5" opens who has read the message and who has not yet, with its own loading and error states.
 7. What surrounds the conversation, such as its reservations and followers, is a [context-panel](layout/context-panel.md): a column beside the feed in a wide box, and a disclosure above it in a narrow one.
+8. A conversation the person can read but not write in, such as one between two others, a locked thread or one they have no right to post in, keeps its foot. In the composer's place it says who writes there, "Only @alpha and @bravo write here.", over one button per way to write, such as "Message @alpha".
+9. Everything one person or agent has said or been told is a feed read newest first and never written in: each entry's origin is a link pill in its tone, to its conversation, and Show older is its last item.
 
 ## First run
 
@@ -249,6 +256,7 @@ First sync running is a `.cp-empty` whose heading starts with a `.cp-loader`, th
 - The URL is the state. Filters, sort, search, the open tab, the page of a list and an open sheet each live in the path or the query, so a link, a refresh and Back reopen the same view.
 - A navigation pushes a history entry, and a change while typing replaces the current one, so Back does not walk through every keystroke.
 - Back and Forward restore the view, its scroll position and the focus they left.
+- A [list-detail](layout/list-detail.md)'s open entry is in the address at every width, as its path or its fragment, such as `/messages/42` or `#c-internal`. A load on it opens that entry, docked or in its sheet, and its row is current once the list has it. An entry pressed or linked to while none is shown adds a history entry. One pressed or linked to while another is shown replaces the current entry, since the detail is one panel whose content changes, so Back from it returns to what was there before the detail opened. Close, Escape and a press outside leave the entry: one Back when the entry before it showed the list, otherwise a navigation to the list's address, never a jump over several entries. A press on the entry already open only moves focus to its heading. A route that keeps its own state in `history.state`, such as an entry's scroll, adds its keys beside the app's others, never replacing the object.
 - A route change moves focus to the new screen's `<h1>` and sets `<title>` to the screen's name.
 - A link to something that is gone, or a query value the app does not know, opens the nearest valid view with a notice that says what was dropped.
 - A destination is a link (`<a href>`), so a middle click, a new tab and a copied address all work. A button is for an action on this screen.

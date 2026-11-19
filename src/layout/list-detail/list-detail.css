@@ -10,19 +10,20 @@
   gap: var(--cp-space-4);
 }
 
+/* Docked, both columns start at the top and the list keeps its own height,
+ * so a detail taller than the list leaves no empty band under its last row. */
 .cp-list-detail[data-cp-docked] {
   grid-template-columns: minmax(0, 1fr) var(--cp-detail-w);
+  align-items: start;
 }
 
 /* Wide: the detail is the work, such as an open conversation, and takes
  * the room left by a list of 30% of the box, kept within 16rem and 22rem.
  * Docked, it sticks under any sticky header and is at most the window's
  * height less that header, so the list and the detail scroll apart; its
- * second child fills the rest and scrolls inside it. The list keeps its own
- * height beside that window-tall detail. */
+ * second child fills the rest and scrolls inside it. */
 .cp-list-detail[data-variant="wide"][data-cp-docked] {
   grid-template-columns: clamp(16rem, 30%, 22rem) minmax(0, 1fr);
-  align-items: start;
 }
 
 .cp-list-detail[data-variant="wide"][data-cp-docked] > .cp-detail {

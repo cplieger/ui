@@ -47,6 +47,29 @@ export function enhanceRovingFocus(group: HTMLElement, options: RovingFocusOptio
   };
   settle();
 
+  // An item added later, such as a list's next page or a live row, would be
+  // a Tab stop of its own, and one put back after it left with the stop
+  // would be a second; one that leaves with the stop hands it on.
+  const added = new MutationObserver((records) => {
+    for (const record of records) {
+      for (const node of record.addedNodes) {
+        if (!(node instanceof HTMLElement)) {
+          continue;
+        }
+        for (const i of [node, ...node.querySelectorAll<HTMLElement>(selector)]) {
+          if (i.matches(selector) && !i.hasAttribute("tabindex")) {
+            i.tabIndex = -1;
+          }
+        }
+      }
+    }
+    const stops = items().filter((i) => i.tabIndex === 0);
+    if (stops.length !== 1) {
+      settle(stops.find((i) => i === document.activeElement) ?? stops[0]);
+    }
+  });
+  added.observe(group, { childList: true, subtree: true });
+
   const back = new Set(
     orientation === "vertical"
       ? ["ArrowUp"]
@@ -65,6 +88,11 @@ export function enhanceRovingFocus(group: HTMLElement, options: RovingFocusOptio
   group.addEventListener(
     "keydown",
     (e) => {
+      // A key with a modifier is the browser's or the page's, such as
+      // Alt+Left for Back.
+      if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) {
+        return;
+      }
       const list = items();
       const at = list.indexOf(e.target as HTMLElement);
       if (at < 0) {
@@ -86,6 +114,11 @@ export function enhanceRovingFocus(group: HTMLElement, options: RovingFocusOptio
       } else if (key === "End") {
         next = list.length - 1;
       } else {
+        return;
+      }
+      // An arrow with nowhere to go scrolls the page as it would without
+      // the group; Home and End always name an item, even the focused one.
+      if (next === at && key !== "Home" && key !== "End") {
         return;
       }
       e.preventDefault();
@@ -111,6 +144,7 @@ export function enhanceRovingFocus(group: HTMLElement, options: RovingFocusOptio
   signal?.addEventListener(
     "abort",
     () => {
+      added.disconnect();
       for (const i of group.querySelectorAll<HTMLElement>(selector)) {
         i.removeAttribute("tabindex");
       }

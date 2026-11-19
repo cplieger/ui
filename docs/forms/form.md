@@ -39,7 +39,7 @@ url.addEventListener("blur", () => (isValidUrl(url.value) ? clearError(url) : sh
 
 ## Unsaved changes
 
-`guardChanges(form, options)` keeps track of what the person changed and asks before a navigation or a close drops it, as step 7 of the [forms pattern](../design-patterns.md#forms) asks. The same guard serves a page of settings and a dialog.
+`guardChanges(form, options)` keeps track of what the person changed and asks before a navigation or a close drops it, as step 8 of the [forms pattern](../design-patterns.md#forms) asks. The same guard serves a page of settings and a dialog.
 
 ```html
 <form class="cp-form" id="checks">
