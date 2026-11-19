@@ -110,24 +110,36 @@ const requiredMarks = (): Marks => {
 
 /** Whether form `at`, a [control, form] index into `marks`, puts pixels on the
  *  screen. Turning its text's fill transparent moves no layout and no
- *  background, so only its glyphs can change the screenshot of its box. */
+ *  background, so only its glyphs can change the screenshot of its box. The
+ *  box is read again after two frames until it holds still, because a page's
+ *  script or fonts can still move the word after its load event. */
 const paints = async (
   tab: Page,
   marks: JSHandle<Marks>,
   at: [number, number],
 ): Promise<boolean> => {
-  const clip = await marks.evaluate((list, [i, j]) => {
-    const form = list[i]?.forms[j];
-    form?.parents[0]?.scrollIntoView({ block: "center", inline: "center" });
-    const rect = form?.range.getBoundingClientRect() ?? new DOMRect();
-    const [x, y] = [Math.max(0, Math.floor(rect.left)), Math.max(0, Math.floor(rect.top))];
-    return {
-      x,
-      y,
-      width: Math.min(innerWidth, Math.ceil(rect.right)) - x,
-      height: Math.min(innerHeight, Math.ceil(rect.bottom)) - y,
-    };
-  }, at);
+  const measure = () =>
+    marks.evaluate(async (list, [i, j]) => {
+      await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)));
+      const form = list[i]?.forms[j];
+      form?.parents[0]?.scrollIntoView({ block: "center", inline: "center" });
+      const rect = form?.range.getBoundingClientRect() ?? new DOMRect();
+      const [x, y] = [Math.max(0, Math.floor(rect.left)), Math.max(0, Math.floor(rect.top))];
+      return {
+        x,
+        y,
+        width: Math.min(innerWidth, Math.ceil(rect.right)) - x,
+        height: Math.min(innerHeight, Math.ceil(rect.bottom)) - y,
+      };
+    }, at);
+  let clip = await measure();
+  for (let tries = 0; tries < 10; tries++) {
+    const again = await measure();
+    if (JSON.stringify(again) === JSON.stringify(clip)) {
+      break;
+    }
+    clip = again;
+  }
   if (clip.width < 1 || clip.height < 1) {
     return false;
   }
@@ -1305,6 +1317,53 @@ describe.each(browsers)("the gallery in %s", (name) => {
         popup: `${N}#md/mushishi`,
         shows: "Frieren: Beyond Journey's End",
         length: opened,
+      });
+    }, 60_000);
+
+    it("leaves a press on another row's download link to the browser", async () => {
+      const tab = await (browser as Browser).newPage({ viewport: { width: 1280, height: 800 } });
+      await tab.goto(`${origin}/index.html`);
+      await tab.goto(`${origin}${N}`);
+      await wired(tab);
+      await press(tab, "#md/frieren");
+      await at(tab, `${N}#md/frieren`);
+      const opened = await tab.evaluate(() => {
+        document
+          .querySelector('#md a.cp-list-row[href="#md/mushishi"]')
+          ?.setAttribute("download", "");
+        // A window listener runs after the router's document listener.
+        addEventListener("click", (e) => {
+          document.documentElement.dataset["prevented"] = String(e.defaultPrevented);
+        });
+        return history.length;
+      });
+      const download = tab.waitForEvent("download", { timeout: 5000 }).catch(() => null);
+      await press(tab, "#md/mushishi");
+      const got = await download;
+      const url = got === null ? null : new URL(got.url());
+      await got?.cancel();
+      // Firefox 159 follows a same-document download link's fragment instead of
+      // downloading it, so there the browser's own push shows the row.
+      const follows = name === "firefox";
+      const stays = await at(tab, `${N}#md/${follows ? "mushishi" : "frieren"}`).catch(() =>
+        read(tab),
+      );
+      const state = await tab.evaluate(() => ({
+        length: history.length,
+        prevented: document.documentElement.dataset["prevented"],
+      }));
+      await tab.close();
+      expect({
+        download: url === null ? null : url.pathname + url.hash,
+        address: stays.address,
+        shows: stays.shows,
+        ...state,
+      }).toEqual({
+        download: follows ? null : `${N}#md/mushishi`,
+        address: `${N}#md/${follows ? "mushishi" : "frieren"}`,
+        shows: follows ? "Mushishi" : "Frieren: Beyond Journey's End",
+        length: follows ? opened + 1 : opened,
+        prevented: "false",
       });
     }, 60_000);
 

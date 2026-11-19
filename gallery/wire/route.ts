@@ -21,12 +21,17 @@ const stamp = (from: boolean, url?: string): void => {
   );
 };
 
-/** Whether following `link` navigates this page: HTML's "get an element's target"
+/** Whether a press on `link` navigates this page: HTML's following of hyperlinks
+ *  (https://html.spec.whatwg.org/multipage/links.html#following-hyperlinks), where a
+ *  `download` link downloads, then "get an element's target"
  *  (https://html.spec.whatwg.org/multipage/semantics.html#get-an-element's-target)
- *  then "the rules for choosing a navigable"
+ *  and "the rules for choosing a navigable"
  *  (https://html.spec.whatwg.org/multipage/document-sequences.html#the-rules-for-choosing-a-navigable),
  *  keywords compared ASCII case-insensitively. */
 const navigatesHere = (link: HTMLAnchorElement): boolean => {
+  if (link.hasAttribute("download")) {
+    return false;
+  }
   const target = link.hasAttribute("target")
     ? (link.getAttribute("target") ?? "")
     : (document.querySelector("base[target]")?.getAttribute("target") ?? "");
