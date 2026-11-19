@@ -116,6 +116,34 @@ describe("notice", () => {
     expect(getComputedStyle(q(box, "small")).color).toBe(resolved("var(--cp-warning-11)"));
   });
 
+  // Where a press lands, sampled every quarter pixel from the link's centre.
+  const pressHeight = (a: HTMLElement): number => {
+    const b = a.getBoundingClientRect();
+    const x = b.left + b.width / 2;
+    let up = 0;
+    let down = 0;
+    while (a.contains(document.elementFromPoint(x, b.top + b.height / 2 - up - 0.25))) {
+      up += 0.25;
+    }
+    while (a.contains(document.elementFromPoint(x, b.top + b.height / 2 + down + 0.25))) {
+      down += 0.25;
+    }
+    return up + down + 0.25;
+  };
+
+  it.each([
+    ["fine", 24],
+    ["coarse", 44],
+  ])("makes a notice's foot link a %s target of %ipx", (tier, min) => {
+    const el = build(
+      `<div style="padding-block: 3rem"><div ${VARIANT} data-tone="danger"><span class="cp-icon"></span><span><strong>Store full</strong> <small>Last seen 2m ago. <a href="#s">Details and fix</a></small></span></div>${reasonsBanner(VARIANT)}</div>`,
+    );
+    document.documentElement.setAttribute("data-pointer", tier);
+    for (const a of el.querySelectorAll<HTMLElement>("small a")) {
+      expect(pressHeight(a)).toBeGreaterThanOrEqual(min - 0.5);
+    }
+  });
+
   it("raises a primary link's words off its fill inside a notice", () => {
     const el = build(
       '<div class="cp-notice" data-tone="warning"><span>Update ready.</span><a class="cp-button" data-variant="primary" href="#r">Reload</a></div>',

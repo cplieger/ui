@@ -112,6 +112,21 @@
   font-size: var(--cp-text-xs);
 }
 
+/* A foot's link is the notice's one way to act, so a press reaches it across
+ * the tier's minimum target; the small line keeps its height. */
+.cp-notice small a {
+  position: relative;
+
+  &::after {
+    content: "";
+    position: absolute;
+    inset-block-start: 50%;
+    inset-inline: 0;
+    block-size: var(--cp-hit-min);
+    translate: 0 -50%;
+  }
+}
+
 @media (forced-colors: active) {
   .cp-notice {
     border: var(--cp-line-w) solid CanvasText;
