@@ -434,6 +434,20 @@
   padding: var(--cp-space-2) var(--cp-timeline-inset);
 }
 
+/* The words and the time start with their first line's cap band centred
+ * on the 2rem mark, whether the entry runs one line or several: the line
+ * is trimmed to its cap height and pushed down by half the mark less half
+ * a cap. The end is a grid or a flex box, which text-box does not trim,
+ * so its items are trimmed instead. */
+:where(.cp-list[data-variant="timeline"] > li) > .cp-list-row > [data-part="mark"] ~ * {
+  padding-block-start: calc(1rem - 0.5cap);
+  text-box: trim-start cap alphabetic;
+}
+
+:where(.cp-list[data-variant="timeline"] > li) > .cp-list-row > [data-part="end"] > * {
+  text-box: trim-start cap alphabetic;
+}
+
 .cp-list[data-variant="timeline"] > li:not(:last-child)::before {
   content: "";
   position: absolute;

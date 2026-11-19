@@ -17,6 +17,11 @@
   font-size: var(--cp-text-xs);
 }
 
+.cp-required {
+  color: var(--cp-ink-muted);
+  font-weight: var(--cp-weight-body);
+}
+
 .cp-input {
   --cp-chart-surface: var(--cp-surface-raised);
 

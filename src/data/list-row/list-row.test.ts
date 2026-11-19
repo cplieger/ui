@@ -246,3 +246,78 @@ describe("markKept", () => {
     expect(ul.querySelector("[data-kept]")).toBeNull();
   });
 });
+
+describe("a timeline's event", () => {
+  /** A timeline of one event per text: its mark, its words and its time. */
+  function timeline(texts: readonly string[]): HTMLOListElement {
+    const ol = document.createElement("ol");
+    ol.className = "cp-list";
+    ol.dataset["variant"] = "timeline";
+    ol.dataset["surface"] = "plain";
+    ol.style.inlineSize = "20rem";
+    for (const text of texts) {
+      const mark = document.createElement("span");
+      mark.dataset["part"] = "mark";
+      mark.dataset["tone"] = "success";
+      const words = document.createElement("p");
+      words.textContent = text;
+      const body = document.createElement("div");
+      body.append(words);
+      const time = document.createElement("time");
+      time.textContent = "14:05";
+      const end = document.createElement("span");
+      end.dataset["part"] = "end";
+      end.append(time);
+      const row = document.createElement("div");
+      row.className = "cp-list-row";
+      row.dataset["lines"] = "wrap";
+      row.append(mark, body, end);
+      const li = document.createElement("li");
+      li.append(row);
+      ol.append(li);
+    }
+    document.body.append(ol);
+    return ol;
+  }
+
+  /** The centre of the cap band of the first line `el`'s text draws. */
+  function capCentre(el: Element): number {
+    const mark = document.createElement("span");
+    mark.style.cssText = "display: inline-block; inline-size: 0; block-size: 0";
+    el.prepend(mark);
+    const baseline = mark.getBoundingClientRect().bottom;
+    mark.remove();
+    const style = getComputedStyle(el);
+    const ctx = document.createElement("canvas").getContext("2d");
+    if (ctx === null) {
+      throw new TypeError("no 2d context");
+    }
+    ctx.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+    return baseline - ctx.measureText("H").actualBoundingBoxAscent / 2;
+  }
+
+  it("centres its glyph and its time on its first line's cap band, on one line or several", async () => {
+    const ol = timeline([
+      "Grabbed Arid's BD release",
+      "Grabbed Arid's BD release of all 24 episodes, dual audio, replacing the web release",
+    ]);
+    await document.fonts.ready;
+    const rows = [...ol.querySelectorAll(".cp-list-row")];
+    const lines = rows.map((row) => {
+      const p = row.querySelector("p") as HTMLElement;
+      return Math.round(
+        p.getBoundingClientRect().height / parseFloat(getComputedStyle(p).lineHeight),
+      );
+    });
+    expect(lines[0]).toBe(1);
+    expect(lines[1]).toBeGreaterThanOrEqual(2);
+    for (const row of rows) {
+      const first = capCentre(row.querySelector("p") as Element);
+      const box = (row.querySelector('[data-part="mark"]') as Element).getBoundingClientRect();
+      expect(Math.abs((box.top + box.bottom) / 2 - first)).toBeLessThanOrEqual(0.5);
+      expect(Math.abs(capCentre(row.querySelector("time") as Element) - first)).toBeLessThanOrEqual(
+        0.5,
+      );
+    }
+  });
+});

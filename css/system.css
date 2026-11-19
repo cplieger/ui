@@ -3982,6 +3982,11 @@ a.cp-wordmark {
   font-size: var(--cp-text-xs);
 }
 
+.cp-required {
+  color: var(--cp-ink-muted);
+  font-weight: var(--cp-weight-body);
+}
+
 .cp-input {
   --cp-chart-surface: var(--cp-surface-raised);
 
@@ -6163,7 +6168,8 @@ th[aria-sort="descending"] > .cp-sort::after {
 }
 
 /* Facts: a native <dl>, the labels muted in one column and the values in
- * the next, in one column under 40rem as .cp-pairs stacks. A compared fact,
+ * the next, in one column under 40rem as .cp-pairs stacks, or in a panel
+ * narrower than 24rem, such as a side column's card. A compared fact,
  * data-variant="compare", holds a .cp-state word and a <small> note in its
  * <dd>, the three in aligned columns. */
 .cp-facts {
@@ -6224,7 +6230,7 @@ th[aria-sort="descending"] > .cp-sort::after {
     gap: 0;
   }
 
-  .cp-facts > dd {
+  .cp-facts > dd:not(:last-child) {
     margin-block-end: var(--cp-space-3);
   }
 
@@ -6238,7 +6244,36 @@ th[aria-sort="descending"] > .cp-sort::after {
     grid-column: 1 / -1;
   }
 
-  .cp-facts[data-variant="compare"] > dd > * {
+  .cp-facts[data-variant="compare"] > dd:not(:last-child) > * {
+    margin-block-end: var(--cp-space-3);
+  }
+}
+
+/* A panel holding facts is their container, as a flush panel is a table's. */
+.cp-panel:has(> .cp-facts) {
+  container: cp-facts / inline-size;
+}
+
+@container cp-facts (width < 24rem) {
+  .cp-facts {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+
+  .cp-facts > dd:not(:last-child) {
+    margin-block-end: var(--cp-space-3);
+  }
+
+  .cp-facts[data-variant="compare"] {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 0 var(--cp-space-3);
+  }
+
+  .cp-facts[data-variant="compare"] > dt {
+    grid-column: 1 / -1;
+  }
+
+  .cp-facts[data-variant="compare"] > dd:not(:last-child) > * {
     margin-block-end: var(--cp-space-3);
   }
 }
@@ -7829,6 +7864,20 @@ th[aria-sort="descending"] > .cp-sort::after {
   padding: var(--cp-space-2) var(--cp-timeline-inset);
 }
 
+/* The words and the time start with their first line's cap band centred
+ * on the 2rem mark, whether the entry runs one line or several: the line
+ * is trimmed to its cap height and pushed down by half the mark less half
+ * a cap. The end is a grid or a flex box, which text-box does not trim,
+ * so its items are trimmed instead. */
+:where(.cp-list[data-variant="timeline"] > li) > .cp-list-row > [data-part="mark"] ~ * {
+  padding-block-start: calc(1rem - 0.5cap);
+  text-box: trim-start cap alphabetic;
+}
+
+:where(.cp-list[data-variant="timeline"] > li) > .cp-list-row > [data-part="end"] > * {
+  text-box: trim-start cap alphabetic;
+}
+
 .cp-list[data-variant="timeline"] > li:not(:last-child)::before {
   content: "";
   position: absolute;
@@ -8336,23 +8385,33 @@ div.cp-list-foot {
   gap: var(--cp-space-1) var(--cp-space-2);
 }
 
-.cp-feed-entry > header > a {
+.cp-feed-entry > header > a:not(.cp-filter-chip) {
   color: var(--cp-ink);
   font-weight: var(--cp-weight-medium);
   text-decoration-color: transparent;
 }
 
-.cp-feed-entry > header > a:focus-visible {
+.cp-feed-entry > header > a:not(.cp-filter-chip):focus-visible {
   color: var(--cp-accent-ink);
   text-decoration-color: currentcolor;
 }
 
 @media (any-hover: hover) {
   @scope (:root:not([data-pointer="coarse"])) {
-    .cp-feed-entry > header > a:hover {
+    .cp-feed-entry > header > a:not(.cp-filter-chip):hover {
       color: var(--cp-accent-ink);
     }
   }
+}
+
+/* An origin link never widens the header: a long one cuts in its
+ * .cp-truncate, at the header's width rather than the truncate's 14rem. */
+.cp-feed-entry > header > .cp-filter-chip {
+  max-inline-size: 100%;
+}
+
+.cp-feed-entry > header > .cp-filter-chip > .cp-truncate {
+  --cp-truncate-w: none;
 }
 
 .cp-feed-entry > header > time {
@@ -9028,12 +9087,15 @@ div.cp-list-foot {
 /* A side column beside the rest, such as a poster beside its facts or a
  * form's help beside the form. It stacks above the rest once the rest would
  * be narrower than half the box, with no media or container query: the
- * element sizes to whatever holds it. The side's width is --cp-side-width. */
+ * element sizes to whatever holds it. The side's width is --cp-side-width.
+ * Each column keeps its own height, so a card beside a longer column ends
+ * where its content does. */
 .cp-side-main {
   --cp-side-width: 16rem;
 
   display: flex;
   flex-wrap: wrap;
+  align-items: start;
   gap: var(--cp-space-4);
 }
 
@@ -9077,19 +9139,20 @@ div.cp-list-foot {
   gap: var(--cp-space-4);
 }
 
+/* Docked, both columns start at the top and the list keeps its own height,
+ * so a detail taller than the list leaves no empty band under its last row. */
 .cp-list-detail[data-cp-docked] {
   grid-template-columns: minmax(0, 1fr) var(--cp-detail-w);
+  align-items: start;
 }
 
 /* Wide: the detail is the work, such as an open conversation, and takes
  * the room left by a list of 30% of the box, kept within 16rem and 22rem.
  * Docked, it sticks under any sticky header and is at most the window's
  * height less that header, so the list and the detail scroll apart; its
- * second child fills the rest and scrolls inside it. The list keeps its own
- * height beside that window-tall detail. */
+ * second child fills the rest and scrolls inside it. */
 .cp-list-detail[data-variant="wide"][data-cp-docked] {
   grid-template-columns: clamp(16rem, 30%, 22rem) minmax(0, 1fr);
-  align-items: start;
 }
 
 .cp-list-detail[data-variant="wide"][data-cp-docked] > .cp-detail {
@@ -12705,8 +12768,8 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
   margin-inline-end: 0;
   opacity: 0;
   transition:
-    inline-size 220ms var(--cp-ease-spring),
-    margin 220ms var(--cp-ease-spring),
+    inline-size var(--cp-dur-medium) var(--cp-ease-spring),
+    margin var(--cp-dur-medium) var(--cp-ease-spring),
     opacity 160ms var(--cp-ease-out);
 }
 
@@ -12761,6 +12824,18 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
   mask-image: url("../icons/svg/external-link.svg");
 }
 
+/* A link with a data-tone, such as a feed entry's origin, takes the tone's
+ * wash and ink in place of the outline, and keeps its mark. */
+:where(a).cp-filter-chip[data-tone] {
+  border-color: transparent;
+  background: var(--cp-tone-3);
+  color: var(--cp-tone-11);
+}
+
+:where(a).cp-filter-chip[data-tone]::after {
+  background: currentcolor;
+}
+
 @media (any-hover: hover) {
   @scope (:root:not([data-pointer="coarse"])) {
     :where(a).cp-filter-chip:hover {
@@ -12768,11 +12843,20 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
       background: var(--cp-fill);
     }
 
+    :where(a).cp-filter-chip[data-tone]:hover {
+      border-color: transparent;
+      background: var(--cp-tone-4);
+    }
+
     /* Forced colours would paint this ink as Canvas, so the mark keeps
      * its system colour there. */
     @media (forced-colors: none) {
       :where(a).cp-filter-chip:hover::after {
         background: var(--cp-ink);
+      }
+
+      :where(a).cp-filter-chip[data-tone]:hover::after {
+        background: currentcolor;
       }
     }
   }
@@ -12789,7 +12873,8 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
     color: HighlightText;
   }
 
-  :where(a).cp-filter-chip {
+  :where(a).cp-filter-chip,
+  :where(a).cp-filter-chip[data-tone] {
     border-color: LinkText;
   }
 

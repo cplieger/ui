@@ -183,7 +183,9 @@ describe("enhanceStepper with a signed text field", () => {
     expect(input.value).toBe("0.00");
     // The roll lays its words beside the field while it runs, which moves the
     // next button under a pointer aimed before the roll settled.
-    await expect.poll(() => s.hasAttribute("data-cp-rolling")).toBe(false);
+    await Promise.allSettled(s.getAnimations({ subtree: true }).map((a) => a.finished));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(s.hasAttribute("data-cp-rolling")).toBe(false);
     await userEvent.click(button("Undo"));
     expect(input.value).toBe("+1.25");
     life.abort();

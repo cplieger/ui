@@ -16,7 +16,10 @@ The list: one element for every set of items a person scans, picks or opens, suc
       </span>
       <span data-part="end">
         <time datetime="2026-11-13T09:12:00Z">09:12</time>
-        <span class="cp-cluster"><span class="cp-badge" data-variant="quiet">3<span class="cp-visually-hidden"> unread</span></span></span>
+        <span class="cp-cluster">
+          <span class="cp-meta"><span class="cp-icon" data-cp-icon="users" aria-hidden="true"></span>5<span class="cp-visually-hidden"> participants</span></span>
+          <span class="cp-badge" data-variant="quiet">3<span class="cp-visually-hidden"> unread</span></span>
+        </span>
       </span>
     </a>
   </li>
@@ -41,7 +44,7 @@ Each one is set on the `.cp-list` and applies to every row in it.
 | `data-surface` | `plain` | raised | `plain` drops the list's box, border and corners, so the list sits in a rail, a popover, a dialog or a panel. |
 | `data-divider` | `none` | line | `none` drops the line between rows and gives each row the control's corners for its fill, as a rail draws its rows. |
 | `data-layout` | `grid` | rows | `grid` lays the rows out as tiles in as many columns of `--cp-grid-min` (9.5rem) as fit, 12px apart, with no box, lines or fill: the cover on top at its 2:3 shape, the title in the heading weight and the facts under it, 8px apart, a chip in the cover at its top start. The cover takes the focus ring and grows a little under a mouse (not under reduced motion). A library's List and Grid views are this one attribute, switched by a `.cp-segmented[data-variant="icons"]`. |
-| `data-variant` | `timeline` | none | Each row's lead is a round mark in its tone, and a line joins the marks in place of the line between rows, as a history of events is drawn. Its rows keep a 16px inset at every density so the line meets the marks. With `data-surface="plain"` the marks sit at the list's edge, its heading lines up with them, and the rows take no fill under a mouse. An event's `<details>` opens its words in place under them, the summary an accent line after a chevron. |
+| `data-variant` | `timeline` | none | Each row's lead is a round mark in its tone, and a line joins the marks in place of the line between rows, as a history of events is drawn. Its rows keep a 16px inset at every density so the line meets the marks. An event's words and its time start with their first line's cap height centred on the mark, so a one-line event's text and glyph share one centre and a longer one's glyph sits on its first line. With `data-surface="plain"` the marks sit at the list's edge, its heading lines up with them, and the rows take no fill under a mouse. An event's `<details>` opens its words in place under them, the summary an accent line after a chevron. |
 | `aria-busy` | `true` | | The list is loading: its rows are skeletons (`data-skeleton`). |
 
 A list with no items yet, such as a file field's before the first choice, draws nothing.
@@ -77,7 +80,7 @@ A list with no items yet, such as a file field's before the first choice, draws 
 
 ## What each case writes
 
-- A conversation is an `a.cp-list-row` with an avatar, a title cut at its start with its full text in `data-cp-tip`, a preview line, and an end of the time over the participants and a quiet unread badge, as above.
+- A conversation is an `a.cp-list-row` with an optional avatar, a title, a preview line "@sender: subject", and an end of the time over the participants and a quiet unread badge, as above. A path title is `.cp-mono` and `dir="ltr"`, cut at its start with its full text in `data-cp-tip`. The participants are a `.cp-meta` with the `users` icon and " participants" for a screen reader, and the badge is left out at 0. The list takes [roving-focus](../core/roving-focus.md) for Up, Down, Home and End, and [keyed-list](keyed-list.md) with `window: false`, so a conversation with new activity moves to the top and keeps `aria-current` and focus. Show older is its `.cp-list-foot`.
 - A rail's filters and a settings page's categories sit under a `.cp-list-heading` for the section, in a `ul.cp-list[data-surface="plain"][data-divider="none"][data-density="compact"]` of `a.cp-list-row[aria-current="page"]` for one choice written to the URL, or of `button.cp-list-row[aria-pressed]` for filters that are on or off each (a `<div role="group">` labelled by the heading's `id` names the group), with a `.cp-swatch` lead for a filter's tone and its count, a quiet `.cp-badge`, in the end. A settings page's `.cp-settings-nav` keeps its categories as tall as a control, 4px apart and inset 12px, beside a form of controls that tall. A category with unsaved changes holds a `.cp-dot` in its end with ", unsaved changes" for a screen reader.
 - A problem is a `div.cp-list-row[data-lines="wrap"]` with a toned `.cp-icon`, a body of `<p>` and `<time>` (a pair for each sentence), the link to its fix, left out for a person who cannot fix it, and a `.cp-state` in the end for its kind.
 - A history event is an item of an `ol.cp-list[data-variant="timeline"][data-surface="plain"]` under a `.cp-list-heading` for the day, each `div.cp-list-row[data-lines="wrap"]` holding its `[data-part="mark"][data-tone]` with the glyph, a `<div>` of its words in a `<p>` and an optional `<details>`, and its `<time>` in the end.

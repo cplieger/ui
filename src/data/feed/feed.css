@@ -50,23 +50,33 @@
   gap: var(--cp-space-1) var(--cp-space-2);
 }
 
-.cp-feed-entry > header > a {
+.cp-feed-entry > header > a:not(.cp-filter-chip) {
   color: var(--cp-ink);
   font-weight: var(--cp-weight-medium);
   text-decoration-color: transparent;
 }
 
-.cp-feed-entry > header > a:focus-visible {
+.cp-feed-entry > header > a:not(.cp-filter-chip):focus-visible {
   color: var(--cp-accent-ink);
   text-decoration-color: currentcolor;
 }
 
 @media (any-hover: hover) {
   @scope (:root:not([data-pointer="coarse"])) {
-    .cp-feed-entry > header > a:hover {
+    .cp-feed-entry > header > a:not(.cp-filter-chip):hover {
       color: var(--cp-accent-ink);
     }
   }
+}
+
+/* An origin link never widens the header: a long one cuts in its
+ * .cp-truncate, at the header's width rather than the truncate's 14rem. */
+.cp-feed-entry > header > .cp-filter-chip {
+  max-inline-size: 100%;
+}
+
+.cp-feed-entry > header > .cp-filter-chip > .cp-truncate {
+  --cp-truncate-w: none;
 }
 
 .cp-feed-entry > header > time {

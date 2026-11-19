@@ -5967,8 +5967,8 @@ describe("css/system.css lists, feeds and counts", () => {
       const [list, detail] = [".cp-list", ".cp-detail"].map(
         (s) => (el.querySelector(s) as Element).getBoundingClientRect().height,
       ) as [number, number];
-      // The default frame's columns share a height; the wide list hugs its rows.
-      expect(list, variant).toBeCloseTo(variant === "" ? detail : 2 * 52 + 3, 0);
+      expect(list, variant).toBeCloseTo(2 * 52 + 3, 0);
+      expect(detail, variant).toBeGreaterThan(list);
       el.remove();
     }
   });
