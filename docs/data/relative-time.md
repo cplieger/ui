@@ -19,7 +19,7 @@ enhanceRelativeTime(inSentence, { style: "long", signal: page.signal }); // "4 m
 
 - `enhanceRelativeTime(time, opts?)` reads the time's `datetime` and replaces its content with the words, then a visually hidden span holding the exact time, and sets `data-cp-tip` to the same exact time. It throws a `TypeError` when `datetime` does not parse.
 - `RelativeTimeOptions` = `{ style?, locale?, signal? }`. `signal` stops keeping the time current, and its words stay as they last read. A second call on the same time replaces the first.
-- `style` is `"narrow"` by default, "3m ago", "5h ago", "2d ago", so a time in a row, a list's end or a feed's head takes little width. A time read inside a sentence, such as "Last full check at 14:02, 6 minutes ago.", passes `"long"`. `"short"` sits between them. The names are `Intl.RelativeTimeFormat`'s. `locale` is a BCP 47 language tag, by default the browser's.
+- `style` is `"narrow"` by default, "3m ago", "5h ago", "2d ago", so a time in a row, a list's end or a feed's head takes little width. A time read inside a sentence, such as "Last full check at 14:02, 6 minutes ago.", passes `"long"`. `"short"` sits between them. The names are `Intl.RelativeTimeFormat`'s. `locale` is a BCP 47 language tag. By default it is the `lang` of the time or its nearest ancestor, else the browser's, so a time writes in the language of the text around it.
 - The words without a `<time>` are `relative(at, { now, style, locale })` from [format](../core/format.md).
 
 ## The words
@@ -32,7 +32,7 @@ enhanceRelativeTime(inSentence, { style: "long", signal: page.signal }); // "4 m
 | 1 day ago | yesterday | 1d ago |
 | 3 weeks ago | 3 weeks ago | 3w ago |
 
-- The words come from `Intl.RelativeTimeFormat`, so every locale reads its own. `long` lets the locale name the nearest day ("yesterday", "tomorrow"). `short` and `narrow` always give a number, because a compact form reads as one.
+- The words come from `Intl.RelativeTimeFormat`, so every locale reads its own. A no-break space binds the number to its unit, so "4 minutes" never breaks across a line. `long` lets the locale name the nearest day ("yesterday", "tomorrow"). `short` and `narrow` always give a number, because a compact form reads as one.
 - The unit is the largest that fits: a minute, an hour, a day, a week, a month of 30 days or a year of 365 days, each rounded to the nearest whole one. A unit takes over half a smaller unit before the smaller count would reach it. So a time 59 and a half minutes old reads "1 hour ago", never "60 minutes ago", and one 346 days old reads "last year", never "12 months ago".
 - The words are [format](../core/format.md)'s `relative`, and the exact time is its `date(at, "datetime")`, the medium date and the short time joined by no-break spaces, in the same locale.
 

@@ -34,7 +34,7 @@ Every writer takes `locale` last, a BCP 47 language tag, except `relative`, whic
   - A value that is not finite throws a `RangeError` in every style.
 - `date(at, style?, locale?)` writes a `Date` or a number of ms since the epoch. `style` is `"datetime"` by default:
   - `"date"` is the medium date, "Nov 19, 2026". `"time"` is the short time, "6:40 PM". `"datetime"` is both, "Nov 19, 2026, 6:40 PM".
-  - `"near"` is the short time alone on today's date. Another day adds the day and the short month, "Nov 18, 4:47 AM", and a day outside the present year adds its year too, "Nov 13, 2025, 9:30 AM". Its hour takes the digits the locale's short time does, so British English writes "12 Nov, 09:30".
+  - `"near"` is the short time alone on today's date. Another day adds the day and the short month, "Nov 18, 4:47 AM", and a day outside the present year adds its year too, "Nov 13, 2025, 9:30 AM". The year is the locale's calendar's, so a Persian, Japanese or Chinese reader sees the year once that calendar's year turns. Its hour takes the digits the locale's short time does, so British English writes "12 Nov, 09:30".
   - Every style joins its parts with no-break spaces, so a date never breaks across a line.
   - An invalid date throws Intl's `RangeError`.
 - `relative(at, opts?)` writes how long ago or ahead `at` is, in the locale's fewest words. `opts` is `{ now?, style?, locale? }`: `now` is the moment to count from, by default the present, and `style` is `"narrow"` by default, "4m ago", then `"short"` or `"long"`, "4 minutes ago". The words and their units are [relative-time](../data/relative-time.md#the-words)'s. An invalid date throws a `TypeError`.

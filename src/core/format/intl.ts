@@ -210,6 +210,13 @@ const sameDay = (a: Date, b: Date): boolean =>
   a.getMonth() === b.getMonth() &&
   a.getDate() === b.getDate();
 
+// The year as the locale's calendar writes it, era or cycle name included:
+// a Persian, Japanese or Chinese year turns on another day than 1 January.
+const sameYear = (a: Date, b: Date, locale: string | undefined): boolean => {
+  const year = dates(locale, undefined, { year: "numeric" });
+  return year.format(a) === year.format(b);
+};
+
 function nearParts(at: Date, locale: string | undefined): Intl.DateTimeFormatOptions {
   const now = new Date();
   if (sameDay(at, now)) {
@@ -218,7 +225,7 @@ function nearParts(at: Date, locale: string | undefined): Intl.DateTimeFormatOpt
   return {
     day: "numeric",
     month: "short",
-    ...(at.getFullYear() === now.getFullYear() ? {} : { year: "numeric" }),
+    ...(sameYear(at, now, locale) ? {} : { year: "numeric" }),
     hour: hourDigits(locale),
     minute: "2-digit",
   };
@@ -261,8 +268,8 @@ const relativeFormat = (
   );
 
 /** How long ago or ahead of `now` instant `at` is, both in ms: the largest
- *  unit `RELATIVE_UNITS` lets fit, rounded, or the locale's "now" under a
- *  minute. */
+ *  unit `RELATIVE_UNITS` lets fit, rounded, its number bound to its unit,
+ *  or the locale's "now" under a minute. */
 export function relativeWords(
   at: number,
   now: number,
@@ -274,7 +281,7 @@ export function relativeWords(
     if (Math.abs(s) >= from) {
       // A compact form reads as a number: "1d ago", never "yesterday".
       const numeric = style === "long" ? "auto" : "always";
-      return relativeFormat(locale, style, numeric).format(Math.round(s / n), unit);
+      return keepUnit(relativeFormat(locale, style, numeric).format(Math.round(s / n), unit));
     }
   }
   return relativeFormat(locale, style, "auto").format(0, "second");

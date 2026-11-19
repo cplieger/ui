@@ -1,6 +1,7 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { page } from "vitest/browser";
 
+import { relative } from "../../core/format/format.js";
 import { installAnnouncer } from "../../feedback/announce/announce.js";
 import { createIcons } from "../../foundations/icons/icons.js";
 import { installTooltips } from "../../overlays/tooltip/tooltip.js";
@@ -102,9 +103,11 @@ const job = (id: string, extra: Partial<StatusWork> = {}): StatusWork => ({
 });
 const model = (m: Partial<StatusModel>): StatusModel => ({ conditions: [], work: [], ...m });
 
-/** A time's words as relative-time writes them by default, from Intl. */
-const ago = (n: number, unit: Intl.RelativeTimeFormatUnit, locale?: string): string =>
-  new Intl.RelativeTimeFormat(locale, { style: "narrow", numeric: "always" }).format(-n, unit);
+const UNIT_MS = { minute: 60_000, hour: 3_600_000 } as const;
+
+/** A time's words as relative-time writes them by default: format's `relative`. */
+const ago = (n: number, unit: keyof typeof UNIT_MS, locale?: string): string =>
+  relative(-n * UNIT_MS[unit], { now: 0, ...(locale === undefined ? {} : { locale }) });
 
 describe("the pill's words", () => {
   const rows: [string, Partial<StatusModel>, string, string, string | undefined][] = [
@@ -996,12 +999,11 @@ describe("the running section", () => {
   it("drops a refusal that comes back after its item left", async () => {
     const { panel, status } = mount();
     let refuse = (_: Error): void => undefined;
-    const run = vi.fn(
-      () =>
-        new Promise<void>((_, reject) => {
-          refuse = reject;
-        }),
-    );
+    const run = vi.fn(() => {
+      const { promise, reject } = Promise.withResolvers<undefined>();
+      refuse = reject;
+      return promise;
+    });
     const m = model({ work: [job("a", { stop: { run } })] });
     status.update(m);
     stopButton(panel, "a").click();
@@ -1069,12 +1071,13 @@ describe("the running section", () => {
 describe("the starts", () => {
   const pending = () => {
     const box = { finish: (): void => undefined };
-    const run = vi.fn(
-      () =>
-        new Promise<void>((done) => {
-          box.finish = done;
-        }),
-    );
+    const run = vi.fn(() => {
+      const { promise, resolve } = Promise.withResolvers<undefined>();
+      box.finish = () => {
+        resolve(undefined);
+      };
+      return promise;
+    });
     return { box, run };
   };
 
@@ -1108,12 +1111,13 @@ describe("the starts", () => {
     panel.showPopover();
     await opened;
     let finish: () => void = () => undefined;
-    const run = vi.fn(
-      () =>
-        new Promise<void>((done) => {
-          finish = done;
-        }),
-    );
+    const run = vi.fn(() => {
+      const { promise, resolve } = Promise.withResolvers<undefined>();
+      finish = () => {
+        resolve(undefined);
+      };
+      return promise;
+    });
     const m = model({ starts: [begin("q", { label: "Quick check", run })] });
     status.update(m);
     const q = startButton(panel, "q");
@@ -1238,12 +1242,11 @@ describe("the starts", () => {
   it("shows the unavailable reason over a refusal, and drops the refusal", async () => {
     const { panel, status } = mount();
     let refuse = (_: Error): void => undefined;
-    const run = vi.fn(
-      () =>
-        new Promise<void>((_, reject) => {
-          refuse = reject;
-        }),
-    );
+    const run = vi.fn(() => {
+      const { promise, reject } = Promise.withResolvers<undefined>();
+      refuse = reject;
+      return promise;
+    });
     const later = "Checked a minute ago";
     status.update(model({ starts: [begin("f", { run })] }));
     startButton(panel, "f").click();
@@ -1416,7 +1419,7 @@ describe("the starts", () => {
     await expect
       .element(page.getByRole("button", { name: "About the checks" }))
       .toBeInTheDocument();
-    status.update(model({ starts: [...starts].reverse(), startsInfo }));
+    status.update(model({ starts: starts.toReversed(), startsInfo }));
     expect(last()).toBe(info);
     status.update(model({ starts }));
     expect(panel.querySelector("[data-cp-tip-toggle]")).toBeNull();

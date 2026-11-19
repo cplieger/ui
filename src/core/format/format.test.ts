@@ -257,6 +257,24 @@ describe("date", () => {
     );
   });
 
+  // 2 Jan 2026 is 12 Dey 1404 in the Persian calendar; its new year, 1405, began on 21 March.
+  it("decides a near moment's year in the locale's calendar", () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(2026, 10, 13, 9, 30));
+    expect(date(new Date(2026, 0, 2, 9, 30), "near", "fa-IR")).toContain("۱۴۰۴");
+    expect(date(new Date(2026, 10, 12, 9, 30), "near", "fa-IR")).not.toContain("۱۴۰۵");
+    // The Chinese year turned on 17 Feb 2026, so 2 Jan 2026 is still the year of 2025.
+    expect(date(new Date(2026, 0, 2, 9, 30), "near", "zh-u-ca-chinese")).toContain("2025");
+  });
+
+  // Reiwa began on 1 May 2019, so 15 January is Heisei 31 in the same Gregorian year.
+  it("decides a near moment's year by its era too", () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(2019, 5, 15, 9, 30));
+    expect(date(new Date(2019, 0, 15, 9, 30), "near", "ja-u-ca-japanese")).toContain("平成31");
+    expect(date(new Date(2019, 4, 1, 9, 30), "near", "ja-u-ca-japanese")).not.toMatch(/令和|平成/u);
+  });
+
   it("joins every style's parts with no-break spaces", () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date(2026, 10, 19, 9, 30));
@@ -288,13 +306,13 @@ describe("relative", () => {
       at(60 * DAY),
       at(800 * DAY),
     ]).toEqual([
-      "4 minutes ago",
-      "2 hours ago",
+      `4${NB}minutes ago`,
+      `2${NB}hours ago`,
       "yesterday",
-      "3 days ago",
-      "2 weeks ago",
-      "2 months ago",
-      "2 years ago",
+      `3${NB}days ago`,
+      `2${NB}weeks ago`,
+      `2${NB}months ago`,
+      `2${NB}years ago`,
     ]);
   });
 
@@ -304,38 +322,41 @@ describe("relative", () => {
     const ahead = (s: number): string =>
       relative(NOW + s * 1000, { now: NOW, locale: "en", style: "long" });
     expect([at(3569), at(3571), at(84_599), at(86_399), at(561_599), at(561_600)]).toEqual([
-      "59 minutes ago",
-      "1 hour ago",
-      "23 hours ago",
+      `59${NB}minutes ago`,
+      `1${NB}hour ago`,
+      `23${NB}hours ago`,
       "yesterday",
-      "6 days ago",
+      `6${NB}days ago`,
       "last week",
     ]);
     expect([at(24 * 86_400), at(25 * 86_400), at(344 * 86_400), at(346 * 86_400)]).toEqual([
-      "3 weeks ago",
+      `3${NB}weeks ago`,
       "last month",
-      "11 months ago",
+      `11${NB}months ago`,
       "last year",
     ]);
-    expect([ahead(3569), ahead(3571)]).toEqual(["in 59 minutes", "in 1 hour"]);
+    expect([ahead(3569), ahead(3571)]).toEqual([`in 59${NB}minutes`, `in 1${NB}hour`]);
   });
 
   it("speaks the locale's words", () => {
     const fr = (ms: number): string =>
       relative(NOW + ms, { now: NOW, locale: "fr", style: "long" });
     expect([fr(-4 * MIN), fr(25 * MIN), fr(-DAY), fr(-10_000)]).toEqual([
-      "il y a 4 minutes",
-      "dans 25 minutes",
+      `il y a 4${NB}minutes`,
+      `dans 25${NB}minutes`,
       "hier",
       "maintenant",
     ]);
+    expect(relative(NOW - 4 * MIN, { now: NOW, locale: "de", style: "short" })).toBe(
+      `vor 4${NB}Min.`,
+    );
   });
 
   it("says a time ahead and one under a minute either way", () => {
     const en = (ms: number): string =>
       relative(NOW + ms, { now: NOW, locale: "en", style: "long" });
     expect([en(25 * MIN), en(DAY), en(-59_000), en(59_000)]).toEqual([
-      "in 25 minutes",
+      `in 25${NB}minutes`,
       "tomorrow",
       "now",
       "now",
@@ -343,16 +364,13 @@ describe("relative", () => {
   });
 
   it("gives a number in the compact forms where the long one names the day", () => {
-    const always = (style: "short" | "narrow"): string =>
-      new Intl.RelativeTimeFormat("en", { style, numeric: "always" }).format(-1, "day");
     const day = (style: "long" | "short" | "narrow"): string =>
       relative(NOW - DAY, { now: NOW, locale: "en", style });
     expect([day("long"), day("short"), day("narrow")]).toEqual([
       "yesterday",
-      always("short"),
-      always("narrow"),
+      `1${NB}day ago`,
+      "1d ago",
     ]);
-    expect(always("narrow")).toMatch(/1/);
   });
 
   it("writes the narrow form by default, as Intl gives it", () => {
@@ -370,7 +388,7 @@ describe("relative", () => {
 
   it("counts from the present by default, and refuses an invalid date", () => {
     expect(relative(new Date(Date.now() - 3 * HOUR), { locale: "en", style: "long" })).toBe(
-      "3 hours ago",
+      `3${NB}hours ago`,
     );
     expect(() => relative(new Date("soon"))).toThrow(TypeError);
     expect(() => relative(Number.NaN)).toThrow(TypeError);
@@ -378,13 +396,13 @@ describe("relative", () => {
 
   it("counts from a now given as a date as from its ms", () => {
     expect(relative(NOW - 3 * HOUR, { now: new Date(NOW), locale: "en", style: "long" })).toBe(
-      "3 hours ago",
+      `3${NB}hours ago`,
     );
   });
 
   it("writes in the page's language when given none", () => {
     document.documentElement.lang = "fr";
-    expect(relative(NOW - 4 * MIN, { now: NOW, style: "long" })).toBe("il y a 4 minutes");
+    expect(relative(NOW - 4 * MIN, { now: NOW, style: "long" })).toBe(`il y a 4${NB}minutes`);
   });
 });
 

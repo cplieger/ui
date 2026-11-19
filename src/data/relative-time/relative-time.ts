@@ -8,11 +8,13 @@
 
 import type { RelativeStyle } from "../../core/format/format.js";
 import { dateWords, RELATIVE_UNITS, relativeWords } from "../../core/format/intl.js";
+import { localeOf } from "../../core/locale/locale.js";
 
 export interface RelativeTimeOptions {
   /** Default "narrow"; "long" for a time inside a sentence. */
   readonly style?: RelativeStyle;
-  /** A BCP 47 language tag. Default: the browser's. */
+  /** A BCP 47 language tag. Default: the lang of the time or its nearest
+   *  ancestor, else the browser's. */
   readonly locale?: string;
   /** Stops keeping the time current. Its words stay as they last read. */
   readonly signal?: AbortSignal;
@@ -112,7 +114,7 @@ export function enhanceRelativeTime(
   time: HTMLTimeElement,
   options: RelativeTimeOptions = {},
 ): void {
-  const { signal, style = "narrow", locale } = options;
+  const { signal, style = "narrow", locale = localeOf(time) } = options;
   const at = Date.parse(time.dateTime);
   if (Number.isNaN(at)) {
     throw new TypeError(`relative-time: datetime "${time.dateTime}" does not parse`);

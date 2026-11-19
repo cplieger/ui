@@ -15,7 +15,7 @@ describe("format without a page", () => {
 
   it("counts a relative time from the present by default", () => {
     expect(relative(Date.now() - 3 * 3_600_000, { locale: "en", style: "long" })).toBe(
-      "3 hours ago",
+      "3\u00A0hours ago",
     );
   });
 });
