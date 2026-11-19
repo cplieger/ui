@@ -3651,8 +3651,12 @@ a.cp-wordmark {
  * it covers there, which the frame, the save bar and the toasts keep clear
  * of; it is unset while no bottom bar shows. */
 @media (width < 40rem) {
+  /* The scroll padding keeps a control Tab reaches from stopping under the
+   * bar, since the browser scrolls focus into view only past the padding. */
   :root:has(.cp-header > .cp-nav) {
     --cp-nav-inset: calc(3.5rem + var(--cp-line-w) + env(safe-area-inset-bottom));
+
+    scroll-padding-block-end: var(--cp-nav-inset);
   }
 
   .cp-header > .cp-nav {
