@@ -14,12 +14,10 @@
 /* A fixed button is as wide as its widest state: every state's icon and
  * words sit hidden in one cell across the button, and the state on show
  * sits centred over them between two free tracks. The gap moves onto the
- * words, because a grid gap would also open beside the empty free tracks.
- * The hidden cell is a .cp-roll too, so a rule that hides the button's
- * words to show its icon alone, `> .cp-roll`, takes every reserved word
- * and gap with them. It is always laid out at its widest state's width:
- * Gecko gives an item spanning free tracks no min-content size, which a
- * table's 1% actions cell asks for. */
+ * words, as a grid gap would also open beside the free tracks. The hidden
+ * cell is a .cp-roll, so `> .cp-roll { display: none }` drops it too. It is
+ * laid out at max-content: Gecko gives an item spanning free tracks no
+ * min-content size, which a table's 1% actions cell asks for. */
 .cp-button[data-cp-confirm="fixed"] {
   display: inline-grid;
   grid-template-columns: 1fr auto auto 1fr;
@@ -44,8 +42,7 @@
   margin-inline-start: var(--cp-space-2);
 }
 
-/* No display here: a grid item is a block anyway, and one here would beat
- * the rule that hides the words. */
+/* Its grid is .cp-roll's: a display here would beat the rule that hides the words. */
 .cp-button[data-cp-confirm="fixed"] > .cp-roll[data-part="faces"] {
   grid-area: 1 / 1 / 2 / -1;
   block-size: auto;

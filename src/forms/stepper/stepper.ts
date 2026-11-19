@@ -38,12 +38,11 @@ const ROLLING = "data-cp-rolling";
 
 /**
  * `stepper` holds a number `<input>` and buttons whose `data-step` is how
- * many steps a press moves: `"-1"` for the minus, `"1"` for the plus. A
- * text `<input>` takes its range and step from `data-min`, `data-max` and
- * `data-step` and steps on Up and Down. Shift moves ten steps in either field.
- * A `data-reset` button outside the stepper whose `aria-controls` names the
- * field's id sets the field to that attribute's value, else the markup's. A
- * change fires `input` and `change` and is said through announce.
+ * many steps a press moves (`"-1"`, `"1"`). A text `<input>` takes its range
+ * and step from `data-min`, `data-max` and `data-step`; either field steps on
+ * Up and Down, ten steps with Shift. A `data-reset` button whose
+ * `aria-controls` names the field's id sets it to that attribute's value,
+ * else the markup's. A change fires `input` and `change` and is announced.
  */
 export function enhanceStepper(stepper: HTMLElement, options: StepperOptions = {}): void {
   const { signal } = options;
@@ -183,7 +182,14 @@ export function enhanceStepper(stepper: HTMLElement, options: StepperOptions = {
       const t = e.target instanceof Element ? e.target : null;
       const b = t?.closest<HTMLButtonElement>("button[data-reset]");
       const ids = b?.getAttribute("aria-controls")?.split(/\s+/) ?? [];
-      if (b === null || b === undefined || input.id === "" || !ids.includes(input.id)) {
+      if (
+        b === null ||
+        b === undefined ||
+        b.getAttribute("aria-disabled") === "true" ||
+        input.id === "" ||
+        !ids.includes(input.id) ||
+        !stepper.isConnected
+      ) {
         return;
       }
       const to = b.dataset["reset"] ?? "";

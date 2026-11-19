@@ -221,6 +221,30 @@ describe("enhanceStepper with a signed text field", () => {
     expect(input.value).toBe("+1.00");
   });
 
+  it("does nothing from a Reset marked unavailable", async () => {
+    const { s, input, button } = nudge();
+    button("Reset").setAttribute("aria-disabled", "true");
+    enhanceStepper(s, { signal: life.signal });
+    // A press reaches a button marked unavailable, which Playwright only sends forced.
+    await userEvent.click(button("Reset"), { force: true });
+    expect(input.value).toBe("+1.25");
+  });
+
+  it("does nothing from a Reset once its stepper is gone from the page, with no signal to end it", async () => {
+    installAnnouncer({ signal: life.signal });
+    const { s, input, button } = nudge();
+    const heard: string[] = [];
+    for (const type of ["input", "change"]) {
+      input.addEventListener(type, () => heard.push(type));
+    }
+    enhanceStepper(s);
+    s.remove();
+    await userEvent.click(button("Reset"));
+    await new Promise((r) => setTimeout(r, 200));
+    expect([input.value, heard]).toEqual(["+1.25", []]);
+    expect(document.querySelector('[aria-live="polite"]')?.textContent).toBe("");
+  });
+
   it("settles a typed value to its form within the range, and puts back the last for text", async () => {
     const { s, input } = nudge();
     enhanceStepper(s, { format: (v) => `${v.toFixed(1)} s`, signal: life.signal });

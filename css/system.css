@@ -7577,6 +7577,10 @@ th[aria-sort="descending"] > .cp-sort::after {
 /* A name with no break point, such as a file's or a path, wraps inside the
  * row rather than widening it. */
 .cp-list-row > .cp-cell-stack {
+  --cp-two-lines: calc(
+    var(--cp-line-1, 1lh) + 0.125rem + var(--cp-line-2, var(--cp-text-xs) * var(--cp-leading-ui))
+  );
+
   flex: 1;
   justify-items: stretch;
   min-inline-size: 0;
@@ -7584,21 +7588,22 @@ th[aria-sort="descending"] > .cp-sort::after {
   overflow-wrap: anywhere;
 }
 
-/* Two lines sit tight: each trimmed to its cap height and baseline, the
- * smallest space apart, centred in the height their untrimmed line boxes
- * took, so the freed room is shared above and below and no row changes
- * height. */
+/* Two lines, in a list row or a table's title cell, sit tight: each
+ * trimmed to its cap height and baseline, the smallest space apart, and
+ * centred. A list row's stack keeps the height its untrimmed line boxes
+ * took, so the freed room is shared above and below; a title cell's
+ * cover sets its row's height. */
 /* stylelint-disable-next-line selector-max-pseudo-class, selector-max-attribute, selector-max-combinators, selector-max-compound-selectors -- two shown lines, outside a tile and a skeleton row, which draw their lines their own way */
-:where(.cp-list:not([data-layout="grid"]) > li)
-  > .cp-list-row:not([data-skeleton])
+:is(
+    :where(.cp-list:not([data-layout="grid"]) > li) > .cp-list-row:not([data-skeleton]),
+    .cp-title-cell
+  )
   > .cp-cell-stack:where(
     :has(> :nth-child(2 of :not([hidden]))):not(:has(> :nth-child(3 of :not([hidden]))))
   ) {
   align-content: center;
   gap: var(--cp-space-1);
-  min-block-size: calc(
-    var(--cp-line-1, 1lh) + 0.125rem + var(--cp-line-2, var(--cp-text-xs) * var(--cp-leading-ui))
-  );
+  min-block-size: var(--cp-two-lines, auto);
 }
 
 /* The same stack's lines, matched from their own side: a `:has()` left of
@@ -7608,8 +7613,10 @@ th[aria-sort="descending"] > .cp-sort::after {
  * its margin, keeps a cut line's ascenders, descenders and underline
  * inside its clip. */
 /* stylelint-disable-next-line selector-max-pseudo-class, selector-max-attribute, selector-max-combinators, selector-max-compound-selectors -- the lines of the stack above */
-:where(.cp-list:not([data-layout="grid"]) > li)
-  > .cp-list-row:not([data-skeleton])
+:is(
+    :where(.cp-list:not([data-layout="grid"]) > li) > .cp-list-row:not([data-skeleton]),
+    .cp-title-cell
+  )
   > .cp-cell-stack
   > :where(
     :is(.cp-cell-stack > *):not(:only-child):is(
@@ -12055,12 +12062,10 @@ button.cp-figure[aria-expanded="true"]::after {
 /* A fixed button is as wide as its widest state: every state's icon and
  * words sit hidden in one cell across the button, and the state on show
  * sits centred over them between two free tracks. The gap moves onto the
- * words, because a grid gap would also open beside the empty free tracks.
- * The hidden cell is a .cp-roll too, so a rule that hides the button's
- * words to show its icon alone, `> .cp-roll`, takes every reserved word
- * and gap with them. It is always laid out at its widest state's width:
- * Gecko gives an item spanning free tracks no min-content size, which a
- * table's 1% actions cell asks for. */
+ * words, as a grid gap would also open beside the free tracks. The hidden
+ * cell is a .cp-roll, so `> .cp-roll { display: none }` drops it too. It is
+ * laid out at max-content: Gecko gives an item spanning free tracks no
+ * min-content size, which a table's 1% actions cell asks for. */
 .cp-button[data-cp-confirm="fixed"] {
   display: inline-grid;
   grid-template-columns: 1fr auto auto 1fr;
@@ -12085,8 +12090,7 @@ button.cp-figure[aria-expanded="true"]::after {
   margin-inline-start: var(--cp-space-2);
 }
 
-/* No display here: a grid item is a block anyway, and one here would beat
- * the rule that hides the words. */
+/* Its grid is .cp-roll's: a display here would beat the rule that hides the words. */
 .cp-button[data-cp-confirm="fixed"] > .cp-roll[data-part="faces"] {
   grid-area: 1 / 1 / 2 / -1;
   block-size: auto;

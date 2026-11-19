@@ -113,6 +113,23 @@ function build(markup: string): HTMLElement {
   return el;
 }
 
+/** A line's baseline, cap height and line box height, read from probes set
+ *  in its own font. */
+function lineMetrics(line: Element): { baseline: number; cap: number; lh: number } {
+  const base = document.createElement("span");
+  base.style.cssText = "display: inline-block; inline-size: 1px; block-size: 0";
+  const cap = document.createElement("span");
+  cap.style.cssText = "position: absolute; block-size: 100cap";
+  const lh = document.createElement("span");
+  lh.style.cssText = "position: absolute; block-size: 100lh";
+  line.append(base, cap, lh);
+  return {
+    baseline: base.getBoundingClientRect().bottom,
+    cap: cap.getBoundingClientRect().height / 100,
+    lh: lh.getBoundingClientRect().height / 100,
+  };
+}
+
 const media = (name: string, value: string) =>
   cdp().send("Emulation.setEmulatedMedia", { features: [{ name, value }] });
 
@@ -1445,23 +1462,23 @@ describe("css/system.css", () => {
           getComputedStyle(b).backgroundColor,
         ].join(" ");
       };
-      expect(look(bar)).toBe(look(zoom));
+      expect(look(bar), tier).toBe(look(zoom));
       const type = (v: Element): string => {
         const cs = getComputedStyle(v);
         return [cs.fontFamily, cs.fontSize, cs.fontWeight, cs.fontVariantNumeric, cs.color].join(
           " ",
         );
       };
-      expect(type(input)).toBe(type(zoom.querySelector(".cp-stepper-value") as Element));
+      expect(type(input), tier).toBe(type(zoom.querySelector(".cp-stepper-value") as Element));
       // Its widest value, a sign, two digits, a point and two decimals, fits
       // the one width every value keeps.
       const width = input.getBoundingClientRect().width;
       for (const v of ["−60.00", "+1.25", "0.00", "−0.10"]) {
         input.value = v;
-        expect(input.getBoundingClientRect().width).toBe(width);
-        expect(input.scrollWidth <= input.clientWidth).toBe(true);
+        expect(input.getBoundingClientRect().width, `${tier} ${v}`).toBe(width);
+        expect(input.scrollWidth <= input.clientWidth, `${tier} ${v}`).toBe(true);
       }
-      expect(input.labels?.[0]?.textContent).toBe("Offset, in seconds");
+      expect(input.labels?.[0]?.textContent, tier).toBe("Offset, in seconds");
       // The next tier's fixture reuses the field's id.
       el.remove();
     }
@@ -5243,22 +5260,6 @@ describe("css/system.css lists, feeds and counts", () => {
         "<span>Mushishi</span>",
         '<small hidden>TV, 2005</small><small class="cp-kept">Kept</small>',
       );
-    /** A line's baseline, cap height and line box height, read from probes
-     *  set in its own font. */
-    const metrics = (line: Element) => {
-      const base = document.createElement("span");
-      base.style.cssText = "display: inline-block; inline-size: 1px; block-size: 0";
-      const cap = document.createElement("span");
-      cap.style.cssText = "position: absolute; block-size: 100cap";
-      const lh = document.createElement("span");
-      lh.style.cssText = "position: absolute; block-size: 100lh";
-      line.append(base, cap, lh);
-      return {
-        baseline: base.getBoundingClientRect().bottom,
-        cap: cap.getBoundingClientRect().height / 100,
-        lh: lh.getBoundingClientRect().height / 100,
-      };
-    };
     const space = (
       build('<div style="block-size: var(--cp-space-1)"></div>').firstElementChild as Element
     ).getBoundingClientRect().height;
@@ -5271,8 +5272,8 @@ describe("css/system.css lists, feeds and counts", () => {
             Element,
             Element,
           ];
-          const t = metrics(title);
-          const s = metrics(sub);
+          const t = lineMetrics(title);
+          const s = lineMetrics(sub);
           const box = r.getBoundingClientRect();
           const at = `${tier} ${density || "regular"} row ${String(i)}`;
           expect(s.baseline - s.cap - t.baseline, `${at} gap`).toBeCloseTo(space, 0);
@@ -6096,6 +6097,44 @@ describe("css/system.css data tables", () => {
       ).toBeLessThanOrEqual(13);
       expect(getComputedStyle(cover).borderStartStartRadius).toBe(radius);
       expect((cover.querySelector(".cp-icon") as Element).getBoundingClientRect().width).toBe(16);
+    }
+  });
+
+  it("sets a title cell's two lines a space apart, centred beside its cover, the row's height unchanged", () => {
+    theme("light");
+    const cell = (tag: "td" | "th", title: string, line: string) =>
+      `<tr><${tag}><div class="cp-title-cell"><span class="cp-cover" data-harmony="4"><span class="cp-icon" data-cp-icon="film"></span></span>` +
+      `<div class="cp-cell-stack">${title}${line}</div></div></${tag}><td data-col="num">1</td></tr>`;
+    const rows =
+      cell("td", '<a href="#t">Perfect Blue</a>', '<span class="cp-meta">Film, 1997</span>') +
+      cell("th", '<span class="cp-truncate">Mushishi</span>', "<small>TV, 2005</small>") +
+      cell("td", "<span>Frieren</span>", "<small hidden>TV</small><small>TV, 2023</small>");
+    const space = (
+      build('<div style="block-size: var(--cp-space-1)"></div>').firstElementChild as Element
+    ).getBoundingClientRect().height;
+    for (const tier of ["fine", "coarse"]) {
+      root.dataset["pointer"] = tier;
+      const el = build(`<table class="cp-table"><tbody>${rows}</tbody></table>`);
+      for (const [i, box] of [...el.querySelectorAll(".cp-title-cell")].entries()) {
+        const [title, sub] = [...box.querySelectorAll(".cp-cell-stack > :not([hidden])")] as [
+          Element,
+          Element,
+        ];
+        const t = lineMetrics(title);
+        const s = lineMetrics(sub);
+        const at = `${tier} row ${String(i)}`;
+        expect(s.baseline - s.cap - t.baseline, `${at} gap`).toBeCloseTo(space, 0);
+        const r = box.getBoundingClientRect();
+        const above = t.baseline - t.cap - r.top;
+        const below = r.bottom - s.baseline;
+        expect(
+          Math.abs(above - below),
+          `${at} above ${String(above)} below ${String(below)}`,
+        ).toBeLessThanOrEqual(0.5);
+        // The cover, or two untrimmed line boxes 2px apart, set the height.
+        const cover = (box.querySelector(".cp-cover") as Element).getBoundingClientRect().height;
+        expect(r.height, `${at} height`).toBeCloseTo(Math.max(cover, t.lh + 2 + s.lh), 1);
+      }
     }
   });
 
