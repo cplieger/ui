@@ -1605,6 +1605,9 @@ describe("the starts", () => {
       const { panel, status } = mount();
       status.update(moving(1));
       panel.showPopover();
+      // Its controls are hidden until its fade-in from opacity 0 has drawn
+      // a frame, before which no person reaches them.
+      await Promise.all(panel.getAnimations().map((a) => a.finished));
       const r = startButton(panel, "r");
       const reason = "Refreshed 10 seconds ago";
       expect(panel.querySelector('[data-cp-tip-toggle], [data-cp-icon="info"]')).toBeNull();

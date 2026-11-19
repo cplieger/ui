@@ -64,30 +64,10 @@ function ms(time: string): number {
   return Number.parseFloat(time) * 1000;
 }
 
-/** Whether `el` is `node` or holds it, across shadow roots. */
-function holds(el: Element, node: Node): boolean {
-  for (let n: Node | null = node; n !== null; n = n instanceof ShadowRoot ? n.host : n.parentNode) {
-    if (n === el) {
-      return true;
-    }
-  }
-  return false;
-}
-
-/** Whether `el` is in the page and seen: rendered, visible, and not at
- *  opacity 0, apart from under an animation still running, as a popover or
- *  a dialog that fades in from 0 as it opens. */
+/** Whether `el` is in the page and seen: rendered, visible, and neither
+ *  it nor an ancestor at opacity 0. */
 function present(el: HTMLElement): boolean {
-  if (!el.isConnected || !el.checkVisibility({ visibilityProperty: true })) {
-    return false;
-  }
-  return (
-    el.checkVisibility({ opacityProperty: true }) ||
-    document.getAnimations().some((a) => {
-      const target = a.effect instanceof KeyframeEffect ? a.effect.target : null;
-      return a.playState === "running" && target !== null && holds(target, el);
-    })
-  );
+  return el.isConnected && el.checkVisibility({ visibilityProperty: true, opacityProperty: true });
 }
 
 /** How a tip opened, which decides what closes it besides Escape: the
@@ -147,16 +127,18 @@ function listen(signal: AbortSignal, delay: number): void {
 
   // The MutationObserver reports, wherever the control is, any change to
   // the nodes, attributes, classes or inline styles of the control's tree
-  // and of each tree its shadow hosts sit in. The IntersectionObserver
-  // reports a control in the window that layout hides with no such change,
-  // as by a stylesheet rule or a pseudo-class. Any other change waits for
-  // the next listener, each of which asks gone() first.
+  // and of each tree its shadow hosts sit in, and `ends` the end of a
+  // transition or animation there, a fade to opacity 0 among them. The
+  // IntersectionObserver reports a control in the window that layout hides
+  // with no such change, as by a stylesheet rule or a pseudo-class. Any
+  // other change waits for the next listener, each of which asks gone().
   const seen = new IntersectionObserver(() => {
     gone();
   });
   const tree = new MutationObserver(() => {
     gone();
   });
+  let ends: AbortController | null = null;
 
   /** Hides the tip, and leaves a control the mouse rests on to show its own. */
   const close = (): void => {
@@ -164,6 +146,8 @@ function listen(signal: AbortSignal, delay: number): void {
     watch.disconnect();
     seen.disconnect();
     tree.disconnect();
+    ends?.abort();
+    ends = null;
     if (shownFor !== null) {
       removeAnchorName(shownFor, NAME);
       const d = described(shownFor);
@@ -197,12 +181,18 @@ function listen(signal: AbortSignal, delay: number): void {
     shownFor = el;
     opened = how;
     seen.observe(el);
-    // A MutationObserver does not enter a shadow tree, and a shadow root's
-    // own observer misses its host's removal, so every root up to the
-    // document is observed. gone() writes nothing while the control
-    // stays, and close() disconnects it first, so no write loops.
+    // A MutationObserver does not enter a shadow tree, an end event does
+    // not leave one, and a shadow root's own observer misses its host's
+    // removal, so every root up to the document is observed and heard.
+    // gone() writes nothing while the control stays, and close()
+    // disconnects it first, so no write loops.
+    ends?.abort();
+    ends = new AbortController();
     for (let root = el.getRootNode(); ; root = root.host.getRootNode()) {
       tree.observe(root, { childList: true, subtree: true, attributes: true });
+      for (const type of ["transitionend", "transitioncancel", "animationend", "animationcancel"]) {
+        root.addEventListener(type, gone, { capture: true, signal: ends.signal });
+      }
       if (!(root instanceof ShadowRoot)) {
         break;
       }

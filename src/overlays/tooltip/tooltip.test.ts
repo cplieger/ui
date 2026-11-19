@@ -786,11 +786,89 @@ describe("installTooltips with the system sheet", () => {
     },
   );
 
-  it("keeps a keyboard tip of a control in a popover still fading in from opacity 0 through a change to the page", async () => {
+  const frame = () => new Promise(requestAnimationFrame);
+  const ends = (el: HTMLElement, type: "transitionend" | "animationend") =>
+    new Promise((ok) => {
+      el.addEventListener(type, ok, { once: true });
+    });
+
+  it.each([
+    ["its control", () => placed({}), (b: HTMLElement) => b],
+    ["its control's parent", () => placed({}), (b: HTMLElement) => b.parentElement as HTMLElement],
+    [
+      "a shadow root's control's parent",
+      shadowed,
+      (b: HTMLElement) => b.parentElement as HTMLElement,
+    ],
+  ])(
+    "hides a keyboard tip once a transition of %s to opacity 0 ends, with no further input",
+    async (_who, make, who) => {
+      installTooltips({ signal: life.signal });
+      const b = make();
+      const el = who(b);
+      el.style.transition = "opacity 300ms linear";
+      // Computes the style from which the transition starts.
+      expect(getComputedStyle(el).opacity).toBe("1");
+      b.focus({ focusVisible: true });
+      expect(showing()).toBe(true);
+      const ended = ends(el, "transitionend");
+      el.style.opacity = "0";
+      await frame();
+      expect(showing()).toBe(true);
+      await ended;
+      await expect.poll(showing).toBe(false);
+    },
+  );
+
+  it("hides a keyboard tip once an animation of its control's parent to opacity 0 ends, with no further input", async () => {
+    installTooltips({ signal: life.signal });
+    const sheet = document.createElement("style");
+    sheet.textContent = "@keyframes test-out { to { opacity: 0; } }";
+    document.body.append(sheet);
+    const b = placed({});
+    const parent = b.parentElement as HTMLElement;
+    b.focus({ focusVisible: true });
+    expect(showing()).toBe(true);
+    const ended = ends(parent, "animationend");
+    parent.style.animation = "test-out 300ms linear forwards";
+    await frame();
+    expect(showing()).toBe(true);
+    await ended;
+    await expect.poll(showing).toBe(false);
+  });
+
+  it.each([
+    [
+      "an endless animation of its outline",
+      [{ outlineColor: "red" }, { outlineColor: "blue" }],
+      { duration: 1000, iterations: Infinity },
+    ],
+    [
+      "a finite animation of its translate",
+      [{ translate: "0" }, { translate: "4px" }],
+      { duration: 3000 },
+    ],
+  ])(
+    "hides a keyboard tip at once when its control turns opacity 0 under its parent's %s, with no further input",
+    async (_what, frames, timing) => {
+      installTooltips({ signal: life.signal });
+      const b = placed({});
+      const parent = b.parentElement as HTMLElement;
+      parent.animate(frames, timing);
+      b.focus({ focusVisible: true });
+      expect(showing()).toBe(true);
+      b.style.opacity = "0";
+      await expect.poll(showing, { timeout: 1000 }).toBe(false);
+    },
+  );
+
+  it("keeps a keyboard tip of a control in a popover that the focus reaches part way through its fade-in from opacity 0", async () => {
     installTooltips({ signal: life.signal });
     const pop = document.createElement("div");
     pop.className = "cp-popover";
     pop.popover = "manual";
+    // Long enough that no loaded engine's frame steps past its end.
+    pop.style.transitionDuration = "2s";
     const b = document.createElement("button");
     b.type = "button";
     b.textContent = "⚙";
@@ -798,12 +876,19 @@ describe("installTooltips with the system sheet", () => {
     b.setAttribute("aria-label", "Sources");
     pop.append(b);
     document.body.append(pop);
+    const ended = ends(pop, "transitionend");
     pop.showPopover();
+    while (Number(getComputedStyle(pop).opacity) === 0) {
+      await frame();
+    }
+    expect(Number(getComputedStyle(pop).opacity)).toBeLessThan(1);
     b.focus({ focusVisible: true });
     expect(showing()).toBe(true);
-    expect(getComputedStyle(pop).opacity).toBe("0");
     document.body.append(document.createElement("p"));
-    await Promise.resolve();
+    await frame();
+    expect(showing()).toBe(true);
+    await ended;
+    await frame();
     expect(showing()).toBe(true);
   });
 
