@@ -73,7 +73,15 @@ export function percent(ratio: number, locale?: string): string {
   return shares(page(locale))(ratio);
 }
 
+/** Decimal units count 1,000 bytes a kilobyte, binary ones 1,024 a kibibyte. */
+export type ByteUnits = "decimal" | "binary";
+
 const BYTES = ["byte", "kilobyte", "megabyte", "gigabyte", "terabyte", "petabyte"] as const;
+
+// ECMA-402 sanctions only decimal byte units, so a binary size is written
+// in the decimal unit of its step with the IEC 80000-13 symbol swapped in:
+// https://tc39.es/ecma402/#table-sanctioned-single-unit-identifiers
+const IEC = ["", "KiB", "MiB", "GiB", "TiB", "PiB"] as const;
 
 const byteDigits = (at: number): number => (at === 0 ? 0 : 1);
 
@@ -89,31 +97,35 @@ const rounded = (v: number, digits: number): number =>
   );
 
 /**
- * `n` bytes in decimal units with the locale's unit words: whole bytes,
- * else one fraction digit at the largest unit up to a petabyte that keeps
- * the rounded value under 1,000 ("999 byte", "1.0 kB", "999.9 MB"). A
- * negative size keeps its sign; a value that is not finite is written as
- * Intl writes it.
+ * `n` bytes in `units` (default "decimal"): whole bytes, else one fraction
+ * digit at the largest unit up to a peta- or pebibyte that keeps the
+ * rounded value at 1 or more ("999 byte", "1.0 kB", "512.0 MiB"). Every
+ * unit takes the locale's words but a binary one from a kibibyte up, which
+ * is the IEC symbol in every language. A negative size keeps its sign; a
+ * value that is not finite is written as Intl writes it.
  */
-export function bytes(n: number, locale?: string): string {
+export function bytes(n: number, units: ByteUnits = "decimal", locale?: string): string {
+  const base = units === "binary" ? 1_024 : 1_000;
   const size = Math.abs(n);
   let at = 0;
-  while (at < BYTES.length - 1 && size >= 1_000 ** (at + 1)) {
+  while (at < BYTES.length - 1 && size >= base ** (at + 1)) {
     at++;
   }
-  while (at < BYTES.length - 1 && rounded(size / 1_000 ** at, byteDigits(at)) >= 1_000) {
+  while (at < BYTES.length - 1 && rounded(size / base ** at, byteDigits(at)) >= base) {
     at++;
   }
   const digits = byteDigits(at);
+  const parts = numbers(page(locale), {
+    style: "unit",
+    unit: BYTES[at],
+    unitDisplay: "short",
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+    signDisplay: unsignedZero(undefined, false),
+  }).formatToParts(n / base ** at);
+  const symbol = units === "binary" && at > 0 ? IEC[at] : undefined;
   return keepUnit(
-    numbers(page(locale), {
-      style: "unit",
-      unit: BYTES[at],
-      unitDisplay: "short",
-      minimumFractionDigits: digits,
-      maximumFractionDigits: digits,
-      signDisplay: unsignedZero(undefined, false),
-    }).format(n / 1_000 ** at),
+    parts.map((p) => (p.type === "unit" && symbol !== undefined ? symbol : p.value)).join(""),
   );
 }
 

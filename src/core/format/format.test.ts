@@ -34,29 +34,73 @@ describe("bytes", () => {
     [999_950_000_000_000_000, "1,000.0 PB"],
     [2_000_000_000_000_000_000, "2,000.0 PB"],
   ])("writes %d bytes as %s", (n, want) => {
-    expect(bytes(n, "en")).toBe(want.replace(" ", NB));
+    expect(bytes(n, "decimal", "en")).toBe(want.replace(" ", NB));
   });
 
   it("rounds whole bytes at no fraction digit under the same rule", () => {
-    expect(bytes(999.4, "en")).toBe(`999${NB}byte`);
-    expect(bytes(999.5, "en")).toBe(`1.0${NB}kB`);
+    expect(bytes(999.4, "decimal", "en")).toBe(`999${NB}byte`);
+    expect(bytes(999.5, "decimal", "en")).toBe(`1.0${NB}kB`);
   });
 
   it("writes zero unsigned, and a negative size by its magnitude", () => {
-    expect(bytes(0, "en")).toBe(`0${NB}byte`);
-    expect(bytes(-0, "en")).toBe(`0${NB}byte`);
-    expect(bytes(-0.4, "en")).toBe(`0${NB}byte`);
-    expect(bytes(-999_950, "en")).toBe(`-1.0${NB}MB`);
+    expect(bytes(0, "decimal", "en")).toBe(`0${NB}byte`);
+    expect(bytes(-0, "decimal", "en")).toBe(`0${NB}byte`);
+    expect(bytes(-0.4, "decimal", "en")).toBe(`0${NB}byte`);
+    expect(bytes(-999_950, "decimal", "en")).toBe(`-1.0${NB}MB`);
   });
 
   it("takes its unit words from the platform, in the locale", () => {
-    expect(bytes(999_950, "de")).toBe(`1,0${NB}MB`);
-    expect(bytes(1_000, "fr")).toBe("1,0\u202Fko");
+    expect(bytes(999_950, "decimal", "de")).toBe(`1,0${NB}MB`);
+    expect(bytes(1_000, "decimal", "fr")).toBe("1,0\u202Fko");
   });
 
   it("writes a value that is not finite without throwing", () => {
-    expect(bytes(Number.NaN, "en")).toMatch(/NaN/u);
-    expect(bytes(Number.POSITIVE_INFINITY, "en")).toMatch(/∞/u);
+    expect(bytes(Number.NaN, "decimal", "en")).toMatch(/NaN/u);
+    expect(bytes(Number.POSITIVE_INFINITY, "decimal", "en")).toMatch(/∞/u);
+  });
+
+  it("is decimal by default", () => {
+    expect(bytes(536_870_912, undefined, "en")).toBe(`536.9${NB}MB`);
+  });
+});
+
+describe("bytes in binary units", () => {
+  // IEC 80000-13: a kibibyte is 1,024 bytes; the same pick-after-rounding rule.
+  it.each([
+    [1_023, "1,023 byte"],
+    [1_024, "1.0 KiB"],
+    [1_048_524, "1,023.9 KiB"],
+    [1_048_525, "1.0 MiB"],
+    [402_653_184, "384.0 MiB"],
+    [536_870_912, "512.0 MiB"],
+    [4_294_967_296, "4.0 GiB"],
+    [25_769_803_776, "24.0 GiB"],
+    [1_099_511_627_776, "1.0 TiB"],
+    [1_125_899_906_842_624, "1.0 PiB"],
+    [2_305_843_009_213_693_952, "2,048.0 PiB"],
+  ])("writes %d bytes as %s", (n, want) => {
+    expect(bytes(n, "binary", "en")).toBe(want.replace(" ", NB));
+  });
+
+  it("rounds whole bytes at no fraction digit under the same rule", () => {
+    expect(bytes(1_023.4, "binary", "en")).toBe(`1,023${NB}byte`);
+    expect(bytes(1_023.5, "binary", "en")).toBe(`1.0${NB}KiB`);
+  });
+
+  it("writes zero unsigned, and a negative size by its magnitude", () => {
+    expect(bytes(-0, "binary", "en")).toBe(`0${NB}byte`);
+    expect(bytes(-1_048_525, "binary", "en")).toBe(`-1.0${NB}MiB`);
+  });
+
+  it("writes the IEC symbol in every language, with the locale's digits and spacing", () => {
+    expect(bytes(536_870_912, "binary", "de")).toBe(`512,0${NB}MiB`);
+    expect(bytes(536_870_912, "binary", "fr")).toBe("512,0\u202FMiB");
+    expect(bytes(512, "binary", "de")).toBe(`512${NB}Byte`);
+  });
+
+  it("writes a value that is not finite without throwing", () => {
+    expect(bytes(Number.NaN, "binary", "en")).toMatch(/NaN/u);
+    expect(bytes(Number.POSITIVE_INFINITY, "binary", "en")).toMatch(/∞/u);
   });
 });
 
@@ -361,7 +405,7 @@ describe("the page's language", () => {
     document.documentElement.lang = "de";
     expect(number(1234.5, undefined, "en")).toBe("1,234.5");
     expect(count(3, { one: "run", other: "runs" }, "en")).toBe(`3${NB}runs`);
-    expect(bytes(999_950, "en")).toBe(`1.0${NB}MB`);
+    expect(bytes(999_950, undefined, "en")).toBe(`1.0${NB}MB`);
   });
 
   it("is what every writer reads", () => {

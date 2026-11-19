@@ -11,6 +11,7 @@ number(1234.5); // "1,234.5"
 count(3, { one: "run", other: "runs" }); // "3 runs"
 percent(0.0041); // "0.41%"
 bytes(536_870_912); // "536.9 MB"
+bytes(536_870_912, "binary"); // "512.0 MiB"
 duration(87_000); // "1 min, 27 sec"
 duration(845_000, "digital"); // "14:05"
 date(at); // "Nov 19, 2026, 6:40 PM"
@@ -26,7 +27,7 @@ Every writer takes `locale` last, a BCP 47 language tag, except `relative`, whic
 - `number(n, options?, locale?)` writes `n` under `Intl.NumberFormat` `options`. It never signs a zero: `signDisplay: "always"` writes 0 as "0" and +5 as "+5", and -0 reads "0". An invalid option throws Intl's `RangeError`.
 - `count(n, unit, locale?)` writes `n` as `number` does and the noun `Intl.PluralRules` picks from `unit`, a `{ other, one?, two?, few?, many?, zero? }` of nouns: "1 run", "3 runs", "2,160 hours". The noun follows the written number, so a count Intl rounds to 1 takes the "one" noun.
 - `percent(ratio, locale?)` writes a share of a whole, 0 to 1, at two significant digits, so no share above 0 reads "0%": 0.509 is "51%", 0.023 is "2.3%". A share below 1 that would round to the whole takes three digits, cut toward 0, so 0.9999 reads "99.9%" and only 1 reads "100%".
-- `bytes(n, locale?)` writes a size in decimal units, by the rule below. A negative size keeps its sign. A value that is not finite is written as Intl writes it, such as "NaN byte", and never throws.
+- `bytes(n, units?, locale?)` writes a size by the rule below. `units` is `"decimal"` by default, or `"binary"`. A negative size keeps its sign. A value that is not finite is written as Intl writes it, such as "NaN byte", and never throws.
 - `duration(ms, style?, locale?)` writes a span of time. `style` is `"short"` by default, then `"narrow"`, `"long"` or `"digital"`:
   - The word styles write the largest unit and, while its count is under 10, the next one: "0 ms", "400 ms", "1 min, 27 sec", "18 min", "9 hr, 30 min", "3 days". `"narrow"` writes "1m 27s" and `"long"` "1 minute, 27 seconds".
   - `"digital"` writes a clock: "0:42" and "14:05" under an hour, "1:02:03" and "25:00:00" from one, days folded into hours. A second shows once it has passed, so 41.6 seconds reads "0:41", and a negative span keeps its sign, "-0:42".
@@ -37,7 +38,7 @@ Every writer takes `locale` last, a BCP 47 language tag, except `relative`, whic
   - Every style joins its parts with no-break spaces, so a date never breaks across a line.
   - An invalid date throws Intl's `RangeError`.
 - `relative(at, opts?)` writes how long ago or ahead `at` is, in the locale's fewest words. `opts` is `{ now?, style?, locale? }`: `now` is the moment to count from, by default the present, and `style` is `"narrow"` by default, "4m ago", then `"short"` or `"long"`, "4 minutes ago". The words and their units are [relative-time](../data/relative-time.md#the-words)'s. An invalid date throws a `TypeError`.
-- Types: `Unit`, `DurationStyle`, `DateStyle`, `RelativeStyle` and `RelativeOptions`.
+- Types: `Unit`, `ByteUnits`, `DurationStyle`, `DateStyle`, `RelativeStyle` and `RelativeOptions`.
 
 ## The page's language
 
@@ -45,10 +46,11 @@ With no `locale`, a writer writes in the `lang` of the `<html>` element, read at
 
 ## Byte sizes
 
-- The units are decimal. A kilobyte is 1,000 bytes, as drives, downloads and network speeds count them. "512 MiB", 536,870,912 bytes, reads "536.9 MB".
+- Decimal units are the default. A kilobyte is 1,000 bytes, as drives, downloads and network speeds count them. 536,870,912 bytes reads "536.9 MB".
+- Binary units count 1,024 bytes a kibibyte, as memory limits are set: 536,870,912 bytes reads "512.0 MiB" and 4,294,967,296 "4.0 GiB". Write a size in the units its user set it in, so a 4 GiB limit never reads "4.3 GB" beside its field.
 - Whole bytes have no fraction digit, and every larger unit one: "999 byte", "1.0 kB", "999.9 kB".
-- The unit is the largest that keeps the size at 1 or more once rounded to print. So 999,949 bytes reads "999.9 kB" and 999,950 bytes "1.0 MB", never "1,000.0 kB". The same holds at each step up to a petabyte, the largest unit. Past 1,000 PB the number grows, "2,000.0 PB".
-- The unit words are the platform's, in the locale: German writes "1,0 MB" and French "1,0 ko". An app carries no size words of its own.
+- The unit is the largest that keeps the size at 1 or more once rounded to print. So 999,949 bytes reads "999.9 kB" and 999,950 bytes "1.0 MB", never "1,000.0 kB". In binary units 1,048,524 bytes reads "1,023.9 KiB" and 1,048,525 bytes "1.0 MiB". The same holds at each step up to a petabyte or pebibyte, the largest unit. Past it the number grows, "2,000.0 PB".
+- The decimal unit words are the platform's, in the locale: German writes "1,0 MB" and French "1,0 ko". A binary unit from a kibibyte up is the IEC symbol in every language, "512,0 MiB" in German, since the platform has no binary units. Its number and spacing are still the locale's. An app carries no size words of its own.
 
 ## Not here
 
