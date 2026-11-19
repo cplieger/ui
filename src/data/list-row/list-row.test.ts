@@ -514,7 +514,7 @@ describe("installRowActions", () => {
       await userEvent.pointer({ target: r, coords: at, keys: "[/MouseLeft]" });
       expect(heard).toEqual([]);
       await mouseAway();
-      expect(tipSays()).toBeNull();
+      await expect.poll(tipSays).toBeNull();
       tapAt(r, at);
       expect(tipSays()).toBe("Step 2 of 4: grabbing");
       tapAt(r, at);
@@ -535,13 +535,34 @@ describe("installRowActions", () => {
       await expect.poll(tipSays).toBe("18 Nov 2026, 10:00");
       expect(fill(r)).toBe(colour("--cp-fill", "backgroundColor"));
       await userEvent.hover(r, { position: { x: 4, y: at.y } });
-      expect(tipSays()).toBeNull();
+      await expect.poll(tipSays).toBeNull();
       await userEvent.hover(r, { position: at });
       await expect.poll(tipSays).toBe("18 Nov 2026, 10:00");
       await userEvent.pointer({ target: r, coords: at, keys: "[MouseLeft>]" });
       expect(fill(r)).toBe(colour("--cp-fill-active", "backgroundColor"));
       await userEvent.pointer({ target: r, coords: at, keys: "[/MouseLeft]" });
       expect(heard).toEqual([link]);
+    });
+
+    it("hides a plain tipped part's tip once the mouse leaves the part by one pixel, onto the row's action or off the row", async () => {
+      const r = row(
+        '<a href="#frieren">Frieren</a>',
+        '<time datetime="2026-11-18T10:00" data-cp-tip="18 Nov 2026, 10:00">2h ago</time>',
+      );
+      await settle();
+      const time = r.querySelector("time") as HTMLElement;
+      const box = r.getBoundingClientRect();
+      const t = time.getBoundingClientRect();
+      const past = { x: t.right - box.left, y: centreIn(r, time).y };
+      expect(document.elementsFromPoint(t.right, t.top + t.height / 2)).not.toContain(time);
+      for (const off of [() => userEvent.hover(r, { position: { x: 4, y: past.y } }), mouseAway]) {
+        await mouseAway();
+        await userEvent.hover(r, { position: centreIn(r, time) });
+        await expect.poll(tipSays).toBe("18 Nov 2026, 10:00");
+        await userEvent.hover(r, { position: past });
+        await off();
+        await expect.poll(tipSays).toBeNull();
+      }
     });
 
     it("lets a press just past a part's open tip, between it and the part, follow the action", async () => {

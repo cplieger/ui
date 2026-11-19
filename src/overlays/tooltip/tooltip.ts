@@ -51,10 +51,6 @@ function pointed(stretch: Element, e: PointerEvent): HTMLElement | null {
   return row !== null && part != null && row.contains(part) ? part : target(e);
 }
 
-function within(box: DOMRect, x: number, y: number): boolean {
-  return x >= box.left && x <= box.right && y >= box.top && y <= box.bottom;
-}
-
 // Words that differ only in punctuation, spacing or case say the same thing.
 function gist(text: string): string {
   return text
@@ -62,6 +58,17 @@ function gist(text: string): string {
     .trim()
     .toLowerCase();
 }
+
+/** A CSS time, such as `120ms` or `0.12s`, in ms. */
+function ms(time: string): number {
+  const n = Number.parseFloat(time);
+  return time.trim().endsWith("ms") ? n : n * 1000;
+}
+
+/** How a tip opened, which decides what closes it besides Escape: the
+ *  mouse leaving the control and the tip, the focus leaving the control,
+ *  or a second tap on the control or a tap elsewhere. */
+type Opened = "mouse" | "keys" | "tap";
 
 function listen(signal: AbortSignal, delay: number): void {
   const tip = document.createElement("div");
@@ -71,11 +78,19 @@ function listen(signal: AbortSignal, delay: number): void {
   tip.setAttribute("role", "tooltip");
   document.body.append(tip);
   let shownFor: HTMLElement | null = null;
-  // Only a tip the mouse showed hides as the mouse leaves (WCAG 1.4.13).
-  let byMouse = false;
-  // The mouse is in the gap between the control and the tip it showed.
-  let crossing = false;
-  let timer: ReturnType<typeof setTimeout> | undefined;
+  let opened: Opened = "mouse";
+  // The control a mouse rests on, waiting out `delay` before its tip shows.
+  let resting: HTMLElement | null = null;
+  let restTimer: ReturnType<typeof setTimeout> | undefined;
+  let leaveTimer: ReturnType<typeof setTimeout> | undefined;
+
+  /** The wait between the mouse leaving the control or the tip and the tip
+   *  hiding, the exit motion token: long enough to cross the gap between
+   *  them, and entering either within it keeps the tip. */
+  const grace = (): number => {
+    const token = getComputedStyle(tip).getPropertyValue("--cp-dur-exit");
+    return token === "" ? 120 : ms(token);
+  };
 
   /** Writes `el`'s words into the tip, and describes the control by them
    *  only while they say more than its name: the control's `aria-label`,
@@ -106,8 +121,9 @@ function listen(signal: AbortSignal, delay: number): void {
     }
   });
 
-  const hide = (): void => {
-    clearTimeout(timer);
+  /** Hides the tip, and leaves a control the mouse rests on to show its own. */
+  const close = (): void => {
+    clearTimeout(leaveTimer);
     watch.disconnect();
     if (shownFor !== null) {
       removeAnchorName(shownFor, NAME);
@@ -117,22 +133,30 @@ function listen(signal: AbortSignal, delay: number): void {
       }
     }
     shownFor = null;
-    crossing = false;
     if (tip.matches(":popover-open")) {
       tip.hidePopover();
     }
   };
-  const show = (el: HTMLElement, mouse: boolean): void => {
-    clearTimeout(timer);
+  const unrest = (): void => {
+    clearTimeout(restTimer);
+    resting = null;
+  };
+  const hide = (): void => {
+    unrest();
+    close();
+  };
+  const show = (el: HTMLElement, how: Opened): void => {
+    unrest();
     if (shownFor !== el) {
-      hide();
+      close();
     }
+    clearTimeout(leaveTimer);
     if (!write(el)) {
       return;
     }
     addAnchorName(el, NAME);
     shownFor = el;
-    byMouse = mouse;
+    opened = how;
     watch.observe(el, {
       attributes: true,
       attributeFilter: ["data-cp-tip", "aria-label"],
@@ -150,77 +174,68 @@ function listen(signal: AbortSignal, delay: number): void {
     }
     tip.showPopover();
   };
+  // A rest of the pointer is a length of time, so a timer measures it.
+  const rest = (el: HTMLElement): void => {
+    if (el === resting) {
+      return;
+    }
+    clearTimeout(restTimer);
+    resting = el;
+    restTimer = setTimeout(() => {
+      show(el, "mouse");
+    }, delay);
+  };
+  /** The mouse is over the shown control or the tip: the tip stays, and no
+   *  control the mouse crossed on the way takes it over. */
+  const over = (): void => {
+    clearTimeout(leaveTimer);
+    unrest();
+  };
+  /** The mouse left the shown control or the tip. Only a tip the mouse
+   *  showed hides for it (WCAG 1.4.13). */
+  const left = (): void => {
+    if (shownFor !== null && opened === "mouse") {
+      clearTimeout(leaveTimer);
+      leaveTimer = setTimeout(close, grace());
+    }
+  };
+  // No event says a control left the document or turned hidden, so every
+  // listener asks first.
+  const gone = (): void => {
+    if (shownFor !== null && !(shownFor.isConnected && shownFor.checkVisibility())) {
+      hide();
+    }
+  };
 
-  // Inside a stretched row action no pointerover tells its row's parts
+  // Inside a stretched row action no boundary event tells its row's parts
   // apart, so the mouse's moves there aim at the part under it.
   let aimed: HTMLElement | null = null;
-
-  /** Whether (x, y) is in the strip between the shown control and the tip,
-   *  on whichever side the tip sits. */
-  const between = (x: number, y: number): boolean => {
-    if (shownFor === null) {
-      return false;
-    }
-    const a = shownFor.getBoundingClientRect();
-    const b = tip.getBoundingClientRect();
-    return (
-      x >= Math.min(a.left, b.left) &&
-      x <= Math.max(a.right, b.right) &&
-      y >= Math.min(a.bottom, b.bottom) &&
-      y <= Math.max(a.top, b.top)
-    );
-  };
-  /** The mouse leaving the control or the tip for where `e` puts it: a tip
-   *  it showed stays while it crosses the gap and hides anywhere else. The
-   *  gap is measured, not a hit-testable layer, so a press there reaches
-   *  what lies under it. True while the mouse is in the gap. */
-  const leave = (e: PointerEvent): boolean => {
-    if (shownFor === null || !byMouse) {
-      return false;
-    }
-    const { clientX: x, clientY: y } = e;
-    const offPage = e.type === "pointerout" && e.relatedTarget === null;
-    if (!offPage) {
-      const onEither =
-        within(tip.getBoundingClientRect(), x, y) || within(shownFor.getBoundingClientRect(), x, y);
-      crossing = !onEither && between(x, y);
-      if (onEither || crossing) {
-        return crossing;
-      }
-    }
-    aimed = null;
-    hide();
-    return false;
-  };
-  const aim = (e: PointerEvent, el: HTMLElement | null): void => {
+  const aim = (el: HTMLElement | null): void => {
     if (el === aimed) {
       return;
     }
-    if (aimed !== null && aimed === shownFor && leave(e)) {
-      return;
+    if (aimed !== null && aimed === shownFor) {
+      left();
+    } else if (aimed !== null && aimed === resting) {
+      unrest();
     }
-    clearTimeout(timer);
     aimed = el;
-    if (el !== null && el !== shownFor) {
-      timer = setTimeout(() => {
-        show(el, true);
-      }, delay);
+    if (el !== null && el === shownFor) {
+      over();
+    } else if (el !== null) {
+      rest(el);
     }
   };
 
   const on = { capture: true, signal };
+  const at = (e: Event): EventTarget | undefined => e.composedPath()[0];
   document.addEventListener(
     "pointermove",
     (e) => {
-      if (e.pointerType !== "mouse") {
-        return;
-      }
-      if (crossing && leave(e)) {
-        return;
-      }
+      gone();
       const stretch = stretchOf(e);
-      if (stretch !== null) {
-        aim(e, pointed(stretch, e));
+      if (e.pointerType === "mouse" && stretch !== null) {
+        aim(pointed(stretch, e));
       }
     },
     { ...on, passive: true },
@@ -228,70 +243,48 @@ function listen(signal: AbortSignal, delay: number): void {
   document.addEventListener(
     "pointerover",
     (e) => {
+      gone();
       if (e.pointerType !== "mouse") {
         return;
       }
-      const at = e.composedPath()[0];
-      if (at instanceof Node && tip.contains(at)) {
-        crossing = false;
+      const t = at(e);
+      if (t instanceof Node && tip.contains(t)) {
+        over();
         return;
       }
       const stretch = stretchOf(e);
       if (stretch !== null) {
-        aim(e, pointed(stretch, e));
+        aim(pointed(stretch, e));
         return;
       }
       const el = target(e);
-      if (el === shownFor) {
-        crossing = false;
+      if (el !== null && el === shownFor) {
+        over();
+      } else if (el !== null) {
+        rest(el);
       }
-      if (el === null || el === shownFor) {
-        return;
-      }
-      clearTimeout(timer);
-      // A rest of the pointer is a length of time, so a timer measures it.
-      timer = setTimeout(() => {
-        show(el, true);
-      }, delay);
     },
     on,
   );
-  // A finger leaves its target after every tap, so only a mouse's leaving
-  // hides a tip, and a mouse may move onto the tip it shows.
-  const into = (to: EventTarget | null, el: Element | null): boolean =>
-    to instanceof Node && (el?.contains(to) === true || (shownFor !== null && tip.contains(to)));
+  // pointerleave fires for each element the mouse leaves, by the engine's
+  // own hit test, and does not bubble, so this capture listener hears it
+  // for the control and the tip.
   document.addEventListener(
-    "pointerout",
+    "pointerleave",
     (e) => {
+      gone();
       if (e.pointerType !== "mouse") {
         return;
       }
-      const to = e.relatedTarget;
-      const from = e.composedPath()[0];
-      if (from instanceof Node && tip.contains(from)) {
-        if (!(to instanceof Node && tip.contains(to))) {
-          leave(e);
-        }
-        return;
+      const t = at(e);
+      if (t === resting) {
+        unrest();
       }
-      if (crossing && to === null) {
-        leave(e);
-        return;
+      if (shownFor !== null && (t === shownFor || t === tip)) {
+        left();
       }
-      const stretch = stretchOf(e);
-      if (stretch !== null) {
-        if (!into(to, stretch)) {
-          aim(e, null);
-        }
-        return;
-      }
-      const el = target(e);
-      if (el !== null && !into(to, el)) {
-        if (el === shownFor) {
-          leave(e);
-        } else {
-          clearTimeout(timer);
-        }
+      if (t instanceof Element && t.matches(STRETCH)) {
+        aim(null);
       }
     },
     on,
@@ -299,18 +292,19 @@ function listen(signal: AbortSignal, delay: number): void {
   document.addEventListener(
     "focusin",
     (e) => {
+      gone();
       // The focused control may sit inside the tipped one, as a radio in
       // its label. Safari's arrow move between radios misses :focus-visible;
       // radio-focus marks it, and its capture listener runs before this one
       // because installTooltips installs it first.
       const el = target(e);
-      const focused = e.composedPath()[0];
+      const focused = at(e);
       if (
         el !== null &&
         focused instanceof Element &&
         focused.matches(":focus-visible, [data-cp-focus-ring]")
       ) {
-        show(el, false);
+        show(el, "keys");
       }
     },
     on,
@@ -318,7 +312,10 @@ function listen(signal: AbortSignal, delay: number): void {
   document.addEventListener(
     "focusout",
     (e) => {
-      if (target(e) === shownFor) {
+      gone();
+      // A tap on the tip moves the focus off its toggle in Chromium and
+      // Firefox and not in WebKit, so only a tip focus showed hides on blur.
+      if (opened === "keys" && target(e) === shownFor) {
         hide();
       }
     },
@@ -327,6 +324,7 @@ function listen(signal: AbortSignal, delay: number): void {
   document.addEventListener(
     "keydown",
     (e) => {
+      gone();
       // Escape also cancels a tip still waiting on the mouse's rest.
       if (e.key === "Escape") {
         hide();
@@ -337,8 +335,9 @@ function listen(signal: AbortSignal, delay: number): void {
   document.addEventListener(
     "pointerdown",
     (e) => {
-      const at = e.composedPath()[0];
-      if (at instanceof Node && tip.contains(at)) {
+      gone();
+      const t = at(e);
+      if (t instanceof Node && tip.contains(t)) {
         return;
       }
       const el = target(e);
@@ -350,7 +349,7 @@ function listen(signal: AbortSignal, delay: number): void {
         if (el === shownFor) {
           hide();
         } else {
-          show(el, false);
+          show(el, "tap");
         }
       } else {
         hide();
