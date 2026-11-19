@@ -1516,6 +1516,40 @@ describe("mountSignIn: once the autofill's pick signed in", () => {
     expect(fake.named("loginPassword")).toHaveLength(0);
   });
 
+  it("ends the autofill's request once the password signed in", async () => {
+    const asks: PromiseWithResolvers<unknown>[] = [];
+    const password = Promise.withResolvers<unknown>();
+    const fake = new Fake()
+      .answer("passkeySupport", { webauthn: true, conditional: true })
+      .always("signInWithPasskey", () => {
+        const ask = Promise.withResolvers<unknown>();
+        asks.push(ask);
+        return ask.promise;
+      })
+      .answer("loginPassword", () => password.promise);
+    const releaseStore = fake.hold("storePasswordCredential");
+    const { panel } = mount(fake);
+    await drawn(panel);
+    await userEvent.click(button(panel, "Sign in with a passkey"));
+    input(panel, "username").value = "mika";
+    input(panel, "password").value = "lantern harbour";
+    input(panel, "password").form?.requestSubmit();
+    asks[1]?.resolve({ kind: "verification-failed" });
+    await vi.waitFor(() => {
+      expect(asks).toHaveLength(3);
+    });
+    const restarted = fake.named("signInWithPasskey")[2]?.args[1] as { signal?: AbortSignal };
+    password.resolve(ok(signedIn));
+    await vi.waitFor(() => {
+      expect(fake.named("storePasswordCredential")).toHaveLength(1);
+    });
+    expect(restarted.signal?.aborted).toBe(true);
+    asks[2]?.resolve({ kind: "verification-failed" });
+    await later();
+    expect(fake.named("signInWithPasskey")).toHaveLength(3);
+    releaseStore();
+  });
+
   it("reads nothing and asks no autofill from a refused read's Retry", async () => {
     let reads = 0;
     const fake = new Fake()

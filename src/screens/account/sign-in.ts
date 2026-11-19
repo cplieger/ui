@@ -219,7 +219,6 @@ export function mountSignIn<C extends SignInClient>(
 
   const finish = (result: SignedIn): void => {
     taken.abort();
-    stopConditional();
     if (handed) {
       return;
     }
@@ -889,6 +888,9 @@ export function mountSignIn<C extends SignInClient>(
     waiting = undefined;
   };
   signal?.addEventListener("abort", stopConditional, { once: true });
+  // A sign-in taken ends the autofill's request, so a miss of it after
+  // that neither shows nor asks again; a pick it already made still counts.
+  taken.signal.addEventListener("abort", stopConditional, { once: true });
 
   /** The autofill request, which offers the person's passkeys in the
    *  username field's suggestions. */
