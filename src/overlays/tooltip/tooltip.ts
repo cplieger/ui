@@ -119,10 +119,15 @@ function listen(signal: AbortSignal, delay: number): void {
     }
   });
 
-  // A control that leaves the document or turns hidden stops intersecting,
-  // inline or not, with no input event. One already outside the window
-  // reports no change, so every listener also asks gone() first.
+  // The IntersectionObserver reports a control in the window that leaves
+  // the document or that layout hides; the MutationObserver reports a node
+  // removed, or an attribute, class or inline style that may hide one,
+  // wherever it is. Neither reports a stylesheet hiding a control outside
+  // the window, so every listener also asks gone() first.
   const seen = new IntersectionObserver(() => {
+    gone();
+  });
+  const tree = new MutationObserver(() => {
     gone();
   });
 
@@ -131,6 +136,7 @@ function listen(signal: AbortSignal, delay: number): void {
     clearTimeout(leaveTimer);
     watch.disconnect();
     seen.disconnect();
+    tree.disconnect();
     if (shownFor !== null) {
       removeAnchorName(shownFor, NAME);
       const d = described(shownFor);
@@ -164,6 +170,12 @@ function listen(signal: AbortSignal, delay: number): void {
     shownFor = el;
     opened = how;
     seen.observe(el);
+    tree.observe(document.documentElement, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["hidden", "style", "class", "open"],
+    });
     watch.observe(el, {
       attributes: true,
       attributeFilter: ["data-cp-tip", "aria-label"],
@@ -209,7 +221,10 @@ function listen(signal: AbortSignal, delay: number): void {
     }
   };
   const gone = (): void => {
-    if (shownFor !== null && !(shownFor.isConnected && shownFor.checkVisibility())) {
+    if (
+      shownFor !== null &&
+      !(shownFor.isConnected && shownFor.checkVisibility({ visibilityProperty: true }))
+    ) {
       hide();
     }
   };

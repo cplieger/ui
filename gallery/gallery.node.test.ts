@@ -214,8 +214,10 @@ interface Probe {
   aim(i: number): Point | string | null;
   /** What hovering hoverable `i` changed. */
   diff(i: number): Promise<string[]>;
-  /** Whether the paint the last aim took still holds, the mouse parked. */
-  rested(): Promise<boolean>;
+  /** Whether the paint, the mouse parked, matches neither the last aim's,
+   *  which a hover rule reverts to, nor the last diff's, which a hover that
+   *  sticks keeps: the page changed by itself, as a live job that ends. */
+  strayed(): Promise<boolean>;
   /** Gathers the rows in layer `i` or the page; returns their kinds. */
   rows(layer: number | null): Kind[];
   /** Scrolls row `i` into view and takes its paint: a one-action row's
@@ -434,6 +436,7 @@ function installProbe(): void {
 
   let hoverables: Element[] = [];
   let shots: Shot[] = [];
+  let lit: Shot[] = [];
   let rows: { row: Element; kind: Kind; action: HTMLElement | null }[] = [];
   let parts: {
     part: HTMLElement;
@@ -576,13 +579,14 @@ function installProbe(): void {
         return [];
       }
       const said = `${where(el)}: hovering ${name(el)}`;
+      lit = shots.map(({ el: e, pseudo }) => ({ el: e, pseudo, value: paint(e, pseudo) }));
       return el.matches(":hover")
         ? changes(shots).map((c) => `${said} changed ${c}`)
         : [`${said} did not hover it`];
     },
-    async rested() {
+    async strayed() {
       await frame();
-      return changes(shots).length === 0;
+      return changes(shots).length > 0 && changes(lit).length > 0;
     },
     rows(layer) {
       rows = [...scopeOf(layer).querySelectorAll(ROWS)].filter(shown).map(classify);
@@ -1107,18 +1111,17 @@ describe.each(browsers)("the gallery in %s", (name) => {
           await tab.mouse.move(at.x, at.y);
           return tab.evaluate((k) => cpProbe().diff(k), i);
         };
-        /** Whether what hovering changed stays with the mouse parked, so
-         *  the page changed by itself, as a live job that ends. */
-        const moved = async (): Promise<boolean> => {
+        const strayed = async (): Promise<boolean> => {
           await tab.mouse.move(park.x, park.y);
-          return !(await tab.evaluate(() => cpProbe().rested()));
+          return tab.evaluate(() => cpProbe().strayed());
         };
         for (let i = 0; i < count; i++) {
-          let found = await hover(i);
-          for (let n = 0; n < 2 && found.length > 0 && (await moved()); n++) {
+          const first = await hover(i);
+          let found = first;
+          for (let n = 0; n < 2 && found.length > 0 && (await strayed()); n++) {
             found = await hover(i);
           }
-          wrong.push(...found);
+          wrong.push(...(found.length === 0 ? [] : first));
         }
         if (layer !== null) {
           await tab.evaluate((l) => {

@@ -1,5 +1,5 @@
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { server, userEvent } from "vitest/browser";
+import { afterAll, afterEach, beforeAll, describe, expect, it, onTestFinished, vi } from "vitest";
+import { cdp, server, userEvent } from "vitest/browser";
 
 import { useSystemSheet } from "../../system/test-helpers/css.js";
 import { installTooltips } from "./tooltip.js";
@@ -558,6 +558,133 @@ describe("installTooltips with the system sheet", () => {
     },
   );
 
+  /** Resolves once an IntersectionObserver reports `el` outside its
+   *  scroller, which is when the tooltip's own has reported it too. */
+  const outOfView = (el: Element) =>
+    new Promise<void>((ok) => {
+      const io = new IntersectionObserver((entries) => {
+        if (entries.some((e) => !e.isIntersecting)) {
+          io.disconnect();
+          ok();
+        }
+      });
+      io.observe(el);
+    });
+  /** The element of `el`'s that is the body's child. */
+  const outer = (el: HTMLElement) => el.closest<HTMLElement>("body > *") ?? el;
+  /** A blank taller than the window, to scroll past. */
+  const blank = () => {
+    const d = document.createElement("div");
+    d.style.blockSize = "300vh";
+    return d;
+  };
+  /** Where `el` is put above a blank, how to scroll past it, which
+   *  returns the top edge of what shows of the scroller, and how to take
+   *  it all away. */
+  interface Placed {
+    readonly scroll: () => number;
+    readonly clear: () => void;
+  }
+  /** At the top of a short `overflow: auto` box. */
+  const inBoxAbove = (el: HTMLElement): Placed => {
+    const box = document.createElement("div");
+    Object.assign(box.style, { blockSize: "6rem", overflow: "auto", marginBlockStart: "8rem" });
+    box.append(outer(el), blank());
+    document.body.append(box);
+    return {
+      scroll: () => {
+        box.scrollTop = box.scrollHeight;
+        return box.getBoundingClientRect().top;
+      },
+      clear: () => {
+        box.remove();
+      },
+    };
+  };
+  /** In the window. */
+  const inWindowAbove = (el: HTMLElement): Placed => {
+    const own = outer(el);
+    const below = blank();
+    document.body.append(below);
+    return {
+      scroll: () => {
+        scrollTo(0, own.getBoundingClientRect().bottom + scrollY + innerHeight);
+        return 0;
+      },
+      clear: () => {
+        own.remove();
+        below.remove();
+        scrollTo(0, 0);
+      },
+    };
+  };
+  const button = () => control("Opens the sources you connected", "Sources");
+
+  it.each([
+    ["a button", "the window", button, inWindowAbove],
+    ["an inline toggle", "the window", inline, inWindowAbove],
+    ["a button", "an overflow box", button, inBoxAbove],
+    ["an inline toggle", "an overflow box", inline, inBoxAbove],
+  ])(
+    "hides a keyboard tip of %s scrolled out of %s when its control leaves the document or turns hidden, with no further input",
+    async (_kind, _scroller, make, place) => {
+      installTooltips({ signal: life.signal });
+      // A mouse over what scrolls or moves gets the engine's own boundary
+      // and move events, each of which would run the tooltip's listeners.
+      const park = document.createElement("div");
+      Object.assign(park.style, {
+        position: "fixed",
+        insetInlineEnd: "0",
+        insetBlockEnd: "0",
+        inlineSize: "2rem",
+        blockSize: "2rem",
+      });
+      document.body.append(park);
+      await userEvent.hover(park);
+      for (const [, drop] of drops) {
+        const b = make();
+        const { scroll, clear } = place(b);
+        b.focus({ focusVisible: true, preventScroll: true });
+        expect(showing()).toBe(true);
+        const edge = scroll();
+        await outOfView(b);
+        expect(b.getBoundingClientRect().bottom).toBeLessThanOrEqual(edge);
+        await pause();
+        drop(b);
+        await expect.poll(showing).toBe(false);
+        clear();
+      }
+    },
+  );
+
+  it.each(drops)(
+    "hides a mouse's tip the mouse rests on when its control, scrolled out of an overflow box, %s, with no further input",
+    async (_how, drop) => {
+      installTooltips({ signal: life.signal, delay: 100 });
+      const b = button();
+      const { scroll } = inBoxAbove(b);
+      await userEvent.hover(b);
+      await expect.poll(showing).toBe(true);
+      await userEvent.hover(tip());
+      const edge = scroll();
+      await outOfView(b);
+      expect(b.getBoundingClientRect().bottom).toBeLessThanOrEqual(edge);
+      expect(showing()).toBe(true);
+      drop(b);
+      await expect.poll(showing).toBe(false);
+    },
+  );
+
+  it("hides a mouse's tip the mouse rests on when its control in view turns visibility: hidden", async () => {
+    installTooltips({ signal: life.signal, delay: 100 });
+    const b = placed({});
+    await userEvent.hover(b);
+    await expect.poll(showing).toBe(true);
+    await userEvent.hover(tip());
+    b.style.visibility = "hidden";
+    await expect.poll(showing).toBe(false);
+  });
+
   it("keeps a keyboard tip and the focus through a mouse press on its control", async () => {
     installTooltips({ signal: life.signal, delay: 100 });
     const b = control("Opens the sources you connected", "Sources");
@@ -585,6 +712,31 @@ describe("installTooltips with the system sheet", () => {
     expect(b.getAttribute("aria-describedby")).toBe(tip().id);
   });
 
+  /** Whether the tip shows after a dispatched mouse leaves its control and
+   *  reaches the tip `crossing` ms later, on a faked clock that measures
+   *  the crossing exactly. */
+  const crossed = (crossing: number): boolean => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      installTooltips({ signal: life.signal, delay: 100 });
+      const b = control("Opens the sources you connected", "Sources");
+      b.style.marginBlockStart = "8rem";
+      const mouse = { pointerType: "mouse" };
+      const bubbling = { ...mouse, bubbles: true, composed: true };
+      b.dispatchEvent(new PointerEvent("pointerover", bubbling));
+      vi.advanceTimersByTime(100);
+      expect(showing()).toBe(true);
+      b.dispatchEvent(new PointerEvent("pointerout", bubbling));
+      b.dispatchEvent(new PointerEvent("pointerleave", mouse));
+      vi.advanceTimersByTime(crossing);
+      tip().dispatchEvent(new PointerEvent("pointerover", bubbling));
+      vi.advanceTimersByTime(1000);
+      return showing();
+    } finally {
+      vi.useRealTimers();
+    }
+  };
+
   it.each([
     ["the grace token", 250, true, ""],
     ["the grace token", 350, false, ""],
@@ -597,27 +749,26 @@ describe("installTooltips with the system sheet", () => {
       const page = document.createElement("style");
       page.textContent = css;
       document.head.append(page);
-      // The moves are dispatched, so a faked clock measures the crossing exactly.
-      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
       try {
-        installTooltips({ signal: life.signal, delay: 100 });
-        const b = control("Opens the sources you connected", "Sources");
-        b.style.marginBlockStart = "8rem";
-        const mouse = { pointerType: "mouse" };
-        const bubbling = { ...mouse, bubbles: true, composed: true };
-        b.dispatchEvent(new PointerEvent("pointerover", bubbling));
-        vi.advanceTimersByTime(100);
-        expect(showing()).toBe(true);
-        b.dispatchEvent(new PointerEvent("pointerout", bubbling));
-        b.dispatchEvent(new PointerEvent("pointerleave", mouse));
-        vi.advanceTimersByTime(crossing);
-        tip().dispatchEvent(new PointerEvent("pointerover", bubbling));
-        vi.advanceTimersByTime(1000);
-        expect(showing()).toBe(open);
+        expect(crossed(crossing)).toBe(open);
       } finally {
-        vi.useRealTimers();
         page.remove();
       }
+    },
+  );
+
+  // Media emulation goes through the Chrome DevTools Protocol, which only
+  // Chromium speaks.
+  it.skipIf(server.browser !== "chromium")(
+    "under reduced motion, a mouse reaching the tip 250ms after leaving its control finds it open",
+    async () => {
+      const features = [{ name: "prefers-reduced-motion", value: "reduce" }];
+      await cdp().send("Emulation.setEmulatedMedia", { features });
+      onTestFinished(async () => {
+        await cdp().send("Emulation.setEmulatedMedia", { features: [] });
+      });
+      expect(matchMedia("(prefers-reduced-motion: reduce)").matches).toBe(true);
+      expect(crossed(250)).toBe(true);
     },
   );
 
