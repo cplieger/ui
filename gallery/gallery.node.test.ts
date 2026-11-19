@@ -226,9 +226,9 @@ interface Probe {
   parts(i: number): boolean[];
   /** Scrolls part `j` into view; the point to hover it at, its centre. */
   aimPart(j: number): Point;
-  /** What part `j` did wrong under the mouse resting on it, a press on
-   *  it, or a tap on it. */
-  checkPart(j: number, step: "rest" | "press" | "tap"): Promise<string[]>;
+  /** What part `j` did wrong under the mouse resting on it, the mouse
+   *  held down on it, a press on it, or a tap on it. */
+  checkPart(j: number, step: "rest" | "down" | "press" | "tap"): Promise<string[]>;
 }
 
 /**
@@ -431,7 +431,12 @@ function installProbe(): void {
   let hoverables: Element[] = [];
   let shots: Shot[] = [];
   let rows: { row: Element; kind: Kind; action: HTMLElement | null }[] = [];
-  let parts: { part: HTMLElement; row: (typeof rows)[number]; at: Point }[] = [];
+  let parts: {
+    part: HTMLElement;
+    row: (typeof rows)[number];
+    at: Point;
+    idle: string[];
+  }[] = [];
   let pressed: EventTarget | null = null;
   // Only a row's press is caught, so a layer's opener still opens it.
   let catching = false;
@@ -463,6 +468,11 @@ function installProbe(): void {
   };
 
   const FOCUSABLE = '[tabindex]:not([tabindex="-1"]), [data-cp-tip-toggle]';
+  /** A row's fill: its own background, and a table row's cells'. */
+  const fills = (row: Element): string[] =>
+    [row, ...(row instanceof HTMLTableRowElement ? row.cells : [])].map(
+      (el) => getComputedStyle(el).backgroundColor,
+    );
   const tipSays = (): string | null => {
     const tip = document.querySelector(".cp-tooltip");
     return tip?.matches(":popover-open") === true ? tip.textContent : null;
@@ -649,7 +659,7 @@ function installProbe(): void {
       }
       parts = [...r.row.querySelectorAll<HTMLElement>(`${FOCUSABLE}, [data-cp-tip]`)]
         .filter((part) => !action.contains(part) && shown(part))
-        .map((part) => ({ part, row: r, at: { x: 0, y: 0 } }));
+        .map((part) => ({ part, row: r, at: { x: 0, y: 0 }, idle: [] }));
       return parts.map(({ part }) => part.matches("[data-cp-tip-toggle]"));
     },
     aimPart(j) {
@@ -660,6 +670,7 @@ function installProbe(): void {
       reveal(p.part);
       const box = p.part.getBoundingClientRect();
       p.at = { x: box.left + box.width / 2, y: box.top + box.height / 2 };
+      p.idle = fills(p.row.row);
       pressed = null;
       catching = true;
       return p.at;
@@ -679,9 +690,18 @@ function installProbe(): void {
           own && (hit === null || !part.contains(hit))
             ? [`${said} is covered by ${hit === null ? "nothing" : name(hit)}`]
             : [];
+        if (own && fills(row.row).join() !== p.idle.join()) {
+          wrong.push(`${said} shows the row's hover fill, though a press on it follows nothing`);
+        }
         return words === undefined || (await tipFor(words))
           ? wrong
           : [...wrong, `${said} shows no tip to a mouse resting on it`];
+      }
+      if (step === "down") {
+        await frame();
+        return own && fills(row.row).join() !== p.idle.join()
+          ? [`${said} shows the row's pressed fill, though a press on it follows nothing`]
+          : [];
       }
       if (step === "press") {
         catching = false;
@@ -1123,6 +1143,7 @@ describe.each(browsers)("the gallery in %s", (name) => {
             await tab.mouse.move(part.x, part.y);
             wrong.push(...(await tab.evaluate((p) => cpProbe().checkPart(p, "rest"), j)));
             await tab.mouse.down();
+            wrong.push(...(await tab.evaluate((p) => cpProbe().checkPart(p, "down"), j)));
             await tab.mouse.up();
             wrong.push(...(await tab.evaluate((p) => cpProbe().checkPart(p, "press"), j)));
             if (toggle) {

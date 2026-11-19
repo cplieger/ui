@@ -558,7 +558,10 @@ button.cp-list-row[aria-pressed] .cp-badge {
  * sit over the action's box, so they keep their hover, press and tap. */
 /* stylelint-disable-next-line selector-max-attribute, selector-max-pseudo-class -- a focusable part is a tabindex or a tip toggle, and the action itself stays under */
 :is(.cp-list-row, .cp-table tbody tr, .cp-feed-entry)[data-cp-row-action]
-  :where([tabindex]:not([tabindex="-1"]), [data-cp-tip-toggle]):not([data-cp-stretch]) {
+  :where([tabindex]:not([tabindex="-1"]), [data-cp-tip-toggle]):not(
+    [data-cp-stretch],
+    :has([data-cp-stretch])
+  ) {
   position: relative;
   z-index: 2;
 }
@@ -587,8 +590,13 @@ button.cp-list-row[aria-pressed] .cp-badge {
   outline-offset: -2px;
 }
 
-/* stylelint-disable-next-line selector-max-pseudo-class -- a mouse's :active and a finger's data-cp-pressed on the action */
-:is(.cp-list-row, .cp-feed-entry)[data-cp-row-action]:is(:active, :has([data-cp-pressed])) {
+/* The row's fills key on its action, not the row: a press or a rest on a
+ * lifted part is that part's own and follows nothing. */
+/* stylelint-disable-next-line selector-max-attribute, selector-max-pseudo-class -- a mouse's :active and a finger's data-cp-pressed on the action */
+:is(.cp-list-row, .cp-feed-entry)[data-cp-row-action]:has(
+    :where([data-cp-stretch]):active,
+    :where([data-cp-stretch][data-cp-pressed])
+  ) {
   background: var(--cp-fill-active);
 }
 
@@ -596,7 +604,9 @@ button.cp-list-row[aria-pressed] .cp-badge {
   @scope (:root:not([data-pointer="coarse"])) {
     /* Only a row that is one action takes a fill under the mouse; a row
      * of two actions or none leaves the mouse to its controls. */
-    .cp-list-row:where(a[href], button, [data-cp-row-action]):hover {
+    /* stylelint-disable-next-line selector-max-pseudo-class -- the fill keys on the stretched action, :where keeps the row rule's specificity */
+    .cp-list-row:where([data-cp-row-action]):has(:where([data-cp-stretch]):hover),
+    .cp-list-row:where(a[href], button):hover {
       background: var(--cp-list-row-hover, var(--cp-fill));
     }
 
@@ -621,8 +631,9 @@ button.cp-list-row[aria-pressed] .cp-badge {
 
     /* A plain button shares the row's hover fill and would vanish; lift it
      * to the raised surface. One that confirms in place keeps its state's. */
-    /* stylelint-disable-next-line selector-max-attribute, selector-max-specificity -- the one-action row and the plain resting button are each attributes */
-    .cp-list-row[data-cp-row-action]:hover .cp-button:not([data-variant], [data-cp-state]) {
+    /* stylelint-disable-next-line selector-max-attribute, selector-max-specificity, selector-max-pseudo-class -- the one-action row and the plain resting button are each attributes */
+    .cp-list-row[data-cp-row-action]:has(:where([data-cp-stretch]):hover)
+      .cp-button:not([data-variant], [data-cp-state]) {
       --cp-chart-surface: var(--cp-surface-raised);
 
       background: var(--cp-surface-raised);

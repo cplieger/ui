@@ -504,9 +504,14 @@ describe("installRowActions", () => {
       const box = r.getBoundingClientRect();
       expect(document.elementFromPoint(box.left + at.x, box.top + at.y)).toBe(part);
       const heard = clicks(link);
+      await mouseAway();
+      const rest = fill(r);
       await userEvent.hover(r, { position: at });
       await expect.poll(tipSays).toBe("Step 2 of 4: grabbing");
-      await userEvent.click(r, { position: at });
+      expect(fill(r)).toBe(rest);
+      await userEvent.pointer({ target: r, coords: at, keys: "[MouseLeft>]" });
+      expect(fill(r)).toBe(rest);
+      await userEvent.pointer({ target: r, coords: at, keys: "[/MouseLeft]" });
       expect(heard).toEqual([]);
       await mouseAway();
       expect(tipSays()).toBeNull();
@@ -528,11 +533,26 @@ describe("installRowActions", () => {
       await mouseAway();
       await userEvent.hover(r, { position: at });
       await expect.poll(tipSays).toBe("18 Nov 2026, 10:00");
-      await userEvent.hover(r, { position: { x: at.x, y: 2 } });
+      expect(fill(r)).toBe(colour("--cp-fill", "backgroundColor"));
+      await userEvent.hover(r, { position: { x: 4, y: at.y } });
       expect(tipSays()).toBeNull();
       await userEvent.hover(r, { position: at });
       await expect.poll(tipSays).toBe("18 Nov 2026, 10:00");
-      await userEvent.click(r, { position: at });
+      await userEvent.pointer({ target: r, coords: at, keys: "[MouseLeft>]" });
+      expect(fill(r)).toBe(colour("--cp-fill-active", "backgroundColor"));
+      await userEvent.pointer({ target: r, coords: at, keys: "[/MouseLeft]" });
+      expect(heard).toEqual([link]);
+    });
+
+    it("keeps a row whole whose action sits inside a focusable cut line", async () => {
+      const r = row(
+        '<span class="cp-truncate" tabindex="0" data-cp-tip-toggle data-cp-tip="Frieren: Beyond Journey\'s End"><a href="#frieren">Frieren: Beyond Journey\'s End</a></span>',
+      );
+      await settle();
+      const link = r.querySelector("a") as HTMLAnchorElement;
+      const heard = clicks(link);
+      await mouseAway();
+      await userEvent.click(r, { position: farEnd(r) });
       expect(heard).toEqual([link]);
     });
   });

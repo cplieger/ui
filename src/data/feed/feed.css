@@ -67,7 +67,7 @@
       color: var(--cp-accent-ink);
     }
 
-    .cp-feed-entry[data-cp-row-action]:hover {
+    .cp-feed-entry[data-cp-row-action]:has(:where([data-cp-stretch]):hover) {
       background: var(--cp-fill);
     }
   }

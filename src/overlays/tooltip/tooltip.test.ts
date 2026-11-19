@@ -1,6 +1,7 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 
+import { useSystemSheet } from "../../system/test-helpers/css.js";
 import { installTooltips } from "./tooltip.js";
 
 let life = new AbortController();
@@ -30,11 +31,14 @@ describe("installTooltips", () => {
   it("shows a control's tip after a mouse rests on it, and hides it as the mouse leaves", async () => {
     installTooltips({ signal: life.signal, delay: 300 });
     const b = control("Settings", "Settings");
+    const away = document.createElement("p");
+    away.textContent = "Library";
+    document.body.append(away);
     await userEvent.hover(b);
     await expect.poll(showing, { timeout: 3000 }).toBe(true);
     expect(tip().textContent).toBe("Settings");
     expect(tip().getAttribute("role")).toBe("tooltip");
-    await userEvent.unhover(b);
+    await userEvent.hover(away);
     expect(showing()).toBe(false);
   });
 
@@ -203,6 +207,54 @@ describe("installTooltips", () => {
     expect(showing()).toBe(false);
   });
 
+  it("keeps a tapped tip as the finger lifts, and hides it at a second tap or a tap elsewhere", () => {
+    installTooltips({ signal: life.signal });
+    const b = control("What this means", "Help");
+    b.dataset["cpTipToggle"] = "";
+    const elsewhere = document.createElement("p");
+    elsewhere.textContent = "Seeders";
+    document.body.append(elsewhere);
+    // A finger's whole tap: it leaves its target after it lifts.
+    const tap = (el: Element) => {
+      for (const type of ["pointerover", "pointerdown", "pointerup", "pointerout"]) {
+        el.dispatchEvent(
+          new PointerEvent(type, { bubbles: true, composed: true, pointerType: "touch" }),
+        );
+      }
+    };
+    tap(b);
+    expect(showing()).toBe(true);
+    tap(b);
+    expect(showing()).toBe(false);
+    tap(b);
+    expect(showing()).toBe(true);
+    tap(elsewhere);
+    expect(showing()).toBe(false);
+    delete b.dataset["cpTipToggle"];
+    b.setAttribute("aria-disabled", "true");
+    tap(b);
+    expect(showing()).toBe(true);
+    tap(b);
+    expect(showing()).toBe(false);
+  });
+
+  it("cancels a tip waiting on the mouse's rest at Escape", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      installTooltips({ signal: life.signal, delay: 300 });
+      const b = control("Opens the sources you connected", "Sources");
+      b.dispatchEvent(
+        new PointerEvent("pointerover", { bubbles: true, composed: true, pointerType: "mouse" }),
+      );
+      vi.advanceTimersByTime(100);
+      b.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+      vi.advanceTimersByTime(1000);
+      expect(showing()).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("anchors the tip beside any anchor the control already has", () => {
     installTooltips({ signal: life.signal });
     const b = control("More", "More");
@@ -248,5 +300,40 @@ describe("installTooltips", () => {
     expect(tip().textContent).toBe("Switch to light");
     life.abort();
     expect(document.querySelector(".cp-tooltip")).toBeNull();
+  });
+});
+
+describe("installTooltips with the system sheet", () => {
+  useSystemSheet();
+  const still = document.createElement("style");
+  still.textContent = ".cp-tooltip { transition: none !important; }";
+  beforeAll(() => {
+    document.head.append(still);
+  });
+  afterAll(() => {
+    still.remove();
+  });
+
+  it("keeps a hover tip while the mouse crosses onto it, and hides it once the mouse leaves both", async () => {
+    installTooltips({ signal: life.signal, delay: 100 });
+    const b = control("Opens the sources you connected", "Sources");
+    b.style.marginBlockStart = "8rem";
+    const away = document.createElement("div");
+    away.style.blockSize = "2rem";
+    document.body.append(away);
+    await userEvent.hover(b);
+    await expect.poll(showing).toBe(true);
+    const box = tip().getBoundingClientRect();
+    const gap = b.getBoundingClientRect().top - box.bottom;
+    expect(gap).toBeGreaterThan(4);
+    await userEvent.hover(tip(), { position: { x: box.width / 2, y: box.height + gap / 2 } });
+    expect(showing()).toBe(true);
+    await userEvent.hover(tip());
+    expect(showing()).toBe(true);
+    await userEvent.hover(b);
+    expect(showing()).toBe(true);
+    await userEvent.hover(tip());
+    await userEvent.hover(away);
+    expect(showing()).toBe(false);
   });
 });

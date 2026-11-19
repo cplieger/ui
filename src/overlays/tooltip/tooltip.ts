@@ -144,10 +144,12 @@ function listen(signal: AbortSignal, delay: number): void {
   // Inside a stretched row action no pointerover tells its row's parts
   // apart, so the mouse's moves there aim at the part under it.
   let aimed: HTMLElement | null = null;
-  const aim = (el: HTMLElement | null): void => {
+  let aimedIn: Element | null = null;
+  const aim = (el: HTMLElement | null, stretch: Element | null = null): void => {
     if (el === aimed) {
       return;
     }
+    aimedIn = el === null ? null : stretch;
     if (aimed !== null && aimed === shownFor) {
       hide();
     } else {
@@ -167,7 +169,7 @@ function listen(signal: AbortSignal, delay: number): void {
     (e) => {
       const stretch = e.pointerType === "mouse" ? stretchOf(e) : null;
       if (stretch !== null) {
-        aim(pointed(stretch, e));
+        aim(pointed(stretch, e), stretch);
       }
     },
     { ...on, passive: true },
@@ -180,7 +182,7 @@ function listen(signal: AbortSignal, delay: number): void {
       }
       const stretch = stretchOf(e);
       if (stretch !== null) {
-        aim(pointed(stretch, e));
+        aim(pointed(stretch, e), stretch);
         return;
       }
       const el = target(e);
@@ -195,19 +197,35 @@ function listen(signal: AbortSignal, delay: number): void {
     },
     on,
   );
+  // A finger leaves its target after every tap, so only a mouse's leaving
+  // hides a tip, and a mouse may move onto the tip it shows.
+  const into = (to: EventTarget | null, el: Element | null): boolean =>
+    to instanceof Node && (el?.contains(to) === true || (shownFor !== null && tip.contains(to)));
   document.addEventListener(
     "pointerout",
     (e) => {
+      if (e.pointerType !== "mouse") {
+        return;
+      }
       const to = e.relatedTarget;
-      const stretch = e.pointerType === "mouse" ? stretchOf(e) : null;
+      const from = e.composedPath()[0];
+      if (from instanceof Node && tip.contains(from)) {
+        // Back in the aimed part's action, the mouse's moves aim again.
+        if (!into(to, shownFor) && !(aimed === shownFor && into(to, aimedIn))) {
+          aim(null);
+          hide();
+        }
+        return;
+      }
+      const stretch = stretchOf(e);
       if (stretch !== null) {
-        if (!(to instanceof Node && stretch.contains(to))) {
+        if (!into(to, stretch)) {
           aim(null);
         }
         return;
       }
       const el = target(e);
-      if (el !== null && !(to instanceof Node && el.contains(to))) {
+      if (el !== null && !into(to, el)) {
         if (el === shownFor) {
           hide();
         } else {
@@ -248,7 +266,8 @@ function listen(signal: AbortSignal, delay: number): void {
   document.addEventListener(
     "keydown",
     (e) => {
-      if (e.key === "Escape" && shownFor !== null) {
+      // Escape also cancels a tip still waiting on the mouse's rest.
+      if (e.key === "Escape") {
         hide();
       }
     },
