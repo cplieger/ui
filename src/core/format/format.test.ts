@@ -406,6 +406,34 @@ describe("relative", () => {
   });
 });
 
+describe("a unit written before its number", () => {
+  // Swahili writes the unit first: the space after it binds, while the one
+  // before a list word or "ago" still breaks.
+  it("binds a byte size's unit to the number after it", () => {
+    expect(bytes(999_950, "decimal", "sw")).toBe(`MB${NB}1.0`);
+    expect(bytes(-999_950, "decimal", "sw")).toBe(`MB${NB}-1.0`);
+    expect(bytes(536_870_912, "binary", "sw")).toBe(`MiB${NB}512.0`);
+    expect(bytes(512, "binary", "sw")).toBe(`baiti${NB}512`);
+  });
+
+  it("binds each duration unit to its number, and leaves the list word breakable", () => {
+    expect(duration(87_000, "short", "sw")).toBe(`dakika${NB}1 na sekunde${NB}27`);
+    // Japanese joins its units with a plain space, which stays breakable.
+    expect(duration(87_000, "short", "ja")).toBe(`1${NB}分 27${NB}秒`);
+  });
+
+  it("binds a relative time's unit to its number, and leaves the word for ago breakable", () => {
+    const long = (ms: number, locale: string): string =>
+      relative(NOW + ms, { now: NOW, locale, style: "long" });
+    expect(long(-4 * MIN, "sw")).toBe(`dakika${NB}4 zilizopita`);
+    expect(long(25 * MIN, "sw")).toBe(`baada ya dakika${NB}25`);
+    expect(long(-4 * MIN, "en")).toBe(`4${NB}minutes ago`);
+    expect(long(-DAY, "sw")).toBe(
+      new Intl.RelativeTimeFormat("sw", { numeric: "auto" }).format(-1, "day"),
+    );
+  });
+});
+
 describe("the page's language", () => {
   it("is the html element's lang, read at each call", () => {
     document.documentElement.lang = "de";
@@ -417,6 +445,12 @@ describe("the page's language", () => {
   it("is the browser's when the html element's lang is empty", () => {
     document.documentElement.lang = "";
     expect(number(1234.5)).toBe(new Intl.NumberFormat().format(1234.5));
+  });
+
+  it("is the browser's when the html element's lang is not a language tag", () => {
+    document.documentElement.lang = "en_US";
+    expect(number(1234.5)).toBe(new Intl.NumberFormat().format(1234.5));
+    expect(() => number(1234.5, undefined, "en_US")).toThrow(RangeError);
   });
 
   it("gives way to an explicit locale", () => {

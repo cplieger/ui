@@ -101,8 +101,32 @@ export function durationRecord(ms: number): Partial<Record<DurationUnit | "milli
 export const pluralRules = (locale: string | undefined) =>
   cached(`p|${locale ?? ""}`, () => new Intl.PluralRules(locale));
 
-/** A plain space between a number and the word after it, made non-breaking. */
-export const keepUnit = (text: string): string => text.replace(/(\p{Nd}) (?=\p{L})/gu, `$1${NBSP}`);
+const NUMBER_PARTS = new Set([
+  "integer",
+  "group",
+  "decimal",
+  "fraction",
+  "minusSign",
+  "plusSign",
+  "nan",
+  "infinity",
+]);
+
+/** `parts` joined, a space between a unit and a number on either side of it
+ *  made non-breaking: "1.0 MB" and Swahili's "MB 1.0". */
+export function bindUnit(parts: readonly Intl.NumberFormatPart[]): string {
+  const gap = (a: Intl.NumberFormatPart | undefined, b: Intl.NumberFormatPart | undefined) =>
+    a?.type === "unit" && b !== undefined && NUMBER_PARTS.has(b.type);
+  return parts
+    .map((p, i) =>
+      p.type === "literal" &&
+      p.value.trim() === "" &&
+      (gap(parts[i - 1], parts[i + 1]) || gap(parts[i + 1], parts[i - 1]))
+        ? p.value.replaceAll(" ", NBSP)
+        : p.value,
+    )
+    .join("");
+}
 
 /** `record` in Intl.DurationFormat's `style`. */
 export function durationWords(
@@ -120,7 +144,14 @@ export function durationWords(
         ...(zero ? { millisecondsDisplay: "always" as const } : {}),
       }),
   );
-  return keepUnit(df.format(record));
+  // A literal tagged with a unit sits inside one number-and-unit element; a
+  // list literal, such as ", " or Swahili's " na ", has no unit and may break.
+  return df
+    .formatToParts(record)
+    .map((p) =>
+      p.type === "literal" && p.unit !== undefined ? p.value.replaceAll(" ", NBSP) : p.value,
+    )
+    .join("");
 }
 
 /** `ms` as a clock, "0:42" under an hour and "1:02:03" from one, its days
@@ -267,6 +298,51 @@ const relativeFormat = (
     () => new Intl.RelativeTimeFormat(locale, { style, numeric }),
   );
 
+type RelativeParts = readonly Intl.RelativeTimeFormatPart[];
+
+// The indexes of the parts just before and after the number; -1 for a form
+// with no number, such as "yesterday".
+function besideNumber(parts: RelativeParts): readonly [number, number] {
+  const first = parts.findIndex((p) => p.type !== "literal");
+  return first === -1
+    ? [-1, -1]
+    : [first - 1, parts.findLastIndex((p) => p.type !== "literal") + 1];
+}
+
+// Which side of the number the unit word sits on, per locale, style and
+// direction: of 4 minutes and 4 hours, the side whose literal differs.
+const unitSide = (locale: string | undefined, style: Intl.RelativeTimeFormatStyle, past: boolean) =>
+  cached(`u|${locale ?? ""}|${style}|${String(past)}`, () => {
+    const rf = relativeFormat(locale, style, "always");
+    const minute = rf.formatToParts(past ? -4 : 4, "minute");
+    const hour = rf.formatToParts(past ? -4 : 4, "hour");
+    const [mb, ma] = besideNumber(minute);
+    const [hb, ha] = besideNumber(hour);
+    return {
+      before: minute[mb]?.value !== hour[hb]?.value,
+      after: minute[ma]?.value !== hour[ha]?.value,
+    };
+  });
+
+/** `parts` joined, the space between the number and its unit word made
+ *  non-breaking: "4 minutes ago", "il y a 4 minutes", Swahili's "dakika 4
+ *  zilizopita". */
+function bindRelative(
+  parts: RelativeParts,
+  side: { readonly before: boolean; readonly after: boolean },
+): string {
+  const [before, after] = besideNumber(parts);
+  return parts
+    .map((p, i) =>
+      i === before && side.before
+        ? p.value.replace(/ $/u, NBSP)
+        : i === after && side.after
+          ? p.value.replace(/^ /u, NBSP)
+          : p.value,
+    )
+    .join("");
+}
+
 /** How long ago or ahead of `now` instant `at` is, both in ms: the largest
  *  unit `RELATIVE_UNITS` lets fit, rounded, its number bound to its unit,
  *  or the locale's "now" under a minute. */
@@ -281,7 +357,8 @@ export function relativeWords(
     if (Math.abs(s) >= from) {
       // A compact form reads as a number: "1d ago", never "yesterday".
       const numeric = style === "long" ? "auto" : "always";
-      return keepUnit(relativeFormat(locale, style, numeric).format(Math.round(s / n), unit));
+      const parts = relativeFormat(locale, style, numeric).formatToParts(Math.round(s / n), unit);
+      return bindRelative(parts, unitSide(locale, style, s < 0));
     }
   }
   return relativeFormat(locale, style, "auto").format(0, "second");

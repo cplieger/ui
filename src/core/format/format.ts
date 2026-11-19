@@ -7,11 +7,11 @@
 import { localeOf } from "../locale/locale.js";
 
 import {
+  bindUnit,
   clockWords,
   dateWords,
   durationRecord,
   durationWords,
-  keepUnit,
   noun,
   numbers,
   relativeWords,
@@ -124,8 +124,10 @@ export function bytes(n: number, units: ByteUnits = "decimal", locale?: string):
     signDisplay: unsignedZero(undefined, false),
   }).formatToParts(n / base ** at);
   const symbol = units === "binary" && at > 0 ? IEC[at] : undefined;
-  return keepUnit(
-    parts.map((p) => (p.type === "unit" && symbol !== undefined ? symbol : p.value)).join(""),
+  return bindUnit(
+    symbol === undefined
+      ? parts
+      : parts.map((p) => (p.type === "unit" ? { ...p, value: symbol } : p)),
   );
 }
 

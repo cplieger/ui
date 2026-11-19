@@ -21,4 +21,14 @@ describe("localeOf", () => {
     const loose = document.createElement("span");
     expect(localeOf(loose)).toBeUndefined();
   });
+
+  // HTML reads an invalid lang as an unknown language, never an error.
+  it("reads a lang that is not a BCP 47 tag as none, and writes a valid one canonically", () => {
+    const el = document.createElement("span");
+    document.body.append(el);
+    el.lang = "en_US";
+    expect(localeOf(el)).toBeUndefined();
+    el.lang = "EN-us";
+    expect(localeOf(el)).toBe("en-US");
+  });
 });

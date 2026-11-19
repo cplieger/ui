@@ -2,7 +2,7 @@
 
 `@cplieger/ui/format`
 
-One way to write a number, a count, a share, a byte size, a duration and a moment, so every app's words and every chart read the same, in the page's language. Each writer is `Intl` under a fixed rule, and binds a number to its unit with a no-break space, so "3 runs" or "1.0 MB" never breaks across a line.
+One way to write a number, a count, a share, a byte size, a duration and a moment, so every app's words and every chart read the same, in the page's language. Each writer is `Intl` under a fixed rule, and binds a number to its unit with a no-break space, so "3 runs" or "1.0 MB" never breaks across a line. The unit is bound on whichever side the language writes it, as in Swahili's "MB 1.0".
 
 ```ts
 import { bytes, count, date, duration, number, percent, relative } from "@cplieger/ui/format";
@@ -42,7 +42,9 @@ Every writer takes `locale` last, a BCP 47 language tag, except `relative`, whic
 
 ## The page's language
 
-With no `locale`, a writer writes in the `lang` of the `<html>` element, read at each call, so a page that changes its language is written in the new one at the next call. With no `lang`, or an empty one, it writes in the browser's language. In Node or a worker, which have no page, it writes in the platform's. A component that writes its own element's language passes the `lang` it reads from that element.
+With no `locale`, a writer writes in the `lang` of the `<html>` element, read at each call, so a page that changes its language is written in the new one at the next call. With no `lang`, an empty one or one that is not a BCP 47 tag, such as `en_US`, it writes in the browser's language, as HTML reads such a `lang` as an unknown language. An invalid `locale` argument throws Intl's `RangeError`. In Node or a worker, which have no page, it writes in the platform's.
+
+A component that writes its own element's language passes the `lang` it reads from that element.
 
 ## Byte sizes
 

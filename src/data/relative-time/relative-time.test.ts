@@ -94,6 +94,19 @@ describe("enhanceRelativeTime", () => {
     expect(t.dataset["cpTip"]).toBe(date(at, "datetime", "de"));
   });
 
+  it("writes in the page's language when enhanced before it is put in the page", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(NOW);
+    document.documentElement.lang = "fr";
+    const at = NOW - 4 * MIN;
+    const t = document.createElement("time");
+    t.dateTime = new Date(at).toISOString();
+    enhanceRelativeTime(t, { style: "long", signal: life.signal });
+    document.body.append(t);
+    expect(shown(t)).toBe(`il y a 4${NB}minutes`);
+    expect(t.dataset["cpTip"]).toBe(date(at, "datetime", "fr"));
+  });
+
   it("turns to the next minute when the rounded minutes change", () => {
     vi.useFakeTimers();
     vi.setSystemTime(NOW);

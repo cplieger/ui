@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { durationRecord, keepUnit, noun, withNoun } from "./intl.js";
+import { bindUnit, durationRecord, noun, withNoun } from "./intl.js";
 
 describe("the duration rule", () => {
   it("splits into the largest unit and, under 10 of it, the next, each whole", () => {
@@ -26,11 +26,28 @@ describe("the duration rule", () => {
 });
 
 describe("words around numbers", () => {
-  it("makes only a space between a digit and a word non-breaking", () => {
-    expect(keepUnit("1 min, 27 sec")).toBe("1\u00A0min, 27\u00A0sec");
-    expect(keepUnit("1\u00A0min et 27\u202Fs")).toBe("1\u00A0min et 27\u202Fs");
-    expect(keepUnit("١ د")).toBe("١\u00A0د");
-    expect(keepUnit("12 34")).toBe("12 34");
+  it("makes only a space between a unit and a number non-breaking, on either side", () => {
+    const part = (type: Intl.NumberFormatPartTypes, value: string) => ({ type, value });
+    const space = part("literal", " ");
+    expect(
+      bindUnit([
+        part("integer", "1"),
+        part("decimal", "."),
+        part("fraction", "0"),
+        space,
+        part("unit", "MB"),
+      ]),
+    ).toBe("1.0\u00A0MB");
+    expect(
+      bindUnit([part("unit", "baiti"), space, part("minusSign", "-"), part("integer", "512")]),
+    ).toBe("baiti\u00A0-512");
+    expect(bindUnit([part("integer", "1"), part("literal", "\u202F"), part("unit", "Mo")])).toBe(
+      "1\u202FMo",
+    );
+    expect(bindUnit([part("integer", "12"), space, part("integer", "34")])).toBe("12 34");
+    expect(bindUnit([part("unit", "MB"), part("literal", " / "), part("integer", "1")])).toBe(
+      "MB / 1",
+    );
   });
 
   it("picks a unit's noun by Intl.PluralRules, and joins it with a non-breaking space", () => {
