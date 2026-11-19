@@ -1600,14 +1600,17 @@ describe("the starts", () => {
 
     const tap = (el: HTMLElement) =>
       el.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, pointerType: "touch" }));
+    /** Opens `panel` and waits out its fade-in from opacity 0, before
+     *  whose first frame its controls are hidden and show no tip. */
+    const open = async (panel: HTMLElement) => {
+      panel.showPopover();
+      await Promise.all(panel.getAnimations().map(async (a) => a.finished));
+    };
 
     it("shows an unavailable start's reason as its tip to a mouse, the keys and a tap", async () => {
       const { panel, status } = mount();
       status.update(moving(1));
-      panel.showPopover();
-      // Its controls are hidden until its fade-in from opacity 0 has drawn
-      // a frame, before which no person reaches them.
-      await Promise.all(panel.getAnimations().map((a) => a.finished));
+      await open(panel);
       const r = startButton(panel, "r");
       const reason = "Refreshed 10 seconds ago";
       expect(panel.querySelector('[data-cp-tip-toggle], [data-cp-icon="info"]')).toBeNull();
@@ -1633,10 +1636,10 @@ describe("the starts", () => {
       expect(tip().matches(":popover-open")).toBe(false);
     });
 
-    it("keeps an unavailable start's tapped tip on it across an update", () => {
+    it("keeps an unavailable start's tapped tip on it across an update", async () => {
       const { panel, status } = mount();
       status.update(moving(1));
-      panel.showPopover();
+      await open(panel);
       const r = startButton(panel, "r");
       const own = r.getAttribute("aria-describedby");
       tap(r);
@@ -1650,18 +1653,18 @@ describe("the starts", () => {
       expect(tip().matches(":popover-open")).toBe(true);
     });
 
-    it("leaves a tap on a start that can run to the start", () => {
+    it("leaves a tap on a start that can run to the start", async () => {
       const { panel, status } = mount();
       status.update(moving(1));
-      panel.showPopover();
+      await open(panel);
       tap(startButton(panel, "q"));
       expect(tip().matches(":popover-open")).toBe(false);
     });
 
-    it("keeps a start's tip shown to a mouse on it across an update", () => {
+    it("keeps a start's tip shown to a mouse on it across an update", async () => {
       const { panel, status } = mount();
       status.update(moving(1));
-      panel.showPopover();
+      await open(panel);
       const q = startButton(panel, "q");
       const own = q.getAttribute("aria-describedby");
       q.dispatchEvent(new PointerEvent("pointerover", { bubbles: true, pointerType: "mouse" }));

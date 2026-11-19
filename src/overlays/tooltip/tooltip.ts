@@ -64,10 +64,38 @@ function ms(time: string): number {
   return Number.parseFloat(time) * 1000;
 }
 
+/** `el` and each of its ancestors in the flat tree, through the slot it
+ *  or an ancestor is assigned to and each shadow host. */
+function* lineage(el: Element): Generator<Element> {
+  for (let n: Element | null = el; n !== null;) {
+    yield n;
+    const up: Node | null = n.assignedSlot ?? n.parentNode;
+    n = up instanceof ShadowRoot ? up.host : up instanceof Element ? up : null;
+  }
+}
+
 /** Whether `el` is in the page and seen: rendered, visible, and neither
- *  it nor an ancestor at opacity 0. */
+ *  it nor an ancestor at a computed opacity of 0. The opacity is read
+ *  from each computed style, as checkVisibility's `opacityProperty` is
+ *  specified (https://drafts.csswg.org/cssom-view/#dom-element-checkvisibility),
+ *  because WebKit's own check reports seen, a few times in a hundred, an
+ *  element whose ended `forwards` CSS animation holds it at 0. */
 function present(el: HTMLElement): boolean {
-  return el.isConnected && el.checkVisibility({ visibilityProperty: true, opacityProperty: true });
+  if (!el.isConnected || !el.checkVisibility({ visibilityProperty: true })) {
+    return false;
+  }
+  for (const n of lineage(el)) {
+    if (Number(getComputedStyle(n).opacity) === 0) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/** Every tree `el` is drawn through: the root of each element of its
+ *  flat-tree lineage. */
+function trees(el: HTMLElement): Set<Node> {
+  return new Set(Array.from(lineage(el), (n) => n.getRootNode()));
 }
 
 /** How a tip opened, which decides what closes it besides Escape: the
@@ -126,12 +154,13 @@ function listen(signal: AbortSignal, delay: number): void {
   });
 
   // The MutationObserver reports, wherever the control is, any change to
-  // the nodes, attributes, classes or inline styles of the control's tree
-  // and of each tree its shadow hosts sit in, and `ends` the end of a
-  // transition or animation there, a fade to opacity 0 among them. The
+  // the nodes, attributes, classes or inline styles of the trees it is
+  // drawn through, and `ends` the end of a CSS transition or CSS
+  // animation there, a fade to opacity 0 among them. The
   // IntersectionObserver reports a control in the window that layout hides
   // with no such change, as by a stylesheet rule or a pseudo-class. Any
-  // other change waits for the next listener, each of which asks gone().
+  // other change, a script animation's end among them, waits for the next
+  // listener, each of which asks gone().
   const seen = new IntersectionObserver(() => {
     gone();
   });
@@ -174,6 +203,12 @@ function listen(signal: AbortSignal, delay: number): void {
       close();
     }
     clearTimeout(leaveTimer);
+    // A control not yet seen, as one focused in the task that opens its
+    // popover at opacity 0, shows no tip.
+    if (!present(el)) {
+      close();
+      return;
+    }
     if (!write(el)) {
       return;
     }
@@ -183,18 +218,15 @@ function listen(signal: AbortSignal, delay: number): void {
     seen.observe(el);
     // A MutationObserver does not enter a shadow tree, an end event does
     // not leave one, and a shadow root's own observer misses its host's
-    // removal, so every root up to the document is observed and heard.
-    // gone() writes nothing while the control stays, and close()
-    // disconnects it first, so no write loops.
+    // removal, so every tree the control is drawn through, a slot's
+    // included, is observed and heard. gone() writes nothing while the
+    // control stays, and close() disconnects it first, so no write loops.
     ends?.abort();
     ends = new AbortController();
-    for (let root = el.getRootNode(); ; root = root.host.getRootNode()) {
+    for (const root of trees(el)) {
       tree.observe(root, { childList: true, subtree: true, attributes: true });
       for (const type of ["transitionend", "transitioncancel", "animationend", "animationcancel"]) {
         root.addEventListener(type, gone, { capture: true, signal: ends.signal });
-      }
-      if (!(root instanceof ShadowRoot)) {
-        break;
       }
     }
     watch.observe(el, {

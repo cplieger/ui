@@ -837,6 +837,31 @@ describe("installTooltips with the system sheet", () => {
     await expect.poll(showing).toBe(false);
   });
 
+  it(
+    "hides a keyboard tip each time an animation of its control's parent to opacity 0 ends, with no further input",
+    { timeout: 60_000 },
+    async () => {
+      installTooltips({ signal: life.signal });
+      const sheet = document.createElement("style");
+      sheet.textContent = "@keyframes test-out { to { opacity: 0; } }";
+      document.body.append(sheet);
+      // WebKit's checkVisibility reports such a parent seen a few times in a
+      // hundred, so one fade rarely catches it.
+      for (let i = 0; i < 200; i++) {
+        const b = placed({});
+        const parent = b.parentElement as HTMLElement;
+        b.focus({ focusVisible: true });
+        expect(showing()).toBe(true);
+        const ended = ends(parent, "animationend");
+        parent.style.animation = "test-out 30ms linear forwards";
+        await ended;
+        expect(getComputedStyle(parent).opacity).toBe("0");
+        expect(showing(), `fade ${String(i)}`).toBe(false);
+        parent.remove();
+      }
+    },
+  );
+
   it.each([
     [
       "an endless animation of its outline",
@@ -891,6 +916,94 @@ describe("installTooltips with the system sheet", () => {
     await frame();
     expect(showing()).toBe(true);
   });
+
+  it("shows no tip for a control focused in the task that opens its popover, still at opacity 0, and shows it at a later focus", async () => {
+    installTooltips({ signal: life.signal });
+    const pop = document.createElement("div");
+    pop.className = "cp-popover";
+    pop.popover = "manual";
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = "⚙";
+    b.dataset["cpTip"] = "Opens the sources you connected";
+    b.setAttribute("aria-label", "Sources");
+    const other = document.createElement("button");
+    other.type = "button";
+    other.textContent = "Other";
+    pop.append(b, other);
+    document.body.append(pop);
+    pop.showPopover();
+    expect(getComputedStyle(pop).opacity).toBe("0");
+    b.focus({ focusVisible: true });
+    expect(showing()).toBe(false);
+    await Promise.all(pop.getAnimations({ subtree: true }).map(async (a) => a.finished));
+    await frame();
+    expect(showing()).toBe(false);
+    other.focus({ focusVisible: true });
+    b.focus({ focusVisible: true });
+    expect(showing()).toBe(true);
+  });
+
+  /** A tipped button in the light DOM, assigned to a slot inside a
+   *  wrapper of its host's open shadow root, directly or through a
+   *  slotted div. */
+  const slotted = (deep: boolean) => {
+    const host = document.createElement("div");
+    const wrap = document.createElement("div");
+    wrap.append(document.createElement("slot"));
+    host.attachShadow({ mode: "open" }).append(wrap);
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = "⚙";
+    b.dataset["cpTip"] = "Opens the sources you connected";
+    b.setAttribute("aria-label", "Sources");
+    if (deep) {
+      const div = document.createElement("div");
+      div.append(b);
+      host.append(div);
+    } else {
+      host.append(b);
+    }
+    document.body.append(host);
+    return { b, wrap };
+  };
+
+  it.each([
+    ["a slotted button", false],
+    ["a button in a slotted div", true],
+  ])(
+    "hides a keyboard tip of %s once a transition of its slot's shadow wrapper to opacity 0 ends, with no further input",
+    async (_kind, deep) => {
+      installTooltips({ signal: life.signal });
+      const { b, wrap } = slotted(deep);
+      wrap.style.transition = "opacity 300ms linear";
+      expect(getComputedStyle(wrap).opacity).toBe("1");
+      b.focus({ focusVisible: true });
+      expect(showing()).toBe(true);
+      const ended = ends(wrap, "transitionend");
+      wrap.style.opacity = "0";
+      await frame();
+      expect(showing()).toBe(true);
+      await ended;
+      await expect.poll(showing).toBe(false);
+    },
+  );
+
+  it.each([
+    ["a slotted button", false],
+    ["a button in a slotted div", true],
+  ])(
+    "hides a keyboard tip of %s at the next microtask once its slot's shadow wrapper turns opacity 0",
+    async (_kind, deep) => {
+      installTooltips({ signal: life.signal });
+      const { b, wrap } = slotted(deep);
+      b.focus({ focusVisible: true });
+      expect(showing()).toBe(true);
+      wrap.style.opacity = "0";
+      await Promise.resolve();
+      expect(showing()).toBe(false);
+    },
+  );
 
   it("hides a mouse's tip the mouse rests on when a data attribute on its control's parent hides it by a stylesheet", async () => {
     installTooltips({ signal: life.signal, delay: 100 });
