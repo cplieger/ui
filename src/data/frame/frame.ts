@@ -1,6 +1,7 @@
 /**
  * The chart data frames `github.com/cplieger/go/chartdata` sends, as the
- * types its contract generates, at the version `contract/chartdata.json` pins.
+ * types its contract generates, at the version `contract/chartdata.json` pins,
+ * and `applyEvent`, which applies its events to a drawn frame.
  * @module
  */
 import type {
@@ -37,3 +38,5 @@ export type Frame =
   | StatesFrame
   | TreeFrame
   | ValueFrame;
+
+export { applyEvent } from "./apply.js";

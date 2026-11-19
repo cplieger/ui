@@ -70,7 +70,7 @@ toast({ kind: "success", title: "Source added" });
 | --- | --- |
 | `@cplieger/ui/css/system` | the design language's stylesheet, on npm only |
 | `@cplieger/ui/fonts/*` | its two fonts, on npm only |
-| `@cplieger/ui/frame` | the types of the chart data frames a Go service sends with chartdata |
+| `@cplieger/ui/frame` | the types of the chart data frames a Go service sends with chartdata, and `applyEvent`, which applies its events to a drawn frame |
 | `@cplieger/ui/icons` | Lucide's lines in the package's own stroke, a few drawings of its own, and the factory that paints them |
 | `@cplieger/ui/templates/*` | whole screens in plain HTML on the stylesheet, each region named, on npm only: see [Page templates](templates/README.md) |
 | `@cplieger/ui/<module>` | one component's script |

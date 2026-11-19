@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { applyEvent } from "./apply.js";
-import type { Frame, FrameType } from "./frame.js";
+import type { BinsFrame, Frame, FrameType, SeriesFrame } from "./frame.js";
 import { MAX_VALUES } from "./limits.js";
 
 const FIXTURES = join(import.meta.dirname, "contract", "fixtures");
@@ -51,7 +51,7 @@ const SERIES = {
   unit: "seconds",
   refs: [{ key: "target", value: 0.5 }],
   notes: [{ key: "deploy", at: 1772323260000 }],
-} as const;
+} satisfies Partial<SeriesFrame>;
 
 // frame-bins.json: three bins on a value axis from 0 to 5, one series.
 const BINS = {
@@ -59,7 +59,7 @@ const BINS = {
   name: "wait_seconds",
   unit: "seconds",
   axis: "value",
-} as const;
+} satisfies Partial<BinsFrame>;
 
 // What chartdata's events page says each fixture event makes of the frame
 // it changes: the frame named, then the frame expected.
@@ -431,10 +431,8 @@ describe("applyEvent", () => {
   });
 
   // The kinds each frame takes: append and replace need an x axis of
-  // columns or bins, a reset a time line.
+  // columns or bins, a reset a time line. A series or bins frame takes all.
   const TAKES: readonly (readonly [string, readonly string[]])[] = [
-    ["series", ["append", "replace", "reset", "set"]],
-    ["bins", ["append", "replace", "reset", "set"]],
     ["states", ["reset", "set"]],
     ["categories", ["set"]],
     ["boxes", ["set"]],
