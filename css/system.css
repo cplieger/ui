@@ -12145,7 +12145,8 @@ button.cp-figure[aria-expanded="true"]::after {
 /* A tooltip (@cplieger/ui/tooltip): dark and small, above its control,
  * flipping below near the window's top, fading up a quarter rem as it
  * shows. It names or hints; the control keeps its own name. The mouse
- * may move onto it (WCAG 1.4.13), so it takes the pointer while open. */
+ * may move onto it (WCAG 1.4.13), so it takes the pointer while open,
+ * and nothing outside its own box does. */
 .cp-tooltip {
   position: fixed;
   inset: auto;
@@ -12160,7 +12161,7 @@ button.cp-figure[aria-expanded="true"]::after {
   position-anchor: --cp-tip-anchor;
   position-area: block-start;
   position-try-fallbacks: flip-block;
-  overflow: visible;
+  overflow-wrap: anywhere;
   opacity: 0;
   translate: 0 0.25rem;
   transition:
@@ -12178,14 +12179,6 @@ button.cp-figure[aria-expanded="true"]::after {
 /* A closing tip fades out over a press meant for what lies under it. */
 .cp-tooltip:not(:popover-open) {
   pointer-events: none;
-}
-
-/* Spans the margin to the control on either side, flipped or not, so a
- * mouse crossing from the control to the tip never leaves both. */
-.cp-tooltip::before {
-  content: "";
-  position: absolute;
-  inset: calc(-1 * var(--cp-space-2)) 0;
 }
 
 @starting-style {

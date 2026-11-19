@@ -28,20 +28,6 @@ const tip = () => document.querySelector(".cp-tooltip") as HTMLElement;
 const showing = () => tip().matches(":popover-open");
 
 describe("installTooltips", () => {
-  it("shows a control's tip after a mouse rests on it, and hides it as the mouse leaves", async () => {
-    installTooltips({ signal: life.signal, delay: 300 });
-    const b = control("Settings", "Settings");
-    const away = document.createElement("p");
-    away.textContent = "Library";
-    document.body.append(away);
-    await userEvent.hover(b);
-    await expect.poll(showing, { timeout: 3000 }).toBe(true);
-    expect(tip().textContent).toBe("Settings");
-    expect(tip().getAttribute("role")).toBe("tooltip");
-    await userEvent.hover(away);
-    expect(showing()).toBe(false);
-  });
-
   it("waits the whole delay from the mouse's arrival before showing", () => {
     // The delay is the tooltip's own timer, so a faked clock measures it
     // exactly; a real hover's delivery time varies by engine under load.
@@ -314,26 +300,135 @@ describe("installTooltips with the system sheet", () => {
     still.remove();
   });
 
-  it("keeps a hover tip while the mouse crosses onto it, and hides it once the mouse leaves both", async () => {
+  it("shows a control's tip after a mouse rests on it, and hides it as the mouse leaves", async () => {
+    installTooltips({ signal: life.signal, delay: 300 });
+    const b = control("Settings", "Settings");
+    const away = document.createElement("p");
+    away.textContent = "Library";
+    document.body.append(away);
+    await userEvent.hover(b);
+    await expect.poll(showing, { timeout: 3000 }).toBe(true);
+    expect(tip().textContent).toBe("Settings");
+    expect(tip().getAttribute("role")).toBe("tooltip");
+    await userEvent.hover(away);
+    expect(showing()).toBe(false);
+  });
+
+  /** The middle of the gap between the open tip and `el`, on whichever side the tip sits. */
+  const gapBetween = (el: Element) => {
+    const t = tip().getBoundingClientRect();
+    const c = el.getBoundingClientRect();
+    const above = t.bottom <= c.top;
+    return {
+      above,
+      x: t.left + t.width / 2,
+      y: above ? (t.bottom + c.top) / 2 : (c.bottom + t.top) / 2,
+    };
+  };
+  /** `{x, y}` in the window as a position in `el`'s box. */
+  const inBox = (el: Element, at: { x: number; y: number }) => {
+    const box = el.getBoundingClientRect();
+    return { x: at.x - box.left, y: at.y - box.top };
+  };
+
+  it.each([
+    ["above", "8rem", true],
+    ["flipped below", "0", false],
+  ])(
+    "keeps a hover tip %s its control while the mouse crosses the gap onto it, and hides it once the mouse leaves both",
+    async (_side, margin, above) => {
+      installTooltips({ signal: life.signal, delay: 100 });
+      const b = control("Opens the sources you connected", "Sources");
+      b.style.marginBlockStart = margin;
+      const away = document.createElement("div");
+      away.style.blockSize = "2rem";
+      away.style.marginBlockStart = "6rem";
+      document.body.append(away);
+      await userEvent.hover(b);
+      await expect.poll(showing).toBe(true);
+      const gap = gapBetween(b);
+      expect(gap.above).toBe(above);
+      expect(document.elementFromPoint(gap.x, gap.y)).not.toBe(tip());
+      await userEvent.hover(document.body, { position: inBox(document.body, gap), force: true });
+      expect(showing()).toBe(true);
+      await userEvent.hover(tip());
+      expect(showing()).toBe(true);
+      await userEvent.hover(b);
+      expect(showing()).toBe(true);
+      await userEvent.hover(tip());
+      await userEvent.hover(away);
+      expect(showing()).toBe(false);
+    },
+  );
+
+  it("lets a press in the gap or just past the open tip reach what lies there", async () => {
     installTooltips({ signal: life.signal, delay: 100 });
+    const under = document.createElement("div");
+    under.style.paddingBlockStart = "8rem";
+    document.body.append(under);
+    const b = control("Opens the sources you connected", "Sources");
+    under.append(b);
+    const heard: EventTarget[] = [];
+    under.addEventListener("click", (e) => {
+      heard.push(e.target as EventTarget);
+    });
+    await userEvent.hover(b);
+    await expect.poll(showing).toBe(true);
+    const gap = gapBetween(b);
+    expect(gap.above).toBe(true);
+    expect(document.elementFromPoint(gap.x, gap.y)).toBe(under);
+    await userEvent.click(under, { position: inBox(under, gap), force: true });
+    expect(heard).toEqual([under]);
+    await userEvent.hover(b);
+    await expect.poll(showing).toBe(true);
+    const box = tip().getBoundingClientRect();
+    const past = { x: box.left + box.width / 2, y: box.top - 4 };
+    expect(document.elementFromPoint(past.x, past.y)).toBe(under);
+    await userEvent.click(under, { position: inBox(under, past), force: true });
+    expect(heard).toEqual([under, under]);
+  });
+
+  it("keeps a tip keyboard focus showed while the mouse crosses it or its control, until blur or Escape", async () => {
+    installTooltips({ signal: life.signal, delay: 100 });
+    const before = document.createElement("button");
+    document.body.append(before);
     const b = control("Opens the sources you connected", "Sources");
     b.style.marginBlockStart = "8rem";
     const away = document.createElement("div");
     away.style.blockSize = "2rem";
+    away.style.marginBlockStart = "6rem";
     document.body.append(away);
-    await userEvent.hover(b);
-    await expect.poll(showing).toBe(true);
-    const box = tip().getBoundingClientRect();
-    const gap = b.getBoundingClientRect().top - box.bottom;
-    expect(gap).toBeGreaterThan(4);
-    await userEvent.hover(tip(), { position: { x: box.width / 2, y: box.height + gap / 2 } });
-    expect(showing()).toBe(true);
-    await userEvent.hover(tip());
-    expect(showing()).toBe(true);
-    await userEvent.hover(b);
+    await userEvent.hover(away);
+    before.focus();
+    await userEvent.keyboard("{Tab}");
     expect(showing()).toBe(true);
     await userEvent.hover(tip());
     await userEvent.hover(away);
+    expect(showing()).toBe(true);
+    await userEvent.hover(b);
+    await userEvent.hover(away);
+    expect(showing()).toBe(true);
+    b.blur();
     expect(showing()).toBe(false);
+    b.focus({ focusVisible: true });
+    await userEvent.hover(tip());
+    await userEvent.hover(away);
+    expect(showing()).toBe(true);
+    await userEvent.keyboard("{Escape}");
+    expect(showing()).toBe(false);
+    await userEvent.hover(b);
+    await expect.poll(showing).toBe(true);
+    await userEvent.hover(tip());
+    await userEvent.hover(away);
+    expect(showing()).toBe(false);
+  });
+
+  it("breaks a word wider than the tip inside its box", () => {
+    installTooltips({ signal: life.signal });
+    const b = control("Sousou_no_Frieren_S01E01_1080p_WEB_x264_AAC_Multi_Subs.mkv", "File");
+    b.style.marginBlockStart = "8rem";
+    b.focus({ focusVisible: true });
+    expect(showing()).toBe(true);
+    expect(tip().scrollWidth).toBeLessThanOrEqual(tip().clientWidth);
   });
 });

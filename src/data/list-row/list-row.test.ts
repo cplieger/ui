@@ -544,6 +544,28 @@ describe("installRowActions", () => {
       expect(heard).toEqual([link]);
     });
 
+    it("lets a press just past a part's open tip, between it and the part, follow the action", async () => {
+      const r = row(
+        '<a href="#frieren">Frieren</a>',
+        '<time datetime="2026-11-18T10:00" data-cp-tip="18 Nov 2026, 10:00">2h ago</time>',
+      );
+      (r.closest("ul") as HTMLElement).style.marginBlockStart = "6rem";
+      await settle();
+      const link = r.querySelector("a") as HTMLAnchorElement;
+      const time = r.querySelector("time") as HTMLElement;
+      const heard = clicks(link);
+      await mouseAway();
+      await userEvent.hover(r, { position: centreIn(r, time) });
+      await expect.poll(tipSays).toBe("18 Nov 2026, 10:00");
+      const above = time.getBoundingClientRect().top - 3;
+      expect((tip() as Element).getBoundingClientRect().bottom).toBeLessThan(above);
+      const box = r.getBoundingClientRect();
+      const at = { x: centreIn(r, time).x, y: above - box.top };
+      expect(document.elementFromPoint(box.left + at.x, above)).toBe(link);
+      await userEvent.click(r, { position: at, force: true });
+      expect(heard).toEqual([link]);
+    });
+
     it("keeps a row whole whose action sits inside a focusable cut line", async () => {
       const r = row(
         '<span class="cp-truncate" tabindex="0" data-cp-tip-toggle data-cp-tip="Frieren: Beyond Journey\'s End"><a href="#frieren">Frieren: Beyond Journey\'s End</a></span>',
