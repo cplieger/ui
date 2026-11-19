@@ -4041,6 +4041,56 @@ describe("css/system.css buttons and arrangements", () => {
     }
   }
 
+  // Exact, unrounded readings: a width that drifts by Gecko's 1/60px app unit
+  // still moves what follows the button.
+  for (const [rest, busy, fails, icon] of [
+    ["Download", "Downloading…", false, true],
+    ["Grab", "Grabbing…", false, true],
+    ["Save", "Saving…", false, true],
+    ["Download", "Downloading…", true, true],
+    ["Grab", "Grabbing…", false, false],
+    ["Show all 5 running", "Loading…", false, false],
+    ["Show all 5 running", "Loading…", false, true],
+  ] as const) {
+    it(`holds a small fixed ${rest} button ${icon ? "with" : "without"} an icon at one exact width at rest, its face centred, while ${busy} and ${fails ? "back on Retry after a failure" : "back at rest"}`, async () => {
+      await fontsIn(`${rest} ${busy} Retry`);
+      const b = build(
+        `<button class="cp-button" data-size="sm" type="button">${icon ? '<span class="cp-icon" data-cp-icon="download"></span>' : ""}<span class="cp-icon" data-cp-icon="spinner-arc" data-part="busy"></span><span class="cp-roll">${rest}</span></button>`,
+      ).querySelector("button") as HTMLButtonElement;
+      const c = enhanceConfirm(b, { busy, done: false, busyDelay: 0, width: "fixed" });
+      const inner = b.getBoundingClientRect();
+      const first = (
+        b.querySelector(":scope > .cp-icon:not([data-part]), :scope > .cp-roll") as Element
+      ).getBoundingClientRect().left;
+      const trail = (b.querySelector(".cp-roll") as Element).getBoundingClientRect().right;
+      expect(first - inner.left).toBeCloseTo(inner.right - trail, 0);
+      const seen = new Map<string, string>();
+      let sampling = true;
+      const sample = () => {
+        const words = b.dataset["cpState"] ?? (b.querySelector(".cp-roll") as Element).textContent;
+        seen.set(String(b.getBoundingClientRect().width), words);
+        if (sampling) {
+          requestAnimationFrame(sample);
+        }
+      };
+      sample();
+      await c
+        .run(async () => {
+          await new Promise((r) => setTimeout(r, 300));
+          if (fails) {
+            c.setRest("Retry");
+            throw new Error("failed");
+          }
+        })
+        .catch(() => undefined);
+      await new Promise((r) => setTimeout(r, 900));
+      sampling = false;
+      expect(b.hasAttribute("data-cp-state")).toBe(false);
+      expect((b.querySelector(".cp-roll") as Element).textContent).toBe(fails ? "Retry" : rest);
+      expect([...seen.entries()], JSON.stringify([...seen.entries()])).toHaveLength(1);
+    });
+  }
+
   it("never moves a table's other columns while a row's Grab confirms in its actions cell", async () => {
     await fontsIn("Grab Grabbing… Grabbed Not the best 33.0 GB");
     const el = build(

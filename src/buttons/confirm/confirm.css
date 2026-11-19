@@ -12,25 +12,39 @@
 }
 
 /* A fixed button is as wide as its widest state: every state's icon and
- * words sit hidden in one cell across the button, and the state on show
- * sits centred over them between two free tracks. The gap moves onto the
- * words, as a grid gap would also open beside the free tracks. The hidden
- * cell is a .cp-roll, so `> .cp-roll { display: none }` drops it too. It is
- * laid out at max-content: Gecko gives an item spanning free tracks no
- * min-content size, which a table's 1% actions cell asks for. */
+ * words sit hidden in one cell across both tracks, which share its spare
+ * width, so the icon at the first's end and the words at the second's start
+ * sit centred. Free (fr) tracks would let Gecko round the width per state,
+ * by 1/60px. The gap sits on the words, so a state with no icon opens none.
+ * `> .cp-roll { display: none }` drops the hidden cell too. Laid out at
+ * max-content: Gecko gives a spanning item no min-content size, which a
+ * table's 1% actions cell asks for. */
 .cp-button[data-cp-confirm="fixed"] {
   display: inline-grid;
-  grid-template-columns: 1fr auto auto 1fr;
+  grid-template-columns: auto auto;
   column-gap: 0;
   inline-size: max-content;
 }
 
-.cp-button[data-cp-confirm="fixed"] > .cp-icon {
-  grid-area: 1 / 2;
+/* An empty track would take all the spare width, as an empty track has no
+ * growth limit while spanning items are sized (CSS Grid 1, 12.5 step 3), so
+ * words with no icon would sit off centre. This item keeps it from empty. */
+.cp-button[data-cp-confirm="fixed"]::before {
+  content: "";
+  grid-area: 1 / 1;
 }
 
+.cp-button[data-cp-confirm="fixed"] > .cp-icon {
+  grid-area: 1 / 1;
+  justify-self: end;
+}
+
+/* Words that wrapped would size their track below their width while the
+ * hidden cell is shared out, and the button would change width per state. */
 .cp-button[data-cp-confirm="fixed"] > .cp-roll {
-  grid-area: 1 / 3;
+  grid-area: 1 / 2;
+  justify-self: start;
+  white-space: nowrap;
   transition: none;
 }
 
