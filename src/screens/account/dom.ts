@@ -51,7 +51,7 @@ export function heading(level: number, text: string): HTMLHeadingElement {
   return h;
 }
 
-export interface FieldSpec {
+interface FieldSpec {
   readonly label: string;
   readonly name: string;
   readonly autocomplete: string;
@@ -95,7 +95,7 @@ export function field(spec: FieldSpec): Field {
   return { root, input };
 }
 
-export interface PasswordField extends Field {
+interface PasswordField extends Field {
   readonly reveal: HTMLButtonElement;
 }
 
@@ -116,7 +116,7 @@ export function passwordField(spec: Omit<FieldSpec, "type">, show: string): Pass
   return { root, input, reveal };
 }
 
-export interface ButtonSpec {
+interface ButtonSpec {
   readonly icon?: IconName;
   readonly primary?: boolean;
   readonly type?: "submit" | "button";
@@ -192,7 +192,7 @@ export function rowButton(
   return button;
 }
 
-export interface Column {
+interface Column {
   readonly text: string;
   /** `"actions"` for the last column of row buttons, `"expand"` for the
    *  first, of the buttons that open a row's detail. */

@@ -20,7 +20,7 @@ import { showSecret } from "./shown.js";
 import type { StepUpAnswer } from "./step-up.js";
 import type { AccountWords } from "./words.js";
 
-export interface FactorSpec {
+interface FactorSpec {
   readonly begun: TotpBegin;
   /** Replacing: the old app's code is asked too. */
   readonly replace: boolean;
@@ -36,7 +36,7 @@ export interface FactorSpec {
 
 /** How the setup ended: on, cancelled, or a refusal the dialog could not
  *  hold, which the section shows. */
-export type FactorEnd =
+type FactorEnd =
   | { readonly kind: "done" }
   | { readonly kind: "cancelled" }
   | { readonly kind: "refused"; readonly answer: StepUpAnswer<unknown> };

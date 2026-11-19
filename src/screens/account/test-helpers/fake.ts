@@ -50,7 +50,7 @@ import type {
   UsersClient,
 } from "../client.js";
 
-export interface Call {
+interface Call {
   readonly name: string;
   readonly args: readonly unknown[];
 }

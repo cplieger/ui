@@ -10,7 +10,7 @@ import { closeDialog, holdDialog, installDialogs } from "../../overlays/dialog/d
 import { actionButton, el, heading } from "./dom.js";
 import { cycle, slot, type Slot } from "./screen.js";
 
-export interface FormDialogSpec {
+interface FormDialogSpec {
   readonly title: string;
   readonly sentence?: string;
   /** The primary's words, busy words and done words. */
@@ -25,12 +25,10 @@ export interface FormDialogSpec {
 }
 
 export interface FormDialog {
-  readonly dialog: HTMLDialogElement;
   readonly form: HTMLFormElement;
   /** Where the fields go, after the sentence and the notice slot. */
   readonly stack: HTMLElement;
   readonly notices: Slot;
-  readonly footer: HTMLElement;
   readonly submit: HTMLButtonElement;
   /**
    * Runs `work` on `confirm`'s cycle, the primary's by default, holding
@@ -115,11 +113,9 @@ export function formDialog(spec: FormDialogSpec): FormDialog {
   dialog.showModal();
 
   return {
-    dialog,
     form,
     stack,
     notices,
-    footer,
     submit,
     async run(work, ok, confirm = main) {
       running += 1;

@@ -13,7 +13,7 @@ import { redrawKeepingFocus } from "./focus.js";
 import { renameHold, type RenameSpec } from "./rename.js";
 import { latest, type Slot } from "./screen.js";
 
-export interface PartSpec<T> {
+interface PartSpec<T> {
   /** What `draw` fills. */
   readonly content: HTMLElement;
   /** Where a draw keeps focus, when wider than `content`. */

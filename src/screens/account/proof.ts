@@ -22,7 +22,7 @@ import { holdFor, isHeld, type Hold } from "./screen.js";
 import type { StepUpAnswer } from "./step-up.js";
 import type { AccountWords } from "./words.js";
 
-export interface ProofSpec<C> {
+interface ProofSpec<C> {
   readonly client: C;
   readonly access: SecurityAccess<C>;
   readonly words: AccountWords;

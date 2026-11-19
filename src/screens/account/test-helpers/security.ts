@@ -46,9 +46,9 @@ export function useScreen(): void {
   });
 }
 
-export type Options = Partial<Omit<SecurityOptions<FakeClient>, "client" | "access">>;
+type Options = Partial<Omit<SecurityOptions<FakeClient>, "client" | "access">>;
 
-export interface Mounted {
+interface Mounted {
   readonly fake: Fake;
   readonly region: HTMLElement;
   readonly ran: AccountAction[];

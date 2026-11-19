@@ -15,7 +15,7 @@ import { el, heading, notice, uid } from "./dom.js";
 import { isHeld } from "./screen.js";
 import type { AccountWords } from "./words.js";
 
-export interface ShownSpec {
+interface ShownSpec {
   readonly title: string;
   /** The sentence under the warning. */
   readonly line?: string;

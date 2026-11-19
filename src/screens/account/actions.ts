@@ -34,7 +34,7 @@ export interface Action {
   readonly run: (opener: HTMLElement, confirm: Confirm | undefined) => void;
 }
 
-export interface ActionsCtx {
+interface ActionsCtx {
   readonly w: AccountWords;
   readonly app: string;
   readonly httpsOrigin: string | undefined;

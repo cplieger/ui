@@ -95,10 +95,6 @@ function refusal(status: number, code: string, reason?: string, retryAfter?: num
   };
 }
 
-interface Demo extends SignInClient {
-  readonly oidcPrefix: string;
-}
-
 interface Script {
   /** The state, or a refusal; undefined never answers. */
   readonly state?: () => Result<StateResponse> | undefined;
@@ -198,10 +194,12 @@ const ceremony = async (): Promise<PendingPasskeyOutcome> => {
   return { kind: "answered", result: { signed_in: SIGNED_IN } };
 };
 
-function fake(script: Script): { readonly client: Demo; readonly access: SignInAccess<Demo> } {
+function fake(script: Script): {
+  readonly client: SignInClient;
+  readonly access: SignInAccess<SignInClient>;
+} {
   let pressed = 0;
-  const client: Demo = {
-    oidcPrefix: "/api/auth/oidc",
+  const client: SignInClient = {
     async state() {
       await wait(300);
       const answer = (script.state ?? (() => ({ ok: true, data: EVERY })))();
@@ -241,7 +239,7 @@ function fake(script: Script): { readonly client: Demo; readonly access: SignInA
       return (script.admin ?? (() => ({ ok: true, data: SIGNED_IN })))(r.temporary_password);
     },
   };
-  const access: SignInAccess<Demo> = {
+  const access: SignInAccess<SignInClient> = {
     async signInWithPasskey(_c, o) {
       if (o?.mediation === "conditional") {
         return new Promise<never>(() => undefined);
@@ -272,7 +270,7 @@ function fake(script: Script): { readonly client: Demo; readonly access: SignInA
   return { client, access };
 }
 
-type Card = Omit<SignInOptions<Demo>, "client" | "access"> & {
+type Card = Omit<SignInOptions<SignInClient>, "client" | "access"> & {
   readonly script?: Script;
   /** Drives the screen into the card's state once it is drawn. */
   readonly then?: (panel: HTMLElement) => void;

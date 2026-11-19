@@ -42,7 +42,7 @@ import type { AccountAction, Runner } from "./run.js";
 import { cycle, holdFor, read, type Hold, type Slot } from "./screen.js";
 import type { AccountWords } from "./words.js";
 
-export interface PendingContext<C extends PendingClient> {
+interface PendingContext<C extends PendingClient> {
   readonly client: C;
   readonly access: PendingAccess<C>;
   readonly words: AccountWords;
