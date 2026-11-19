@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { durationRecord } from "../../core/format/intl.js";
 import { instantFormat, spanFormat, tickFormat, widthKey, writer } from "./format.js";
 
 const short = (locale: string, record: Record<string, number>) =>
