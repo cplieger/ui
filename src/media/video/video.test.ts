@@ -1,5 +1,5 @@
-import { afterEach, describe, expect, it } from "vitest";
-import { userEvent } from "vitest/browser";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import { page, userEvent } from "vitest/browser";
 
 import { enhanceVideo, type Video } from "./video.js";
 
@@ -835,5 +835,206 @@ describe("enhanceVideo", () => {
       [1, 2],
       [3, 4],
     ]);
+  });
+});
+
+describe("enhanceVideo captions", () => {
+  const sheet = document.createElement("link");
+  beforeAll(async () => {
+    sheet.rel = "stylesheet";
+    sheet.href = new URL("../../../css/system.css", import.meta.url).href;
+    const loaded = new Promise((resolve) => {
+      sheet.addEventListener("load", resolve, { once: true });
+    });
+    document.head.append(sheet);
+    await loaded;
+    // Gecko keeps a cue box laid out in the fallback font after the web font
+    // swaps in, so the cues are drawn on a page already set in it.
+    await document.fonts.load(
+      `1rem ${getComputedStyle(document.documentElement).getPropertyValue("--cp-font-body")}`,
+    );
+  });
+  afterAll(() => {
+    sheet.remove();
+  });
+
+  /** --cp-space-3 in CSS pixels. */
+  function margin(): number {
+    const probe = document.createElement("div");
+    probe.style.paddingBlockEnd = "var(--cp-space-3)";
+    document.body.append(probe);
+    const px = Number.parseFloat(getComputedStyle(probe).paddingBlockEnd);
+    probe.remove();
+    return px;
+  }
+
+  async function pixels(el: HTMLElement): Promise<ImageData> {
+    const shot = await page.screenshot({ element: el, base64: true, save: false });
+    const blob = await (await fetch(`data:image/png;base64,${shot}`)).blob();
+    const img = await createImageBitmap(blob);
+    const ctx = new OffscreenCanvas(img.width, img.height).getContext("2d");
+    if (ctx === null) {
+      throw new Error("no 2d context");
+    }
+    ctx.drawImage(img, 0, 0);
+    return ctx.getImageData(0, 0, img.width, img.height);
+  }
+
+  // The cue boxes are redrawn on the engine's next rendering update, which no
+  // event announces.
+  const drawn = (): Promise<void> =>
+    new Promise((resolve) => {
+      setTimeout(resolve, 300);
+    });
+
+  /** The CSS pixels between the video's top and bottom edges and the box the
+   *  showing caption paints, found against a shot with `track` hidden. */
+  async function caption(
+    video: HTMLVideoElement,
+    track: TextTrack,
+  ): Promise<{ above: number; below: number }> {
+    await drawn();
+    const shown = await pixels(video);
+    track.mode = "hidden";
+    await drawn();
+    const bare = await pixels(video);
+    track.mode = "showing";
+    await drawn();
+    const rows: number[] = [];
+    for (let y = 0; y < shown.height; y++) {
+      for (let x = 0; x < shown.width; x++) {
+        const i = (y * shown.width + x) * 4;
+        const d = (k: number) => Math.abs((shown.data[i + k] ?? 0) - (bare.data[i + k] ?? 0));
+        if (d(0) + d(1) + d(2) > 60) {
+          rows.push(y);
+          break;
+        }
+      }
+    }
+    const top = rows[0];
+    const bottom = rows.at(-1);
+    if (top === undefined || bottom === undefined) {
+      throw new Error("no caption painted");
+    }
+    const scale = video.getBoundingClientRect().height / shown.height;
+    return { above: top * scale, below: (shown.height - 1 - bottom) * scale };
+  }
+
+  /** A cue's own line settings; Chromium's VTTCue has no `lineAlign`. */
+  const lineOf = (cue: VTTCue): unknown[] => [cue.snapToLines, cue.line, cue.lineAlign];
+
+  const cue = (text: string, line?: number): VTTCue => {
+    const c = new VTTCue(0, 100, text);
+    if (line !== undefined) {
+      c.line = line;
+    }
+    return c;
+  };
+
+  /** An enhanced pane, its native controls off so the bar the abort gives back
+   *  lifts no cue of its own, paused on a frame with each cue showing. */
+  async function captioned(
+    cues: readonly VTTCue[],
+    signal = life.signal,
+  ): Promise<{ root: HTMLElement; video: HTMLVideoElement; track: TextTrack }> {
+    const root = document.createElement("div");
+    root.className = "cp-video";
+    const video = document.createElement("video");
+    video.controls = false;
+    video.muted = true;
+    video.preload = "auto";
+    root.append(video);
+    document.body.append(root);
+    const track = video.addTextTrack("subtitles", "English", "en");
+    track.mode = "showing";
+    for (const c of cues) {
+      track.addCue(c);
+    }
+    const handle = enhanceVideo(root, { signal });
+    const loaded = new Promise((resolve) => {
+      video.addEventListener("loadeddata", resolve, { once: true });
+    });
+    handle.load(await sample());
+    await loaded;
+    await seeked(video, 1);
+    return { root, video, track };
+  }
+
+  async function fullScreen(video: HTMLVideoElement): Promise<void> {
+    const full = document.createElement("button");
+    full.type = "button";
+    full.textContent = "Full screen";
+    full.addEventListener("click", () => {
+      void video.requestFullscreen();
+    });
+    document.body.append(full);
+    const entered = new Promise((resolve) => {
+      document.addEventListener("fullscreenchange", resolve, { once: true });
+    });
+    await userEvent.click(full);
+    await entered;
+  }
+
+  for (const [lines, text] of [
+    ["one-line", "A caption line"],
+    ["two-line", "A caption line\nand the line under it"],
+  ] as const) {
+    it(`keeps a ${lines} caption the space-3 margin off the bottom edge, at rest, resized and full screen`, async () => {
+      const { root, video, track } = await captioned([cue(text)]);
+      const m = margin();
+      expect(m).toBeGreaterThan(0);
+      expect((await caption(video, track)).below).toBeGreaterThanOrEqual(m);
+
+      root.style.maxInlineSize = "24rem";
+      expect((await caption(video, track)).below).toBeGreaterThanOrEqual(m);
+
+      await fullScreen(video);
+      try {
+        expect((await caption(video, track)).below).toBeGreaterThanOrEqual(m);
+      } finally {
+        await document.exitFullscreen();
+      }
+    });
+  }
+
+  it("leaves a caption the app placed on the top line where it is", async () => {
+    const top = cue("A caption line", 0);
+    const { video, track } = await captioned([top]);
+    expect((await caption(video, track)).above).toBeLessThan(1);
+    expect([top.snapToLines, top.line]).toEqual([true, 0]);
+  });
+
+  it("gives every caption its own line back once its signal aborts", async () => {
+    const stop = new AbortController();
+    const cues = [cue("A caption line"), cue("And another one")];
+    const own = cues.map(lineOf);
+    const { video, track } = await captioned(cues, stop.signal);
+    expect((await caption(video, track)).below).toBeGreaterThanOrEqual(margin());
+    stop.abort();
+    expect(cues.map(lineOf)).toEqual(own);
+    expect((await caption(video, track)).below).toBeLessThan(1);
+  });
+
+  it("gives a removed caption its own line back and lifts the one that replaces it", async () => {
+    const old = cue("A caption line");
+    const own = lineOf(old);
+    const { video, track } = await captioned([old]);
+    track.removeCue(old);
+    expect(lineOf(old)).toEqual(own);
+    track.addCue(cue("A caption line\nand the line under it"));
+    expect((await caption(video, track)).below).toBeGreaterThanOrEqual(margin());
+  });
+
+  it("gives a track's captions their own line back once another track shows", async () => {
+    const first = cue("A caption line");
+    const own = lineOf(first);
+    const { video, track } = await captioned([first]);
+    expect((await caption(video, track)).below).toBeGreaterThanOrEqual(margin());
+    const next = video.addTextTrack("subtitles", "日本語", "ja");
+    next.addCue(cue("Another language"));
+    track.mode = "disabled";
+    next.mode = "showing";
+    await expect.poll(() => lineOf(first)).toEqual(own);
+    expect((await caption(video, next)).below).toBeGreaterThanOrEqual(margin());
   });
 });
