@@ -118,8 +118,13 @@ export function routeListDetail(options: ListRouteOptions): ListRoute {
         }
         // From the attribute, since an SVG <a> has no HTML href getter; SVG 2
         // deprecates xlink:href (https://www.w3.org/TR/SVG2/linking.html#AElementHrefAttribute).
-        const to = new URL(link.getAttribute("href") ?? "", link.baseURI);
-        if (location.hash === "" || to.href.split("#")[0] !== location.href.split("#")[0]) {
+        // An address that does not parse is left to the browser.
+        const to = URL.parse(link.getAttribute("href") ?? "", link.baseURI);
+        if (
+          to === null ||
+          location.hash === "" ||
+          to.href.split("#")[0] !== location.href.split("#")[0]
+        ) {
           return;
         }
         if (to.href !== location.href) {

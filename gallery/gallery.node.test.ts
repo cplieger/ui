@@ -29,7 +29,7 @@ const SYSTEM_SCREENS = readdirSync(SYSTEM_DIR).filter((file) => file.endsWith(".
  *  no mark from step 2 of the forms pattern, the field's `.cp-help` reading
  *  "Required." or a `.cp-required` reading "(Required)" in the control's label
  *  or a `.cp-label` of its field. Nothing else counts. A control with no box
- *  first has its closed `details` and `dialog` ancestors opened and every
+ *  first has its closed `details`, `dialog` and popover ancestors opened and every
  *  ancestor's `hidden` dropped; one still without a box is missing. The mark must
  *  pass `checkVisibility`, be at least a pixel each way in the page's scroll area,
  *  lie inside each ancestor clipping its overflow (not a scroller), and show its text uncut. */
@@ -96,6 +96,8 @@ const requiredWithoutMark = (): string[] => {
         el.open = true;
       } else if (el instanceof HTMLDialogElement && !el.open) {
         el.show();
+      } else if (el instanceof HTMLElement && el.matches("[popover]:not(:popover-open)")) {
+        el.showPopover();
       }
       el.removeAttribute("hidden");
     }
@@ -360,6 +362,7 @@ describe.each(browsers)("the gallery in %s", (name) => {
       | `chip #${string}`
       | `svg #${string}`
       | `area #${string}`
+      | `malformed ${string}`
       | `unseen #${string}`
       | `unseen-chip #${string}`
       | `filter ${string}`
@@ -524,6 +527,8 @@ describe.each(browsers)("the gallery in %s", (name) => {
     const run = async (width: number, fresh: boolean, steps: readonly Step[]) => {
       const tab = await (browser as Browser).newPage({ viewport: { width, height: 800 } });
       await tab.addInitScript(helpers);
+      const errors: string[] = [];
+      tab.on("pageerror", (e) => errors.push(e.message));
       if (!fresh) {
         await tab.goto(`${origin}/index.html`);
       }
@@ -557,9 +562,13 @@ describe.each(browsers)("the gallery in %s", (name) => {
           case "press":
           case "chip":
           case "svg":
-          case "area": {
-            if (verb === "svg" || verb === "area") {
-              // A link to `arg` under the detail's heading: an SVG <a>, or an image map's <area>.
+          case "area":
+          case "malformed": {
+            if (verb === "svg" || verb === "area" || verb === "malformed") {
+              // A link to `arg` under the detail's heading: an SVG <a>, an image
+              // map's <area>, or an HTML <a> whose address does not parse. That
+              // one's default is cancelled after the router's listener, so the
+              // row reads the router alone, not the browser's own handling.
               await tab.evaluate(
                 ([kind, href]) => {
                   document.getElementById("probe-link")?.closest(".probe")?.remove();
@@ -579,6 +588,12 @@ describe.each(browsers)("the gallery in %s", (name) => {
                     a.append(text);
                     svg.append(a);
                     box.append(svg);
+                  } else if (kind === "malformed") {
+                    const a = Object.assign(document.createElement("a"), { id: "probe-link" });
+                    a.setAttribute("href", href);
+                    a.textContent = "Open";
+                    box.append(a);
+                    addEventListener("click", (e) => e.preventDefault(), { once: true });
                   } else {
                     const img = document.createElement("img");
                     Object.assign(img, { src: "media/graph.svg", alt: "", width: 80, height: 20 });
@@ -632,6 +647,9 @@ describe.each(browsers)("the gallery in %s", (name) => {
             if (before !== undefined && KNOWN[new URL(before.href).hash.slice(1)] !== undefined) {
               // A press on another entry while one is shown replaces the entry.
               want = { ...want, length: before.length };
+            }
+            if (verb === "malformed" && before !== undefined) {
+              want = { ...want, length: before.length, focus: "#probe-link" };
             }
             await enter(tab, selector);
             break;
@@ -727,6 +745,9 @@ describe.each(browsers)("the gallery in %s", (name) => {
             break;
         }
         const left = await settle(tab, want);
+        if (errors.length > 0) {
+          left.push(`page error: ${errors.splice(0).join("; ")}`);
+        }
         if ((verb === "load" || verb === "reload") && want.focus === "body") {
           // Invariant 3: a load moves no focus and no scroll, so Tab starts at the page's start.
           const y = await tab.evaluate(() => scrollY);
@@ -1119,6 +1140,16 @@ describe.each(browsers)("the gallery in %s", (name) => {
           ["chip #c-announce", `${M}#c-announce`],
           ["close", M, '#agent-history a[href="#c-announce"]'],
           ["back", "/index.html"],
+        ],
+      ],
+      [
+        "a press on a link whose address does not parse, with a conversation shown",
+        W,
+        AFTER,
+        [
+          ["load messages.html#c-internal", `${M}#c-internal`],
+          ["malformed http://[::1", `${M}#c-internal`],
+          ["close", M],
         ],
       ],
       ...(["svg", "area"] as const).flatMap(
@@ -1793,7 +1824,7 @@ describe.each(browsers)("the gallery in %s", (name) => {
 
   it("finds each required field that shows no Required mark", async () => {
     const tab = await (browser as Browser).newPage();
-    await tab.setContent(`
+    await tab.setContent(`<!doctype html>
       <div class="cp-field"><label for="a">A</label><input id="a" aria-required="true"><span class="cp-help">Required.</span></div>
       <div class="cp-field"><label for="b">B <span class="cp-required">(Required)</span></label><input id="b" aria-required="true"><span class="cp-help">From the provider.</span></div>
       <div class="cp-field"><label for="c">C</label><input id="c" aria-required="true"><span class="cp-help">From the provider.</span></div>
@@ -1820,10 +1851,17 @@ describe.each(browsers)("the gallery in %s", (name) => {
       <div class="cp-field"><label for="z" style="display:block;width:9ch;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">Name <span class="cp-required">(Required)</span></label><input id="z" aria-required="true"></div>
       <dialog><div class="cp-field"><label for="dialog">Dialog</label><input id="dialog" aria-required="true"><span class="cp-help" style="opacity:0">Required.</span></div></dialog>
       <details><summary>More</summary><div class="cp-field"><label for="details">Details</label><input id="details" aria-required="true"><span class="cp-help" style="opacity:0">Required.</span></div></details>
-      <div class="cp-field" hidden><label for="hidden">Hidden <span class="cp-visually-hidden"><span class="cp-required">(Required)</span></span></label><input id="hidden" aria-required="true"><span class="cp-help">From the provider.</span></div>`);
+      <div hidden><div class="cp-field"><label for="hidden">Hidden <span class="cp-visually-hidden"><span class="cp-required">(Required)</span></span></label><input id="hidden" aria-required="true"><span class="cp-help">From the provider.</span></div></div>
+      <dialog><div class="cp-field"><label for="in-dialog">In a dialog</label><input id="in-dialog" aria-required="true"><span class="cp-help">Required.</span></div></dialog>
+      <details><summary>More</summary><div class="cp-field"><label for="in-details">In details</label><input id="in-details" aria-required="true"><span class="cp-help">Required.</span></div></details>
+      <details name="g"><summary>One</summary><div class="cp-field"><label for="in-one">One</label><input id="in-one" aria-required="true"><span class="cp-help">Required.</span></div></details>
+      <details name="g"><summary>Two</summary><div class="cp-field"><label for="in-two">Two</label><input id="in-two" aria-required="true"><span class="cp-help">Required.</span></div></details>
+      <dialog><details><summary>More</summary><div class="cp-field"><label for="in-both">In both</label><input id="in-both" aria-required="true"><span class="cp-help">Required.</span></div></details></dialog>
+      <div popover><div class="cp-field"><label for="in-popover">In a popover</label><input id="in-popover" aria-required="true"><span class="cp-help">Required.</span></div></div>
+      <div popover><div class="cp-field"><label for="popover">Popover</label><input id="popover" aria-required="true"><span class="cp-help" style="opacity:0">Required.</span></div></div>`);
     const missing = await tab.evaluate(requiredWithoutMark);
     await tab.close();
-    expect(missing).toEqual([..."cdefijklnpqrsvwyz", "dialog", "details", "hidden"]);
+    expect(missing).toEqual([..."cdefijklnpqrsvwyz", "dialog", "details", "hidden", "popover"]);
   }, 60_000);
 
   it.each([...pageNames, ...templateNames])(
