@@ -67,12 +67,13 @@ const APPLIED: Readonly<Record<string, readonly [string, unknown]>> = {
   "event-append-bin.json": [
     "bins",
     // The bins span 0 to 5 with no domain, so the extent slides to end at
-    // the new bin's end, past every old bin.
+    // the new bin's end, past every old bin, and is the domain from then on.
     {
       ...BINS,
       x1: [1772323200000],
       x2: [1772409600000],
       series: [{ key: "wait_seconds", values: [4] }],
+      domain: [1772409599995, 1772409600000],
     },
   ],
   "event-append-column.json": [
@@ -171,6 +172,7 @@ describe("applyEvent", () => {
       x1: [1772323200000],
       x2: [1772380000000],
       series: [{ key: "wait_seconds", values: [5] }],
+      domain: [1772409599995, 1772409600000],
       open: true,
     });
   });
@@ -196,7 +198,7 @@ describe("applyEvent", () => {
     });
   });
 
-  it("slides a frame with no domain by its x extent", () => {
+  it("slides a frame with no domain by its x extent, its domain from then on", () => {
     const given = {
       ...SERIES,
       x: [0, 60, 120],
@@ -206,7 +208,112 @@ describe("applyEvent", () => {
       ...SERIES,
       x: [60, 120, 150],
       series: [{ key: "p50", values: [2, 3, 4] }],
+      domain: [30, 150],
     });
+  });
+
+  it("keeps a frame's x extent through appends a step apart of any size", () => {
+    const given = {
+      ...SERIES,
+      x: [0, 100],
+      series: [{ key: "p50", values: [1, 2] }],
+    } as Frame;
+    const once = applyEvent(given, { kind: "append", key: "k", x: 101, values: [3] });
+    expect(applyEvent(once, { kind: "append", key: "k", x: 200, values: [4] })).toStrictEqual({
+      ...SERIES,
+      x: [100, 101, 200],
+      series: [{ key: "p50", values: [2, 3, 4] }],
+      domain: [100, 200],
+    });
+  });
+
+  it("keeps a bins frame's x extent through appends", () => {
+    const given = {
+      ...BINS,
+      x1: [0, 10],
+      x2: [10, 20],
+      series: [{ key: "a", values: [1, 2] }],
+    } as Frame;
+    const once = applyEvent(given, { kind: "append", key: "k", x1: 20, x2: 25, values: [3] });
+    expect(once).toStrictEqual({
+      ...BINS,
+      x1: [0, 10, 20],
+      x2: [10, 20, 25],
+      series: [{ key: "a", values: [1, 2, 3] }],
+      domain: [5, 25],
+    });
+    expect(
+      applyEvent(once, { kind: "append", key: "k", x1: 25, x2: 40, values: [4] }),
+    ).toStrictEqual({
+      ...BINS,
+      x1: [20, 25],
+      x2: [25, 40],
+      series: [{ key: "a", values: [3, 4] }],
+      domain: [20, 40],
+    });
+  });
+
+  it("grows a frame with no extent until it has a span to keep", () => {
+    const appended = [1, 2, 3].reduce<Frame>(
+      (f, x) => applyEvent(f, { kind: "append", key: "k", x, values: [x] }),
+      { ...SERIES, x: [], series: [{ key: "p50", values: [] }] } as Frame,
+    );
+    expect(appended).toStrictEqual({
+      ...SERIES,
+      x: [2, 3],
+      series: [{ key: "p50", values: [2, 3] }],
+      domain: [2, 3],
+    });
+    const two = applyEvent({ ...SERIES, x: [1], series: [{ key: "p50", values: [1] }] } as Frame, {
+      kind: "append",
+      key: "k",
+      x: 2,
+      values: [2],
+    });
+    expect(two).toStrictEqual({ ...SERIES, x: [1, 2], series: [{ key: "p50", values: [1, 2] }] });
+    const bins = applyEvent(
+      { ...BINS, x1: [], x2: [], series: [{ key: "a", values: [] }] } as Frame,
+      { kind: "append", key: "k", x1: 0, x2: 10, values: [1] },
+    );
+    expect(bins).toStrictEqual({
+      ...BINS,
+      x1: [0],
+      x2: [10],
+      series: [{ key: "a", values: [1] }],
+    });
+  });
+
+  // chartdata leaves out an empty values list, so an event to a frame with
+  // no series comes without one: these are its marshalled events.
+  const NO_SERIES: readonly (readonly [string, Frame, string, unknown])[] = [
+    [
+      "an append to a series frame",
+      { ...SERIES, x: [0, 60], series: [], domain: [0, 120] } as Frame,
+      '{"x":180,"key":"k","kind":"append"}',
+      { ...SERIES, x: [60, 180], series: [], domain: [60, 180] },
+    ],
+    [
+      "a replace of a series frame's column",
+      { ...SERIES, x: [0, 60], series: [], domain: [0, 120] } as Frame,
+      '{"open":false,"key":"k","kind":"replace"}',
+      { ...SERIES, x: [0, 60], series: [], domain: [0, 120] },
+    ],
+    [
+      "an append to a bins frame",
+      { ...BINS, x1: [0, 10], x2: [10, 20], series: [], domain: [0, 20] } as Frame,
+      '{"x1":20,"x2":30,"key":"k","kind":"append"}',
+      { ...BINS, x1: [10, 20], x2: [20, 30], series: [], domain: [10, 30] },
+    ],
+    [
+      "a replace of a bins frame's bin",
+      { ...BINS, x1: [0, 10], x2: [10, 20], series: [], domain: [0, 20] } as Frame,
+      '{"x1":10,"x2":25,"open":true,"key":"k","kind":"replace"}',
+      { ...BINS, x1: [0, 10], x2: [10, 25], series: [], domain: [0, 20], open: true },
+    ],
+  ];
+
+  it.each(NO_SERIES)("takes %s with no series and no values", (_, given, wire, expected) => {
+    expect(applyEvent(given, JSON.parse(wire))).toStrictEqual(expected);
   });
 
   it("drops the bins an append slides out of the domain, keeping one it still overlaps", () => {
@@ -382,16 +489,25 @@ describe("applyEvent", () => {
     expect(e.message).toMatch(naming("event"));
   });
 
-  it("refuses an append whose slid domain loses its span to rounding", () => {
-    const given = {
-      ...SERIES,
-      x: [0],
-      series: [{ key: "a", values: [1] }],
-      domain: [0, 1],
-    } as Frame;
-    const e = refusal(() => applyEvent(given, { kind: "append", key: "k", x: 1e20, values: [1] }));
+  // A slid domain must still be one a frame holds: a span, its start within
+  // the largest magnitude a value may have.
+  const SLID: readonly (readonly [string, readonly number[], readonly number[], number])[] = [
+    ["loses its span to rounding", [0], [0, 1], 1e20],
+    ["starts below -1e300", [-1e300], [0, 1e300], -5e299],
+  ];
+
+  it.each(SLID)("refuses an append whose slid domain %s", (_, x, domain, at) => {
+    const given = { ...SERIES, x, series: [{ key: "a", values: x.map(() => 1) }], domain } as Frame;
+    const e = refusal(() => applyEvent(given, { kind: "append", key: "k", x: at, values: [1] }));
     expect(e).toBeInstanceOf(RangeError);
     expect(e.message).toMatch(naming("event.x"));
+  });
+
+  it("reads a frame type an object inherits as one that takes only a set", () => {
+    const given = { type: "constructor" } as unknown as Frame;
+    const e = refusal(() => applyEvent(given, { key: "k", kind: "append" }));
+    expect(e).toBeInstanceOf(TypeError);
+    expect(e.message).toMatch(naming("event.kind"));
   });
 
   // Each wrong shape an event can take, the field it is wrong at, and the
@@ -406,6 +522,8 @@ describe("applyEvent", () => {
     [{ key: "k", kind: "append", values: [1, 2] }, "series", "event.x"],
     [{ ...event("append-column"), x: "1" }, "series", "event.x"],
     [{ ...event("append-column"), values: "1" }, "series", "event.values"],
+    [{ key: "k", kind: "append", x: 1772323380000 }, "series", "event.values"],
+    [{ key: "k", kind: "replace", x1: 2, x2: 6 }, "bins", "event.values"],
     [{ ...event("append-column"), values: [1, "2"] }, "series", "event.values[1]"],
     [{ ...event("append-column"), x1: 1 }, "series", "event.x1"],
     [{ ...event("append-column"), open: true }, "series", "event.open"],

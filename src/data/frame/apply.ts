@@ -11,8 +11,8 @@ import type {
   SeriesFrame,
   StatesFrame,
 } from "./frame.js";
-import { MAX_VALUES } from "./limits.js";
-import { checks, door, KINDS, readFrame, words } from "./read.js";
+import { MAX_MAGNITUDE, MAX_VALUES } from "./limits.js";
+import { checks, door, MAGNITUDE, readFrame, TYPES, words } from "./read.js";
 
 type Checks = ReturnType<typeof checks>;
 
@@ -25,9 +25,8 @@ const TAKES: Readonly<Partial<Record<FrameType, readonly FrameEventKind[]>>> = {
   states: ["reset", "set"],
 };
 
-const FIELDS = ["x", "x1", "x2", "values", "open", "at", ...Object.keys(KINDS)];
+const FIELDS = ["x", "x1", "x2", "values", "open", "at", ...Object.keys(TYPES)];
 
-// The fields an event of `kind` may hold on a frame of `type`.
 function fieldsOf(kind: FrameEventKind, type: FrameType): readonly string[] {
   switch (kind) {
     case "append":
@@ -49,7 +48,6 @@ const firstAt = (xs: readonly number[], keep: (x: number) => boolean): number =>
 const resetsFrom = (resets: readonly number[] | undefined, start: number) =>
   resets === undefined ? {} : { resets: resets.filter((r) => r >= start) };
 
-// The columns at or after `start`, and the resets.
 function seriesFrom(f: SeriesFrame, start: number): SeriesFrame {
   const i = firstAt(f.x, (x) => x >= start);
   return {
@@ -72,12 +70,17 @@ function binsFrom(f: BinsFrame, start: number): BinsFrame {
   };
 }
 
-// The span an axis covers, its domain or else its data's extent.
-const spanOf = (domain: readonly number[] | undefined, from: number, to: number): number =>
-  domain === undefined ? to - from : (domain[1] ?? 0) - (domain[0] ?? 0);
+// readFrame holds a domain to two ends, a low below a high.
+const endsOf = (domain: readonly number[]) => domain as readonly [number, number];
 
-// A domain of `span` ending at `end`, which a large `end` can round to no span.
-function slid(c: Checks, field: string, span: number, end: number): number[] {
+function spanOf(domain: readonly number[]): number {
+  const [low, high] = endsOf(domain);
+  return high - low;
+}
+
+// A domain of `span` ending at `end`, which a large `end` can round to no
+// span and a wide span can start past the largest magnitude a value may have.
+function slid(c: Checks, field: string, span: number, end: number): [number, number] {
   const start = end - span;
   if (!(start < end)) {
     c.fail(
@@ -85,14 +88,43 @@ function slid(c: Checks, field: string, span: number, end: number): number[] {
       RangeError,
     );
   }
+  if (start < -MAX_MAGNITUDE) {
+    c.fail(
+      `${field} must not slide the domain's span of ${String(span)} to start below -${MAGNITUDE}`,
+      RangeError,
+    );
+  }
   return [start, end];
 }
 
+// The domain an append slides the frame to, ending at `end`: its domain's
+// span, else its data's extent from `from` to `to`. A frame with no extent
+// has no span to keep, so it takes no domain and drops nothing until it has.
+function windowOf(
+  c: Checks,
+  field: string,
+  domain: readonly number[] | undefined,
+  from: number | undefined,
+  to: number | undefined,
+  end: number,
+): [number, number] | undefined {
+  if (domain !== undefined) {
+    return slid(c, field, spanOf(domain), end);
+  }
+  return from === undefined || to === undefined || !(to > from)
+    ? undefined
+    : slid(c, field, to - from, end);
+}
+
+// chartdata leaves an empty values list out, so a frame with no series takes
+// an event without one.
 const valuesOf = (c: Checks, o: Record<string, unknown>, n: number): (number | null)[] =>
-  c.list(o["values"], "event.values", {
-    per: [n, "one per series"],
-    each: c.gaps("event.values"),
-  }) as (number | null)[];
+  n === 0 && o["values"] === undefined
+    ? []
+    : (c.list(o["values"], "event.values", {
+        per: [n, "one per series"],
+        each: c.gaps("event.values"),
+      }) as (number | null)[]);
 
 // What chartdata charges the frame once its columns or rows are known.
 function charge(d: Door, entries: number, series: number, f: Frame): void {
@@ -106,10 +138,9 @@ function appendColumn(c: Checks, d: Door, f: SeriesFrame, o: Record<string, unkn
     c.fail(`event.x must come after the frame's last x, ${String(last)}`, RangeError);
   }
   const values = valuesOf(c, o, f.series.length);
-  const span = spanOf(f.domain, f.x[0] ?? x, last ?? x);
-  const domain = f.domain === undefined ? undefined : slid(c, "event.x", span, x);
+  const domain = windowOf(c, "event.x", f.domain, f.x[0], last, x);
   const { open: _open, ...rest } = f;
-  const kept = seriesFrom({ ...rest, ...(domain === undefined ? {} : { domain }) }, x - span);
+  const kept = domain === undefined ? rest : seriesFrom({ ...rest, domain }, domain[0]);
   charge(d, kept.x.length + 1, f.series.length, f);
   return {
     ...kept,
@@ -120,7 +151,12 @@ function appendColumn(c: Checks, d: Door, f: SeriesFrame, o: Record<string, unkn
 
 // A bin starts after the last bin starts, ends at or after it ends, and ends
 // after it starts; `before` is the bin it follows, if any.
-function bin(c: Checks, o: Record<string, unknown>, f: BinsFrame, before: number): number[] {
+function bin(
+  c: Checks,
+  o: Record<string, unknown>,
+  f: BinsFrame,
+  before: number,
+): readonly [number, number] {
   const x1 = c.finite(o["x1"], "event.x1");
   const x2 = c.finite(o["x2"], "event.x2");
   const lastX1 = f.x1[before];
@@ -138,12 +174,11 @@ function bin(c: Checks, o: Record<string, unknown>, f: BinsFrame, before: number
 }
 
 function appendBin(c: Checks, d: Door, f: BinsFrame, o: Record<string, unknown>): Frame {
-  const [x1 = 0, x2 = 0] = bin(c, o, f, f.x1.length - 1);
+  const [x1, x2] = bin(c, o, f, f.x1.length - 1);
   const values = valuesOf(c, o, f.series.length);
-  const span = spanOf(f.domain, f.x1[0] ?? x1, f.x2.at(-1) ?? x2);
-  const domain = f.domain === undefined ? undefined : slid(c, "event.x2", span, x2);
+  const domain = windowOf(c, "event.x2", f.domain, f.x1[0], f.x2.at(-1), x2);
   const { open: _open, ...rest } = f;
-  const kept = binsFrom({ ...rest, ...(domain === undefined ? {} : { domain }) }, x2 - span);
+  const kept = domain === undefined ? rest : binsFrom({ ...rest, domain }, domain[0]);
   charge(d, kept.x1.length + 1, f.series.length, f);
   return {
     ...kept,
@@ -153,10 +188,17 @@ function appendBin(c: Checks, d: Door, f: BinsFrame, o: Record<string, unknown>)
   };
 }
 
+const lastSet = <T>(xs: readonly T[], last: number, v: T): T[] => [...xs.slice(0, last), v];
+
+function edges(c: Checks, o: Record<string, unknown>, f: BinsFrame, last: number) {
+  const [x1, x2] = bin(c, o, f, last - 1);
+  return { x1: lastSet(f.x1, last, x1), x2: lastSet(f.x2, last, x2) };
+}
+
 function replace(c: Checks, f: SeriesFrame | BinsFrame, o: Record<string, unknown>): Frame {
   const bins = f.type === "bins" ? (f as BinsFrame) : undefined;
   const last = (bins?.x1 ?? (f as SeriesFrame).x).length - 1;
-  const edges = bins === undefined ? undefined : bin(c, o, bins, last - 1);
+  const moved = bins === undefined ? {} : edges(c, o, bins, last);
   const values = valuesOf(c, o, f.series.length);
   const open = c.optional(o["open"], (v) => c.boolean(v, "event.open"));
   if (last < 0) {
@@ -166,13 +208,10 @@ function replace(c: Checks, f: SeriesFrame | BinsFrame, o: Record<string, unknow
     );
   }
   const { open: _open, ...rest } = f;
-  const at = <T>(xs: readonly T[], v: T): T[] => [...xs.slice(0, last), v];
   return {
     ...rest,
-    ...(bins === undefined || edges === undefined
-      ? {}
-      : { x1: at(bins.x1, edges[0] ?? 0), x2: at(bins.x2, edges[1] ?? 0) }),
-    series: f.series.map((s, i) => ({ ...s, values: at(s.values, values[i] ?? null) })),
+    ...moved,
+    series: f.series.map((s, i) => ({ ...s, values: lastSet(s.values, last, values[i] ?? null) })),
     ...(open === true ? { open } : {}),
   };
 }
@@ -207,33 +246,37 @@ function set(c: Checks, drawn: Frame, sent: Frame): Frame {
     return sent;
   }
   const s = sent as SeriesFrame | BinsFrame;
-  const [low, high] = s.domain ?? [];
-  if (low === undefined || high === undefined) {
+  if (s.domain === undefined) {
     return sent;
   }
+  const [low, high] = endsOf(s.domain);
   const kept = (drawn as SeriesFrame | BinsFrame).domain;
-  const domain =
-    kept === undefined ? s.domain : slid(c, `event.${s.type}.domain`, spanOf(kept, 0, 0), high);
-  const start = domain?.[0] ?? low;
+  const domain: [number, number] =
+    kept === undefined ? [low, high] : slid(c, `event.${s.type}.domain`, spanOf(kept), high);
+  const [start] = domain;
   return s.type === "series"
-    ? seriesFrom({ ...(s as SeriesFrame), ...(domain === undefined ? {} : { domain }) }, start)
-    : binsFrom({ ...(s as BinsFrame), ...(domain === undefined ? {} : { domain }) }, start);
+    ? seriesFrom({ ...(s as SeriesFrame), domain }, start)
+    : binsFrom({ ...(s as BinsFrame), domain }, start);
 }
 
 /**
- * The frame chartdata's `event` makes of drawn `frame`, left unchanged; both
- * share the parts the event keeps, so treat them as read-only. A broken event
- * throws a `TypeError` or `RangeError`, `applyEvent:` then the first field
- * under `event` that breaks a rule; fields the contract does not name are
- * ignored.
+ * The frame of `frame`'s type chartdata's `event` makes of drawn `frame`,
+ * left unchanged; both share the parts the event keeps, so treat them as
+ * read-only. `frame` must be one the chart reads, such as an earlier result:
+ * it is not checked. A broken event throws a `TypeError` or `RangeError`,
+ * `applyEvent:` then the first field under `event` that breaks a rule;
+ * fields the contract does not name are ignored.
  */
-export function applyEvent(frame: Frame, event: unknown): Frame {
+export const applyEvent = <F extends Frame>(frame: F, event: unknown): F =>
+  applied(frame, event) as F;
+
+function applied(frame: Frame, event: unknown): Frame {
   const d = door("applyEvent", MAX_VALUES);
   const c = checks(d);
   const o = c.record(event, "event");
   c.string(o["key"], "event.key");
   const { type } = frame;
-  const kinds = TAKES[type] ?? ["set"];
+  const kinds = (Object.hasOwn(TAKES, type) ? TAKES[type] : undefined) ?? ["set"];
   const kind = o["kind"];
   if (!(typeof kind === "string" && (kinds as readonly string[]).includes(kind))) {
     return c.fail(

@@ -116,7 +116,7 @@ export function door(prefix: string, most: number): Door {
 }
 
 /** Every frame type, so a type the contract adds fails the type check here. */
-export const KINDS = {
+export const TYPES = {
   series: true,
   bins: true,
   categories: true,
@@ -131,14 +131,15 @@ export const KINDS = {
   value: true,
 } satisfies Record<FrameType, true>;
 
-const isKind = (v: unknown): v is FrameType => typeof v === "string" && Object.hasOwn(KINDS, v);
+const isType = (v: unknown): v is FrameType => typeof v === "string" && Object.hasOwn(TYPES, v);
 
 const ALL = (length: number): number => length;
 
 // A series or a row is one value at least, as chartdata charges it.
 const ONE_AT_LEAST = (length: number): number => Math.max(1, length);
 
-const MAGNITUDE = String(MAX_MAGNITUDE).replace("e+", "e");
+/** The largest magnitude a value may have, as an error writes it. */
+export const MAGNITUDE = String(MAX_MAGNITUDE).replace("e+", "e");
 
 /** `types` quoted and joined as a sentence lists them: "a", "b" or "c". */
 export const words = (types: readonly string[]): string => {
@@ -909,7 +910,7 @@ export function readFrame(v: unknown, field: string, d: Door, types: readonly Fr
   const c = checks(d);
   const o = c.record(v, field);
   const type = o["type"];
-  if (!(isKind(type) && types.includes(type))) {
+  if (!(isType(type) && types.includes(type))) {
     return c.fail(
       `${field}.type must be ${words(types)}${typeof type === "string" ? `, not ${JSON.stringify(type)}` : ""}`,
     );

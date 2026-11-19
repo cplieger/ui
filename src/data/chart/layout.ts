@@ -221,8 +221,8 @@ const BAR_SPACE = 8;
 const MIRROR_SPACE = 2;
 /** The room between a name above a bar and the bar. */
 const NAME_GAP = 2;
-/** The room between a bar's end and its value label, and between the axis
- *  and a category name above its marks. */
+/** The room between a bar's end and its value label, and between the plot's
+ *  edge and a category name above its marks. */
 const VALUE_GAP = 4;
 /** The room between panels: a split bar chart's, and small multiples' rows and columns. */
 export const PANEL_GAP = 16;

@@ -207,6 +207,24 @@ describe("applyEvent", () => {
     );
   });
 
+  it("keeps the x extent of a frame with no domain as its span through appends", () => {
+    const spread = series.filter((f) => f.domain === undefined && f.x.length > 1);
+    const steps = fc.array(fc.integer({ min: 1, max: 2000 }), { minLength: 1, maxLength: 4 });
+    fc.assert(
+      fc.property(spread, steps, (frame, gaps) => {
+        const span = (frame.x.at(-1) ?? 0) - (frame.x[0] ?? 0);
+        let x = frame.x.at(-1) ?? 0;
+        let applied: Frame = frame;
+        for (const gap of gaps) {
+          x += gap;
+          const values = frame.series.map(() => null);
+          applied = applyEvent(applied, { kind: "append", key: "k", x, values });
+          expect((applied as SeriesFrame).domain).toStrictEqual([x - span, x]);
+        }
+      }),
+    );
+  });
+
   it("gives a replace after an append the column the replace sent", () => {
     fc.assert(
       fc.property(

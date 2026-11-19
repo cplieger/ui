@@ -859,13 +859,16 @@ describe("a category name above its marks under 30rem", () => {
     ],
   ];
 
-  it.each(marks)("insets each name of %s 4 px from the axis, as a value from its bar", (_, s) => {
-    const l = lay(s({}), 400);
-    expect(l.yLabels.map((t) => [t.x, t.anchor])).toEqual([
-      [l.left + 4, "start"],
-      [l.left + 4, "start"],
-    ]);
-  });
+  it.each(marks)(
+    "insets each name of %s 4 px from the plot's start, as a value from its bar",
+    (_, s) => {
+      const l = lay(s({}), 400);
+      expect(l.yLabels.map((t) => [t.x, t.anchor])).toEqual([
+        [l.left + 4, "start"],
+        [l.left + 4, "start"],
+      ]);
+    },
+  );
 
   it.each(marks)("mirrors the inset on reversed %s, 4 px inside the right edge", (_, s) => {
     const l = lay(s({ reverse: true }), 400);
