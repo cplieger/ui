@@ -480,14 +480,16 @@ describe("every account screen, a host's refresh while a control has focus", () 
 
   it("keeps focus on the log's Older link when new entries arrive", async () => {
     const log = [entry(1), entry(2), entry(3)];
-    const fake = new Fake().always("adminSecurityLog", (q: { after?: number } = {}) =>
-      page(
-        ...log
-          .map((e) => e.seq)
-          .filter((s) => q.after === undefined || s > q.after)
-          .toSorted((a, b) => (q.after === undefined ? b - a : a - b))
-          .slice(0, 2),
-      ),
+    const fake = new Fake().always(
+      "adminSecurityLog",
+      (q: { after?: number; limit?: number } = {}) =>
+        page(
+          ...log
+            .map((e) => e.seq)
+            .filter((s) => q.after === undefined || s > q.after)
+            .toSorted((a, b) => (q.after === undefined ? b - a : a - b))
+            .slice(0, q.limit),
+        ),
     );
     const region = host();
     const screen = mountSecurityLog(region, {

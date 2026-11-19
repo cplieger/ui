@@ -43,7 +43,7 @@ export type LogKinds = Readonly<Record<string, string | ((entry: LogEntryView) =
 export interface LogOptions {
   /** The app's words per kind, read before the library's. */
   readonly kinds?: LogKinds;
-  /** Entries a page holds. Default 50, at most 500. */
+  /** Entries a page holds. Default 50, at most 499. */
   readonly limit?: number;
   /**
    * Writes the view into the address: `order=oldest`, `kind`, `user`, and
@@ -69,10 +69,9 @@ export interface SecurityLogOptions<C extends LogClient>
 }
 
 export interface SecurityLogScreen {
-  /** Reads what the log gained since the newest entry shown: the first
-   *  page takes it on top, a later page offers it through Newer. During a
-   *  read it waits for that read, and the calls made meanwhile share one;
-   *  while no page of the view is drawn, it reads the view's page. */
+  /** Reads the page shown again, from the same bound, and says how many of
+   *  the entries it draws are newer than any it showed. During a read it
+   *  waits for that read, and the calls made meanwhile share one. */
   refresh(): Promise<void>;
   /** Shows the view a query names, as Back does. The log follows
    *  `popstate` itself unless the host passes `onQuery`. */
@@ -174,6 +173,8 @@ const CHANGE_KINDS = [
 // access's rule for a kind: a library kind, or an app's `<app>.<name>`.
 const KIND = /^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)*$/;
 const SEQ = /^[1-9]\d{0,15}$/;
+// access's MaxLogPage: a page asks for one entry more than it shows.
+const MAX_READ = 500;
 const WHEN: Intl.DateTimeFormatOptions = { dateStyle: "medium", timeStyle: "short" };
 // A row's time is two short lines, so the When column stays narrow.
 const DAY: Intl.DateTimeFormatOptions = { dateStyle: "medium" };
@@ -295,7 +296,7 @@ export function drawLog(
 ): SecurityLogScreen {
   const { w, client } = ctx;
   const signal = ctx.life.signal;
-  const limit = Math.min(500, Math.max(1, Math.trunc(ctx.options.limit ?? 50)));
+  const limit = Math.min(MAX_READ - 1, Math.max(1, Math.trunc(ctx.options.limit ?? 50)));
   const onQuery = ctx.options.onQuery ?? writeAddress;
   const kinds = ctx.options.kinds ?? {};
   const fixed = ctx.user !== undefined;
@@ -444,7 +445,7 @@ export function drawLog(
   const query = (v: View, extra: LogQuery = {}): Promise<Result<SecurityLogView>> =>
     read(() =>
       client.adminSecurityLog({
-        limit,
+        limit: limit + 1,
         ...(v.kind === undefined ? {} : { kinds: [v.kind] }),
         ...(ctx.user === undefined
           ? v.user === undefined
@@ -458,8 +459,11 @@ export function drawLog(
   const ordered = (list: readonly LogEntryView[], order: View["order"]): LogEntryView[] =>
     list.toSorted((a, b) => (order === "newest" ? b.seq - a.seq : a.seq - b.seq));
 
-  /** The page `v` names. One past the end reads the first page instead and
-   *  corrects the address while `v` is still the view. */
+  /** The page `v` names. It asks for one entry more than it shows, so the
+   *  side it reads toward has a next page exactly when that entry came; the
+   *  other side has one when a bound reached the page. One past the end
+   *  reads the first page instead and corrects the address while `v` is
+   *  still the view. */
   const pageOf = async (v: View): Promise<Result<Page>> => {
     const ascending = v.after !== undefined || (v.before === undefined && v.order === "oldest");
     const [got] = await Promise.all([
@@ -483,84 +487,34 @@ export function drawLog(
       }
       return pageOf(top);
     }
-    const full = page.length >= limit;
+    const more = page.length > limit;
+    const shown = ordered(page, ascending ? "oldest" : "newest").slice(0, limit);
     return {
       ok: true,
       data: {
         view: v,
         log: got.data,
-        entries: ordered(page, v.order),
-        past: ascending ? v.after !== undefined : full,
-        future: ascending ? full : v.before !== undefined,
+        entries: ordered(shown, v.order),
+        past: ascending ? v.after !== undefined : more,
+        future: ascending ? more : v.before !== undefined,
         arrived: 0,
       },
     };
   };
 
-  /** What arrived since `p` was read, as the page to draw; `p` itself when
-   *  nothing did. */
+  /** `p` read again, with `arrived` the entries it draws that are newer
+   *  than any `p` drew; `p` itself when nothing it shows changed. */
   const since = async (p: Page): Promise<Result<Page>> => {
-    const v = p.view;
-    const top = p.entries.reduce((n, e) => Math.max(n, e.seq), 0);
-    const atTop = v.before === undefined && v.after === undefined;
-    const live = v.order === "newest" ? atTop : !p.future;
-    const from = top === 0 ? {} : { after: top };
-    if (!live) {
-      if (p.future) {
-        return { ok: true, data: p };
-      }
-      const got = await query(v, { ...from, oldestFirst: true, limit: 1 });
-      if (!got.ok) {
-        return got;
-      }
-      return {
-        ok: true,
-        data: got.data.entries.length > 0 ? { ...p, log: got.data, future: true, arrived: 0 } : p,
-      };
+    const got = await pageOf(p.view);
+    if (!got.ok) {
+      return got;
     }
-    const fresh: LogEntryView[] = [];
-    let last: SecurityLogView | undefined;
-    let after = from;
-    let more = false;
-    // Ten pages at most: past them, a newest-first view reads its first
-    // page again, and an oldest-first one offers the rest through Later.
-    for (let i = 0; i < 10; i += 1) {
-      const got = await query(v, { ...after, oldestFirst: true });
-      if (!got.ok) {
-        return got;
-      }
-      last = got.data;
-      fresh.push(...got.data.entries);
-      const end = got.data.entries[got.data.entries.length - 1];
-      more = got.data.entries.length >= limit && end !== undefined;
-      if (!more || end === undefined) {
-        break;
-      }
-      after = { after: end.seq };
-    }
-    if (last === undefined || fresh.length === 0) {
+    const n = got.data;
+    if (n.view === p.view && same(n, p)) {
       return { ok: true, data: p };
     }
-    if (more && v.order === "newest") {
-      const got = await pageOf(v);
-      return got.ok ? { ok: true, data: { ...got.data, arrived: fresh.length } } : got;
-    }
-    const known = new Set(p.entries.map((e) => e.seq));
-    const added = fresh.filter((e) => !known.has(e.seq));
-    if (added.length === 0) {
-      return { ok: true, data: p };
-    }
-    let entries = ordered([...p.entries, ...added], v.order);
-    let { past, future } = p;
-    if (entries.length > limit) {
-      if (v.order === "newest") {
-        past = true;
-      } else {
-        future = true;
-      }
-      entries = entries.slice(0, limit);
-    }
-    return { ok: true, data: { view: v, log: last, entries, past, future, arrived: added.length } };
+    const top = p.entries.reduce((m, e) => Math.max(m, e.seq), 0);
+    return { ok: true, data: { ...n, arrived: n.entries.filter((e) => e.seq > top).length } };
   };
 
   // Paging and refreshing build on the page drawn, so one read follows
@@ -573,7 +527,7 @@ export function drawLog(
     notices,
     signal,
     follows: true,
-    // `since` answers the page drawn when nothing arrived.
+    // `since` answers the page drawn when nothing it shows changed.
     unchanged: (p, drawn) => p === drawn,
     read: (): Promise<Result<Page>> => {
       const p = part.drawn();
@@ -807,6 +761,19 @@ export function drawLog(
     },
     show,
   };
+}
+
+/** Whether two pages of one view show the same entries, sides and counts. */
+function same(a: Page, b: Page): boolean {
+  const counts = (p: Page): string =>
+    p.log.classes.map((c) => `${c.class}:${String(c.count)}:${String(c.evicted)}`).join();
+  return (
+    a.past === b.past &&
+    a.future === b.future &&
+    a.entries.length === b.entries.length &&
+    a.entries.every((e, i) => e.seq === b.entries[i]?.seq) &&
+    counts(a) === counts(b)
+  );
 }
 
 /** A kind with no words, as sent, with the app's detail under it. */
