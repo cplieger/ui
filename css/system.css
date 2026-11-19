@@ -11495,11 +11495,13 @@ button.cp-figure[aria-expanded="true"]::after {
   flex-direction: column;
 }
 
+/* The field fills the row's height, so the whole row is its target. */
 .cp-palette-field {
   display: flex;
   align-items: center;
   gap: var(--cp-space-2);
-  padding: var(--cp-space-3) var(--cp-space-4);
+  min-block-size: 3rem;
+  padding-inline: var(--cp-space-4);
   border-block-end: var(--cp-line-w) solid var(--cp-line);
 }
 
@@ -11507,6 +11509,7 @@ button.cp-figure[aria-expanded="true"]::after {
  * nothing; the caret and the active option show where typing and Enter go. */
 .cp-palette-field > input {
   flex: 1;
+  align-self: stretch;
   min-inline-size: 0;
   border: 0;
   background: transparent;

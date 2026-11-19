@@ -4725,6 +4725,28 @@ describe("css/system.css overlays", () => {
     expect(last.bottom).toBeLessThanOrEqual(box.bottom + 0.5);
     d.close();
   });
+
+  it.each(["fine", "coarse"])(
+    "makes a palette's field a target its whole row tall, 44px or more, on the %s tier",
+    (tier) => {
+      theme("light");
+      root.setAttribute("data-pointer", tier);
+      const d = document.createElement("dialog");
+      d.className = "cp-dialog cp-palette";
+      d.style.transition = "none";
+      d.innerHTML =
+        '<div class="cp-palette-field"><span class="cp-icon" data-cp-icon="search" aria-hidden="true"></span><input aria-label="Search"></div><ul role="listbox" aria-label="Actions"><li role="option"><span>Open settings</span></li></ul>';
+      hosts.push(d as unknown as HTMLElement);
+      document.body.append(d);
+      d.showModal();
+      const row = d.querySelector(".cp-palette-field") as HTMLElement;
+      const input = (row.querySelector("input") as HTMLElement).getBoundingClientRect();
+      const inner = row.clientHeight;
+      expect(input.height).toBeGreaterThanOrEqual(44);
+      expect(input.height).toBeCloseTo(inner, 0);
+      d.close();
+    },
+  );
 });
 
 describe("css/system.css feedback and steps", () => {
