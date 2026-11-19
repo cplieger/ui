@@ -124,7 +124,7 @@
   <section class="g-section" id="numbers">
     <h2>Numbers, ranges and dates</h2>
     <div class="g-grid">
-      <div class="card">
+      <div class="card" data-new>
         <h2>Stepper and range</h2>
         <div class="cp-form">
           <div class="cp-field"><span class="cp-label" id="f-step-label">Parallel checks</span><div class="cp-stepper" role="group" aria-labelledby="f-step-label"><button class="cp-button" data-variant="quiet" type="button" data-step="-1" aria-label="Fewer"><span class="cp-icon" data-cp-icon="minus" aria-hidden="true"></span></button><input type="number" min="1" max="8" value="3" aria-labelledby="f-step-label"><button class="cp-button" data-variant="quiet" type="button" data-step="1" aria-label="More"><span class="cp-icon" data-cp-icon="plus" aria-hidden="true"></span></button></div></div>
@@ -132,9 +132,9 @@
         </div>
         <footer>A stepper for a small count, as wide as its buttons and number; a range when the exact number matters less than the feel, as wide as its column. The track fills to the thumb, which grows while held.</footer>
       </div>
-      <div class="card">
+      <div class="card" data-new>
         <h2>Signed decimal with nudges</h2>
-        <div class="cp-field"><label class="cp-label" for="nudge-1" id="nudge-1-l">Offset, in seconds</label><div class="cp-stepper" data-variant="nudge" role="group" aria-labelledby="nudge-1-l"><button class="cp-button" type="button" data-step="-10" data-cp-tip="1 second earlier">−1 s</button><button class="cp-button" type="button" data-step="-1" data-cp-tip="0.1 seconds earlier">−0.1 s</button><input class="cp-input" id="nudge-1" value="+1.25" inputmode="decimal" data-min="-60" data-max="60" data-step="0.1" aria-describedby="nudge-help"><button class="cp-button" type="button" data-step="1" data-cp-tip="0.1 seconds later">+0.1 s</button><button class="cp-button" type="button" data-step="10" data-cp-tip="1 second later">+1 s</button><button class="cp-button" data-variant="quiet" type="button" data-reset="0">Reset</button></div><span class="cp-help" id="nudge-help">Arrow keys move 0.1&nbsp;s, with Shift 1&nbsp;s.</span></div>
+        <div class="cp-field"><label class="cp-label" for="nudge-1" id="nudge-1-l">Offset, in seconds</label><div class="cp-cluster" data-gap="tight"><div class="cp-stepper" role="group" aria-labelledby="nudge-1-l"><button class="cp-button" data-variant="quiet" type="button" data-step="-10" data-cp-tip="1 second earlier">−1 s</button><button class="cp-button" data-variant="quiet" type="button" data-step="-1" data-cp-tip="0.1 seconds earlier">−0.1 s</button><input id="nudge-1" value="+1.25" inputmode="decimal" data-min="-60" data-max="60" data-step="0.1" aria-describedby="nudge-help"><button class="cp-button" data-variant="quiet" type="button" data-step="1" data-cp-tip="0.1 seconds later">+0.1 s</button><button class="cp-button" data-variant="quiet" type="button" data-step="10" data-cp-tip="1 second later">+1 s</button></div><button class="cp-button" data-variant="quiet" type="button" data-reset="0" aria-controls="nudge-1">Reset</button></div><span class="cp-help" id="nudge-help">Arrow keys move 0.1&nbsp;s, with Shift 1&nbsp;s.</span></div>
       </div>
       <div class="card">
         <h2>Date and time</h2>
@@ -272,7 +272,7 @@
         </div>
         <footer>Two pickers fill one setting of at most four tags, so a tag counts once whichever picker holds it. Add one more tag to reach the limit. Then each picker still takes a tag the other holds, and turns read-only only once it holds all four.</footer>
       </div>
-      <div class="card">
+      <div class="card" data-new>
         <h2>Filter chips</h2>
         <div class="cp-cluster" data-gap="tight" role="group" aria-label="Show">
           <button class="cp-filter-chip" type="button" aria-pressed="true"><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>TV</button>

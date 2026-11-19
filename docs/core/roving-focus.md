@@ -19,4 +19,6 @@ enhanceRovingFocus(list, { items: '[role="option"]', orientation: "vertical" });
 | `signal` | none | Aborting it removes the listeners and the items' `tabindex`. |
 
 - The inline arrows run the other way in a right-to-left group. Disabled and hidden items are skipped.
+- A key with Alt, Ctrl, Meta or Shift held is left to the browser, such as Alt+Left for Back, and so is an arrow with nowhere to go, such as Down on the last item of a group that does not wrap, so the page scrolls as it would without the group. Home and End are always kept from the browser, even on the item they go to, so the page never scrolls under them.
 - A press or a focus that reaches an item makes it the one Tab returns to.
+- An item added later, such as a list's next page or a row that comes back after a filter, takes no Tab stop of its own, and when the item that held the stop leaves, the first item takes it. So a list of links whose rows come and go stays one Tab stop.

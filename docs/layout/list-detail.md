@@ -1,8 +1,8 @@
 # List and detail
 
-A list with the chosen entry's detail beside it. Once the box holding both is 52rem wide, the detail docks beside the list. Below that width, the same detail opens as a full-height sheet at the inline end, across the whole window on a phone. The rest of the page is inert while the sheet is open.
+A list with the chosen entry's detail beside it. Once the box holding both is 52rem wide, the detail docks beside the list. Docked, both start at the top and the list keeps its own height, so a detail taller than the list leaves no empty space under the last row. Below that width, the same detail opens as a full-height sheet at the inline end, across the whole window on a phone. The rest of the page is inert while the sheet is open.
 
-The app's route decides when the detail shows. A link on each entry changes the route, and the route calls `open()` or `close()`. Back then closes the detail. Close goes back, and so do Escape and a press outside while the detail is in its sheet.
+The app's router owns the URL and decides when the detail shows. A link on each entry changes the address, and the router calls `show(key)` with the entry the address names, or `show(null)` when it names none. The detail is one panel whose content changes: a link to another entry while one is shown replaces the current history entry rather than adding one. So Back restores the entry before the detail opened, and the detail closes when that entry names none. Close, and Escape or a press outside while the detail is in its sheet, ask the router to leave the entry: one Back when the entry before it showed the list, otherwise a navigation to the list's address, never a jump over several entries. [Navigation and the URL](../design-patterns.md#navigation-and-the-url) has the router's rules.
 
 ## Markup
 
@@ -23,7 +23,7 @@ The app's route decides when the detail shows. A link on each entry changes the 
 </div>
 ```
 
-The heading takes focus when the detail opens, so it needs `tabindex="-1"`. The design language draws no focus ring on a heading that script focuses.
+The heading takes focus when the detail opens, so it needs `tabindex="-1"`. Showing another entry replaces it with a copy, `id` and all, so `aria-labelledby` keeps naming it. The design language draws no focus ring on a heading that script focuses.
 
 ## Wide
 
@@ -42,20 +42,21 @@ The heading takes focus when the detail opens, so it needs `tabindex="-1"`. The 
 ## Script
 
 ```ts
-import { enhanceListDetail } from "@cplieger/ui/list-detail";
+import { type DetailOpenEvent, enhanceListDetail } from "@cplieger/ui/list-detail";
 
-const detail = enhanceListDetail(document.getElementById("sources")!, {
+const root = document.getElementById("sources")!;
+const detail = enhanceListDetail(root, {
   signal: page.signal,
-  onDismiss: () => history.back(),
+  onDismiss: backToList,
+  entry: rowLink,
+});
+
+root.addEventListener("detailopen", (e) => {
+  fillDetail((e as DetailOpenEvent).detail.key);
 });
 
 function route(entry: string | null): void {
-  if (entry === null) {
-    detail.close();
-  } else {
-    fillDetail(entry);
-    detail.open();
-  }
+  detail.show(entry);
 }
 ```
 
@@ -63,10 +64,19 @@ function route(entry: string | null): void {
 | --- | --- | --- |
 | `signal` | none | Aborting it closes the detail and removes the sheet and the listeners. |
 | `dockAt` | `52` | The box's width, in rem, from which the detail docks. |
-| `onDismiss` | `close()` | Runs on Close, and on Escape, a press outside, or the browser closing the sheet itself while the detail is in its sheet. Go back here, and let the route close the detail. Until it does, Close, Escape and a press outside leave the sheet open, so a route that refuses, such as an unsaved-changes "Keep editing", is asked again on the next one. |
+| `onDismiss` | `show(null)` | Runs on Close, and on Escape, a press outside, or the browser closing the sheet itself while the detail is in its sheet. Leave the entry here, by one Back when the entry before it showed the list or else a navigation to the list's address, and let the route call `show(null)`. Until it does, Close, Escape and a press outside leave the sheet open, so a route that refuses, such as an unsaved-changes "Keep editing", is asked again on the next one. |
+| `entry` | none | Takes an entry's key and returns its row's link, or null when the row is not drawn. Focus goes there after a hide when the element that showed the entry is gone or was the page, or when Back or Forward showed it, at once or after an await. Without it, focus goes to the list's tab stop. |
 
-- `open()` shows the detail and focuses its heading. Calling it again while the detail shows moves focus back to the heading. `open({ still: true })` shows it without its entrance, for a page that loads with an entry open.
-- `close()` hides the detail and returns focus to the element that had it before `open()`, usually the entry's link. When another entry's link opens the docked detail, focus returns to that link. The sheet slides out with the detail still in it, and calling `open()` during that exit keeps it open.
+- `show(key)` shows the detail for `key` and focuses its heading. Showing another entry in place of a shown one puts a copy of the heading in its place as a new element before `detailopen`, and focuses that one. The browser then reports a focus change to a new element with the new entry's name, which a screen reader speaks, and a navigation the route intercepts keeps focus where the reader has it, the heading or whatever their own input moved it to, until the route's handler has settled. Look the heading up by its `id` each time you fill or focus it, never through a reference kept from an earlier show. The same key again only moves focus back to the heading, so a press on the open entry changes nothing else. When that heading is entirely out of view, or under the page's `scroll-padding` where a sticky bar sits, the page scrolls only as far as it takes to show it. Back and Forward can restore the page's scroll after the route's show, so the heading a traversal's show focused is revealed again by the same rule once the restore has run, unless the reader pressed, scrolled or typed a key that moves focus or scroll in the meantime. `show(key, { still: true })` shows it without its entrance, for a page that loads with an entry open. Docked, a still show moves no focus and no scroll, since the load is not the reader's act, so focus stays at the page's start. In the sheet, it focuses the heading. `key` reads the entry shown, or null.
+- `show(null)` hides the detail, and the module moves focus. The sheet slides out with the detail still in it, and a `show(key)` during that exit keeps it open. Focus ends on the first of these that applies:
+  1. Where the reader moved it. Focus the reader put outside the detail before the hide stays there.
+  2. Where a fragment navigation went. This applies when the hide comes while the page handles a navigation that pushed a new entry to a fragment of this page, from a link in the detail or elsewhere, or from a script. The route hides during that navigation: in its `popstate` or `hashchange` listener, or in its `intercept()` handler, which may await. A hide after that counts as any other. Focus lands as it would on a page with no modal sheet. A fragment naming an element outside the detail, one that does not hold the list-detail, puts focus on it, or, when it takes no focus, on it with `tabindex="-1"` until it loses focus, so the next Tab starts there, with its top scrolled into view. An empty fragment, or `#top` naming no element, is the top of the document: the page scrolls to its start and focus goes to its first focusable element in view, else its main heading, else the page itself. The module reads the navigation from the [Navigation API](https://developer.mozilla.org/docs/Web/API/Navigation_API). A navigation that replaced the entry, a reload, Back and Forward go to step 3, and so does a press that navigated nothing, such as a Ctrl press that opens a new tab or a press the page prevented. In a browser without that API, no navigation counts.
+  3. The element that had focus when the entry being hidden was shown, usually its link, or the entry's link pressed again from outside the docked detail, while it is still a control that takes focus. It belongs to that entry: showing another entry forgets it, so focus never returns to another entry's row. A show from a link inside the detail records none. A show that follows a hide, while focus is still where the hide put it, records none unless it shows the hidden entry again, so a route that hides while it fetches the next entry never makes the row the module returned focus to that entry's opener. Neither does a show during or after Back or Forward, whether the route makes it at once or after an await, until the next navigation that is not Back or Forward.
+  4. The entry's row, from `entry`, when that element is gone, or none was recorded: the page loaded with the entry open, a link inside the detail showed it, or Back or Forward did.
+  5. The list's tab stop: the roving row in a list with arrow keys, else the list's first drawn link, else its first heading, with `tabindex="-1"` until it loses focus.
+
+  Steps 3 to 5 scroll only when none of the element is in view clear of the page's `scroll-padding`, so a return to the row never jumps the list. The app writes no focus code for a hide.
+- The root gets a `detailopen` event, a `DetailOpenEvent` whose `detail` holds the new `key` and the `previous` one or null, each time the shown entry changes, before the heading takes focus, so its listener fills the detail. It gets a `detailclose` event, a `DetailCloseEvent` with the `key`, once each time the detail hides, for a listener that reacts to it: after focus has moved, once the sheet has closed, or, when a `show()` keeps the leaving sheet open, just before that show's `detailopen`.
 - An open detail moves between the dock and the sheet when the box crosses the docking width, without its entrance, and keeps focus inside it.
 - While the box is hidden, such as in a closed tab panel, the detail stays in it and opens no sheet. An open sheet shuts without asking `onDismiss`, and the detail docks or opens its sheet again once the box shows.
 

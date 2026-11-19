@@ -1,12 +1,14 @@
 /**
  * views.ts — the gallery's wiring for the view cards that run on the
  * library: the list and detail, routed by the page's hash, and the video
- * preview whose caption offset the nudge stepper sets.
+ * preview whose caption offset the signed stepper sets.
  */
 
-import { enhanceListDetail } from "@cplieger/ui/list-detail";
+import { type DetailOpenEvent, enhanceListDetail } from "@cplieger/ui/list-detail";
 import { enhanceTabs } from "@cplieger/ui/tabs";
 import { enhanceVideo } from "@cplieger/ui/video";
+
+import { routeListDetail } from "./route.js";
 
 const pane = document.getElementById("video-preview");
 const nudge = document.getElementById("nudge-video-input");
@@ -22,28 +24,34 @@ const md = document.getElementById("md");
 const mdTabs = document.getElementById("md-tabs");
 if (md !== null && mdTabs !== null) {
   const rows = [...md.querySelectorAll<HTMLAnchorElement>("a.cp-list-row")];
-  const fill: Record<string, HTMLElement | null> = {
-    title: document.getElementById("md-title"),
-    meta: document.getElementById("md-meta"),
-    episodes: document.getElementById("md-p1"),
-    subtitles: document.getElementById("md-p2"),
+  // Ids, since list-detail puts a new heading in place for each entry.
+  const fill: Record<string, string> = {
+    title: "md-title",
+    meta: "md-meta",
+    episodes: "md-p1",
+    subtitles: "md-p2",
   };
   enhanceTabs(mdTabs);
-  const detail = enhanceListDetail(md, {
-    // Back when a row's press pushed the entry; a page that loaded on the
-    // entry has no entry of its own to go back to.
-    onDismiss: () => {
-      if ((history.state as { md?: unknown } | null)?.md === true) {
-        history.back();
-      } else {
-        history.replaceState(null, "", "#detail");
-        route(false);
-      }
-    },
+  const current = (): HTMLAnchorElement | undefined => rows.find((r) => r.hash === location.hash);
+  const route = routeListDetail({
+    names: (hash) => rows.some((r) => r.hash === hash),
+    list: "#detail",
+    sync: render,
   });
-  const current = (): HTMLAnchorElement | undefined =>
-    rows.find((r) => location.hash !== "" && r.hash === location.hash);
-  function route(still: boolean): void {
+  const detail = enhanceListDetail(md, {
+    onDismiss: route.close,
+    entry: (key) => rows.find((r) => r.hash === key) ?? null,
+  });
+  md.addEventListener("detailopen", (e) => {
+    const row = rows.find((r) => r.hash === (e as DetailOpenEvent).detail.key);
+    for (const [key, id] of Object.entries(fill)) {
+      const el = document.getElementById(id);
+      if (el !== null) {
+        el.textContent = row?.dataset[key] ?? "";
+      }
+    }
+  });
+  function render(still: boolean): void {
     const row = current();
     for (const r of rows) {
       if (r === row) {
@@ -53,33 +61,13 @@ if (md !== null && mdTabs !== null) {
       }
     }
     if (row === undefined) {
-      detail.close();
+      detail.show(null);
       return;
     }
-    for (const [key, el] of Object.entries(fill)) {
-      if (el !== null) {
-        el.textContent = row.dataset[key] ?? "";
-      }
+    if (detail.key === row.hash) {
+      return;
     }
-    detail.open({ still });
+    detail.show(row.hash, { still });
   }
-  for (const row of rows) {
-    row.addEventListener("click", (e) => {
-      if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) {
-        return;
-      }
-      e.preventDefault();
-      // A second press on the open entry pushes nothing, so one Back closes.
-      if (row !== current()) {
-        history.pushState({ md: true }, "", row.href);
-      }
-      route(false);
-    });
-  }
-  addEventListener("hashchange", () => {
-    route(false);
-  });
-  if (current() !== undefined) {
-    route(true);
-  }
+  route.start(detail);
 }

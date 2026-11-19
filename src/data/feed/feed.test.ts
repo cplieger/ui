@@ -3,6 +3,7 @@ import { userEvent } from "vitest/browser";
 
 import { rollText } from "../../core/roll/roll.js";
 import { installAnnouncer } from "../../feedback/announce/announce.js";
+import { enhanceLoadMore } from "../load-more/load-more.js";
 import { enhanceFeed, type FeedOptions } from "./feed.js";
 
 let life = new AbortController();
@@ -33,6 +34,7 @@ afterEach(() => {
     Object.defineProperty(window, "visualViewport", viewport);
   }
   sheet.remove();
+  delete document.documentElement.dataset["pointer"];
   document.documentElement.classList.remove("cp");
   document.body.replaceChildren();
   document.documentElement.scrollTop = 0;
@@ -1018,5 +1020,196 @@ describe("enhanceFeed", () => {
     feed.toNewest();
     expect(c.box.scrollTop).toBe(0);
     expect(c.feed.style.getPropertyValue("--cp-feed-foot-size")).toBe("");
+  });
+});
+
+describe("a feed that takes no reply", () => {
+  /** The foot's textarea inside a composer form, as an app writes it. */
+  function composer(c: Conversation): HTMLFormElement {
+    const form = document.createElement("form");
+    form.className = "cp-form";
+    const area = c.foot.querySelector("textarea") as HTMLTextAreaElement;
+    area.replaceWith(form);
+    form.append(area);
+    return form;
+  }
+
+  /** The foot's composer replaced by who writes there and a way to write to each. */
+  function readOnly(c: Conversation): HTMLDivElement {
+    const stack = document.createElement("div");
+    stack.className = "cp-stack";
+    stack.dataset["gap"] = "tight";
+    const words = document.createElement("p");
+    words.textContent = "Only @alpha and @bravo write here.";
+    const actions = document.createElement("div");
+    actions.className = "cp-cluster";
+    actions.dataset["gap"] = "tight";
+    for (const name of ["@alpha", "@bravo"]) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "cp-button";
+      b.textContent = `Message ${name}`;
+      actions.append(b);
+    }
+    stack.append(words, actions);
+    composer(c).replaceWith(stack);
+    return stack;
+  }
+
+  it("sits where the composer sits, pinned to the scroller's end, and sizes the foot", async () => {
+    const writes = conversation();
+    const reads = conversation();
+    const form = composer(writes);
+    const stack = readOnly(reads);
+    enhance(writes);
+    enhance(reads);
+    await settle();
+    const from = (el: Element, box: Element) => {
+      const r = el.getBoundingClientRect();
+      const b = box.getBoundingClientRect();
+      return { start: r.left - b.left, end: b.bottom - r.bottom };
+    };
+    expect(from(stack, reads.foot).start).toBeCloseTo(from(form, writes.foot).start, 1);
+    expect(from(stack, reads.foot).end).toBeCloseTo(from(form, writes.foot).end, 1);
+    const [words, actions] = [...stack.children] as [Element, Element];
+    expect(actions.getBoundingClientRect().top - words.getBoundingClientRect().bottom).toBeCloseTo(
+      4,
+      1,
+    );
+    expect(reads.feed.style.getPropertyValue("--cp-feed-foot-size")).toBe(
+      `${String(reads.foot.offsetHeight)}px`,
+    );
+    for (const top of [0, reads.box.scrollHeight]) {
+      await scrollTo(reads.box, top);
+      expect(
+        Math.abs(
+          reads.foot.getBoundingClientRect().bottom - reads.box.getBoundingClientRect().bottom,
+        ),
+      ).toBeLessThanOrEqual(1);
+    }
+  });
+});
+
+describe("a history", () => {
+  function history(n: number): {
+    box: HTMLDivElement;
+    feed: HTMLOListElement;
+    more: HTMLButtonElement;
+  } {
+    const box = document.createElement("div");
+    box.style.blockSize = "20rem";
+    box.style.inlineSize = "30rem";
+    box.style.overflowY = "auto";
+    const feed = document.createElement("ol");
+    feed.className = "cp-feed";
+    feed.setAttribute("aria-label", "History");
+    for (let i = 0; i < n; i += 1) {
+      feed.append(entry());
+    }
+    const foot = document.createElement("li");
+    foot.className = "cp-list-foot";
+    const more = document.createElement("button");
+    more.className = "cp-button";
+    more.type = "button";
+    more.textContent = "Show older";
+    foot.append(more);
+    feed.append(foot);
+    box.append(feed);
+    document.body.append(box);
+    return { box, feed, more };
+  }
+
+  it("draws an origin that is a link as the link pill in its tone, apart from the author's link", () => {
+    const { feed } = history(1);
+    const header = feed.querySelector(".cp-feed-entry > header") as HTMLElement;
+    const author = header.querySelector("a") as HTMLAnchorElement;
+    const link = document.createElement("a");
+    link.className = "cp-filter-chip";
+    link.dataset["tone"] = "accent";
+    link.href = "#c-internal";
+    link.textContent = "Announcements";
+    const label = document.createElement("span");
+    label.className = "cp-chip";
+    label.dataset["tone"] = "accent";
+    label.textContent = "Announcements";
+    header.append(link, label);
+    const [l, c, a] = [link, label, author].map((el) => getComputedStyle(el)) as [
+      CSSStyleDeclaration,
+      CSSStyleDeclaration,
+      CSSStyleDeclaration,
+    ];
+    expect({
+      underline: l.textDecorationLine,
+      wash: l.backgroundColor,
+      ink: l.color,
+      edge: l.borderTopColor,
+      mark: getComputedStyle(link, "::after").backgroundColor,
+    }).toEqual({
+      underline: "none",
+      wash: c.backgroundColor,
+      ink: c.color,
+      edge: "rgba(0, 0, 0, 0)",
+      mark: c.color,
+    });
+    expect(l.color).not.toBe(a.color);
+  });
+
+  it("cuts a long origin at its start only once it is wider than the header", () => {
+    const { box, feed } = history(1);
+    const header = feed.querySelector(".cp-feed-entry > header") as HTMLElement;
+    const path = "/workspace/grelot/internal/server/static-src";
+    const link = document.createElement("a");
+    link.className = "cp-filter-chip";
+    link.dataset["tone"] = "accent";
+    link.href = "#c-subflux";
+    const words = document.createElement("span");
+    words.className = "cp-truncate cp-mono";
+    words.dataset["cut"] = "start";
+    words.dir = "ltr";
+    words.textContent = path;
+    link.append(words);
+    header.append(link);
+    const cut = () => words.scrollWidth > words.clientWidth;
+    expect(words.getBoundingClientRect().width, "wider than a truncate's 14rem").toBeGreaterThan(
+      224,
+    );
+    expect(cut(), "whole in a 30rem feed").toBe(false);
+    box.style.inlineSize = "240px";
+    expect(cut(), "cut in a 240px feed").toBe(true);
+    expect(link.getBoundingClientRect().right).toBeLessThanOrEqual(
+      header.getBoundingClientRect().right + 0.5,
+    );
+  });
+
+  it("adds an older page at its end, focuses its first entry and never scrolls back up", async () => {
+    const { box, feed, more } = history(8);
+    await scrollTo(box, box.scrollHeight);
+    const before = box.scrollTop;
+    const page = [entry(), entry(), entry()];
+    let pages = 2;
+    enhanceLoadMore(more, {
+      load: () => {
+        pages -= 1;
+        return Promise.resolve({ items: pages === 1 ? page : [entry()], more: pages > 0 });
+      },
+      words: { count: (n) => `${String(n)} older messages` },
+      signal: life.signal,
+    });
+    more.focus();
+    await userEvent.click(more);
+    await expect.poll(() => document.activeElement).toBe(page[0]);
+    expect(feed.lastElementChild?.classList.contains("cp-list-foot")).toBe(true);
+    expect([...feed.children].indexOf(page[0] as Element)).toBe(8);
+    expect(box.scrollTop).toBeGreaterThanOrEqual(before);
+    const view = box.getBoundingClientRect();
+    const at = (page[0] as Element).getBoundingClientRect();
+    // Its start shows; Firefox scrolls focus only into partial view.
+    expect(at.top).toBeGreaterThanOrEqual(view.top - 1);
+    expect(at.top).toBeLessThan(view.bottom);
+    await expect.poll(polite).toBe("3 older messages");
+    more.focus();
+    await userEvent.click(more);
+    await expect.poll(() => feed.querySelector(".cp-list-foot")).toBe(null);
+    expect(document.activeElement).toBe(feed.lastElementChild);
   });
 });

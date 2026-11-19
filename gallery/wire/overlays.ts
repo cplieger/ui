@@ -67,7 +67,7 @@ for (const b of document.querySelectorAll<HTMLButtonElement>("button[data-done-w
     enhanceConfirm(b, {
       busy: b.dataset["busyWords"] ?? "Saving…",
       done: b.dataset["doneWords"] ?? "Saved",
-      ...(b.hasAttribute("data-footprint") ? { width: "footprint" as const } : {}),
+      ...(b.hasAttribute("data-fixed") ? { width: "fixed" as const } : {}),
     }),
   );
   if (!b.hasAttribute("popovertarget")) {

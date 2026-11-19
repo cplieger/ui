@@ -6,9 +6,8 @@ import { announce, installAnnouncer } from "@cplieger/ui/announce";
 import { enhanceConfirm } from "@cplieger/ui/confirm";
 import { enhanceConnectionTest } from "@cplieger/ui/connection-test";
 import { enhanceContextPanel } from "@cplieger/ui/context-panel";
-import { enhanceFeed } from "@cplieger/ui/feed";
+import { type Feed, enhanceFeed } from "@cplieger/ui/feed";
 import { type FieldError, reportErrors } from "@cplieger/ui/form";
-import { enhanceListDetail } from "@cplieger/ui/list-detail";
 import { enhanceRelativeTime } from "@cplieger/ui/relative-time";
 import { enhanceReorder } from "@cplieger/ui/reorder";
 import { enhanceTextarea, utf8Length } from "@cplieger/ui/textarea";
@@ -128,15 +127,9 @@ function entry(post: Post, own: boolean): HTMLLIElement {
   return item;
 }
 
-// A path wraps after a slash, where a reader expects it to.
-function pathParts(path: string): (string | HTMLElement)[] {
-  return path
-    .split(/(?<=\/)/)
-    .filter((part) => part !== "")
-    .flatMap((part, i) => (i === 0 ? [part] : [document.createElement("wbr"), part]));
-}
+/** The Messages card's feed, which the conversation list opens at its newest. */
+export let messageFeed: Feed | undefined;
 
-const msgRoot = document.getElementById("msg");
 const msgFeed = document.getElementById("msg-feed");
 const compose = document.getElementById("msg-compose");
 
@@ -144,86 +137,34 @@ for (const context of document.querySelectorAll<HTMLElement>(".cp-context")) {
   enhanceContextPanel(context);
 }
 
-// Each day separator names the day of the entry after it.
 const dayWords = new Intl.DateTimeFormat(document.documentElement.lang, {
   weekday: "long",
   day: "numeric",
   month: "long",
 });
-for (const time of document.querySelectorAll<HTMLTimeElement>(".cp-feed-day > time[data-day]")) {
-  const next = time.parentElement?.nextElementSibling?.querySelector("header > time");
-  const day = next instanceof HTMLTimeElement ? new Date(next.dateTime) : new Date();
+/** Writes `day`, a local day, into a day separator's `time`. */
+export function markDay(time: HTMLTimeElement, day: Date): void {
   const pad = (n: number) => String(n).padStart(2, "0");
   time.dateTime = `${String(day.getFullYear())}-${pad(day.getMonth() + 1)}-${pad(day.getDate())}`;
   time.textContent = dayWords.format(day);
 }
+// Each day separator names the day of the entry after it.
+for (const time of document.querySelectorAll<HTMLTimeElement>(".cp-feed-day > time[data-day]")) {
+  const next = time.parentElement?.nextElementSibling?.querySelector("header > time");
+  markDay(time, next instanceof HTMLTimeElement ? new Date(next.dateTime) : new Date());
+}
 
-if (msgRoot !== null && msgFeed instanceof HTMLOListElement && compose instanceof HTMLFormElement) {
+if (msgFeed instanceof HTMLOListElement && compose instanceof HTMLFormElement) {
   const foot = msgFeed.nextElementSibling;
   const jump = foot?.querySelector(".cp-feed-jump");
   const feed = enhanceFeed(msgFeed, {
     ...(foot instanceof HTMLElement ? { foot } : {}),
     ...(jump instanceof HTMLButtonElement ? { jump } : {}),
   });
+  messageFeed = feed;
   for (const button of msgFeed.querySelectorAll<HTMLButtonElement>("button[data-read]")) {
     readSummary(button);
   }
-
-  // The rows all open this one conversation, under their own title.
-  const title = document.getElementById("msg-title");
-  const kind = document.getElementById("msg-kind");
-  const rows = [...msgRoot.querySelectorAll<HTMLAnchorElement>("a.cp-list-row")];
-  const detail = enhanceListDetail(msgRoot, {
-    onDismiss: () => {
-      history.replaceState(null, "", location.pathname + location.search);
-      route(null, false);
-    },
-  });
-  function route(row: HTMLAnchorElement | null, still: boolean): void {
-    for (const r of rows) {
-      if (r === row) {
-        r.setAttribute("aria-current", "page");
-      } else {
-        r.removeAttribute("aria-current");
-      }
-    }
-    if (row === null) {
-      detail.close();
-      return;
-    }
-    // Opening a conversation marks it read.
-    row.removeAttribute("data-unread");
-    row.querySelector(".cp-badge")?.remove();
-    const name = row.querySelector(".cp-cell-stack > .cp-truncate");
-    if (title !== null && name !== null) {
-      const mono = name.classList.contains("cp-mono");
-      title.replaceChildren(...(mono ? pathParts(name.textContent) : [name.textContent]));
-      title.classList.toggle("cp-mono", mono);
-    }
-    if (kind !== null) {
-      kind.textContent = row.dataset["kind"] ?? "";
-    }
-    detail.open({ still });
-    feed.toNewest();
-  }
-  const byHash = () => rows.find((r) => r.hash === location.hash && location.hash !== "");
-  // The page loads with the open conversation docked beside the list, but
-  // with focus and scroll at the page's start; on a phone it would load
-  // into the dialog, so there it waits for a press.
-  const rem = Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
-  const first = byHash() ?? rows.find((r) => r.hasAttribute("aria-current"));
-  if (first !== undefined && msgRoot.getBoundingClientRect().width >= 52 * rem) {
-    route(first, true);
-    title?.blur();
-  } else {
-    first?.removeAttribute("aria-current");
-  }
-  addEventListener("hashchange", () => {
-    const row = byHash();
-    if (row !== undefined) {
-      route(row, false);
-    }
-  });
 
   const failNext = document.querySelector<HTMLButtonElement>("[data-msg-fail]");
   failNext?.addEventListener("click", () => {
@@ -406,14 +347,6 @@ if (msgRoot !== null && msgFeed instanceof HTMLOListElement && compose instanceo
       item.querySelector("footer")?.append(read);
       msgFeed.append(item);
       readSummary(read);
-    }
-    const open = rows.find((r) => r.hasAttribute("aria-current"));
-    const preview = open?.querySelector("small");
-    const time = open?.querySelector("time");
-    if (preview != null && time != null) {
-      preview.textContent = `@gpt: ${arrivals[1]?.body ?? ""}`;
-      time.dateTime = new Date().toISOString();
-      enhanceRelativeTime(time);
     }
     // The jump says what arrived while the reader is scrolled up; at the
     // end, the arrivals are said here.

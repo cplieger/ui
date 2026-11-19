@@ -1,5 +1,6 @@
 /* Facts: a native <dl>, the labels muted in one column and the values in
- * the next, in one column under 40rem as .cp-pairs stacks. A compared fact,
+ * the next, in one column under 40rem as .cp-pairs stacks, or in a panel
+ * narrower than 24rem, such as a side column's card. A compared fact,
  * data-variant="compare", holds a .cp-state word and a <small> note in its
  * <dd>, the three in aligned columns. */
 .cp-facts {
@@ -60,7 +61,7 @@
     gap: 0;
   }
 
-  .cp-facts > dd {
+  .cp-facts > dd:not(:last-child) {
     margin-block-end: var(--cp-space-3);
   }
 
@@ -74,7 +75,36 @@
     grid-column: 1 / -1;
   }
 
-  .cp-facts[data-variant="compare"] > dd > * {
+  .cp-facts[data-variant="compare"] > dd:not(:last-child) > * {
+    margin-block-end: var(--cp-space-3);
+  }
+}
+
+/* A panel holding facts is their container, as a flush panel is a table's. */
+.cp-panel:has(> .cp-facts) {
+  container: cp-facts / inline-size;
+}
+
+@container cp-facts (width < 24rem) {
+  .cp-facts {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+
+  .cp-facts > dd:not(:last-child) {
+    margin-block-end: var(--cp-space-3);
+  }
+
+  .cp-facts[data-variant="compare"] {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 0 var(--cp-space-3);
+  }
+
+  .cp-facts[data-variant="compare"] > dt {
+    grid-column: 1 / -1;
+  }
+
+  .cp-facts[data-variant="compare"] > dd:not(:last-child) > * {
     margin-block-end: var(--cp-space-3);
   }
 }
