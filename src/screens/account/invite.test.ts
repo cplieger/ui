@@ -423,6 +423,34 @@ describe("mountInvite: a second factor first", () => {
     expect(button(panel, "Create account").getAttribute("aria-disabled")).toBeNull();
   });
 
+  it("takes the sign-in an enrolment completed after the person started again", async () => {
+    const fake = new Fake()
+      .answer(
+        "inviteAcceptPassword",
+        ok({ pending: { ticket: "t1", next: "enrol", methods: ["passkey"] } }),
+      )
+      .answer("pendingPasskey", { kind: "answered", result: { signed_in: signedIn } });
+    const release = fake.hold("pendingPasskey");
+    const { panel, joined } = mount(fake);
+    await drawn(panel);
+    await accept(panel);
+    const register = await vi.waitFor(() => {
+      const b = button(panel, "Register a passkey");
+      expect(b).toBeDefined();
+      return b;
+    });
+    await userEvent.click(register);
+    await userEvent.click(button(panel, "Start again"));
+    await vi.waitFor(() => {
+      expect(input(panel, "password")).not.toBeNull();
+    });
+    expect(joined).toEqual([]);
+    release();
+    await vi.waitFor(() => {
+      expect(joined).toEqual(["mika"]);
+    });
+  });
+
   it("continues into the sign-in's own enrolment, and joins once it finishes", async () => {
     const fake = new Fake()
       .answer(

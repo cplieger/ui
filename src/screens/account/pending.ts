@@ -140,13 +140,18 @@ export function continueSignIn<C extends PendingClient>(
         ? a.recovery_code
         : a.signed_in.recovery_code;
 
-  /** Takes a step's answer; once the attempt ended, only the recovery
-   *  code it carries is shown, as that answer is the code's one showing. */
+  /** Takes a step's answer. Once the attempt ended, a next step or a wait
+   *  for approval is dropped, but the recovery code it carries is shown, as
+   *  that answer is the code's one showing, and a sign-in is still taken,
+   *  since the server already made its session. */
   const took = async (a: Answer): Promise<void> => {
     const code = recoveryOf(a);
     if (ended()) {
       if (code !== undefined) {
         await showRecoveryCode(code, w, x.signal);
+      }
+      if ("signed_in" in a && x.signal?.aborted !== true) {
+        x.finish(a.signed_in);
       }
       return;
     }
@@ -288,19 +293,15 @@ export function continueSignIn<C extends PendingClient>(
       return;
     }
     const a = got.answer;
-    if (ended()) {
-      if (a?.ok === true) {
-        await took(a.data);
-      }
-      return;
-    }
-    if (a === null) {
-      notices.show("danger", w["generic.server"]);
-    } else if (a.ok) {
+    if (a?.ok === true) {
       if ("signed_in" in a.data) {
         await kept?.();
       }
       await took(a.data);
+    } else if (ended()) {
+      return;
+    } else if (a === null) {
+      notices.show("danger", w["generic.server"]);
     } else {
       refused(a, at);
     }

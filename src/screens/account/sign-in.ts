@@ -206,7 +206,14 @@ export function mountSignIn<C extends SignInClient>(
     client.oidcPending !== undefined &&
     client.oidcLinkPending !== undefined;
 
+  // A sign-in is taken once: a late answer of another way that also signed
+  // in names the same session.
+  let finished = false;
   const finish = (result: SignedIn): void => {
+    if (finished) {
+      return;
+    }
+    finished = true;
     stopConditional();
     if (linking) {
       void link(result);
@@ -866,7 +873,14 @@ export function mountSignIn<C extends SignInClient>(
     void attempt("auth.sign_in_passkey", () =>
       access.signInWithPasskey(client, { mediation: "conditional", signal: mine.signal }),
     ).then((outcome) => {
-      if (mine.signal.aborted || signal?.aborted === true) {
+      if (signal?.aborted === true) {
+        return;
+      }
+      if (mine.signal.aborted) {
+        // A pick made before the request ended still signed in on the server.
+        if (outcome?.kind === "signed-in") {
+          finish(outcome.result);
+        }
         return;
       }
       waiting = undefined;

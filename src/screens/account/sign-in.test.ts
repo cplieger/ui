@@ -628,6 +628,32 @@ describe("mountSignIn: passkey", () => {
     expect(other.panel.querySelector("form")).not.toBeNull();
   });
 
+  it("takes the sign-in an autofill pick completed after a password submit ended its request", async () => {
+    const late = Promise.withResolvers<unknown>();
+    const fake = new Fake()
+      .answer("passkeySupport", { webauthn: true, conditional: true })
+      .answer("signInWithPasskey", () => late.promise)
+      .answer(
+        "loginPassword",
+        ok({ pending: { ticket: "t1", next: "second_factor", methods: ["totp"] } }),
+      );
+    const went: string[] = [];
+    const { panel } = mount(fake, {
+      navigate: (url) => {
+        went.push(url);
+      },
+    });
+    await drawn(panel);
+    await signIn(panel);
+    await vi.waitFor(() => {
+      expect(input(panel, "code")).not.toBeNull();
+    });
+    late.resolve({ kind: "signed-in", result: signedIn });
+    await vi.waitFor(() => {
+      expect(went).toEqual(["/"]);
+    });
+  });
+
   it.each([
     [
       "a refused begin",

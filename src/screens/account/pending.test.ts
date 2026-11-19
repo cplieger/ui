@@ -437,7 +437,7 @@ describe("mountSignIn: a step's answer that lands after Start again", () => {
     expect(noticeOf(panel)).toBeNull();
   });
 
-  it("still shows the recovery code a late answer carries, its only showing, and stays on the form", async () => {
+  it("still shows the recovery code a late answer carries, its only showing, then takes its sign-in", async () => {
     const fake = new Fake().answer(
       "loginRecoveryCode",
       ok({ signed_in: { ...signedIn, recovery_code: "WXYZ2345EFGH6789" } }),
@@ -447,15 +447,30 @@ describe("mountSignIn: a step's answer that lands after Start again", () => {
     await userEvent.click(button(panel, "Use your recovery code"));
     await userEvent.fill(input(panel, "recovery_code"), "M9XRTB4HNW6P7KQ2");
     await userEvent.click(submit(panel));
-    const password = await startAgain(panel);
+    await startAgain(panel);
     release();
     const shown = await dialogOf("Your recovery code");
     expect(shown.querySelector(".cp-code code")?.textContent).toBe("WXYZ-2345-EFGH-6789");
+    expect(went).toEqual([]);
     await userEvent.click(shown.querySelector("input[type='checkbox']") as HTMLInputElement);
     await userEvent.click(button(shown, "Continue"));
-    await handedOn();
+    await vi.waitFor(() => {
+      expect(went).toEqual(["/feed"]);
+    });
+  });
+
+  it("takes a sign-in the step completed, since the server already made its session", async () => {
+    const fake = new Fake().answer("loginCode", ok({ signed_in: signedIn }));
+    const { panel, went } = await stepped(fake);
+    const release = fake.hold("loginCode");
+    await userEvent.fill(input(panel, "code"), "111111");
+    await userEvent.click(submit(panel));
+    await startAgain(panel);
     expect(went).toEqual([]);
-    expect(input(panel, "password")).toBe(password);
+    release();
+    await vi.waitFor(() => {
+      expect(went).toEqual(["/feed"]);
+    });
   });
 });
 

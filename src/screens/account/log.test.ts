@@ -356,6 +356,15 @@ describe("mountSecurityLog: the address and the pages", () => {
     expect(pagerLink(region, "Older").hasAttribute("href")).toBe(true);
   });
 
+  it.each([Number.NaN, Number.POSITIVE_INFINITY])(
+    "refuses a limit of %s, which names no page size",
+    (limit) => {
+      const fake = new Fake().always("adminSecurityLog", server([entry(1)]));
+      expect(() => mount(fake, { limit })).toThrow(RangeError);
+      expect(fake.named("adminSecurityLog")).toHaveLength(0);
+    },
+  );
+
   it("changing the order or the kind starts at the first page", async () => {
     const fake = new Fake().always(
       "adminSecurityLog",
@@ -613,17 +622,81 @@ describe("mountSecurityLog: refresh", () => {
     expect(said("polite")).not.toContain("new entr");
   });
 
-  it("on a page reached by Newer, takes new entries in", async () => {
+  it("newest first, a short page reached by Newer is the first page, and takes new entries in", async () => {
     const log = range(1, 8);
     const fake = new Fake().always("adminSecurityLog", server(log));
-    const { region, refresh } = mount(fake, { limit: 5, search: "?after=5" });
+    const written: [string, boolean][] = [];
+    const { region, refresh } = mount(fake, {
+      limit: 5,
+      search: "?after=5",
+      onQuery: (p, replace) => {
+        written.push([p.toString(), replace]);
+      },
+    });
     expect(seqs(await rows(region))).toEqual([8, 7, 6]);
     expect(pagerLink(region, "Newer").getAttribute("aria-disabled")).toBe("true");
+    expect(written).toEqual([["", true]]);
     log.push(entry(9));
     await refresh();
-    expect(asked(fake).at(-1)).toEqual({ limit: 6, oldestFirst: true, after: 5 });
-    expect(seqs(await rows(region))).toEqual([9, 8, 7, 6]);
+    expect(asked(fake).at(-1)).toEqual({ limit: 6 });
+    expect(seqs(await rows(region))).toEqual([9, 8, 7, 6, 5]);
     expect(pagerLink(region, "Newer").getAttribute("aria-disabled")).toBe("true");
+    await vi.waitFor(() => {
+      expect(said("polite")).toBe("1 new entry");
+    });
+  });
+
+  it("newest first, a full page reached by Newer at the newest end takes new entries in", async () => {
+    const log = range(1, 10);
+    const fake = new Fake().always("adminSecurityLog", server(log));
+    const { region, queries, refresh } = mount(fake, { limit: 5 });
+    expect(seqs(await rows(region))).toEqual([10, 9, 8, 7, 6]);
+    await userEvent.click(pagerLink(region, "Older"));
+    await vi.waitFor(async () => {
+      expect(seqs(await rows(region))).toEqual([5, 4, 3, 2, 1]);
+    });
+    await userEvent.click(pagerLink(region, "Newer"));
+    await vi.waitFor(async () => {
+      expect(seqs(await rows(region))).toEqual([10, 9, 8, 7, 6]);
+    });
+    expect(queries.at(-1)).toBe("");
+    log.push(entry(11));
+    await refresh();
+    expect(asked(fake).at(-1)).toEqual({ limit: 6 });
+    expect(seqs(await rows(region))).toEqual([11, 10, 9, 8, 7]);
+    expect(pagerLink(region, "Newer").getAttribute("aria-disabled")).toBe("true");
+    await vi.waitFor(() => {
+      expect(said("polite")).toBe("1 new entry");
+    });
+  });
+
+  it("oldest first, calls no old entry new when the size limit shifts a full first page", async () => {
+    const log = range(1, 6);
+    const fake = new Fake().always("adminSecurityLog", server(log));
+    const { region, refresh } = mount(fake, { limit: 5, search: "?order=oldest" });
+    expect(seqs(await rows(region))).toEqual([1, 2, 3, 4, 5]);
+    log.shift();
+    await refresh();
+    expect(seqs(await rows(region))).toEqual([2, 3, 4, 5, 6]);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(said("polite")).not.toContain("new entr");
+  });
+
+  it("calls no old entry new when the size limit removed the Older page shown", async () => {
+    const log = range(1, 10);
+    const fake = new Fake().always("adminSecurityLog", server(log));
+    const { region, queries, refresh } = mount(fake, { limit: 5 });
+    expect(seqs(await rows(region))).toEqual([10, 9, 8, 7, 6]);
+    await userEvent.click(pagerLink(region, "Older"));
+    await vi.waitFor(async () => {
+      expect(seqs(await rows(region))).toEqual([5, 4, 3, 2, 1]);
+    });
+    log.splice(0, 5);
+    await refresh();
+    expect(seqs(await rows(region))).toEqual([10, 9, 8, 7, 6]);
+    expect(queries.at(-1)).toBe("");
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(said("polite")).not.toContain("new entr");
   });
 
   it("reads once after a load, however many refreshes came during it", async () => {

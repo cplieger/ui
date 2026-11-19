@@ -849,6 +849,39 @@ describe("mountSetup: a second factor first", () => {
     expect(fake.named("storePasswordCredential")).toHaveLength(0);
   });
 
+  it("takes the sign-in an enrolment completed after the person started again", async () => {
+    const fake = new Fake()
+      .always("state", ok(SETUP))
+      .answer(
+        "setupPassword",
+        ok({ pending: { ticket: "t1", next: "enrol", methods: ["passkey"] } }),
+      )
+      .answer("pendingPasskey", { kind: "answered", result: { signed_in: signedIn } });
+    const release = fake.hold("pendingPasskey");
+    const { region, went } = mount(fake);
+    await drawn(region);
+    await create(region);
+    const register = await vi.waitFor(() => {
+      const b = button(region, "Register a passkey");
+      expect(b).toBeDefined();
+      return b;
+    });
+    await userEvent.click(register);
+    await userEvent.click(button(region, "Start again"));
+    await vi.waitFor(() => {
+      expect(input(region, "password")).not.toBeNull();
+    });
+    expect(went).toEqual([]);
+    release();
+    await vi.waitFor(() => {
+      expect(went).toEqual(["/"]);
+    });
+    expect(fake.named("storePasswordCredential")[0]?.args).toEqual([
+      "mika",
+      "lantern harbour quietly",
+    ]);
+  });
+
   it("shows no failure of the authenticator key's read once the person started again", async () => {
     const fake = new Fake()
       .always("state", ok(SETUP))

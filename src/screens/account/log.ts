@@ -43,13 +43,15 @@ export type LogKinds = Readonly<Record<string, string | ((entry: LogEntryView) =
 export interface LogOptions {
   /** The app's words per kind, read before the library's. */
   readonly kinds?: LogKinds;
-  /** Entries a page holds. Default 50, at most 499. */
+  /** Entries a page holds. Default 50, at most 499; a value that is not
+   *  finite throws a `RangeError` at mount. */
   readonly limit?: number;
   /**
    * Writes the view into the address: `order=oldest`, `kind`, `user`, and
    * `before` or `after` a `seq`. `replace` is true when the view corrects
-   * an address that named no page. Default: `history.pushState`, or
-   * `replaceState`, keeping every other parameter.
+   * an address: one that named no page, or a newest-first `after` that
+   * reached the newest end, which is the first page. Default:
+   * `history.pushState`, or `replaceState`, keeping every other parameter.
    */
   readonly onQuery?: (params: URLSearchParams, replace: boolean) => void;
 }
@@ -69,9 +71,10 @@ export interface SecurityLogOptions<C extends LogClient>
 }
 
 export interface SecurityLogScreen {
-  /** Reads the page shown again, from the same bound, and says how many of
-   *  the entries it draws are newer than any it showed. During a read it
-   *  waits for that read, and the calls made meanwhile share one. */
+  /** Reads the page shown again, from the same bound. When that page is the
+   *  log's newest end, it says how many of the entries it draws were written
+   *  since. During a read it waits for that read, and the calls made
+   *  meanwhile share one. */
   refresh(): Promise<void>;
   /** Shows the view a query names, as Back does. The log follows
    *  `popstate` itself unless the host passes `onQuery`. */
@@ -296,7 +299,11 @@ export function drawLog(
 ): SecurityLogScreen {
   const { w, client } = ctx;
   const signal = ctx.life.signal;
-  const limit = Math.min(MAX_READ - 1, Math.max(1, Math.trunc(ctx.options.limit ?? 50)));
+  const asked = ctx.options.limit ?? 50;
+  if (!Number.isFinite(asked)) {
+    throw new RangeError(`limit ${String(asked)} is not a finite number`);
+  }
+  const limit = Math.min(MAX_READ - 1, Math.max(1, Math.trunc(asked)));
   const onQuery = ctx.options.onQuery ?? writeAddress;
   const kinds = ctx.options.kinds ?? {};
   const fixed = ctx.user !== undefined;
@@ -462,7 +469,8 @@ export function drawLog(
   /** The page `v` names. It asks for one entry more than it shows, so the
    *  side it reads toward has a next page exactly when that entry came; the
    *  other side has one when a bound reached the page. One past the end
-   *  reads the first page instead and corrects the address while `v` is
+   *  reads the first page instead, and a newest-first page that reached the
+   *  newest end is the first page; either corrects the address while `v` is
    *  still the view. */
   const pageOf = async (v: View): Promise<Result<Page>> => {
     const ascending = v.after !== undefined || (v.before === undefined && v.order === "oldest");
@@ -478,21 +486,25 @@ export function drawLog(
       return got;
     }
     const page = got.data.entries;
-    if (page.length === 0 && (v.before !== undefined || v.after !== undefined)) {
-      const top = first(v);
-      if (view === v) {
-        view = top;
-        syncFilters();
-        onQuery(paramsOf(top), true);
-      }
-      return pageOf(top);
-    }
     const more = page.length > limit;
+    const newestEnd = v.order === "newest" && v.after !== undefined && !more;
+    let at = v;
+    if (newestEnd || (page.length === 0 && (v.before !== undefined || v.after !== undefined))) {
+      at = first(v);
+      if (view === v) {
+        view = at;
+        syncFilters();
+        onQuery(paramsOf(at), true);
+      }
+      if (page.length === 0) {
+        return pageOf(at);
+      }
+    }
     const shown = ordered(page, ascending ? "oldest" : "newest").slice(0, limit);
     return {
       ok: true,
       data: {
-        view: v,
+        view: at,
         log: got.data,
         entries: ordered(shown, v.order),
         past: ascending ? v.after !== undefined : more,
@@ -502,8 +514,10 @@ export function drawLog(
     };
   };
 
-  /** `p` read again, with `arrived` the entries it draws that are newer
-   *  than any `p` drew; `p` itself when nothing it shows changed. */
+  /** `p` read again; `p` itself when nothing it shows changed. `arrived`
+   *  counts the entries it draws that are newer than any `p` drew, only when
+   *  `p` reached the newest end: on any other page the size limit's pruning
+   *  shifts older entries in. */
   const since = async (p: Page): Promise<Result<Page>> => {
     const got = await pageOf(p.view);
     if (!got.ok) {
@@ -514,7 +528,8 @@ export function drawLog(
       return { ok: true, data: p };
     }
     const top = p.entries.reduce((m, e) => Math.max(m, e.seq), 0);
-    return { ok: true, data: { ...n, arrived: n.entries.filter((e) => e.seq > top).length } };
+    const arrived = p.future ? 0 : n.entries.filter((e) => e.seq > top).length;
+    return { ok: true, data: { ...n, arrived } };
   };
 
   // Paging and refreshing build on the page drawn, so one read follows

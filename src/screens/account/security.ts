@@ -95,7 +95,7 @@ export interface SecurityScreen {
   /** Reads the account, its sessions, its keys and the log again and
    *  redraws them. */
   refresh(): Promise<void>;
-  /** Reads what the security log gained, as `mountSecurityLog`'s
+  /** Reads the security log's page again, as `mountSecurityLog`'s
    *  `refresh` does. */
   refreshLog(): Promise<void>;
 }
