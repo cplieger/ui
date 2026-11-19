@@ -132,6 +132,16 @@ const requiredWithoutMark = (): string[] => {
   );
 };
 
+// WCAG 2.5.3 Label in Name: an account button is named by the initials it
+// shows then ", account", or "Account" alone over an avatar with no text.
+// Runs in the page, so it closes over nothing.
+const misnamedAccounts = (): string[] =>
+  [...document.querySelectorAll<HTMLElement>(".cp-account")].flatMap((b) => {
+    const text = b.innerText.trim();
+    const name = b.getAttribute("aria-label") ?? "";
+    return name === (text === "" ? "Account" : `${text}, account`) ? [] : [`${name} / ${text}`];
+  });
+
 let out = "";
 let origin = "";
 let close = (): void => undefined;
@@ -221,7 +231,7 @@ describe.each(browsers)("the gallery in %s", (name) => {
   };
 
   it.each([...pageNames, ...frameNames, ...templateNames])(
-    "loads %s with no error, every icon painted, every row title an element and nothing wider than a phone",
+    "loads %s with no error, every icon painted, every row title an element, nothing wider than a phone and each account button named by its text",
     async (page) => {
       const report: Record<string, unknown> = {};
       for (const width of [1440, 390]) {
@@ -230,29 +240,33 @@ describe.each(browsers)("the gallery in %s", (name) => {
         tab.on("pageerror", (e) => errors.push(e.message));
         await tab.goto(`${origin}/${page}.html`);
         await tab.evaluate(() => document.fonts.ready.then(() => undefined));
-        const state = await tab.evaluate(() => ({
-          wide: document.documentElement.scrollWidth > document.documentElement.clientWidth,
-          unpainted: [...document.querySelectorAll<HTMLElement>(".cp-icon")].filter(
-            (i) =>
-              getComputedStyle(i).getPropertyValue("--cp-icon-image") === "" &&
-              i.checkVisibility({ visibilityProperty: true }),
-          ).length,
-          // A row's lines are set as a pair only when its title is an element.
-          bareTitles: [
-            ...document.querySelectorAll(".cp-list > li > .cp-list-row > .cp-cell-stack"),
-          ].filter(
-            (s) =>
-              s.childElementCount > 0 &&
-              [...s.childNodes].some(
-                (n) => n.nodeType === Node.TEXT_NODE && (n.textContent ?? "").trim() !== "",
-              ),
-          ).length,
-        }));
+        const state = {
+          ...(await tab.evaluate(() => ({
+            wide: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+            unpainted: [...document.querySelectorAll<HTMLElement>(".cp-icon")].filter(
+              (i) =>
+                getComputedStyle(i).getPropertyValue("--cp-icon-image") === "" &&
+                i.checkVisibility({ visibilityProperty: true }),
+            ).length,
+            // A row's lines are set as a pair only when its title is an element.
+            bareTitles: [
+              ...document.querySelectorAll(".cp-list > li > .cp-list-row > .cp-cell-stack"),
+            ].filter(
+              (s) =>
+                s.childElementCount > 0 &&
+                [...s.childNodes].some(
+                  (n) => n.nodeType === Node.TEXT_NODE && (n.textContent ?? "").trim() !== "",
+                ),
+            ).length,
+          }))),
+          misnamed: await tab.evaluate(misnamedAccounts),
+        };
         if (
           errors.length > 0 ||
           (width === 390 && state.wide) ||
           state.unpainted > 0 ||
-          state.bareTitles > 0
+          state.bareTitles > 0 ||
+          state.misnamed.length > 0
         ) {
           report[String(width)] = { errors, ...state };
         }
@@ -262,6 +276,42 @@ describe.each(browsers)("the gallery in %s", (name) => {
     },
     60_000,
   );
+
+  it("names an account button by its initials, or Account alone over an empty avatar", async () => {
+    const tab = await (browser as Browser).newPage();
+    const button = (name: string, text: string): string =>
+      `<button class="cp-button cp-account" type="button" aria-label="${name}"><span class="cp-avatar" data-size="sm">${text}</span></button>`;
+    await tab.setContent(
+      [
+        button("CP, account", "CP"),
+        button("C, account", "C"),
+        button("Account", ""),
+        button("Account", "CP"),
+        button("CP, account", ""),
+      ].join(""),
+    );
+    const misnamed = await tab.evaluate(misnamedAccounts);
+    await tab.close();
+    expect(misnamed).toEqual(["Account / CP", "CP, account / "]);
+  });
+
+  it("fills the sign-in page's gate panel with the account screen, refusing a wrong password in its words", async () => {
+    const tab = await (browser as Browser).newPage();
+    await tab.goto(`${origin}/sign-in.html`);
+    const panel = tab.locator("main.cp-gate > .cp-panel");
+    await expect.poll(() => panel.locator("form").count()).toBeGreaterThan(0);
+    expect(await tab.locator("h1").allInnerTexts()).toEqual(["Sign in"]);
+    expect(await tab.locator("main [class*='g-']").count()).toBe(0);
+    await panel.getByLabel("Username").fill("mika");
+    await panel.getByLabel("Password", { exact: true }).fill("wrong");
+    await panel.locator("button[type='submit']").first().click();
+    await expect
+      .poll(() => panel.locator(".cp-notice[data-tone='danger']:not([hidden])").innerText(), {
+        timeout: 10_000,
+      })
+      .toContain("username or password");
+    await tab.close();
+  }, 60_000);
 
   it("clears every row of a choices set whose legend has a button under the floats, and no other set's", async () => {
     const wrong: string[] = [];

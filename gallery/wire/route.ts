@@ -48,7 +48,7 @@ const navigatesHere = (link: Element): boolean => {
   }
 };
 
-export interface ListRouteOptions {
+interface ListRouteOptions {
   /** Whether a fragment, with its `#`, names an entry the page can show. */
   readonly names: (hash: string) => boolean;
   /** The list's own address, which Close pushes when the entry before it showed no list. */
@@ -58,7 +58,7 @@ export interface ListRouteOptions {
   readonly sync: (still: boolean) => void;
 }
 
-export interface ListRoute {
+interface ListRoute {
   /** The list-detail's `onDismiss`. */
   readonly close: () => void;
   /** Stamps the entry the page loaded on, rewriting its address to `url` when

@@ -1,0 +1,93 @@
+/**
+ * account.ts — the shared account screens of an app built on
+ * `@cplieger/access`, filled into a host element on the host's client and
+ * module, typed by shape so this package depends on neither. Nothing runs
+ * at import. See docs/screens/account.md.
+ * @module
+ */
+
+export type {
+  AccessSettingsClient,
+  AccountView,
+  InviteAccess,
+  InviteClient,
+  KeyCreated,
+  KeyView,
+  KeysClient,
+  LogActorView,
+  LogClient,
+  LogEntryView,
+  LogQuery,
+  MeView,
+  MethodsView,
+  OIDCReturn,
+  PasskeyMiss,
+  PasskeySignInOutcome,
+  PasskeyView,
+  PasswordAnswer,
+  PasswordLength,
+  Pending,
+  PendingAccess,
+  PendingClient,
+  PendingMethod,
+  PendingLinkView,
+  PendingPasskeyOutcome,
+  PersonView,
+  ProofOutcome,
+  Readiness,
+  Refusal,
+  RegisterMiss,
+  RegisterOutcome,
+  Result,
+  SSOMode,
+  SecondFactorProof,
+  SecurityAccess,
+  SecurityClient,
+  SecurityLogView,
+  SessionNow,
+  SessionView,
+  SessionsClient,
+  SetupAccess,
+  SetupClient,
+  SignInAccess,
+  SignInClient,
+  SignInOutcome,
+  SignedIn,
+  StateResponse,
+  StepUpAccess,
+  StepUpCallbacks,
+  StepUpChoice,
+  StepUpClient,
+  StepUpResult,
+  TemporaryPasswordOptions,
+  TemporaryPasswordResponse,
+  TokenResponse,
+  TokenView,
+  TotpBegin,
+  UserMethodsView,
+  UserView,
+  UsersClient,
+  WaitingApproval,
+} from "./client.js";
+export { mountInvite } from "./invite.js";
+export type { InviteOptions } from "./invite.js";
+export { accountActions, accountRunner, runDirect } from "./run.js";
+export type { KeyNote, KeyScope, KeyScopes } from "./keys.js";
+export { mountSecurityLog } from "./log.js";
+export type { LogKinds, LogOptions, SecurityLogOptions, SecurityLogScreen } from "./log.js";
+export type { AccountAction, DefineAction, Runner } from "./run.js";
+export type { AccountPart, ScreenOptions, SignedOutOptions, SignedOutReason } from "./screen.js";
+export { mountSecurity } from "./security.js";
+export { mountAccessSettings } from "./settings.js";
+export type { AccessSettingsOptions, AccessSettingsScreen } from "./settings.js";
+export type { SecurityOptions, SecurityScreen } from "./security.js";
+export { mountSetup } from "./setup.js";
+export type { SetupOptions } from "./setup.js";
+export { mountSignIn } from "./sign-in.js";
+export type { SignInArrival, SignInOptions, SignedInEvent } from "./sign-in.js";
+export { stepUp } from "./step-up.js";
+export type { StepUpAnswer, StepUpOptions } from "./step-up.js";
+export { mountUsers } from "./users.js";
+export type { UsersOptions, UsersScreen } from "./users.js";
+export { defaultAccountWords, wordsOf } from "./words.js";
+export type { AccountWords, PageHost } from "./words.js";

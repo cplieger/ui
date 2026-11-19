@@ -583,55 +583,6 @@ for (const form of $$("form[data-settings]")) {
   update();
 }
 
-// --------------------------------------------------------------- sign-in
-// An empty password is the field's error; a refused one is a notice over
-// the form that names neither half, with a shake; any other signs in, the
-// button confirming.
-for (const form of $$("form[data-sign-in]")) {
-  form.addEventListener("submit", (e) => {
-    e.preventDefault();
-    const btn = $("[type='submit']", form);
-    if (btn.getAttribute("aria-disabled") === "true") return;
-    const pw = $("input[type='password'], input[name='password']", form);
-    const err = document.getElementById(pw.getAttribute("aria-describedby").split(" ").find((id) => id.endsWith("-error")));
-    btn.setAttribute("aria-busy", "true");
-    btn.setAttribute("aria-disabled", "true");
-    $(".label", btn).textContent = "Signing in…";
-    setTimeout(() => {
-      btn.removeAttribute("aria-busy");
-      btn.removeAttribute("aria-disabled");
-      const refused = $("#si-refused", form);
-      $(".label", btn).textContent = "Sign in";
-      if (pw.value === "") {
-        // A missing field is the field's own error.
-        refused.hidden = true;
-        pw.setAttribute("aria-invalid", "true");
-        err.hidden = false;
-        pw.focus();
-      } else if (pw.value === "wrong") {
-        // A refusal never says which half was wrong (design-account.md): a
-        // notice over the form, and the password selected to type again.
-        pw.removeAttribute("aria-invalid");
-        err.hidden = true;
-        refused.hidden = false;
-        const panel = form.closest(".cp-panel");
-        panel.classList.remove("g-refused");
-        void panel.offsetWidth;
-        panel.classList.add("g-refused");
-        pw.focus();
-        pw.select();
-      } else {
-        refused.hidden = true;
-        pw.removeAttribute("aria-invalid");
-        err.hidden = true;
-        btn.dataset.state = "done";
-        $(".label", btn).textContent = "Signed in";
-        btn.querySelector(".cp-icon").dataset.cpIcon = "check";
-      }
-    }, 900);
-  });
-}
-
 // ---------------------------------------------------------- foundations
 for (const host of $$("[data-ladder]")) {
   for (const fam of host.dataset.ladder.split(" ")) {

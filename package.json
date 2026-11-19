@@ -6,6 +6,7 @@
     "**/*.css"
   ],
   "exports": {
+    "./account": "./src/screens/account/account.ts",
     "./active-filters": "./src/data/active-filters/active-filters.ts",
     "./anchor": "./src/overlays/anchor/anchor.ts",
     "./announce": "./src/feedback/announce/announce.ts",
@@ -52,6 +53,7 @@
     "./popconfirm": "./src/overlays/popconfirm/popconfirm.ts",
     "./press": "./src/core/press/press.ts",
     "./proposal": "./src/feedback/proposal/proposal.ts",
+    "./qr": "./src/media/qr/qr.ts",
     "./radio-focus": "./src/core/radio-focus/radio-focus.ts",
     "./range": "./src/forms/range/range.ts",
     "./ranked-bars": "./src/data/ranked-bars/ranked-bars.ts",
@@ -103,6 +105,8 @@
     "lint:fix": "eslint . --fix && prettier --write ."
   },
   "devDependencies": {
+    "@cplieger/access": "1.0.0-dev.18",
+    "@cplieger/reactive": "2.4.0",
     "@eslint/js": "10.0.1",
     "@fontsource-variable/atkinson-hyperlegible-mono": "5.3.0",
     "@fontsource-variable/atkinson-hyperlegible-next": "5.3.0",

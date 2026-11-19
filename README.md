@@ -88,7 +88,8 @@ Each module is one subpath, and [pointer](docs/core/pointer.md) two, grouped her
 - Words and numbers: [format](docs/core/format.md).
 - Navigation and layout: [disclosure](docs/navigation/disclosure.md), [tabs](docs/navigation/tabs.md), [header-status](docs/navigation/header-status.md), [list-detail](docs/layout/list-detail.md), [context-panel](docs/layout/context-panel.md) and [settings](docs/layout/settings.md), and the [heading row](docs/layout/heading-row.md), a page's head and an item's hero that the stylesheet draws with no script.
 - Data: [list-row](docs/data/list-row.md), [table](docs/data/table.md), [active-filters](docs/data/active-filters.md), [state-history](docs/data/state-history.md), [share-bar](docs/data/share-bar.md), [sparkline](docs/data/sparkline.md), [chart](docs/data/chart.md), [frame](docs/data/frame.md), [meter](docs/data/meter.md), [ranked-bars](docs/data/ranked-bars.md), [relative-time](docs/data/relative-time.md), [reorder](docs/data/reorder.md), [held-list](docs/data/held-list.md), [keyed-list](docs/data/keyed-list.md), [load-more](docs/data/load-more.md) and [feed](docs/data/feed.md).
-- Media: [video](docs/media/video.md).
+- Media: [qr](docs/media/qr.md) and [video](docs/media/video.md).
+- Screens: [account](docs/screens/account.md).
 - Behaviour every page shares: [press](docs/core/press.md), [pointer](docs/core/pointer.md), [radio-focus](docs/core/radio-focus.md), [roving-focus](docs/core/roving-focus.md), [roll](docs/core/roll.md), [pill](docs/core/pill.md), [theme](docs/core/theme.md) and [view-transition](docs/core/view-transition.md).
 - [icons](docs/foundations/icons.md): `createIcons`, `iconNames` and `ownIconNames`, and the glyphs the stylesheet paints [with no script](docs/foundations/icons.md#with-no-script).
 
