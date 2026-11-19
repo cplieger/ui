@@ -728,6 +728,10 @@ const statePass = (state: State): Pass => ({
     if (wordless.length > 0) {
       report.fail(`a known amount with no step in words, ${label(state)}`, wordless);
     }
+    const unnamed = await roleless(tab);
+    if (unnamed.length > 0) {
+      report.fail(`an unavailable control with no role, ${label(state)}`, unnamed);
+    }
     await tab.close();
   },
 });
@@ -777,6 +781,23 @@ async function stepless(tab: Page): Promise<string[]> {
         return bar !== null && words.join("").trim() === "";
       })
       .map((wrap) => (wrap.id === "" ? wrap.outerHTML.slice(0, 80) : `#${wrap.id}`)),
+  );
+}
+
+/** Each element marked `aria-disabled` that has no role to carry it: a link
+ *  with no `href`, or a plain element, is generic, and ARIA 1.2 no longer
+ *  allows `aria-disabled` on generic, so the engines expose neither a control
+ *  nor its unavailable state. Such an end link is `role="link"`. */
+async function roleless(tab: Page): Promise<string[]> {
+  return tab.evaluate(() =>
+    [...document.querySelectorAll("[aria-disabled]:not([role])")]
+      .filter(
+        (el) =>
+          !el.matches(
+            "a[href], area[href], button, input, select, textarea, fieldset, option, optgroup, summary",
+          ),
+      )
+      .map((el) => (el.id === "" ? el.outerHTML.slice(0, 80) : `#${el.id}`)),
   );
 }
 
@@ -1222,6 +1243,19 @@ export function selfTest(browser: () => Browser): void {
         '<span class="cp-progress" id="d"><progress max="8" value="0" aria-label="D"></progress><span> </span></span></main></html>',
     );
     expect(await stepless(tab)).toEqual(["#a", "#d"]);
+    await tab.close();
+  });
+
+  it("finds an unavailable control with no role, and no other", { timeout: 60_000 }, async () => {
+    const tab = await browser().newPage();
+    await tab.setContent(
+      `${PAGE}<a id="a" aria-disabled="true">Previous</a>` +
+        '<a id="b" role="link" aria-disabled="true">Previous</a>' +
+        '<a id="c" href="#n" aria-disabled="true">Next</a>' +
+        '<button id="d" type="button" aria-disabled="true">Save</button>' +
+        '<span id="e" aria-disabled="true">Off</span></main></html>',
+    );
+    expect(await roleless(tab)).toEqual(["#a", "#e"]);
     await tab.close();
   });
 

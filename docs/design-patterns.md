@@ -100,7 +100,7 @@ Rows are never interactive. A row's actions are buttons in its last cell, and a 
 
 **Pages.** A list longer than one page has a `.cp-pager` under its table, inside the panel:
 
-1. It shows the range and the total, such as "1 to 25 of 412", then Previous and Next as links. At the first or the last page that link has `aria-disabled="true"` and no `href`.
+1. It shows the range and the total, such as "1 to 25 of 412", then Previous and Next as links. At the first or the last page that link has no `href`, with `role="link"` and `aria-disabled="true"`: without its `href` a link is a plain element, so only the role keeps it a link that a screen reader says is unavailable.
 2. The page and the page size are in the URL. Offer a page size choice only when people need it.
 3. After a page change, focus moves to the heading that names the table, which carries `tabindex="-1"`, or the first row's title link, and the scroll returns to the top of the table.
 4. When the last page empties, such as after a delete, the list moves to the new last page.
