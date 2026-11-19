@@ -4416,6 +4416,42 @@ describe("css/system.css overlays", () => {
     );
   });
 
+  // 320 by 256 CSS px is a 1280 by 1024 window at 400%: a panel fits neither
+  // under nor over a button there, and from a button at the line's end it is
+  // wider than the room to the window's edge.
+  it.each([
+    ["panel", "start"],
+    ["panel", "end"],
+    ["select", "start"],
+    ["select", "end"],
+  ])(
+    "keeps a %s popover inside a short window and off its button at the line's %s, scrolling what does not fit",
+    async (kind, side) => {
+      await page.viewport(320, 256);
+      theme("light");
+      const rows = Array.from({ length: 10 }, (_, i) => `<p>Row ${String(i + 1)}</p>`).join("");
+      const body =
+        kind === "panel"
+          ? `<div class="cp-popover" data-variant="panel" popover id="pop">${rows}</div>`
+          : `<div class="cp-popover cp-select-panel" popover id="pop"><form><input class="cp-input"><ul role="listbox">${rows}</ul></form></div>`;
+      const el = build(
+        `<div style="padding-block-start: 96px; text-align: ${side}"><button class="cp-button" type="button" id="opener">Filters</button></div>${body}`,
+      );
+      const b = el.querySelector("#opener") as HTMLElement;
+      const pop = el.querySelector("#pop") as HTMLElement;
+      pop.style.transition = "none";
+      b.style.setProperty("anchor-name", "--t-short");
+      pop.style.setProperty("position-anchor", "--t-short");
+      pop.showPopover();
+      await new Promise((r) => requestAnimationFrame(r));
+      const p = pop.getBoundingClientRect();
+      const o = b.getBoundingClientRect();
+      expect([Math.round(p.top) >= 0, Math.round(p.bottom) <= innerHeight]).toEqual([true, true]);
+      expect(p.bottom <= o.top + 0.5 || p.top >= o.bottom - 0.5).toBe(true);
+      expect(pop.scrollHeight).toBeGreaterThan(pop.clientHeight);
+    },
+  );
+
   it("turns a checked menu item's box into an accent circle and shows a radio item's tick only when checked", () => {
     theme("light");
     const el = build(

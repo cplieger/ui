@@ -11546,7 +11546,9 @@ button.cp-figure[aria-expanded="true"]::after {
   position-try-fallbacks:
     flip-block,
     flip-inline,
-    flip-block flip-inline;
+    flip-block flip-inline,
+    --cp-popover-below,
+    --cp-popover-above;
   transform-origin: top left;
   opacity: 0;
   scale: 0.96;
@@ -11570,9 +11572,29 @@ button.cp-figure[aria-expanded="true"]::after {
   }
 }
 
-/* Opened at a point (showPopoverAt), its corner sits where the press was. */
+/* Where the whole popover fits on neither side, as in a short window or at
+ * 400% zoom, it shrinks into the room under its button, or over it when
+ * under is less than a few rows, and scrolls; otherwise it would leave the
+ * window or cover the button. It may take the row's whole width, since a
+ * button near the window's edge leaves too little room beside it. */
+@position-try --cp-popover-below {
+  position-area: block-end span-all;
+  min-block-size: 6rem;
+  max-block-size: calc(100% - var(--cp-space-1));
+  margin-block: var(--cp-space-1) 0;
+}
+
+@position-try --cp-popover-above {
+  position-area: block-start span-all;
+  max-block-size: calc(100% - var(--cp-space-1));
+  margin-block: 0 var(--cp-space-1);
+}
+
+/* Opened at a point (showPopoverAt), its corner sits where the press was
+ * and the script keeps it in the window. */
 .cp-popover[data-cp-at] {
   position-area: none;
+  position-try-fallbacks: none;
   margin: 0;
 }
 
@@ -11766,29 +11788,6 @@ button.cp-figure[aria-expanded="true"]::after {
   margin-block: var(--cp-space-1) 0;
   overflow: auto;
   list-style: none;
-  position-try-fallbacks:
-    flip-block,
-    flip-inline,
-    flip-block flip-inline,
-    --cp-listbox-below,
-    --cp-listbox-above;
-}
-
-/* Where the full list fits on neither side, as in a short window or at 400%
- * zoom, it shrinks into the room under the field, or over it when under is
- * less than a few options; otherwise it would leave the window or cover the
- * field. */
-@position-try --cp-listbox-below {
-  position-area: block-end span-inline-end;
-  min-block-size: 6rem;
-  max-block-size: calc(100% - var(--cp-space-1));
-  margin-block: var(--cp-space-1) 0;
-}
-
-@position-try --cp-listbox-above {
-  position-area: block-start span-inline-end;
-  max-block-size: calc(100% - var(--cp-space-1));
-  margin-block: 0 var(--cp-space-1);
 }
 
 .cp-listbox > [role="listbox"] {
