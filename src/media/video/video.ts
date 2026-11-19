@@ -317,8 +317,9 @@ export function enhanceVideo(root: HTMLElement, options: VideoOptions = {}): Vid
       return;
     }
     const s = seated.get(cue);
-    // A cue the app has given a line since keeps it.
-    if (s === undefined ? !autoPlaced(cue) : !sameLine(lineOf(cue), s.wrote)) {
+    // A cue the app has given a line since keeps it; one set back to "auto" is
+    // the browser's to place again, and keeps the line it had before the seat.
+    if (!(s !== undefined && sameLine(lineOf(cue), s.wrote)) && !autoPlaced(cue)) {
       seated.delete(cue);
       return;
     }

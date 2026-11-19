@@ -1051,6 +1051,21 @@ describe("enhanceVideo captions", () => {
     expect((await caption(video, track)).below).toBeLessThan(1);
   });
 
+  it("lifts a seated caption the app sets back to auto, and gives its first line back on abort", async () => {
+    const stop = new AbortController();
+    const auto = cue("A caption line");
+    const first = lineOf(auto);
+    const { root, video, track } = await captioned([auto], stop.signal);
+    expect((await caption(video, track)).below).toBeGreaterThanOrEqual(margin());
+    // The app places the cue, then hands it back to the browser.
+    auto.line = 0;
+    auto.line = "auto";
+    root.style.maxInlineSize = "24rem";
+    expect((await caption(video, track)).below).toBeGreaterThanOrEqual(margin());
+    stop.abort();
+    expect(lineOf(auto)).toEqual(first);
+  });
+
   it("gives a removed caption its own line back and lifts the one that replaces it", async () => {
     const old = cue("A caption line");
     const own = lineOf(old);
