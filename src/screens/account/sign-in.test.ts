@@ -1491,6 +1491,31 @@ describe("mountSignIn: once the autofill's pick signed in", () => {
     });
   });
 
+  it("sends no password while the signed-in passkey's busy state holds", async () => {
+    const fake = new Fake();
+    const release = fake.hold("signInWithPasskey");
+    const went: string[] = [];
+    const { panel } = mount(fake, {
+      onSignedIn: ({ next }) => {
+        went.push(next);
+      },
+    });
+    await drawn(panel);
+    await userEvent.click(button(panel, "Sign in with a passkey"));
+    // Past the 150 ms after which the button shows busy, which then holds.
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    release();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(went).toEqual([]);
+    input(panel, "username").value = "mika";
+    input(panel, "password").value = "lantern harbour";
+    input(panel, "password").form?.requestSubmit();
+    await vi.waitFor(() => {
+      expect(went).toEqual(["/"]);
+    });
+    expect(fake.named("loginPassword")).toHaveLength(0);
+  });
+
   it("reads nothing and asks no autofill from a refused read's Retry", async () => {
     let reads = 0;
     const fake = new Fake()

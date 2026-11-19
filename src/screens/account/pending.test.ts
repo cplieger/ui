@@ -820,6 +820,24 @@ describe("continueSignIn: once the step signed in", () => {
     });
   });
 
+  it("sends no passkey while the signed-in code's busy state holds", async () => {
+    const fake = new Fake();
+    const { panel, went } = await stepped(fake, pending({ methods: ["totp", "passkey"] }));
+    const release = fake.hold("loginCode");
+    await userEvent.fill(input(panel, "code"), "111111");
+    await userEvent.click(submit(panel));
+    // Past the 150 ms after which the button shows busy, which then holds.
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    release();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(went).toEqual([]);
+    button(panel, "Use a passkey").click();
+    await vi.waitFor(() => {
+      expect(went).toEqual(["/feed"]);
+    });
+    expect(fake.named("loginSecondPasskey")).toHaveLength(0);
+  });
+
   it("draws no other way in once another way signed in", async () => {
     const late = Promise.withResolvers<unknown>();
     const fake = new Fake()

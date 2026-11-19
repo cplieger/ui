@@ -518,6 +518,9 @@ export function mountSetup<C extends SetupClient>(
           confirm,
           () => attempt("auth.setup_passkey", () => access.setupWithPasskey(client, request)),
           (outcome) => outcome?.kind === "signed-in",
+          () => {
+            taken.abort();
+          },
         ).then((got) => {
           if (got === undefined || signal?.aborted === true) {
             return;

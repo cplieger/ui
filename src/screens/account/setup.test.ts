@@ -1182,6 +1182,26 @@ describe("mountSetup: once one way made the account", () => {
     expect(done).toEqual([0, 0]);
   });
 
+  it("sends no password while the passkey's busy state holds", async () => {
+    const fake = new Fake().answer("state", ok(SETUP));
+    const release = fake.hold("setupWithPasskey");
+    const { done, options } = counted();
+    const { region } = mount(fake, options);
+    await drawn(region);
+    await fillIn(region);
+    await userEvent.click(button(region, "Create with a passkey"));
+    // Past the 150 ms after which the button shows busy, which then holds.
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    release();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(done).toEqual([0, 0]);
+    region.querySelector("form")?.requestSubmit();
+    await vi.waitFor(() => {
+      expect(done).toEqual([1, 0]);
+    });
+    expect(fake.named("setupPassword")).toHaveLength(0);
+  });
+
   it("adds no passkey once Skip handed on", async () => {
     const { done, options } = counted();
     const { region, fake } = mount(undefined, { ...options, offerPasskey: () => true });

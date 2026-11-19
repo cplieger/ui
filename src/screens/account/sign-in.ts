@@ -194,6 +194,9 @@ export function mountSignIn<C extends SignInClient>(
   const taken = new AbortController();
   let handed = false;
   const isTaken = (): boolean => taken.signal.aborted;
+  const take = (): void => {
+    taken.abort();
+  };
   const held = (): boolean => taken.signal.aborted || hold?.active() === true;
   const until = signal === undefined ? taken.signal : AbortSignal.any([signal, taken.signal]);
   let holdable: HTMLElement[] = [];
@@ -578,6 +581,7 @@ export function mountSignIn<C extends SignInClient>(
     },
     refused,
     held,
+    take,
     taken: taken.signal,
     ...life,
   });
@@ -947,6 +951,7 @@ export function mountSignIn<C extends SignInClient>(
           confirm,
           () => attempt("auth.sign_in_passkey", () => access.signInWithPasskey(client)),
           (outcome) => outcome?.kind === "signed-in",
+          take,
         ).then((got) => {
           if (got === undefined || signal?.aborted === true) {
             return;

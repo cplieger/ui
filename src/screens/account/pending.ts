@@ -311,6 +311,11 @@ export function continueSignIn<C extends PendingClient>(
       confirm,
       () => attempt(name, call),
       (a) => a?.ok === true && !("pending" in a.data),
+      (a) => {
+        if (a?.ok === true && "signed_in" in a.data) {
+          taken.abort();
+        }
+      },
     );
     if (got === undefined) {
       return;
@@ -318,7 +323,6 @@ export function continueSignIn<C extends PendingClient>(
     const a = got.answer;
     if (a?.ok === true) {
       if ("signed_in" in a.data) {
-        taken.abort();
         await kept?.();
       }
       await took(a.data);
@@ -355,6 +359,11 @@ export function continueSignIn<C extends PendingClient>(
           confirm,
           () => attempt(name, ceremony),
           (o) => o?.kind === "answered" && !("pending" in o.result),
+          (o) => {
+            if (o?.kind === "answered" && "signed_in" in o.result) {
+              taken.abort();
+            }
+          },
         ).then(async (got) => {
           if (got === undefined) {
             return;

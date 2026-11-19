@@ -410,6 +410,27 @@ describe("mountSignIn: link with an admin's temporary password", () => {
     expect(went).toEqual(["/"]);
   });
 
+  it("sends no new account while the signed-in link's busy state holds", async () => {
+    const fake = onlyFake().answer("oidcPending", CAN_CREATE);
+    const release = fake.hold("oidcLinkByAdmin");
+    const { panel, went } = linkScreen(fake);
+    await drawn(panel);
+    await send(panel);
+    // Past the 150 ms after which the button shows busy, which then holds.
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    release();
+    await vi.waitFor(() => {
+      expect(fake.named("oidcLinkByAdmin")).toHaveLength(1);
+    });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(went).toEqual([]);
+    input(panel, "new_username").form?.requestSubmit();
+    await vi.waitFor(() => {
+      expect(went).toEqual(["/"]);
+    });
+    expect(fake.named("oidcCreatePending")).toHaveLength(0);
+  });
+
   it("signs in as linked, with no second link call", async () => {
     const { panel, fake } = linkScreen(onlyFake().answer("oidcLinkByAdmin", ok(signedIn)));
     await drawn(panel);

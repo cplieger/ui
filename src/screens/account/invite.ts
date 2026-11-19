@@ -496,18 +496,23 @@ export function mountInvite<C extends InviteClient>(
                 client.inviteAcceptOIDC?.({ token }) ?? Promise.reject(new Error("no call")),
             ),
           (answer) => answer?.ok === true,
+          () => {
+            taken.abort();
+          },
         ).then((got) => {
-          if (got === undefined || signal?.aborted === true || taken.signal.aborted) {
+          if (got === undefined || signal?.aborted === true) {
             return;
           }
           const answer = got.answer;
-          if (answer === null) {
-            notices.show("danger", w["generic.server"]);
-          } else if (answer.ok) {
+          if (answer?.ok === true) {
             const { url } = answer.data;
             leave(() => {
               navigate(url);
             });
+          } else if (taken.signal.aborted) {
+            return;
+          } else if (answer === null) {
+            notices.show("danger", w["generic.server"]);
           } else {
             refused(answer);
           }

@@ -37,6 +37,7 @@ const STEP_IN = { kind: "answered", result: { signed_in: { ...signedIn, recovery
 type Answer = readonly [unknown, boolean, boolean];
 const IN = (v: unknown, code = false): Answer => [v, code, true];
 const NOT = (v: unknown): Answer => [v, false, false];
+const WAITING = { waiting_approval: true, recovery_code: CODE };
 
 /** The answers each held call can be given. */
 const ANSWERS: Readonly<Record<string, readonly Answer[]>> = {
@@ -66,8 +67,13 @@ const ANSWERS: Readonly<Record<string, readonly Answer[]>> = {
     IN(SIGNED_IN_CODE, true),
     NOT(refuse(401, "auth_code_invalid", "code_invalid")),
     NOT(WAIT),
+    [ok(WAITING), true, false],
   ],
-  pendingPasskey: [IN(STEP_IN, true), NOT({ kind: "cancelled" })],
+  pendingPasskey: [
+    IN(STEP_IN, true),
+    NOT({ kind: "cancelled" }),
+    [{ kind: "answered", result: WAITING }, true, false],
+  ],
   inviteAcceptPassword: [
     IN(ok(signedIn)),
     NOT(ENROL),

@@ -628,6 +628,26 @@ describe("mountInvite: once one way signed the person in", () => {
     expect(noticeOf(panel)).toBeNull();
   });
 
+  it("sends no password while the provider's busy state holds", async () => {
+    const fake = new Fake();
+    const release = fake.hold("inviteAcceptOIDC");
+    const { panel, went } = mount(fake);
+    await drawn(panel);
+    await userEvent.click(button(panel, "Accept with Authelia"));
+    // Past the 150 ms after which the button shows busy, which then holds.
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    release();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(went).toEqual([]);
+    input(panel, "username").value = "noor";
+    input(panel, "password").value = "lantern harbour quietly";
+    input(panel, "password").form?.requestSubmit();
+    await vi.waitFor(() => {
+      expect(went).toHaveLength(1);
+    });
+    expect(fake.named("inviteAcceptPassword")).toHaveLength(0);
+  });
+
   it("sends nothing from the form drawn again while the browser keeps the password", async () => {
     const fake = new Fake().answer(
       "inviteAcceptPassword",

@@ -278,12 +278,15 @@ class Refused extends Error {}
 const REFUSED = new Refused("refused");
 
 /** Runs `work` on `confirm`'s cycle, whose done state shows only when
- *  `done` holds for what `work` answered. Answers that, or undefined when
- *  the button was already busy and `work` never ran. */
+ *  `done` holds for what `work` answered. `now` runs on such an answer at
+ *  once, before the busy state's shown hold ends. Answers what `work`
+ *  answered, or undefined when the button was already busy and `work`
+ *  never ran. */
 export async function cycle<T>(
   confirm: Confirm,
   work: () => Promise<T>,
   done: (answer: T) => boolean,
+  now?: (answer: T) => void,
 ): Promise<{ readonly answer: T } | undefined> {
   let got: { readonly answer: T } | undefined;
   try {
@@ -293,6 +296,7 @@ export async function cycle<T>(
       if (!done(answer)) {
         throw REFUSED;
       }
+      now?.(answer);
     });
   } catch (err) {
     if (err !== REFUSED) {

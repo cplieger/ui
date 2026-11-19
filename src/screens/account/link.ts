@@ -34,6 +34,9 @@ export interface LinkContext {
   readonly refused: (r: Refusal) => void;
   /** A hold, or a sign-in already taken: either stops a send. */
   readonly held: () => boolean;
+  /** Marks a sign-in taken the moment its answer comes, so no other form
+   *  sends while its button's busy state holds. */
+  readonly take: () => void;
   /** Aborts once the screen took a sign-in; an answer after it draws nothing. */
   readonly taken: AbortSignal;
   readonly signal?: AbortSignal;
@@ -145,15 +148,18 @@ export function adminLinkForm(x: LinkContext): HTMLFormElement {
             client.oidcLinkByAdmin?.(request) ?? Promise.reject(new Error("no call")),
         ),
       (answer) => answer?.ok === true,
+      x.take,
     );
-    if (got === undefined || ended(x)) {
+    if (got === undefined || x.signal?.aborted === true) {
       return;
     }
     const answer = got.answer;
-    if (answer === null) {
-      x.notices.show("danger", w["generic.server"]);
-    } else if (answer.ok) {
+    if (answer?.ok === true) {
       x.done(answer.data);
+    } else if (ended(x)) {
+      return;
+    } else if (answer === null) {
+      x.notices.show("danger", w["generic.server"]);
     } else if (codeOf(answer) === "auth_invalid_credentials") {
       // access answers a mode that is no longer "only" the same way.
       const state = await read(() => client.state());
@@ -228,17 +234,21 @@ export function createSection(x: LinkContext, pending: PendingLinkView): HTMLEle
             client.oidcCreatePending?.(request) ?? Promise.reject(new Error("no call")),
         ),
       (answer) => answer?.ok === true,
+      x.take,
     );
-    if (got === undefined || ended(x)) {
+    if (got === undefined || x.signal?.aborted === true) {
       return;
     }
     const answer = got.answer;
-    if (answer === null) {
-      x.notices.show("danger", w["generic.server"]);
+    if (answer?.ok === true) {
+      x.done(answer.data);
       return;
     }
-    if (answer.ok) {
-      x.done(answer.data);
+    if (ended(x)) {
+      return;
+    }
+    if (answer === null) {
+      x.notices.show("danger", w["generic.server"]);
       return;
     }
     switch (codeOf(answer)) {
