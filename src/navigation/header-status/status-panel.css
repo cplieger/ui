@@ -39,11 +39,22 @@
   font-size: var(--cp-text-sm);
 }
 
-/* Rows carry their own inset, so a section of rows drops its own. */
+/* Rows carry their own inset, so a section of rows drops its own. Its rows
+ * are a popup's compact rows, held at the panel's inset; one with a line
+ * under its title, which compact density gives no inset, takes a row's. */
 .cp-status-panel > section:has(> .cp-list) {
   gap: 0;
   padding-inline: 0;
   padding-block: var(--cp-space-3) var(--cp-space-1);
+}
+
+.cp-status-panel > section > .cp-list-heading:has(+ .cp-list[data-density="compact"]),
+.cp-status-panel > section > .cp-list > li > .cp-list-row {
+  padding-inline: var(--cp-space-4);
+}
+
+.cp-status-panel .cp-list-row:has(> .cp-cell-stack > small):not(:has(> progress)) {
+  padding-block: var(--cp-space-2);
 }
 
 .cp-status-panel > section > strong {

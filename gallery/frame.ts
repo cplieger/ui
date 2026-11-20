@@ -11,6 +11,7 @@ import { installAnnouncer } from "@cplieger/ui/announce";
 import { guardChanges } from "@cplieger/ui/form";
 import { createHeaderStatus } from "@cplieger/ui/header-status";
 import { createIcons } from "@cplieger/ui/icons";
+import { installRowActions } from "@cplieger/ui/list-row";
 import { enhancePill } from "@cplieger/ui/pill";
 import { applyPointerTier } from "@cplieger/ui/pointer";
 import { installPointerTier } from "@cplieger/ui/pointer/follow";
@@ -20,6 +21,7 @@ applyPointerTier();
 installPointerTier();
 installAnchors();
 installAnnouncer();
+installRowActions();
 
 const root = document.documentElement;
 const icons = createIcons<string>({ base: new URL("icons/svg/", import.meta.url).href });

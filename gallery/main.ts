@@ -13,6 +13,7 @@ import { enhanceDateRange } from "@cplieger/ui/date-range";
 import { enhanceRange } from "@cplieger/ui/range";
 import { enhanceSearch } from "@cplieger/ui/search";
 import { enhancePairs } from "@cplieger/ui/pairs";
+import { installRowActions } from "@cplieger/ui/list-row";
 import { enhanceRules } from "@cplieger/ui/rules";
 import { enhanceReveal, enhanceSecret } from "@cplieger/ui/secret";
 import { enhancePanel } from "@cplieger/ui/panel";
@@ -52,6 +53,7 @@ const all = <E extends Element>(selector: string): E[] => [
 installAnnouncer();
 installRadioFocus();
 installTooltips();
+installRowActions();
 
 // The gallery names a group's boxes by data-group and its select-all box by
 // data-select-all.

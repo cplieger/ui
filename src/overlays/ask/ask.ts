@@ -297,7 +297,14 @@ export function ask(
   footer.append(cancel, confirm);
   form.append(body, footer);
   dialog.append(form);
-  document.body.append(dialog);
+  // showModal() hides every open auto popover that is not the dialog's
+  // ancestor (https://html.spec.whatwg.org/multipage/interactive-elements.html#dom-dialog-showmodal),
+  // so a question asked from a popover that is a dialog, such as a panel's
+  // button, opens inside it. A menu closes as it is chosen, and its keys
+  // would take the question's, so a question from one opens in the body.
+  const holder =
+    document.activeElement?.closest<HTMLElement>('[role="dialog"]:popover-open') ?? null;
+  (holder ?? document.body).append(dialog);
 
   return new Promise((resolve) => {
     let done = false;
@@ -307,6 +314,7 @@ export function ask(
       }
       done = true;
       opts.signal?.removeEventListener("abort", onAbort);
+      holder?.removeEventListener("toggle", onHolderToggle);
       if (current?.dialog === dialog) {
         current = null;
       }
@@ -326,6 +334,13 @@ export function ask(
     const onAbort = (): void => {
       settle(true);
     };
+    // A question asked from a popover belongs to it, so it ends, declined,
+    // when that popover closes.
+    const onHolderToggle = (e: ToggleEvent): void => {
+      if (e.newState === "closed") {
+        settle(true);
+      }
+    };
     current = { dialog, settle };
     dialog.addEventListener(
       "close",
@@ -335,6 +350,7 @@ export function ask(
       { once: true },
     );
     opts.signal?.addEventListener("abort", onAbort, { once: true });
+    holder?.addEventListener("toggle", onHolderToggle);
     dialog.showModal();
     const focus = opts.focus ?? (opts.tone === "danger" ? "decline" : "answer");
     const answer = boxes[0]?.box ?? confirm;

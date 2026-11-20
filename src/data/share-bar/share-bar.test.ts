@@ -138,6 +138,9 @@ describe("enhanceShareBar", () => {
     // A tap on a link follows it; a plain chip's tap shows its tip.
     expect(best.hasAttribute("data-cp-tip-toggle")).toBe(false);
     expect(withheld.hasAttribute("data-cp-tip-toggle")).toBe(true);
+    // A plain chip is text the keyboard still reaches for its tip.
+    expect(best.hasAttribute("tabindex")).toBe(false);
+    expect(withheld.tabIndex).toBe(0);
     best.focus({ focusVisible: true });
     const tip = document.querySelector(".cp-tooltip") as HTMLElement;
     expect(tip.matches(":popover-open")).toBe(true);

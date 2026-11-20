@@ -1,6 +1,8 @@
 /* A tooltip (@cplieger/ui/tooltip): dark and small, above its control,
  * flipping below near the window's top, fading up a quarter rem as it
- * shows. It names or hints; the control keeps its own name. */
+ * shows. It names or hints; the control keeps its own name. The mouse
+ * may move onto it (WCAG 1.4.13), so it takes the pointer while open,
+ * and nothing outside its own box does. */
 .cp-tooltip {
   position: fixed;
   inset: auto;
@@ -15,7 +17,7 @@
   position-anchor: --cp-tip-anchor;
   position-area: block-start;
   position-try-fallbacks: flip-block;
-  pointer-events: none;
+  overflow-wrap: anywhere;
   opacity: 0;
   translate: 0 0.25rem;
   transition:
@@ -30,11 +32,49 @@
   translate: 0 0;
 }
 
+/* A closing tip fades out over a press meant for what lies under it. */
+.cp-tooltip:not(:popover-open) {
+  pointer-events: none;
+}
+
 @starting-style {
   .cp-tooltip:popover-open {
     opacity: 0;
     translate: 0 0.25rem;
   }
+}
+
+/* An info glyph (`.cp-info`): a focusable span inside the text it explains,
+ * its words in data-cp-tip. It is the bare glyph in the text's secondary
+ * ink, never a control's box. Its centre sits on the text's cap band: an
+ * empty inline-block's baseline is its bottom edge, so it rises half a cap
+ * less half its size. The ::after only widens a finger's target. */
+.cp-info {
+  --cp-info-size: 1em;
+
+  position: relative;
+  display: inline-block;
+  inline-size: var(--cp-info-size);
+  block-size: var(--cp-info-size);
+  margin-inline-start: 0.25em;
+  border-radius: var(--cp-radius-round);
+  color: var(--cp-ink-muted);
+  vertical-align: calc(0.5cap - var(--cp-info-size) / 2);
+  cursor: help;
+}
+
+.cp-info::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: currentcolor;
+  mask: url("../icons/svg/info.svg") center / contain no-repeat;
+}
+
+.cp-info::after {
+  content: "";
+  position: absolute;
+  inset: calc(min(0px, (var(--cp-info-size) - var(--cp-hit-min)) / 2));
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -53,5 +93,9 @@
 @media (forced-colors: active) {
   .cp-tooltip {
     border: var(--cp-line-w) solid CanvasText;
+  }
+
+  .cp-info {
+    color: CanvasText;
   }
 }

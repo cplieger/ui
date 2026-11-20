@@ -29,24 +29,31 @@ export function enhancePanel(panel: HTMLElement, options: PanelOptions = {}): vo
     return;
   }
   const listen = until(signal);
-  const heading = (): HTMLElement | null =>
-    panel.querySelector<HTMLElement>("h1, h2, h3, h4, h5, h6");
+  // A question asked from the panel opens inside it (`@cplieger/ui/ask`),
+  // and its parts are the question's, not the panel's.
+  const own = (el: Element): boolean => {
+    const d = el.closest("dialog");
+    return d === null || !panel.contains(d);
+  };
+  const heading = (): HTMLElement | undefined =>
+    [...panel.querySelectorAll<HTMLElement>("h1, h2, h3, h4, h5, h6")].find(own);
   const named = panel.hasAttribute("aria-label") || panel.hasAttribute("aria-labelledby");
   const title = heading();
   if (!panel.hasAttribute("role")) {
     panel.setAttribute("role", "dialog");
   }
-  if (!named && title !== null) {
+  if (!named && title !== undefined) {
     if (title.id === "") {
       title.id = `cp-panel-${String(++seq)}-heading`;
     }
     panel.setAttribute("aria-labelledby", title.id);
   }
-  const last = (): HTMLElement | null | undefined =>
-    [...panel.querySelectorAll<HTMLElement>(TABBABLE)].findLast((el) => el.checkVisibility()) ??
-    heading();
-  const first = (): HTMLElement | undefined =>
-    [...panel.querySelectorAll<HTMLElement>(TABBABLE)].find((el) => el.checkVisibility());
+  const tabbable = (): HTMLElement[] =>
+    [...panel.querySelectorAll<HTMLElement>(TABBABLE)].filter(
+      (el) => own(el) && el.checkVisibility(),
+    );
+  const last = (): HTMLElement | undefined => tabbable().at(-1) ?? heading();
+  const first = (): HTMLElement | undefined => tabbable()[0];
   panel.addEventListener(
     "toggle",
     (e) => {
@@ -54,7 +61,7 @@ export function enhancePanel(panel: HTMLElement, options: PanelOptions = {}): vo
         return;
       }
       const h = heading();
-      if (h !== null) {
+      if (h !== undefined) {
         if (!h.hasAttribute("tabindex")) {
           h.tabIndex = -1;
         }

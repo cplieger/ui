@@ -134,10 +134,6 @@ if (startsPill !== null && startsPanel !== null) {
   const show = (): void => {
     status.update({
       starts,
-      startsInfo: {
-        label: "About the checks",
-        tip: "Quick check judges what changed in the last 48 hours, in seconds. Full check judges everything, in about a minute.",
-      },
       conditions: [],
       work,
       recent,

@@ -11,6 +11,7 @@
  */
 
 import { shared } from "../../core/lifetime/lifetime.js";
+import { cancelRegion, writeRegion } from "./region.js";
 
 export type Politeness = "polite" | "assertive";
 
@@ -23,11 +24,6 @@ export interface AnnouncerOptions {
  *  attribute, never a class: the stylesheet draws the pair as any visually
  *  hidden box. */
 const PAIR = "data-cp-live-regions";
-/** The pause between emptying a region and writing to it, so the same
- *  message twice is read twice. */
-const GAP_MS = 100;
-
-const pending = new Map<HTMLElement, ReturnType<typeof setTimeout>>();
 
 /** The pair of regions directly inside `host`, made if it has none. */
 function pairIn(host: Element): HTMLElement {
@@ -72,15 +68,7 @@ export function announce(message: string, politeness: Politeness = "polite"): vo
   if (region === null) {
     return;
   }
-  region.textContent = "";
-  clearTimeout(pending.get(region));
-  pending.set(
-    region,
-    setTimeout(() => {
-      pending.delete(region);
-      region.textContent = message;
-    }, GAP_MS),
-  );
+  writeRegion(region, message);
 }
 
 const page = shared((signal) => {
@@ -116,11 +104,10 @@ const page = shared((signal) => {
   signal.addEventListener(
     "abort",
     () => {
-      for (const t of pending.values()) {
-        clearTimeout(t);
-      }
-      pending.clear();
       for (const pair of document.querySelectorAll(`[${PAIR}]`)) {
+        for (const r of pair.children) {
+          cancelRegion(r);
+        }
         pair.remove();
       }
     },

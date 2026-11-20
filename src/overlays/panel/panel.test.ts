@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { userEvent } from "vitest/browser";
 
+import { ask } from "../ask/ask.js";
 import { enhancePanel } from "./panel.js";
 
 let life = new AbortController();
@@ -88,5 +89,22 @@ describe("enhancePanel", () => {
     await userEvent.keyboard("{Tab}");
     expect(panel.matches(":popover-open")).toBe(false);
     expect(document.activeElement).toBe(after);
+  });
+
+  it("stays open as Tab leaves the last button of a question asked from inside it", async () => {
+    const { opener, panel } = page();
+    enhancePanel(panel, { signal: life.signal });
+    opener.focus();
+    await userEvent.keyboard("{Enter}");
+    (panel.querySelector("#last") as HTMLElement).focus();
+    const reply = ask("Open the log?", { focus: "answer" });
+    const question = panel.querySelector("dialog");
+    expect(question?.matches(":modal")).toBe(true);
+    expect(document.activeElement).toBe(question?.querySelector('button[value="confirm"]'));
+    await userEvent.keyboard("{Tab}");
+    expect(panel.matches(":popover-open")).toBe(true);
+    await userEvent.keyboard("{Escape}");
+    await expect(reply).resolves.toBe(false);
+    expect(panel.matches(":popover-open")).toBe(true);
   });
 });

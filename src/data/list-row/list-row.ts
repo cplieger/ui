@@ -1,11 +1,93 @@
 /**
  * list-row.ts — a list row's states that a script sets. `markKept()` mutes
  * a row the app could not refresh beside the time it is from and the
- * reason, in a `.cp-list` or a `.cp-table` alike.
+ * reason, in a `.cp-list` or a `.cp-table` alike. `installRowActions()`
+ * makes a row whose one action is a link or a button that action, whole.
  * @module
  */
 
+import { shared } from "../../core/lifetime/lifetime.js";
 import { rowOf } from "./row.js";
+
+export interface RowActionsOptions {
+  /** Ends the hold this call takes. Default: none, held for the page's life. */
+  readonly signal?: AbortSignal;
+}
+
+const ROWS = "div.cp-list-row, .cp-table tbody tr, .cp-feed-entry";
+const ACTIONS =
+  'a[href], button, input:not([type="hidden"]), select, textarea, summary, [contenteditable]:not([contenteditable="false"]), [role="button"], [role="link"], [role="checkbox"], [role="switch"], [role="radio"], [role="tab"], [role="slider"], [role="combobox"], [role="menuitem"], [role="option"]';
+const ROW = "data-cp-row-action";
+const STRETCH = "data-cp-stretch";
+
+/** The one link or button `row` holds, or null when it holds none, more
+ *  than one action, or one that is neither. A popover in the row, such as
+ *  a ⋯ menu's, belongs to its opener, so its items are not counted. */
+function oneAction(row: Element): Element | null {
+  const actions = [...row.querySelectorAll(ACTIONS)].filter((el) => {
+    const popover = el.parentElement?.closest("[popover]");
+    return popover == null || popover.contains(row);
+  });
+  const [only] = actions;
+  return actions.length === 1 && only?.matches("a[href], button") === true ? only : null;
+}
+
+function mark(row: Element): void {
+  const only = oneAction(row);
+  for (const el of row.querySelectorAll(`[${STRETCH}]`)) {
+    if (el !== only) {
+      el.removeAttribute(STRETCH);
+    }
+  }
+  row.toggleAttribute(ROW, only !== null);
+  only?.setAttribute(STRETCH, "");
+}
+
+const rowsIn = (node: Node): Element[] => {
+  if (!(node instanceof Element)) {
+    return [];
+  }
+  const own = node.closest(ROWS);
+  return [...(own === null ? [] : [own]), ...node.querySelectorAll(ROWS)];
+};
+
+const page = shared((signal) => {
+  for (const row of document.querySelectorAll(ROWS)) {
+    mark(row);
+  }
+  const watch = new MutationObserver((records) => {
+    const rows = new Set<Element>();
+    for (const r of records) {
+      for (const row of [...rowsIn(r.target), ...[...r.addedNodes].flatMap(rowsIn)]) {
+        rows.add(row);
+      }
+    }
+    for (const row of rows) {
+      mark(row);
+    }
+  });
+  watch.observe(document.documentElement, {
+    subtree: true,
+    childList: true,
+    attributes: true,
+    attributeFilter: ["href", "role", "type", "contenteditable"],
+  });
+  signal.addEventListener("abort", () => {
+    watch.disconnect();
+  });
+});
+
+/**
+ * Makes each list row, table body row and feed entry holding exactly one
+ * link or button that action whole: the row takes `data-cp-row-action` and
+ * the action `data-cp-stretch`, stretched over the row, so a press anywhere
+ * follows it and the row takes the row hover and the action's focus ring. A
+ * row of two actions or none takes neither. Rows added or changed later are
+ * read again; the marks stay until every caller's signal has aborted.
+ */
+export function installRowActions(options: RowActionsOptions = {}): void {
+  page.install(options);
+}
 
 export interface KeptOptions {
   /** The kept line's words for the time the row is from and the reason.

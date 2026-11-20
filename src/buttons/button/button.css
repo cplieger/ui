@@ -53,7 +53,10 @@
   color: var(--cp-ink-muted);
 }
 
-.cp-header .cp-button[data-variant="quiet"]:not(:disabled, [aria-disabled="true"]) {
+/* A header rule stops at a popover inside the header, which keeps its own
+ * surface and ink. */
+/* stylelint-disable-next-line selector-max-attribute -- the variant, the two disabled forms and the popover are each an attribute */
+.cp-header .cp-button[data-variant="quiet"]:not(:disabled, [aria-disabled="true"], [popover] *) {
   color: inherit;
 }
 
@@ -78,7 +81,9 @@
       color: var(--cp-ink);
     }
 
-    :where(.cp-header) .cp-button[data-variant="quiet"]:hover:enabled {
+    /* stylelint-disable-next-line selector-max-attribute, selector-max-pseudo-class -- the quiet hover's own selector, scoped to the bar and out of its popovers */
+    :where(.cp-header)
+      .cp-button[data-variant="quiet"]:hover:not(:disabled, [aria-disabled="true"], [popover] *) {
       background: var(--cp-shell-hover);
       color: inherit;
     }
