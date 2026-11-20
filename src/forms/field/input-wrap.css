@@ -20,6 +20,12 @@
   padding: 0;
 }
 
+/* The ring stays in the room inside the field's border: where it crossed
+ * the border, those pixels would change to the ring under 3:1. */
+.cp-input-wrap > .cp-button:focus-visible {
+  outline-offset: 0;
+}
+
 /* Under a finger, the control's target reaches the tier's minimum. */
 :root[data-pointer="coarse"] .cp-input-wrap > .cp-button::after {
   content: "";

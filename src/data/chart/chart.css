@@ -568,11 +568,12 @@
   fill: var(--cp-ink);
 }
 
-/* A note's, a bar value's or a tile label's 3 px halo of the plot's surface
- * keeps it legible over bars, tiles, gridlines and rules, on the surface
- * its ink was tested on; the stroke paints first, so it widens the glyphs
- * by half. */
+/* A note's, a bar value's, a tile label's or an in-plot rule label's 3 px
+ * halo of the plot's surface keeps it legible over bars, tiles, lines,
+ * gridlines and rules, on the surface its ink was tested on; the stroke
+ * paints first, so it widens the glyphs by half. */
 .cp-chart svg :is([data-part="note"], [data-part="value"]) text,
+.cp-chart svg [data-part="area"] [data-part="rule-label"] text,
 .cp-chart svg [data-part="tile"] text {
   fill: var(--cp-ink);
   stroke: var(--cp-chart-surface);

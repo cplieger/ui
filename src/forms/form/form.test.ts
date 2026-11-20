@@ -33,6 +33,13 @@ function source(): {
 
 const heading = (n: number) => `${String(n)} fields need a fix before this saves`;
 
+/** The elements `el`'s id-list attribute `name` points at, in its order. */
+const byIds = (el: Element, name: string): (Element | null)[] =>
+  (el.getAttribute(name) ?? "")
+    .split(/\s+/)
+    .filter((id) => id !== "")
+    .map((id) => document.getElementById(id));
+
 describe("reportErrors", () => {
   it("marks each field and lists them all in the summary, which takes focus, for two or more", async () => {
     const { form, summary, url, key } = source();
@@ -62,6 +69,37 @@ describe("reportErrors", () => {
     ]);
     await userEvent.click(links[1] as HTMLAnchorElement);
     expect(document.activeElement).toBe(key);
+  });
+
+  it("names the summary it focuses by its heading and describes it by its list, as a group", () => {
+    const { form, summary, url, key } = source();
+    const errors = [
+      { field: url, message: "Enter the address." },
+      { field: key, message: "Paste the key." },
+    ];
+    reportErrors(form, errors, { summary, heading });
+    expect(document.activeElement).toBe(summary);
+    expect(summary.getAttribute("role")).toBe("group");
+    expect(byIds(summary, "aria-labelledby")).toEqual([summary.querySelector("strong")]);
+    expect(byIds(summary, "aria-describedby")).toEqual([summary.querySelector("ul")]);
+    reportErrors(form, errors, { summary, heading: () => "Fix these" });
+    expect(byIds(summary, "aria-labelledby").map((el) => el?.textContent)).toEqual(["Fix these"]);
+    expect(byIds(summary, "aria-describedby")).toEqual([summary.querySelector("ul")]);
+  });
+
+  it("keeps a role the summary already has", () => {
+    const { form, summary, url, key } = source();
+    summary.setAttribute("role", "region");
+    reportErrors(
+      form,
+      [
+        { field: url, message: "Enter the address." },
+        { field: key, message: "Paste the key." },
+      ],
+      { summary, heading },
+    );
+    expect(summary.getAttribute("role")).toBe("region");
+    expect(byIds(summary, "aria-labelledby")).toEqual([summary.querySelector("strong")]);
   });
 
   it("moves focus to the field for one error, and hides the summary", () => {
@@ -343,6 +381,18 @@ describe("reportErrors across sections", () => {
     expect(document.activeElement).toBe(notice);
     reportErrors(form, [], { summary, heading, notice });
     expect(notice.hidden).toBe(true);
+  });
+
+  it("names the notice it focuses by its sentences, as a group", () => {
+    const { form, summary, notice } = settings();
+    reportErrors(form, [{ message: "These settings changed on another device." }], {
+      summary,
+      heading,
+      notice,
+    });
+    expect(document.activeElement).toBe(notice);
+    expect(notice.getAttribute("role")).toBe("group");
+    expect(byIds(notice, "aria-labelledby")).toEqual([notice.querySelector("[data-part='body']")]);
   });
 
   it("lists every document error in the notice, and the field beside it in the summary", () => {

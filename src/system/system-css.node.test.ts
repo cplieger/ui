@@ -179,6 +179,11 @@ const HARMONY = {
   band: { from: 100, to: 135, split: 117.5, low: 90, high: 142 },
   // the lighter accent sits this far above step 9
   lighter: 0.14,
+  // Under prefers-contrast: more, a light partner whose floor passes `split`
+  // rises to `high` for black ink and any other sits at the more ladder's
+  // step 9; a dark partner sits at the higher of its floor and step 9. So no
+  // ink falls under 7:1. `chroma` keeps those lightnesses inside sRGB.
+  more: { split: 0.62, high: 0.8, chroma: 0.8 },
   // chroma cap: a - b * max(0, cos(h - centre))^power
   cap: {
     light: { partner: [0.166, 0.066, 200, 3], lighter: [0.154, 0.034, 200, 8] },
@@ -201,21 +206,27 @@ function turned(hue: number, turn: number): number {
 }
 
 /** The harmony colours as OKLCH triples, the reference the CSS computes. */
-function harmony(hue: number, chroma: number, theme: Theme): Colour[] {
+function harmony(hue: number, chroma: number, theme: Theme, mode: Mode = "normal"): Colour[] {
   const l9 = HARMONY.l9[theme];
-  const { floor } = HARMONY;
+  const { floor, more } = HARMONY;
+  const moreL9 = LADDER.more[theme][8] ?? 0;
   const capOf = ([a, b, centre, power]: Cap, h: number) =>
     a - b * Math.max(0, cos(h - centre)) ** power;
   const partner = (turn: number): Colour => {
     const h = turned(hue, turn);
-    const l = Math.max(
-      l9,
-      floor.base + floor.amp * Math.max(0, cos(h - floor.peak)) ** floor.power,
-    );
-    return [l, Math.min(chroma * HARMONY.chroma, capOf(HARMONY.cap[theme].partner, h)), h];
+    const lift = floor.base + floor.amp * Math.max(0, cos(h - floor.peak)) ** floor.power;
+    const c = Math.min(chroma * HARMONY.chroma, capOf(HARMONY.cap[theme].partner, h));
+    if (mode === "normal") {
+      return [Math.max(l9, lift), c, h];
+    }
+    if (theme === "dark") {
+      return [Math.max(moreL9, lift), c * more.chroma, h];
+    }
+    return [lift > more.split ? Math.max(lift, more.high) : moreL9, c * more.chroma, h];
   };
   // The lead is the accent's own step 9, white-ink dip included.
-  const lead = theme === "light" ? lightSolidL(hue) : (LADDER.normal.dark[8] ?? 0);
+  const lead =
+    mode === "more" ? moreL9 : theme === "light" ? lightSolidL(hue) : (LADDER.normal.dark[8] ?? 0);
   return [
     [lead, chroma, hue],
     ...HARMONY.turns.map(partner),
@@ -225,13 +236,16 @@ function harmony(hue: number, chroma: number, theme: Theme): Colour[] {
 
 const num = (v: number) => String(Number(v.toFixed(4)));
 
+// The models' comparisons as CSS steps: 1 where `x > 0`, and where `x >= 0`, else 0.
+const above = (x: string) => `max(0, sign(${x}))`;
+const atLeast = (x: string) => `(1 - max(0, sign(-1 * (${x}))))`;
+
 // A partner's hue as CSS: the turn wrapped into 0 to 360, then the band's
-// two halves moved to their edges. clamp(0, x * 1e5, 1) is 0 for x <= 0 and
-// 1 from x = 1e-5; adding 1 makes it 1 at x = 0 too, for the closed edge.
+// two halves moved to their edges.
 function partnerHueCss(turn: number): string {
   const { band } = HARMONY;
   const raw = `mod(calc(var(--cp-accent-h) + ${String(turn)}), 360)`;
-  const step = (x: string, closed = false) => `clamp(0, (${x}) * 100000${closed ? " + 1" : ""}, 1)`;
+  const step = (x: string, closed = false) => (closed ? atLeast(x) : above(x));
   const lowHalf = `${step(`${raw} - ${num(band.from)}`)} * ${step(`${num(band.split)} - ${raw}`)}`;
   const highHalf = `${step(`${raw} - ${num(band.split)}`, true)} * ${step(`${num(band.to)} - ${raw}`)}`;
   return `calc(${raw} + ${lowHalf} * (${num(band.low)} - ${raw}) + ${highHalf} * (${num(band.high)} - ${raw}))`;
@@ -246,6 +260,19 @@ function partnerCss(theme: Theme, h: string): string {
   const l9 = HARMONY.l9[theme];
   const l = `max(${num(l9)}, calc(${num(floor.base)} + ${num(floor.amp)} * pow(max(0, cos((${h} - ${String(floor.peak)}) * 1deg)), ${String(floor.power)})))`;
   const c = `min(calc(var(--cp-accent-c) * ${num(HARMONY.chroma)}), ${capCss(HARMONY.cap[theme].partner, h)})`;
+  return `oklch(${l} ${c} ${h})`;
+}
+
+// The partner under prefers-contrast: more, as `harmony` computes it.
+function partnerMoreCss(theme: Theme, h: string): string {
+  const { floor, more } = HARMONY;
+  const l9 = LADDER.more[theme][8] ?? 0;
+  const lift = `calc(${num(floor.base)} + ${num(floor.amp)} * pow(max(0, cos((${h} - ${String(floor.peak)}) * 1deg)), ${String(floor.power)}))`;
+  const l =
+    theme === "dark"
+      ? `max(${num(l9)}, ${lift})`
+      : `calc(${num(l9)} + ${above(`${lift} - ${num(more.split)}`)} * (max(${lift}, ${num(more.high)}) - ${num(l9)}))`;
+  const c = `calc(min(calc(var(--cp-accent-c) * ${num(HARMONY.chroma)}), ${capCss(HARMONY.cap[theme].partner, h)}) * ${num(more.chroma)})`;
   return `oklch(${l} ${c} ${h})`;
 }
 
@@ -272,20 +299,20 @@ function harmonyBlock(): string {
       (n) => `--cp-harmony-${String(n)}-on: contrast-color(var(--cp-harmony-${String(n)}));`,
     ),
   ];
-  return `${registered}\n\n:root { ${decls.join(" ")} }`;
+  const more = hueProps.map(
+    (p, i) =>
+      `--cp-harmony-${String(i + 2)}: light-dark(${partnerMoreCss("light", `var(${p})`)}, ${partnerMoreCss("dark", `var(${p})`)});`,
+  );
+  return `${registered}\n\n:root { ${decls.join(" ")} }\n\n@media (prefers-contrast: more) { :root { ${more.join(" ")} } }`;
 }
 
-// Series slots: nine categorical colours turned from the accent as the
-// harmony partners are, slots 2 and 3 being harmony 2 and 3's hues. One rule
-// for every hue. Odd slots are bright and even slots deep, a fixed step
-// apart, so neighbours differ in lightness, which every colour-vision
-// deficiency keeps. In the light theme a bright slot sits as light as 3:1 on
-// every surface allows at its hue, so every slot meets the page at the same
-// contrast; the curve is that ceiling, the least over the chromas a slot can
-// take, fitted by two harmonics and kept under it. The dark theme's two
-// levels hold 3:1 at every hue as they are. Chroma is the accent's times k,
-// kept between min and max so a muted accent still gives slots apart, under a
-// gamut cap fitted per level. The tests below check the fits.
+// Series slots: nine colours turned from the accent as the harmony partners
+// are, slots 2 and 3 being harmony 2 and 3's hues. Odd slots are bright and
+// even slots deep, a fixed step apart, so neighbours differ in lightness under
+// every colour-vision deficiency. A light bright slot sits as light as 3:1 on
+// every surface allows at its hue, fitted by two harmonics and kept under it;
+// the dark levels hold 3:1 at every hue as they are. Chroma is the accent's
+// times k, kept within [min, max], under a gamut cap fitted per level.
 const SERIES = {
   turns: [0, 150, 210, 30, 60, 90, 120, 240, 270],
   // light bright: a + r1 * cos(h - p1) + r2 * cos(2 * (h - p2)); deep is step below
@@ -534,15 +561,14 @@ function scaleCss(l: number, h: string, cusp: string): string {
 function turnCss(to: number): string {
   const d = `mod(${String(to)} - var(--cp-accent-h), 360)`;
   const max = String(SCALE.turn.max);
-  return `clamp(-${max}, ${d} - 360 * clamp(0, (${d} - 180) * 100000, 1), ${max})`;
+  return `clamp(-${max}, ${d} - 360 * ${above(`${d} - 180`)}, ${max})`;
 }
 
-// The four pieces of oppositeHue as CSS, each a window of the accent's hue
-// with the partners' steps (partnerHueCss).
+// The four pieces of oppositeHue as CSS, each a window of the accent's hue.
 function oppositeHueCss(): string {
   const a = "mod(var(--cp-accent-h), 360)";
-  const from = (edge: number) => `clamp(0, (${a} - ${String(edge)}) * 100000 + 1, 1)`;
-  const below = (edge: number) => `clamp(0, (${String(edge)} - ${a}) * 100000, 1)`;
+  const from = (edge: number) => atLeast(`${a} - ${String(edge)}`);
+  const below = (edge: number) => above(`${String(edge)} - ${a}`);
   const mirror = `(${from(120)} * ${below(170)} + ${from(308)} * ${below(355)})`;
   return `calc(245 + ${mirror} * (230 - ${a}) - ${from(170)} * ${below(308)} * 190)`;
 }
@@ -1334,20 +1360,26 @@ describe("css/system.css", () => {
     );
   });
 
-  it("keeps every harmony colour inside sRGB, its ink over 4.5:1 and its hue out of the yellow-greens", () => {
+  it("keeps every harmony colour inside sRGB, its ink over 4.5:1, or 7:1 with more contrast, and its hue out of the yellow-greens", () => {
     const report: string[] = [];
     for (let hue = 0; hue < 360; hue++) {
       for (const chroma of [0.02, 0.09, 0.137, 0.2]) {
-        for (const theme of ["light", "dark"] as const) {
-          harmony(hue, chroma, theme).forEach((colour, i) => {
-            const at = `${theme} hue ${String(hue)} chroma ${String(chroma)} harmony ${String(i + 1)}`;
+        for (const [theme, mode] of [
+          ["light", "normal"],
+          ["dark", "normal"],
+          ["light", "more"],
+          ["dark", "more"],
+        ] as const) {
+          const floor = mode === "more" ? 7 : 4.5;
+          harmony(hue, chroma, theme, mode).forEach((colour, i) => {
+            const at = `${theme} ${mode} hue ${String(hue)} chroma ${String(chroma)} harmony ${String(i + 1)}`;
             // 1 is the accent's step 9, which the ladder checks at its own seeds.
             if (i > 0 && !inGamut(linearSrgb(...colour))) {
               report.push(`${at} is outside sRGB`);
             }
             const y = luminance(linearSrgb(...colour));
-            if (i > 0 && Math.max(ratio(1, y), ratio(0, y)) < 4.5) {
-              report.push(`${at} has no ink at 4.5:1`);
+            if (i > 0 && Math.max(ratio(1, y), ratio(0, y)) < floor) {
+              report.push(`${at} has no ink at ${String(floor)}:1`);
             }
             // 4 is the accent's own hue, which is the app's to choose.
             if (

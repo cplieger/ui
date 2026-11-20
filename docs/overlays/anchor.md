@@ -2,7 +2,7 @@
 
 `@cplieger/ui/anchor`
 
-Native popovers placed by CSS anchor positioning. A `.cp-popover` opened by its button's `popovertarget` sits by that button and flips to stay in view. It closes on Escape and on a press outside by itself, and the browser keeps it in the top layer, so no z-index decides it.
+Native popovers placed by CSS anchor positioning. A `.cp-popover` opened by its button's `popovertarget` sits by that button and flips to stay in view. In a window too short for it on either side of its button, such as a phone held sideways or a page zoomed to 400%, it shrinks into the room under the button, or over it when less than 6rem is left under, and scrolls. It never leaves the window or covers its button. It closes on Escape and on a press outside by itself, and the browser keeps it in the top layer, so no z-index decides it.
 
 ```html
 <button class="cp-button" type="button" popovertarget="row-menu">Actions</button>

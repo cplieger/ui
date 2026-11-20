@@ -113,6 +113,89 @@ describe("mountSecurity: API keys", () => {
     expect(region.querySelectorAll("[style]")).toHaveLength(0);
   });
 
+  it("makes the table's panel a named region with a tab stop only while the table is wider", async () => {
+    const fake = new Fake().always("keys", ok([BACKUP, CI, CHILD]));
+    const { region } = mount(fake, { parts: [...KEY_PARTS], scopes: SCOPES });
+    region.style.inlineSize = "1200px";
+    await keyRows(region);
+    const panel = keysSection(region).querySelector<HTMLElement>(".cp-panel")!;
+    await vi.waitFor(() => {
+      expect(panel.scrollWidth).toBeLessThanOrEqual(panel.clientWidth);
+      expect(panel.hasAttribute("role")).toBe(false);
+    });
+    expect(panel.hasAttribute("tabindex")).toBe(false);
+    expect(panel.hasAttribute("aria-label")).toBe(false);
+    region.style.inlineSize = "200px";
+    await vi.waitFor(() => {
+      expect(panel.getAttribute("role")).toBe("region");
+    });
+    expect(panel.getAttribute("aria-label")).toBe("API keys, table");
+    expect(panel.tabIndex).toBe(0);
+    region.style.inlineSize = "1200px";
+    await vi.waitFor(() => {
+      expect(panel.hasAttribute("role")).toBe(false);
+    });
+    expect(panel.hasAttribute("tabindex")).toBe(false);
+  });
+
+  it("keeps a focused panel's stop when its table fits, until focus leaves it", async () => {
+    // The frame's first focus reads the keys again and draws a new panel.
+    await userEvent.click(document.body);
+    const fake = new Fake().always("keys", ok([BACKUP, CI, CHILD]));
+    const { region } = mount(fake, { parts: [...KEY_PARTS], scopes: SCOPES });
+    region.style.inlineSize = "200px";
+    await keyRows(region);
+    const panel = keysSection(region).querySelector<HTMLElement>(".cp-panel")!;
+    await vi.waitFor(() => {
+      expect(panel.tabIndex).toBe(0);
+    });
+    panel.focus();
+    expect(document.activeElement).toBe(panel);
+    region.style.inlineSize = "1200px";
+    await vi.waitFor(() => {
+      expect(panel.scrollWidth).toBeLessThanOrEqual(panel.clientWidth);
+    });
+    // Two frames: the observer's report, then the engines' focus fixup.
+    await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)));
+    expect(document.activeElement).toBe(panel);
+    expect(panel.getAttribute("role")).toBe("region");
+    expect(panel.getAttribute("aria-label")).toBe("API keys, table");
+    expect(panel.tabIndex).toBe(0);
+    panel.blur();
+    expect(panel.hasAttribute("role")).toBe(false);
+    expect(panel.hasAttribute("aria-label")).toBe(false);
+    expect(panel.hasAttribute("tabindex")).toBe(false);
+  });
+
+  it("keeps focus and the scroll on a focused panel the window's focus draws again", async () => {
+    await userEvent.click(document.body);
+    const fake = new Fake().always("keys", ok([BACKUP, CI, CHILD]));
+    const { region } = mount(fake, { parts: [...KEY_PARTS], scopes: SCOPES });
+    region.style.inlineSize = "200px";
+    await keyRows(region);
+    const panel = keysSection(region).querySelector<HTMLElement>(".cp-panel")!;
+    await vi.waitFor(() => {
+      expect(panel.tabIndex).toBe(0);
+    });
+    panel.focus();
+    panel.scrollLeft = 40;
+    const left = panel.scrollLeft;
+    expect(left).toBeGreaterThan(0);
+    window.dispatchEvent(new FocusEvent("focus"));
+    const again = await vi.waitFor(() => {
+      const next = keysSection(region).querySelector<HTMLElement>(".cp-panel");
+      expect(next).not.toBeNull();
+      expect(next).not.toBe(panel);
+      return next as HTMLElement;
+    });
+    await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)));
+    expect(document.activeElement).toBe(again);
+    expect(again.getAttribute("role")).toBe("region");
+    expect(again.getAttribute("aria-label")).toBe("API keys, table");
+    expect(again.tabIndex).toBe(0);
+    expect(again.scrollLeft).toBe(left);
+  });
+
   it("names a minting key that is gone by its id", async () => {
     const fake = new Fake().answer("keys", ok([CHILD]));
     const { region } = mount(fake, { parts: [...KEY_PARTS] });
@@ -167,6 +250,19 @@ describe("mountSecurity: Create key", () => {
     await userEvent.click(button(d, "Create key"));
     expect(errorOf(first)).toBe("Choose a level or a permission.");
     expect(fake.named("createKey")).toHaveLength(0);
+  });
+
+  it("marks the label (Required) with aria-required, so the empty field opens valid", async () => {
+    const fake = new Fake();
+    const { region } = mount(fake, { parts: [...KEY_PARTS], scopes: SCOPES });
+    const d = await openCreate(region);
+    const label = field(d, "label");
+    expect(label.required).toBe(false);
+    expect(label.matches(":invalid")).toBe(false);
+    expect(label.getAttribute("aria-required")).toBe("true");
+    expect(label.labels?.[0]?.querySelector(".cp-required")?.textContent).toBe("(Required)");
+    await userEvent.click(button(d, "Create key"));
+    expect(errorOf(label)).toBe("Give the key a name.");
   });
 
   it("sends the label, the level and permissions and the lifetime, then shows the key once", async () => {

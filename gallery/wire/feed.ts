@@ -34,6 +34,7 @@ document.querySelector("[data-dot-next]")?.addEventListener("click", () => {
   dot.toggleAttribute("data-live", live);
   dot.dataset["tone"] = live ? "success" : "neutral";
   dotWords.textContent = live ? "Checking now" : "Waiting";
+  announce(dotWords.textContent);
 });
 
 for (const list of document.querySelectorAll<HTMLOListElement>("ol[data-reorder]")) {

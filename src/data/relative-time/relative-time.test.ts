@@ -261,6 +261,21 @@ describe("enhanceRelativeTime", () => {
     expect(shown(t)).toBe(`24${NB}minutes ago`);
   });
 
+  it("marks the time aria-live off inside a live region, and keeps it across a tick", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(NOW);
+    const region = document.createElement("div");
+    region.setAttribute("role", "status");
+    document.body.append(region);
+    const t = time(NOW - 4 * MIN);
+    region.append("Last seen ", t);
+    enhanceRelativeTime(t, { locale: "en", style: "long", signal: life.signal });
+    expect(t.getAttribute("aria-live")).toBe("off");
+    vi.advanceTimersByTime(MIN);
+    expect(shown(t)).toBe(`5${NB}minutes ago`);
+    expect(t.getAttribute("aria-live")).toBe("off");
+  });
+
   it("throws when the datetime does not parse, and does nothing under an aborted signal", () => {
     const t = time(Date.now());
     t.dateTime = "soon";

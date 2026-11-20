@@ -19,7 +19,9 @@
   position-try-fallbacks:
     flip-block,
     flip-inline,
-    flip-block flip-inline;
+    flip-block flip-inline,
+    --cp-popover-below,
+    --cp-popover-above;
   transform-origin: top left;
   opacity: 0;
   scale: 0.96;
@@ -43,9 +45,29 @@
   }
 }
 
-/* Opened at a point (showPopoverAt), its corner sits where the press was. */
+/* Where the whole popover fits on neither side, as in a short window or at
+ * 400% zoom, it shrinks into the room under its button, or over it when
+ * under is less than a few rows, and scrolls; otherwise it would leave the
+ * window or cover the button. It may take the row's whole width, since a
+ * button near the window's edge leaves too little room beside it. */
+@position-try --cp-popover-below {
+  position-area: block-end span-all;
+  min-block-size: 6rem;
+  max-block-size: calc(100% - var(--cp-space-1));
+  margin-block: var(--cp-space-1) 0;
+}
+
+@position-try --cp-popover-above {
+  position-area: block-start span-all;
+  max-block-size: calc(100% - var(--cp-space-1));
+  margin-block: 0 var(--cp-space-1);
+}
+
+/* Opened at a point (showPopoverAt), its corner sits where the press was
+ * and the script keeps it in the window. */
 .cp-popover[data-cp-at] {
   position-area: none;
+  position-try-fallbacks: none;
   margin: 0;
 }
 

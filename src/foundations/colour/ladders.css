@@ -660,20 +660,20 @@
 :root {
   --cp-harmony-2-h: calc(
     mod(calc(var(--cp-accent-h) + 150), 360) +
-      clamp(0, (mod(calc(var(--cp-accent-h) + 150), 360) - 100) * 100000, 1) *
-      clamp(0, (117.5 - mod(calc(var(--cp-accent-h) + 150), 360)) * 100000, 1) *
+      max(0, sign(mod(calc(var(--cp-accent-h) + 150), 360) - 100)) *
+      max(0, sign(117.5 - mod(calc(var(--cp-accent-h) + 150), 360))) *
       (90 - mod(calc(var(--cp-accent-h) + 150), 360)) +
-      clamp(0, (mod(calc(var(--cp-accent-h) + 150), 360) - 117.5) * 100000 + 1, 1) *
-      clamp(0, (135 - mod(calc(var(--cp-accent-h) + 150), 360)) * 100000, 1) *
+      (1 - max(0, sign(-1 * (mod(calc(var(--cp-accent-h) + 150), 360) - 117.5)))) *
+      max(0, sign(135 - mod(calc(var(--cp-accent-h) + 150), 360))) *
       (142 - mod(calc(var(--cp-accent-h) + 150), 360))
   );
   --cp-harmony-3-h: calc(
     mod(calc(var(--cp-accent-h) + 210), 360) +
-      clamp(0, (mod(calc(var(--cp-accent-h) + 210), 360) - 100) * 100000, 1) *
-      clamp(0, (117.5 - mod(calc(var(--cp-accent-h) + 210), 360)) * 100000, 1) *
+      max(0, sign(mod(calc(var(--cp-accent-h) + 210), 360) - 100)) *
+      max(0, sign(117.5 - mod(calc(var(--cp-accent-h) + 210), 360))) *
       (90 - mod(calc(var(--cp-accent-h) + 210), 360)) +
-      clamp(0, (mod(calc(var(--cp-accent-h) + 210), 360) - 117.5) * 100000 + 1, 1) *
-      clamp(0, (135 - mod(calc(var(--cp-accent-h) + 210), 360)) * 100000, 1) *
+      (1 - max(0, sign(-1 * (mod(calc(var(--cp-accent-h) + 210), 360) - 117.5)))) *
+      max(0, sign(135 - mod(calc(var(--cp-accent-h) + 210), 360))) *
       (142 - mod(calc(var(--cp-accent-h) + 210), 360))
   );
   --cp-harmony-1: var(--cp-accent-9);
@@ -735,6 +735,89 @@
   --cp-harmony-2-on: contrast-color(var(--cp-harmony-2));
   --cp-harmony-3-on: contrast-color(var(--cp-harmony-3));
   --cp-harmony-4-on: contrast-color(var(--cp-harmony-4));
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --cp-harmony-2: light-dark(
+      oklch(
+        calc(
+            0.43 +
+              max(
+                0,
+                sign(
+                  calc(0.5 + 0.32 * pow(max(0, cos((var(--cp-harmony-2-h) - 95) * 1deg)), 4)) - 0.62
+                )
+              ) *
+              (
+                max(
+                    calc(0.5 + 0.32 * pow(max(0, cos((var(--cp-harmony-2-h) - 95) * 1deg)), 4)),
+                    0.8
+                  ) -
+                  0.43
+              )
+          )
+          calc(
+            min(
+                calc(var(--cp-accent-c) * 1.2),
+                calc(0.166 - 0.066 * pow(max(0, cos((var(--cp-harmony-2-h) - 200) * 1deg)), 3))
+              ) *
+              0.8
+          )
+          var(--cp-harmony-2-h)
+      ),
+      oklch(
+        max(0.72, calc(0.5 + 0.32 * pow(max(0, cos((var(--cp-harmony-2-h) - 95) * 1deg)), 4)))
+          calc(
+            min(
+                calc(var(--cp-accent-c) * 1.2),
+                calc(0.166 - 0.056 * pow(max(0, cos((var(--cp-harmony-2-h) - 200) * 1deg)), 4))
+              ) *
+              0.8
+          )
+          var(--cp-harmony-2-h)
+      )
+    );
+    --cp-harmony-3: light-dark(
+      oklch(
+        calc(
+            0.43 +
+              max(
+                0,
+                sign(
+                  calc(0.5 + 0.32 * pow(max(0, cos((var(--cp-harmony-3-h) - 95) * 1deg)), 4)) - 0.62
+                )
+              ) *
+              (
+                max(
+                    calc(0.5 + 0.32 * pow(max(0, cos((var(--cp-harmony-3-h) - 95) * 1deg)), 4)),
+                    0.8
+                  ) -
+                  0.43
+              )
+          )
+          calc(
+            min(
+                calc(var(--cp-accent-c) * 1.2),
+                calc(0.166 - 0.066 * pow(max(0, cos((var(--cp-harmony-3-h) - 200) * 1deg)), 3))
+              ) *
+              0.8
+          )
+          var(--cp-harmony-3-h)
+      ),
+      oklch(
+        max(0.72, calc(0.5 + 0.32 * pow(max(0, cos((var(--cp-harmony-3-h) - 95) * 1deg)), 4)))
+          calc(
+            min(
+                calc(var(--cp-accent-c) * 1.2),
+                calc(0.166 - 0.056 * pow(max(0, cos((var(--cp-harmony-3-h) - 200) * 1deg)), 4))
+              ) *
+              0.8
+          )
+          var(--cp-harmony-3-h)
+      )
+    );
+  }
 }
 
 @property --cp-series-1-h {
@@ -878,11 +961,11 @@
   );
   --cp-series-4-h: calc(
     mod(calc(var(--cp-accent-h) + 30), 360) +
-      clamp(0, (mod(calc(var(--cp-accent-h) + 30), 360) - 100) * 100000, 1) *
-      clamp(0, (117.5 - mod(calc(var(--cp-accent-h) + 30), 360)) * 100000, 1) *
+      max(0, sign(mod(calc(var(--cp-accent-h) + 30), 360) - 100)) *
+      max(0, sign(117.5 - mod(calc(var(--cp-accent-h) + 30), 360))) *
       (90 - mod(calc(var(--cp-accent-h) + 30), 360)) +
-      clamp(0, (mod(calc(var(--cp-accent-h) + 30), 360) - 117.5) * 100000 + 1, 1) *
-      clamp(0, (135 - mod(calc(var(--cp-accent-h) + 30), 360)) * 100000, 1) *
+      (1 - max(0, sign(-1 * (mod(calc(var(--cp-accent-h) + 30), 360) - 117.5)))) *
+      max(0, sign(135 - mod(calc(var(--cp-accent-h) + 30), 360))) *
       (142 - mod(calc(var(--cp-accent-h) + 30), 360))
   );
   --cp-series-4: light-dark(
@@ -914,11 +997,11 @@
   );
   --cp-series-5-h: calc(
     mod(calc(var(--cp-accent-h) + 60), 360) +
-      clamp(0, (mod(calc(var(--cp-accent-h) + 60), 360) - 100) * 100000, 1) *
-      clamp(0, (117.5 - mod(calc(var(--cp-accent-h) + 60), 360)) * 100000, 1) *
+      max(0, sign(mod(calc(var(--cp-accent-h) + 60), 360) - 100)) *
+      max(0, sign(117.5 - mod(calc(var(--cp-accent-h) + 60), 360))) *
       (90 - mod(calc(var(--cp-accent-h) + 60), 360)) +
-      clamp(0, (mod(calc(var(--cp-accent-h) + 60), 360) - 117.5) * 100000 + 1, 1) *
-      clamp(0, (135 - mod(calc(var(--cp-accent-h) + 60), 360)) * 100000, 1) *
+      (1 - max(0, sign(-1 * (mod(calc(var(--cp-accent-h) + 60), 360) - 117.5)))) *
+      max(0, sign(135 - mod(calc(var(--cp-accent-h) + 60), 360))) *
       (142 - mod(calc(var(--cp-accent-h) + 60), 360))
   );
   --cp-series-5: light-dark(
@@ -950,11 +1033,11 @@
   );
   --cp-series-6-h: calc(
     mod(calc(var(--cp-accent-h) + 90), 360) +
-      clamp(0, (mod(calc(var(--cp-accent-h) + 90), 360) - 100) * 100000, 1) *
-      clamp(0, (117.5 - mod(calc(var(--cp-accent-h) + 90), 360)) * 100000, 1) *
+      max(0, sign(mod(calc(var(--cp-accent-h) + 90), 360) - 100)) *
+      max(0, sign(117.5 - mod(calc(var(--cp-accent-h) + 90), 360))) *
       (90 - mod(calc(var(--cp-accent-h) + 90), 360)) +
-      clamp(0, (mod(calc(var(--cp-accent-h) + 90), 360) - 117.5) * 100000 + 1, 1) *
-      clamp(0, (135 - mod(calc(var(--cp-accent-h) + 90), 360)) * 100000, 1) *
+      (1 - max(0, sign(-1 * (mod(calc(var(--cp-accent-h) + 90), 360) - 117.5)))) *
+      max(0, sign(135 - mod(calc(var(--cp-accent-h) + 90), 360))) *
       (142 - mod(calc(var(--cp-accent-h) + 90), 360))
   );
   --cp-series-6: light-dark(
@@ -986,11 +1069,11 @@
   );
   --cp-series-7-h: calc(
     mod(calc(var(--cp-accent-h) + 120), 360) +
-      clamp(0, (mod(calc(var(--cp-accent-h) + 120), 360) - 100) * 100000, 1) *
-      clamp(0, (117.5 - mod(calc(var(--cp-accent-h) + 120), 360)) * 100000, 1) *
+      max(0, sign(mod(calc(var(--cp-accent-h) + 120), 360) - 100)) *
+      max(0, sign(117.5 - mod(calc(var(--cp-accent-h) + 120), 360))) *
       (90 - mod(calc(var(--cp-accent-h) + 120), 360)) +
-      clamp(0, (mod(calc(var(--cp-accent-h) + 120), 360) - 117.5) * 100000 + 1, 1) *
-      clamp(0, (135 - mod(calc(var(--cp-accent-h) + 120), 360)) * 100000, 1) *
+      (1 - max(0, sign(-1 * (mod(calc(var(--cp-accent-h) + 120), 360) - 117.5)))) *
+      max(0, sign(135 - mod(calc(var(--cp-accent-h) + 120), 360))) *
       (142 - mod(calc(var(--cp-accent-h) + 120), 360))
   );
   --cp-series-7: light-dark(
@@ -1022,11 +1105,11 @@
   );
   --cp-series-8-h: calc(
     mod(calc(var(--cp-accent-h) + 240), 360) +
-      clamp(0, (mod(calc(var(--cp-accent-h) + 240), 360) - 100) * 100000, 1) *
-      clamp(0, (117.5 - mod(calc(var(--cp-accent-h) + 240), 360)) * 100000, 1) *
+      max(0, sign(mod(calc(var(--cp-accent-h) + 240), 360) - 100)) *
+      max(0, sign(117.5 - mod(calc(var(--cp-accent-h) + 240), 360))) *
       (90 - mod(calc(var(--cp-accent-h) + 240), 360)) +
-      clamp(0, (mod(calc(var(--cp-accent-h) + 240), 360) - 117.5) * 100000 + 1, 1) *
-      clamp(0, (135 - mod(calc(var(--cp-accent-h) + 240), 360)) * 100000, 1) *
+      (1 - max(0, sign(-1 * (mod(calc(var(--cp-accent-h) + 240), 360) - 117.5)))) *
+      max(0, sign(135 - mod(calc(var(--cp-accent-h) + 240), 360))) *
       (142 - mod(calc(var(--cp-accent-h) + 240), 360))
   );
   --cp-series-8: light-dark(
@@ -1058,11 +1141,11 @@
   );
   --cp-series-9-h: calc(
     mod(calc(var(--cp-accent-h) + 270), 360) +
-      clamp(0, (mod(calc(var(--cp-accent-h) + 270), 360) - 100) * 100000, 1) *
-      clamp(0, (117.5 - mod(calc(var(--cp-accent-h) + 270), 360)) * 100000, 1) *
+      max(0, sign(mod(calc(var(--cp-accent-h) + 270), 360) - 100)) *
+      max(0, sign(117.5 - mod(calc(var(--cp-accent-h) + 270), 360))) *
       (90 - mod(calc(var(--cp-accent-h) + 270), 360)) +
-      clamp(0, (mod(calc(var(--cp-accent-h) + 270), 360) - 117.5) * 100000 + 1, 1) *
-      clamp(0, (135 - mod(calc(var(--cp-accent-h) + 270), 360)) * 100000, 1) *
+      (1 - max(0, sign(-1 * (mod(calc(var(--cp-accent-h) + 270), 360) - 117.5)))) *
+      max(0, sign(135 - mod(calc(var(--cp-accent-h) + 270), 360))) *
       (142 - mod(calc(var(--cp-accent-h) + 270), 360))
   );
   --cp-series-9: light-dark(
@@ -1347,14 +1430,13 @@
 :root {
   --cp-scale-to-light: clamp(
     -30,
-    mod(95 - var(--cp-accent-h), 360) - 360 *
-      clamp(0, (mod(95 - var(--cp-accent-h), 360) - 180) * 100000, 1),
+    mod(95 - var(--cp-accent-h), 360) - 360 * max(0, sign(mod(95 - var(--cp-accent-h), 360) - 180)),
     30
   );
   --cp-scale-to-dark: clamp(
     -30,
     mod(265 - var(--cp-accent-h), 360) - 360 *
-      clamp(0, (mod(265 - var(--cp-accent-h), 360) - 180) * 100000, 1),
+      max(0, sign(mod(265 - var(--cp-accent-h), 360) - 180)),
     30
   );
   --cp-scale-1-h: mod(
@@ -1423,14 +1505,14 @@
   --cp-scale-opposite-h: calc(
     245 +
       (
-        clamp(0, (mod(var(--cp-accent-h), 360) - 120) * 100000 + 1, 1) *
-          clamp(0, (170 - mod(var(--cp-accent-h), 360)) * 100000, 1) +
-          clamp(0, (mod(var(--cp-accent-h), 360) - 308) * 100000 + 1, 1) *
-          clamp(0, (355 - mod(var(--cp-accent-h), 360)) * 100000, 1)
+        (1 - max(0, sign(-1 * (mod(var(--cp-accent-h), 360) - 120)))) *
+          max(0, sign(170 - mod(var(--cp-accent-h), 360))) +
+          (1 - max(0, sign(-1 * (mod(var(--cp-accent-h), 360) - 308)))) *
+          max(0, sign(355 - mod(var(--cp-accent-h), 360)))
       ) *
       (230 - mod(var(--cp-accent-h), 360)) -
-      clamp(0, (mod(var(--cp-accent-h), 360) - 170) * 100000 + 1, 1) *
-      clamp(0, (308 - mod(var(--cp-accent-h), 360)) * 100000, 1) * 190
+      (1 - max(0, sign(-1 * (mod(var(--cp-accent-h), 360) - 170)))) *
+      max(0, sign(308 - mod(var(--cp-accent-h), 360))) * 190
   );
   --cp-scale-1-lc: calc(
     0.7427 - 0.1278 * cos(var(--cp-scale-1-h) * 1deg) + 0.1233 * sin(var(--cp-scale-1-h) * 1deg) +

@@ -49,35 +49,33 @@ input.cp-input:is([type^="date"], [type="time"]) {
 
 .cp-input:user-invalid,
 .cp-input[aria-invalid="true"] {
+  --cp-field-ring: var(--cp-danger-9);
+
   border-color: var(--cp-danger-8);
 }
 
 .cp-input[data-tone="warning"] {
+  --cp-field-ring: var(--cp-warning-9);
+
   border-color: var(--cp-warning-8);
 }
 
 /* A focused field reads like a focused button: a ring sitting outside the
  * field with a gap, in the accent (or the state's colour for an error or a
  * warning). The field keeps its own border, so the ring is a halo, not a
- * doubled line at the edge. */
-.cp-input:focus-visible {
-  --cp-field-ring: var(--cp-focus-ring);
-
-  outline: var(--cp-focus-w) solid var(--cp-field-ring);
+ * doubled line at the edge. WebKit focuses a date or time field's part,
+ * and the field then never matches :focus-visible, so those ring while
+ * focus is within. */
+.cp-input:focus-visible,
+input.cp-input:is([type^="date"], [type="time"]):focus-within {
+  outline: var(--cp-focus-w) solid var(--cp-field-ring, var(--cp-focus-ring));
   outline-offset: var(--cp-focus-offset);
-  border-color: var(--cp-field-ring);
-}
-
-.cp-input:is(:user-invalid, [aria-invalid="true"]):focus-visible {
-  --cp-field-ring: var(--cp-danger-9);
-}
-
-.cp-input[data-tone="warning"]:focus-visible {
-  --cp-field-ring: var(--cp-warning-9);
+  border-color: var(--cp-field-ring, var(--cp-focus-ring));
 }
 
 @media (forced-colors: active) {
-  .cp-input:focus-visible {
+  .cp-input:focus-visible,
+  input.cp-input:is([type^="date"], [type="time"]):focus-within {
     outline-color: Highlight;
   }
 }

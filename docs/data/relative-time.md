@@ -36,6 +36,7 @@ enhanceRelativeTime(inSentence, { style: "long", signal: page.signal }); // "4 m
 - The words come from `Intl.RelativeTimeFormat`, so every locale reads its own. A no-break space binds the number to its unit, so "4 minutes" never breaks across a line. `long` lets the locale name the nearest day ("yesterday", "tomorrow"). `short` and `narrow` always give a number, because a compact form reads as one.
 - The unit is the largest that fits: a minute, an hour, a day, a week, a month of 30 days or a year of 365 days, each rounded to the nearest whole one. A unit takes over half a smaller unit before the smaller count would reach it. So a time 59 and a half minutes old reads "1 hour ago", never "60 minutes ago", and one 346 days old reads "last year", never "12 months ago".
 - The words are [format](../core/format.md)'s `relative`, and the exact time is its `date(at, "datetime")`, the medium date and the short time joined by no-break spaces, in the same locale.
+- The time carries `aria-live="off"`, which asks that its own rewrites not be said again when it sits inside a live region, such as a banner's "Last seen 40 minutes ago". The time is still read whole when its region changes. WebKit does not honour it: it still announces the region at each rewrite, as the [accessibility bar](../accessibility.md#where-ui-falls-short) records.
 
 ## Keeping current
 

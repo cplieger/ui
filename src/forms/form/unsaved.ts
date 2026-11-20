@@ -29,6 +29,7 @@ import {
   savedOf,
   watchPieces,
 } from "./pieces.js";
+import { holdsFocus, refocus } from "./refocus.js";
 
 /** The guard's words. */
 export interface UnsavedWords {
@@ -627,9 +628,15 @@ export function guardChanges(form: HTMLFormElement, options: GuardOptions = {}):
     const now = changesIn(form);
     unload(now.length > 0);
     const moved = now.length !== last.length || now.some((el, i) => el !== last[i]);
+    const before = last;
     last = now;
     if (moved) {
+      const held = document.activeElement;
+      const holding = form.contains(held) && holdsFocus(held);
       onChange?.(now);
+      if (holding) {
+        refocus(form, held, [...before, ...now]);
+      }
     }
   };
   const guarding = (): boolean =>

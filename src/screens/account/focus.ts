@@ -41,7 +41,8 @@ export type Heading = HTMLElement | (() => HTMLElement | undefined);
  * Runs `draw`, which replaces what `part` holds. `asked` names the control
  * to focus after it, null `heading`. With none, a focused control in
  * `part` that `draw` took away gives focus to the new control with its
- * `data-cp-action`, else to `heading`; focus anywhere else stays.
+ * `data-cp-action`, scrolled as far as the old one, else to `heading`;
+ * focus anywhere else stays.
  */
 export function redrawKeepingFocus(
   part: HTMLElement,
@@ -52,10 +53,17 @@ export function redrawKeepingFocus(
   const active = document.activeElement;
   const held = active instanceof HTMLElement && part.contains(active) ? active : undefined;
   const key = held === undefined ? undefined : actionOf(part, held);
+  const left = held?.scrollLeft ?? 0;
   draw();
   const lost = held !== undefined && document.activeElement !== held;
   const target = asked === undefined ? (lost ? (key ?? null) : undefined) : asked;
-  if (target === undefined || (target !== null && focusAction(part, target))) {
+  if (target === undefined) {
+    return;
+  }
+  if (target !== null && focusAction(part, target)) {
+    if (target === key && document.activeElement instanceof HTMLElement) {
+      document.activeElement.scrollLeft = left;
+    }
     return;
   }
   (typeof heading === "function" ? heading() : heading)?.focus();

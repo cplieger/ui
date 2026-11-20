@@ -43,7 +43,7 @@
         <div class="g-row-inline g-gap-top"><button class="cp-button" type="button" data-status-demo>Next status</button></div>
         <footer>The first Tab stop is Skip to the content, hidden until focused. The brand colour carries the header. Its status button opens a panel that does not trap focus: Tab past its end closes it. The theme button switches between light and dark in one press, its icon turning to the new one; System stays a choice in Settings. From 40rem to 60rem the destinations keep only their icons, and under 40rem they move to a bar at the window's foot, each an icon over its word. Releases carries a count of what is new in the bar's own ink, so it shows on any brand colour, and sits on its icon's corner in the bar under 40rem. The account button is the avatar alone, ringed so it stands off the bar whatever its colour; its menu holds who is signed in and Sign out. The status is a tone, a glyph and a word: problems, Offline with a dashed edge, a warning, Working and All good, the first that holds winning; Next status steps through them. Only Working breathes, twice as it starts and then still, and not at all under reduced motion. At compact width the detail hides and waits in the panel, the state's words staying, and a change is announced politely. Press the mark five times for its flip.</footer>
       </div>
-      <div class="card g-wide">
+      <div class="card g-wide" data-new>
         <h2>Jump to an entry</h2>
         <div class="cp-field"><label class="cp-label" for="jump-in">Search the library</label>
           <div class="cp-input-row" data-jump="jump-list"><div class="cp-search"><input class="cp-input" id="jump-in" role="combobox" aria-expanded="false" aria-controls="jump-options" aria-autocomplete="list" placeholder="Title, year or group"><button class="cp-button" data-variant="quiet" type="button" aria-label="Clear"></button></div><button class="cp-button" type="button" data-jump-go>Search</button></div>
@@ -63,9 +63,9 @@
         </aside>
         <footer>The library's rail, with filters and their counts: under each heading a plain, compact list of rows that toggle. Below 60rem the rail leaves for a Filters button that opens it as a sheet, so on a window that narrow this card is empty.</footer>
       </div>
-      <div class="card g-wide">
+      <div class="card g-wide" data-new>
         <h2>Status line</h2>
-        <div class="cp-status g-statusline" role="status"><span>412 entries</span><span>All sources reachable</span><span data-state="late">Late: the 14:00 check has not run</span></div>
+        <div class="cp-status g-statusline"><span>412 entries</span><span>All sources reachable</span><span data-state="late">Late: the 14:00 check has not run</span></div>
         <footer>The frame's last line: facts about the whole app, and a late state with its glyph and word.</footer>
       </div>
     </div>
@@ -145,7 +145,7 @@
   <section class="g-section" id="tabs">
     <h2>Content tabs</h2>
     <div class="g-grid">
-      <div class="card g-wide">
+      <div class="card g-wide" data-new>
         <h2>Tabs that slide</h2>
         <div class="cp-tabs" role="tablist" aria-label="Item" data-tabs>
           <button class="cp-tab" role="tab" type="button" aria-selected="true" aria-controls="tp-1" id="t-1">Episodes</button>
@@ -168,7 +168,7 @@
         <div class="cp-panel" role="tabpanel" id="tm-3" aria-labelledby="tm-t3" hidden></div>
         <footer>One kind of tabs, with the sliding pill. When the panels are already on the page, the arrows move along the tabs and select. When a panel loads only once chosen, the arrows move focus and Enter or Space selects (the WAI-ARIA tabs pattern's manual activation), so arrowing past a tab never starts a load. The pill moves; the panels never animate.</footer>
       </div>
-      <div class="card g-wide">
+      <div class="card g-wide" data-new>
         <h2>Page header and tabs as links</h2>
         <div>
           <nav class="cp-crumbs" aria-label="Breadcrumb"><a href="#tabs">Library</a><span aria-current="page">Frieren</span></nav>
@@ -186,9 +186,9 @@
   <section class="g-section" id="paths">
     <h2>Breadcrumbs and pages</h2>
     <div class="g-grid">
-      <div class="card">
+      <div class="card" data-new>
         <h2>Breadcrumbs</h2>
-        <nav class="cp-crumbs" aria-label="Breadcrumb"><a href="#paths">Library</a><a href="#paths">Frieren</a><span aria-current="page">Season 1</span></nav>
+        <nav class="cp-crumbs" aria-label="Breadcrumb, three levels"><a href="#paths">Library</a><a href="#paths">Frieren</a><span aria-current="page">Season 1</span></nav>
         <footer>For a place two or more levels down.</footer>
       </div>
       <div class="card">
@@ -270,7 +270,7 @@
   <section class="g-section" id="compact">
     <h2>At compact width</h2>
     <div class="g-grid">
-      <div class="card">
+      <div class="card" data-new>
         <h2>Bottom navigation</h2>
         <iframe class="g-phone" src="frame-bottom-nav.html" title="An app at a phone's width" data-frame></iframe>
         <footer>Below 40rem the header's nav moves to a bar at the window's foot, each destination an icon over its word, up to four of them, and a count sits on its icon's corner. A nav anywhere else, such as in the rail, stays where it is. The frame is a page 308px wide, so the library's own rules draw the bar.</footer>

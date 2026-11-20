@@ -197,6 +197,22 @@ describe("enhanceSettings", () => {
     });
   });
 
+  it("moves focus from Save changes, once the bar goes at rest, to the first field that waited", async () => {
+    const { form, bar, fields } = page();
+    const s = enhanceSettings(form, { signal: life.signal });
+    s.paint(fields.slice(1, 3));
+    const save = bar.querySelector('[type="submit"]') as HTMLButtonElement;
+    save.focus();
+    save.setAttribute("data-cp-state", "busy");
+    s.paint([]);
+    expect(document.activeElement).toBe(save);
+    save.removeAttribute("data-cp-state");
+    await vi.waitFor(() => {
+      expect(bar.hidden).toBe(true);
+    });
+    expect(document.activeElement).toBe(fields[1]);
+  });
+
   it("gives the form the save bar's height, and takes it back when its signal ends", async () => {
     const { form, bar, fields } = page();
     const s = enhanceSettings(form, { signal: life.signal });

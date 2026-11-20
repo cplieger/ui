@@ -96,7 +96,7 @@ for (const row of document.querySelectorAll<HTMLElement>("[data-jump]")) {
     onAccept: open,
     onSettle: () => {
       const n = matches().length;
-      announce(n > 0 ? `${String(n)} entries` : empty.textContent);
+      announce(n > 1 ? `${String(n)} entries` : n === 1 ? "1 entry" : empty.textContent);
     },
   });
   row.querySelector("[data-jump-go]")?.addEventListener("click", () => {

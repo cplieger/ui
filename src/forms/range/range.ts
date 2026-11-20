@@ -1,7 +1,8 @@
 /**
  * range.ts — `enhanceRange()` fills a `.cp-range`'s track to its thumb,
  * writes its value into its `<output>`, and shows the value over the thumb
- * while a pointer holds it or keys move it.
+ * while a pointer holds it or keys move it. The slider says its value in the
+ * caller's words; the output, which shows the same, says nothing.
  * @module
  */
 
@@ -10,10 +11,11 @@ import { until } from "../../core/lifetime/lifetime.js";
 export interface RangeOptions {
   /** Where the value is written, such as the row's `<output>`. */
   readonly output?: HTMLOutputElement;
-  /** Turns the value into words, such as `(v) => `${v} GB``. Default: the
-   *  value itself. */
+  /** Turns the value into words, such as `(v) => `${v} GB``, which are also
+   *  the slider's value text. Default: the value itself. */
   readonly format?: (value: number) => string;
-  /** Removes the listeners and the tip. */
+  /** Removes the listeners, the tip and the value text, and gives the
+   *  output back its own live setting. */
   readonly signal?: AbortSignal;
 }
 
@@ -32,6 +34,10 @@ export function enhanceRange(range: HTMLInputElement, options: RangeOptions = {}
   tip.className = "cp-range-tip";
   tip.setAttribute("aria-hidden", "true");
   row?.append(tip);
+  // An output is a polite live region, so each value would be said again
+  // after the slider says it.
+  const live = output?.getAttribute("aria-live") ?? null;
+  output?.setAttribute("aria-live", "off");
   const update = (): void => {
     const min = Number(range.min || 0);
     const max = Number(range.max || 100);
@@ -40,6 +46,11 @@ export function enhanceRange(range: HTMLInputElement, options: RangeOptions = {}
     const words = format(range.valueAsNumber);
     if (output !== undefined) {
       output.value = words;
+    }
+    if (words === String(range.valueAsNumber)) {
+      range.removeAttribute("aria-valuetext");
+    } else {
+      range.setAttribute("aria-valuetext", words);
     }
     tip.textContent = words;
     if (row !== null) {
@@ -81,6 +92,12 @@ export function enhanceRange(range: HTMLInputElement, options: RangeOptions = {}
       resize.disconnect();
       tip.remove();
       row?.removeAttribute(HELD);
+      range.removeAttribute("aria-valuetext");
+      if (live === null) {
+        output?.removeAttribute("aria-live");
+      } else {
+        output?.setAttribute("aria-live", live);
+      }
     },
     { once: true },
   );

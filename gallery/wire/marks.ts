@@ -41,7 +41,7 @@ for (const row of document.querySelectorAll<HTMLElement>("[data-work-retry]")) {
   if (retry === null || state === null || reason === null) {
     continue;
   }
-  const name = row.querySelector(".cp-truncate")?.textContent ?? "";
+  const name = row.querySelector(".cp-cell-stack > :first-child")?.textContent ?? "";
   const cycle = enhanceConfirm(retry, { busy: "Retrying…", done: false });
   let fails = true;
   const upload = (): Promise<void> =>
@@ -94,7 +94,8 @@ function restart(bar: HTMLProgressElement): HTMLProgressElement {
 for (const start of document.querySelectorAll<HTMLButtonElement>("[data-progress-run]")) {
   const wrap = document.getElementById(start.dataset["progressRun"] ?? "");
   const first = wrap?.querySelector("progress");
-  if (!wrap || !first) {
+  const words = wrap?.querySelector(":scope > span");
+  if (!wrap || !first || !words) {
     continue;
   }
   let bar = first;
@@ -108,12 +109,15 @@ for (const start of document.querySelectorAll<HTMLButtonElement>("[data-progress
       if (mine !== run) {
         return;
       }
-      p = Math.min(100, p + 3 + Math.random() * 5);
+      p += 1;
       bar.value = p;
-      if (p < 100) {
-        setTimeout(step, 260);
+      words.textContent = `${String(p)} of ${String(bar.max)}`;
+      if (p < bar.max) {
+        setTimeout(step, 400);
       } else {
         wrap.dataset["state"] = "done";
+        // The green bar and its check are seen, never heard.
+        announce("Check finished.");
       }
     };
     step();

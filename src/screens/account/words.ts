@@ -26,6 +26,10 @@ export interface AccountWords {
   readonly "generic.unavailable": string;
   /** The heading of a form's error summary. */
   readonly "form.summary": (count: number) => string;
+  /** In the label of a field the submit needs that has help of its own. */
+  readonly "form.requiredLabel": string;
+  /** The help of a field the submit needs that has none of its own. */
+  readonly "form.requiredHelp": string;
   readonly "password.show": string;
   /** The single sign-on provider's name, when the host gives none. */
   readonly provider: string;
@@ -202,6 +206,8 @@ export interface AccountWords {
   readonly "methods.method": string;
   readonly "methods.state": string;
   readonly "methods.actions": string;
+  /** A table wider than its panel, as the region that scrolls it. */
+  readonly "table.scroll": (title: string) => string;
   readonly "methods.actionsFor": (name: string) => string;
   readonly "methods.set": string;
   readonly "methods.notSet": string;
@@ -457,6 +463,9 @@ export interface AccountWords {
   /** A key no other key minted, on the every-account table. */
   readonly "keys.bySession": string;
   readonly "keys.reached": string;
+  /** The words after "keys.reached" that only a screen reader hears,
+   *  naming the key. */
+  readonly "keys.reachedKey": (label: string) => string;
   readonly "keys.reachedBy": (label: string) => string;
   readonly "keys.invitesOf": (label: string, count: number) => string;
   readonly "keys.inviteLine": (i: {
@@ -920,6 +929,8 @@ export const defaultAccountWords: AccountWords = {
   "generic.retry": "Retry",
   "generic.unavailable": "The app cannot do this right now. Try again in a few seconds.",
   "form.summary": (count) => `${String(count)} fields need a fix`,
+  "form.requiredLabel": "(Required)",
+  "form.requiredHelp": "Required.",
   "password.show": "Show password",
   provider: "single sign-on",
 
@@ -1109,6 +1120,7 @@ export const defaultAccountWords: AccountWords = {
   "methods.method": "Method",
   "methods.state": "State",
   "methods.actions": "Actions",
+  "table.scroll": (title) => `${title}, table`,
   "methods.actionsFor": (name) => `Actions for ${name}`,
   "methods.set": "Set",
   "methods.notSet": "Not set",
@@ -1362,6 +1374,7 @@ export const defaultAccountWords: AccountWords = {
   "keys.invites": "Live invites",
   "keys.bySession": "Made in a signed-in session",
   "keys.reached": "People it reached",
+  "keys.reachedKey": (label) => `, ${label}`,
   "keys.reachedBy": (label) => `Show the people ${label} reached`,
   "keys.invitesOf": (label, count) =>
     `${count === 1 ? "1 live invite" : `${String(count)} live invites`} from ${label} and the keys it minted`,

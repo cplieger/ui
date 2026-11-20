@@ -2,7 +2,7 @@
 
 `@cplieger/ui/pill`
 
-Slides one raised pill under the chosen segment of a `.cp-segmented`, the selected tab of a `.cp-tabs` tablist, the current link of a `nav.cp-tabs` or the current destination of the header's `.cp-nav` in its bottom bar, on a spring, instead of each choice filling on its own. The pill lands without motion when the page first draws and when the group resizes, and slides when the choice changes.
+Slides one raised pill under the chosen segment of a `.cp-segmented`, the selected tab of a `.cp-tabs` tablist, the current link of a `nav.cp-tabs` or the current destination of the header's `.cp-nav` in its bottom bar, on a spring, instead of each choice filling on its own. The pill lands without motion when the page first draws and when the group resizes, and slides when the choice changes. Under reduced motion it moves at once, since the choice's own state already says which is chosen.
 
 ```ts
 import { enhancePill } from "@cplieger/ui/pill";

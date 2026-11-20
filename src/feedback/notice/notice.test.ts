@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, onTestFinished } from "vitest";
 
 import { build, contrast, q, resolved, useSystemSheet } from "../../system/test-helpers/css.js";
 
@@ -57,6 +57,24 @@ describe("notice", () => {
     expect(box.color).toBe(resolved("var(--cp-warning-12)"));
   });
 
+  const summary = `<div class="cp-notice" data-tone="danger" role="alert"><span><strong>Two fields need a fix.</strong><ul><li><a href="#a">API key</a></li><li><a href="#b">Check every</a></li></ul></span></div>`;
+  const linkGap = (el: HTMLElement) => {
+    const [first, second] = [...el.querySelectorAll("a")].map((a) => a.getBoundingClientRect());
+    return first && second && second.top - first.top;
+  };
+
+  it("gives each link of an error summary a 24px row, so lines of links keep their spacing", () => {
+    expect(linkGap(build(summary))).toBeGreaterThanOrEqual(24);
+  });
+
+  it("keeps the 24px rows when the person's root font is smaller than 16px", () => {
+    document.documentElement.style.fontSize = "12px";
+    onTestFinished(() => {
+      document.documentElement.style.removeProperty("font-size");
+    });
+    expect(linkGap(build(summary))).toBeGreaterThanOrEqual(24);
+  });
+
   it("keeps a notice's own drawing apart from the banner's", () => {
     const el = build(
       `<div class="cp-notice" data-tone="warning"><span class="cp-icon"></span><span>Rate limited.</span></div>` +
@@ -96,6 +114,34 @@ describe("notice", () => {
     expect(getComputedStyle(q(box, "ul")).fontSize).toBe(cs.fontSize);
     expect(getComputedStyle(q(box, "ul")).paddingInlineStart).toBe("28px");
     expect(getComputedStyle(q(box, "small")).color).toBe(resolved("var(--cp-warning-11)"));
+  });
+
+  // Where a press lands, sampled every quarter pixel from the link's centre.
+  const pressHeight = (a: HTMLElement): number => {
+    const b = a.getBoundingClientRect();
+    const x = b.left + b.width / 2;
+    let up = 0;
+    let down = 0;
+    while (a.contains(document.elementFromPoint(x, b.top + b.height / 2 - up - 0.25))) {
+      up += 0.25;
+    }
+    while (a.contains(document.elementFromPoint(x, b.top + b.height / 2 + down + 0.25))) {
+      down += 0.25;
+    }
+    return up + down + 0.25;
+  };
+
+  it.each([
+    ["fine", 24],
+    ["coarse", 44],
+  ])("makes a notice's foot link a %s target of %ipx", (tier, min) => {
+    const el = build(
+      `<div style="padding-block: 3rem"><div ${VARIANT} data-tone="danger"><span class="cp-icon"></span><span><strong>Store full</strong> <small>Last seen 2m ago. <a href="#s">Details and fix</a></small></span></div>${reasonsBanner(VARIANT)}</div>`,
+    );
+    document.documentElement.setAttribute("data-pointer", tier);
+    for (const a of el.querySelectorAll<HTMLElement>("small a")) {
+      expect(pressHeight(a)).toBeGreaterThanOrEqual(min - 0.5);
+    }
   });
 
   it("raises a primary link's words off its fill inside a notice", () => {

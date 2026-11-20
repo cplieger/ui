@@ -1,5 +1,5 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
-import { userEvent } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 
 import { enhanceCombobox, type ComboboxOptions } from "./combobox.js";
 
@@ -281,7 +281,7 @@ describe("enhanceCombobox", () => {
   });
 });
 
-describe("options led by a cover", () => {
+function useSystemSheet(): void {
   let sheet: HTMLLinkElement;
 
   beforeAll(async () => {
@@ -301,6 +301,63 @@ describe("options led by a cover", () => {
     sheet.remove();
     document.documentElement.classList.remove("cp");
   });
+}
+
+describe("the popup's place", () => {
+  useSystemSheet();
+
+  afterEach(async () => {
+    await page.viewport(1280, 720);
+  });
+
+  const opened = async (top: number) => {
+    const { input, list, form } = combo();
+    for (const w of ["Natsume", "Nana", "Noragami", "Nichijou", "Orange", "Planetes"]) {
+      const li = document.createElement("li");
+      li.setAttribute("role", "option");
+      li.textContent = w;
+      list.append(li);
+    }
+    form.style.paddingBlockStart = `${String(top)}px`;
+    // The opening scale would shrink every box the test reads.
+    list.style.transition = "none";
+    input.focus();
+    await userEvent.keyboard("{Alt>}{ArrowDown}{/Alt}");
+    return { input, list };
+  };
+
+  // 320 by 256 CSS px is a 1280 by 1024 window at 400%: the list fits
+  // neither under nor over a field in the middle at its full height.
+  it.each([8, 96, 200])(
+    "keeps the list inside a short window and off its field, with the field %i px down",
+    async (top) => {
+      await page.viewport(320, 256);
+      const { input, list } = await opened(top);
+      const l = list.getBoundingClientRect();
+      const f = input.getBoundingClientRect();
+      expect([Math.round(l.top) >= 0, Math.round(l.bottom) <= innerHeight]).toEqual([true, true]);
+      expect(l.bottom <= f.top + 0.5 || l.top >= f.bottom - 0.5).toBe(true);
+      const y = scrollY;
+      await userEvent.keyboard("{ArrowUp}");
+      const last = list.querySelector('[aria-selected="true"]')?.getBoundingClientRect();
+      expect([scrollY, Math.round(last?.bottom ?? Infinity) <= Math.round(l.bottom)]).toEqual([
+        y,
+        true,
+      ]);
+    },
+  );
+
+  it("keeps its full height in a window with room", async () => {
+    const { list } = await opened(96);
+    expect(list.getBoundingClientRect().height).toBeCloseTo(
+      parseFloat(getComputedStyle(document.documentElement).fontSize) * 15,
+      0,
+    );
+  });
+});
+
+describe("options led by a cover", () => {
+  useSystemSheet();
 
   it("stack their covers square and 2px apart, rounded only by the list's own corners", () => {
     const box = document.createElement("div");

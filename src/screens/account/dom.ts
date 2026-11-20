@@ -58,6 +58,10 @@ interface FieldSpec {
   readonly type?: "text" | "password";
   readonly help?: string;
   readonly value?: string;
+  /** Marks a field the submit needs, as step 2 of the forms pattern asks:
+   *  `aria-required`, never `required`, with `label` in the label when the
+   *  field has help, else `help` as its help. */
+  readonly required?: { readonly label: string; readonly help: string };
 }
 
 export interface Field {
@@ -86,8 +90,15 @@ export function field(spec: FieldSpec): Field {
   const label = el("label", "cp-label", spec.label);
   label.htmlFor = input.id;
   root.append(label, input);
-  if (spec.help !== undefined) {
-    const help = el("p", "cp-help", spec.help);
+  if (spec.required !== undefined) {
+    input.setAttribute("aria-required", "true");
+    if (spec.help !== undefined) {
+      label.append(" ", el("span", "cp-required", spec.required.label));
+    }
+  }
+  const helpText = spec.help ?? spec.required?.help;
+  if (helpText !== undefined) {
+    const help = el("p", "cp-help", helpText);
     help.id = `${input.id}-help`;
     input.setAttribute("aria-describedby", help.id);
     root.append(help);
@@ -201,18 +212,20 @@ interface Column {
 }
 
 /** A flush `.cp-panel` holding a `.cp-table` named by `labelledBy`, and
- *  its body. The panel scrolls a wide table sideways, so it takes focus
- *  for the arrow keys; a group, since its section is the region of that
- *  name already. */
+ *  its body. While the table is wider than the panel, the panel is a
+ *  region named `scrolls(title)` that takes focus for the arrow keys; a
+ *  table that fits adds no stop and no landmark beside its section, once
+ *  focus is off the panel. The panel's `data-cp-action` is
+ *  `table-<labelledBy>`, so a redraw puts focus back on it only when the
+ *  caller passes the same ids on every draw. */
 export function table(
   labelledBy: string,
   columns: readonly Column[],
+  scrolls: (title: string) => string,
 ): { readonly root: HTMLElement; readonly body: HTMLTableSectionElement } {
   const root = el("div", "cp-panel");
   root.dataset["flush"] = "";
-  root.setAttribute("role", "group");
-  root.setAttribute("aria-labelledby", labelledBy);
-  root.tabIndex = 0;
+  root.dataset["cpAction"] = `table-${labelledBy}`;
   const t = el("table", "cp-table");
   t.setAttribute("aria-labelledby", labelledBy);
   const row = el("tr");
@@ -238,7 +251,66 @@ export function table(
   const body = el("tbody");
   t.append(head, body);
   root.append(t);
+  scrollRegion(root, t, labelledBy, scrolls);
   return { root, body };
+}
+
+/** Keeps `root`'s region role, name and tab stop on while `table`
+ *  overflows it, and while `root` holds focus, so a fitting table never
+ *  drops focus to the page; they go once focus leaves. They start on, so
+ *  a redraw can focus the new panel before the observer's first report.
+ *  The observer reports a removed panel as a size change, so it ends with
+ *  the panel. */
+function scrollRegion(
+  root: HTMLElement,
+  table: HTMLTableElement,
+  labelledBy: string,
+  scrolls: (title: string) => string,
+): void {
+  const stop = (): void => {
+    const title = labelledBy
+      .split(" ")
+      .map((id) => root.ownerDocument.getElementById(id)?.textContent ?? "")
+      .join(" ")
+      .trim();
+    root.setAttribute("role", "region");
+    root.setAttribute("aria-label", scrolls(title));
+    root.tabIndex = 0;
+  };
+  let held = false;
+  const sync = (): void => {
+    if (root.scrollWidth > root.clientWidth) {
+      stop();
+    } else if (root === root.ownerDocument.activeElement) {
+      // A window losing focus fires focusout with the panel still active,
+      // so sync runs again and holds on until focus really moves.
+      if (!held) {
+        held = true;
+        root.addEventListener(
+          "focusout",
+          () => {
+            held = false;
+            sync();
+          },
+          { once: true },
+        );
+      }
+    } else {
+      root.removeAttribute("role");
+      root.removeAttribute("aria-label");
+      root.removeAttribute("tabindex");
+    }
+  };
+  stop();
+  const observer = new ResizeObserver(() => {
+    if (!root.isConnected) {
+      observer.disconnect();
+      return;
+    }
+    sync();
+  });
+  observer.observe(root);
+  observer.observe(table);
 }
 
 /** A table cell holding `content`. */

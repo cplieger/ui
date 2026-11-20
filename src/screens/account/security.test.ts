@@ -220,17 +220,21 @@ describe("mountSecurity: the profile", () => {
     expect(fake.named("sendSignals")).toHaveLength(1);
   });
 
-  it("lets a keyboard scroll each wide table, its panel named by the table's heading", async () => {
+  it("lets a keyboard scroll each table wider than its panel, the region named by its heading", async () => {
     const { region } = mount();
+    region.style.inlineSize = "200px";
     await ready(region);
     const panels = [...region.querySelectorAll<HTMLElement>(".cp-panel[data-flush]")];
     expect(panels.length).toBeGreaterThanOrEqual(3);
     for (const p of panels) {
+      const by = p.querySelector("table")?.getAttribute("aria-labelledby") ?? "";
+      const title = document.getElementById(by);
+      expect(title?.tagName).toMatch(/^H[2-4]$/);
+      await vi.waitFor(() => {
+        expect(p.getAttribute("role")).toBe("region");
+      });
       expect(p.tabIndex).toBe(0);
-      expect(p.getAttribute("role")).toBe("group");
-      const by = p.getAttribute("aria-labelledby") ?? "";
-      expect(document.getElementById(by)?.tagName).toMatch(/^H[2-4]$/);
-      expect(p.querySelector("table")?.getAttribute("aria-labelledby")).toBe(by);
+      expect(p.getAttribute("aria-label")).toBe(`${title?.textContent ?? ""}, table`);
     }
   });
 
@@ -439,6 +443,36 @@ describe("mountSecurity: passkeys", () => {
     expect(rows[0]?.querySelector("[popovertarget]")?.getAttribute("aria-label")).toBe(
       "Actions for Phone",
     );
+  });
+
+  it("keeps focus and the scroll on a focused passkeys panel the refresh draws again", async () => {
+    await userEvent.click(document.body);
+    const fake = new Fake().always("passkeys", ok([PHONE, { ...PHONE, id: 8, name: "Key" }]));
+    const { region, screen } = mount(fake);
+    region.style.inlineSize = "200px";
+    const panelOf = (): HTMLElement | undefined =>
+      [...region.querySelectorAll("table")][1]?.closest<HTMLElement>(".cp-panel") ?? undefined;
+    const panel = await vi.waitFor(() => {
+      const p = panelOf();
+      expect(p?.tabIndex).toBe(0);
+      return p as HTMLElement;
+    });
+    panel.focus();
+    panel.scrollLeft = 40;
+    const left = panel.scrollLeft;
+    expect(left).toBeGreaterThan(0);
+    await screen.refresh();
+    const again = await vi.waitFor(() => {
+      const next = panelOf();
+      expect(next).toBeDefined();
+      expect(next).not.toBe(panel);
+      return next as HTMLElement;
+    });
+    await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)));
+    expect(document.activeElement).toBe(again);
+    expect(again.getAttribute("role")).toBe("region");
+    expect(again.getAttribute("aria-label")).toBe("Passkeys, table");
+    expect(again.scrollLeft).toBe(left);
   });
 
   it("adds one with no proof while no second factor is held", async () => {

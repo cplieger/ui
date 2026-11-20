@@ -8,6 +8,10 @@ import { enhanceMeter } from "../data/meter/meter.js";
 import { enhanceRankedBars } from "../data/ranked-bars/ranked-bars.js";
 import { renderSparkline } from "../data/sparkline/sparkline.js";
 import { enhanceRange } from "../forms/range/range.js";
+import { enhanceCombobox } from "../forms/combobox/combobox.js";
+import { enhanceMenu } from "../overlays/menu/menu.js";
+import { enhancePalette } from "../overlays/palette/palette.js";
+import { enhanceSelectPanel } from "../overlays/select-panel/select-panel.js";
 
 const root = document.documentElement;
 let sheet: HTMLLinkElement;
@@ -50,7 +54,7 @@ afterEach(async () => {
   root.classList.remove("cp");
   root.removeAttribute("data-theme");
   root.removeAttribute("data-pointer");
-  for (const p of ["--cp-accent-h", "--cp-accent-c"]) {
+  for (const p of ["--cp-accent-h", "--cp-accent-c", "--cp-success-h"]) {
     root.style.removeProperty(p);
   }
 });
@@ -170,6 +174,50 @@ async function inkBottom(el: Element): Promise<number | null> {
 const media = (name: string, value: string) =>
   cdp().send("Emulation.setEmulatedMedia", { features: [{ name, value }] });
 
+// Firefox and WebKit take no media emulation from a browser test, so there
+// the linked sheet's own blocks for a feature are switched on in place,
+// keeping their place in the cascade.
+function switchOn(on: RegExp, off: RegExp): void {
+  const flip = (rules: CSSRuleList) => {
+    for (const rule of rules) {
+      if (rule instanceof CSSMediaRule) {
+        rule.media.mediaText = rule.media.mediaText
+          .replaceAll(on, "(min-width: 0px)")
+          .replaceAll(off, "(max-width: -1px)");
+      }
+      if ("cssRules" in rule) {
+        flip(rule.cssRules as CSSRuleList);
+      }
+    }
+  };
+  flip((sheet.sheet as CSSStyleSheet).cssRules);
+}
+
+async function reduceMotion(): Promise<void> {
+  if (emulates) {
+    await media("prefers-reduced-motion", "reduce");
+    return;
+  }
+  switchOn(/\(prefers-reduced-motion:\s*reduce\)/g, /\(prefers-reduced-motion:\s*no-preference\)/g);
+  // A script's matchMedia agrees with the switched sheet.
+  const real = matchMedia.bind(window);
+  vi.stubGlobal("matchMedia", (q: string) =>
+    q.includes("prefers-reduced-motion")
+      ? ({ matches: q.includes("reduce"), media: q } as MediaQueryList)
+      : real(q),
+  );
+}
+
+// Forced colours the same way. Out of a real forced mode, Firefox and WebKit
+// show what the sheet's forced-colours blocks set, never the palette itself.
+async function forceColours(): Promise<void> {
+  if (emulates) {
+    await media("forced-colors", "active");
+    return;
+  }
+  switchOn(/\(forced-colors:\s*active\)/g, /\(forced-colors:\s*none\)/g);
+}
+
 const theme = (t: "light" | "dark") => {
   root.classList.add("cp");
   root.setAttribute("data-theme", t);
@@ -219,6 +267,18 @@ describe("css/system.css harmony colours", () => {
     expect(harmonyAt(2, 310)[2]).toBeCloseTo(100, 3);
   });
 
+  // Stylo computes calc() in f32 (its CSSFloat), where no turned hue lands
+  // within 1e-5 of an edge.
+  it.skipIf(server.browser === "firefox")(
+    "moves a partner a hair inside the yellow-greens as one at the band's edges",
+    () => {
+      theme("light");
+      expect(harmonyAt(2, 310.000005)[2]).toBeCloseTo(90, 3);
+      expect(harmonyAt(2, 327.499995)[2]).toBeCloseTo(90, 3);
+      expect(harmonyAt(2, 344.999995)[2]).toBeCloseTo(142, 3);
+    },
+  );
+
   it("lifts a yellow partner above the accent, and keeps the others at its lightness", () => {
     theme("light");
     const [yellowL] = harmonyAt(2, 305);
@@ -264,6 +324,80 @@ describe("css/system.css harmony colours", () => {
         }
       }
     });
+
+    it.skipIf(!emulates)(
+      `inks every harmony colour at 7:1 or more with more contrast in ${t}`,
+      async () => {
+        theme(t);
+        await media("prefers-contrast", "more");
+        // 206.4945 and 266.4945 turn to a partner at 56.4945, whose floor
+        // lands on the split where a light partner's lightness steps.
+        const hues = [...Array.from({ length: 24 }, (_, i) => i * 15), 206.4945, 266.4945];
+        for (const hue of hues) {
+          root.style.setProperty("--cp-accent-h", String(hue));
+          for (const n of [1, 2, 3, 4]) {
+            const el = host("");
+            el.style.color = `var(--cp-harmony-${String(n)}-on)`;
+            el.style.backgroundColor = `var(--cp-harmony-${String(n)})`;
+            const cs = getComputedStyle(el);
+            expect(
+              contrast(cs.color, cs.backgroundColor),
+              `hue ${String(hue)} harmony ${String(n)}`,
+            ).toBeGreaterThanOrEqual(7);
+          }
+        }
+      },
+    );
+  }
+});
+
+describe("done fill", () => {
+  // The success seed's hue is the app's to set.
+  const inks = (fill: () => HTMLElement): number[] => {
+    const out: number[] = [];
+    for (let hue = 0; hue < 360; hue += 15) {
+      root.style.setProperty("--cp-success-h", String(hue));
+      const el = fill();
+      el.style.color = "oklch(100% 0 0deg)";
+      const cs = getComputedStyle(el);
+      out.push(contrast(cs.color, cs.backgroundColor));
+    }
+    return out;
+  };
+  const token = (): HTMLElement => {
+    const el = host("");
+    el.style.backgroundColor = "var(--cp-done-fill)";
+    return el;
+  };
+  // A split paints its done main action's fill on itself.
+  const split = (): HTMLElement => {
+    const el = host("cp-split");
+    const main = document.createElement("button");
+    main.className = "cp-button";
+    main.dataset["cpState"] = "done";
+    el.append(main);
+    return el;
+  };
+
+  for (const t of ["light", "dark"] as const) {
+    for (const [what, fill] of [
+      ["the done fill", token],
+      ["a done split", split],
+    ] as const) {
+      it(`inks white words on ${what} at 4.5:1 or more in ${t}, at every success hue`, () => {
+        theme(t);
+        expect(Math.min(...inks(fill))).toBeGreaterThanOrEqual(4.5);
+      });
+
+      it.skipIf(!emulates)(
+        `inks white words on ${what} at 7:1 or more with more contrast in ${t}, at every success hue`,
+        async () => {
+          theme(t);
+          await media("prefers-contrast", "more");
+          expect(Math.min(...inks(fill))).toBeGreaterThanOrEqual(7);
+        },
+      );
+    }
   }
 });
 
@@ -1345,6 +1479,7 @@ describe("css/system.css", () => {
     const el = build(
       '<div style="padding: 40px; inline-size: 20rem"><div class="cp-search"><input class="cp-input" type="search" placeholder="Search" value="x"><button class="cp-button" aria-label="Clear"></button></div></div>' +
         '<div style="padding: 40px; inline-size: 20rem"><div class="cp-input-wrap"><input class="cp-input" type="password"><button class="cp-button" aria-label="Show"></button></div></div>' +
+        '<div style="padding: 40px; inline-size: 20rem"><div class="cp-secret" data-cp-state="saved"><div data-part="saved"><span>Saved</span><button class="cp-button" data-size="sm" aria-label="Replace">Replace</button></div><div data-part="edit"></div></div></div>' +
         '<div style="padding: 40px"><div class="cp-stepper"><button class="cp-button" aria-label="Fewer">-</button><input type="number" value="3"><button class="cp-button" aria-label="More">+</button></div></div>',
     );
     for (const b of el.querySelectorAll("button")) {
@@ -1489,7 +1624,7 @@ describe("css/system.css", () => {
       const bar = el.querySelector("#offset-bar") as HTMLElement;
       const input = el.querySelector("#offset") as HTMLInputElement;
       const look = (s: HTMLElement): string => {
-        const edge = getComputedStyle(s);
+        const edge = getComputedStyle(s, "::after");
         const b = s.querySelector(".cp-button") as HTMLElement;
         return [
           edge.borderTopWidth,
@@ -1682,6 +1817,88 @@ describe("css/system.css", () => {
     }
   });
 
+  // WCAG 1.4.4, 1.4.10 and 2.5.5: the box clips what overflows it, and its
+  // field is the target, so the field fills the box's whole height.
+  it("fills a fixed part's box with its field, so the box cuts none of it and a press anywhere lands", () => {
+    theme("light");
+    for (const tier of ["fine", "coarse"]) {
+      root.dataset["pointer"] = tier;
+      const el = build(
+        '<div class="cp-affix"><span>https://</span><input class="cp-input" id="host"></div>',
+      );
+      const affix = el.querySelector(".cp-affix") as HTMLElement;
+      const field = el.querySelector("#host") as HTMLElement;
+      expect(affix.scrollHeight, tier).toBe(affix.clientHeight);
+      expect(field.getBoundingClientRect().height, tier).toBe(affix.getBoundingClientRect().height);
+    }
+  });
+
+  it("edges a fixed part's box in the field's state: at rest, in error and focused", () => {
+    theme("light");
+    const el = build(
+      '<div class="cp-affix"><span>https://</span><input class="cp-input" id="host"></div>',
+    );
+    const affix = el.querySelector(".cp-affix") as HTMLElement;
+    const field = el.querySelector("#host") as HTMLInputElement;
+    const ink = host("");
+    const edge = (token: string) => {
+      ink.style.color = `var(${token})`;
+      expect(getComputedStyle(affix, "::after").borderTopColor, token).toBe(
+        getComputedStyle(ink).color,
+      );
+    };
+    edge("--cp-border-strong");
+    field.setAttribute("aria-invalid", "true");
+    edge("--cp-danger-8");
+    field.removeAttribute("aria-invalid");
+    field.focus({ focusVisible: true });
+    edge("--cp-focus-ring");
+  });
+
+  // WCAG 2.4.13: where a ring crosses its box's border, those pixels change
+  // from the border's colour to the ring's, under 3:1, so the control rings
+  // in the room inside the border.
+  for (const [what, markup, box] of [
+    [
+      "a field's quiet control",
+      '<div class="cp-input-wrap"><input class="cp-input" type="password"><button class="cp-button" data-variant="quiet" type="button" aria-label="Show password"></button></div>',
+      ".cp-input",
+    ],
+    [
+      "a saved secret's Replace",
+      '<div class="cp-secret" data-cp-state="saved"><span class="cp-label">Key</span><div data-part="saved"><span>Saved</span><button class="cp-button" data-size="sm" type="button">Replace</button></div><div data-part="edit"></div></div>',
+      "[data-part='saved']",
+    ],
+  ] as const) {
+    it(`rings ${what} inside its box's border on every tier`, () => {
+      theme("light");
+      for (const tier of ["fine", "coarse"]) {
+        root.dataset["pointer"] = tier;
+        const el = build(`<div style="padding: 40px; inline-size: 20rem">${markup}</div>`);
+        const button = el.querySelector("button") as HTMLElement;
+        const frame = el.querySelector(box) as HTMLElement;
+        button.focus({ focusVisible: true });
+        const ring = getComputedStyle(button);
+        expect([ring.outlineStyle, ring.outlineWidth], tier).toEqual(["solid", "2px"]);
+        const reach = Number.parseFloat(ring.outlineOffset) + Number.parseFloat(ring.outlineWidth);
+        expect(Number.parseFloat(ring.outlineOffset), tier).toBeGreaterThanOrEqual(0);
+        const b = button.getBoundingClientRect();
+        const f = frame.getBoundingClientRect();
+        const edge = getComputedStyle(frame);
+        const inside = {
+          top: f.top + Number.parseFloat(edge.borderTopWidth),
+          right: f.right - Number.parseFloat(edge.borderRightWidth),
+          bottom: f.bottom - Number.parseFloat(edge.borderBottomWidth),
+          left: f.left + Number.parseFloat(edge.borderLeftWidth),
+        };
+        expect(b.top - reach, tier).toBeGreaterThanOrEqual(inside.top - 0.5);
+        expect(b.right + reach, tier).toBeLessThanOrEqual(inside.right + 0.5);
+        expect(b.bottom + reach, tier).toBeLessThanOrEqual(inside.bottom + 0.5);
+        expect(b.left - reach, tier).toBeGreaterThanOrEqual(inside.left - 0.5);
+      }
+    });
+  }
+
   it("shows a search field's clear button only while it holds text, and draws its glass", () => {
     theme("light");
     const el = build(
@@ -1762,6 +1979,55 @@ describe("css/system.css", () => {
             `hue ${String(hue)} state "${b.dataset["state"] ?? ""}"`,
           ).toBeGreaterThanOrEqual(4.5);
         }
+      }
+    });
+  }
+
+  for (const t of ["light", "dark"] as const) {
+    it(`rings focus at 3:1 on every surface at every hue and chroma in ${t}`, () => {
+      theme(t);
+      const el = build("<span></span>");
+      const paint = (v: string): string => {
+        el.style.color = v;
+        return getComputedStyle(el).color;
+      };
+      for (const chroma of ["0.05", "0.137", "0.25"]) {
+        root.style.setProperty("--cp-accent-c", chroma);
+        for (let hue = 0; hue < 360; hue += 15) {
+          root.style.setProperty("--cp-accent-h", String(hue));
+          for (const surface of ["page", "raised", "sunken", "overlay"]) {
+            expect(
+              contrast(paint("var(--cp-focus-ring)"), paint(`var(--cp-surface-${surface})`)),
+              `${surface} hue ${String(hue)} chroma ${chroma}`,
+            ).toBeGreaterThanOrEqual(3);
+          }
+        }
+      }
+    });
+
+    it(`rings focus on the header at 3:1 on its fill at every hue in ${t}, and an overlay's as the page's`, () => {
+      theme(t);
+      const el = build(
+        '<button class="cp-button" type="button" id="page-btn">Page</button>' +
+          '<header class="cp-header"><a class="cp-wordmark" href="#a">Releases</a>' +
+          '<div class="cp-popover" data-variant="panel" popover id="hdr-panel"><button class="cp-button" type="button" id="hdr-in">Sign out</button></div></header>',
+      );
+      const header = el.querySelector(".cp-header") as HTMLElement;
+      const link = el.querySelector(".cp-wordmark") as HTMLElement;
+      const item = el.querySelector("#hdr-in") as HTMLElement;
+      const pageButton = el.querySelector("#page-btn") as HTMLElement;
+      (el.querySelector("#hdr-panel") as HTMLElement).showPopover();
+      for (let hue = 0; hue < 360; hue += 15) {
+        root.style.setProperty("--cp-accent-h", String(hue));
+        link.focus({ focusVisible: true } as FocusOptions);
+        expect(
+          contrast(getComputedStyle(link).outlineColor, getComputedStyle(header).backgroundColor),
+          `hue ${String(hue)}`,
+        ).toBeGreaterThanOrEqual(3);
+        pageButton.focus({ focusVisible: true } as FocusOptions);
+        const pageRing = getComputedStyle(pageButton).outlineColor;
+        item.focus({ focusVisible: true } as FocusOptions);
+        expect(getComputedStyle(item).outlineColor, `hue ${String(hue)}`).toBe(pageRing);
       }
     });
   }
@@ -2347,6 +2613,23 @@ describe("css/system.css", () => {
     expect(getComputedStyle(slid.querySelector(".cp-tab") as HTMLElement).zIndex).toBe("1");
   });
 
+  it("moves the pill at once under reduced motion", async () => {
+    await reduceMotion();
+    theme("light");
+    const el = build(
+      '<div class="cp-tabs" role="tablist" aria-label="Item"><span class="cp-pill" aria-hidden="true"></span>' +
+        '<button class="cp-tab" role="tab" type="button" aria-selected="true">Episodes</button></div>',
+    );
+    const pill = el.querySelector(".cp-pill") as HTMLElement;
+    pill.style.setProperty("--cp-pill-w", "80px");
+    pill.style.setProperty("--cp-pill-h", "32px");
+    pill.getBoundingClientRect();
+    pill.style.setProperty("--cp-pill-x", "120px");
+    pill.style.setProperty("--cp-pill-w", "100px");
+    expect(pill.getAnimations()).toEqual([]);
+    expect(pill.getBoundingClientRect().width).toBe(100);
+  });
+
   it.skipIf(!emulates)(
     "outlines the current link, the selected tab and the chosen segment in forced colours",
     async () => {
@@ -2673,6 +2956,113 @@ describe("css/system.css", () => {
     expect(cs.backgroundColor).not.toBe(getComputedStyle(sw, "::after").backgroundColor);
   });
 
+  it("rings a checkbox, a radio, a switch and a range in the system's highlight in forced colours", async () => {
+    theme("light");
+    await forceColours();
+    const el = build(
+      '<button type="button">Before</button><input class="cp-checkbox" type="checkbox" aria-label="Notify"><input class="cp-radio" type="radio" aria-label="Prefer"><input class="cp-switch" type="checkbox" role="switch" aria-label="Nightly"><input class="cp-range" type="range" aria-label="Seeders">',
+    );
+    const probe = host("");
+    probe.style.color = "Highlight";
+    const highlight = getComputedStyle(probe).color;
+    (el.querySelector("button") as HTMLButtonElement).focus();
+    const rings: string[] = [];
+    for (const c of el.querySelectorAll("input")) {
+      await userEvent.keyboard("{Tab}");
+      expect(document.activeElement).toBe(c);
+      rings.push(`${c.className} ${getComputedStyle(c).outlineColor}`);
+    }
+    expect(rings).toEqual(
+      ["cp-checkbox", "cp-radio", "cp-switch", "cp-range"].map((c) => `${c} ${highlight}`),
+    );
+  });
+
+  it("gives a stepper's number a finger's target on the coarse tier, the stepper one control tall", async () => {
+    theme("light");
+    root.dataset["pointer"] = "coarse";
+    const el = build(
+      '<div class="cp-stepper" role="group" aria-label="Parallel checks"><button class="cp-button" data-variant="quiet" type="button" aria-label="Fewer"><span class="cp-icon" data-cp-icon="minus" aria-hidden="true"></span></button><input type="number" min="1" max="8" value="3" aria-label="Parallel checks"><button class="cp-button" data-variant="quiet" type="button" aria-label="More"><span class="cp-icon" data-cp-icon="plus" aria-hidden="true"></span></button></div>',
+    );
+    const stepper = el.querySelector(".cp-stepper") as HTMLElement;
+    const input = el.querySelector("input") as HTMLInputElement;
+    const box = input.getBoundingClientRect();
+    expect([box.width >= 44, box.height >= 44]).toEqual([true, true]);
+    expect(stepper.getBoundingClientRect().height).toBe(44);
+    // A press on the number's edge still lands on the number.
+    expect(document.elementFromPoint(box.left + box.width / 2, box.top + 0.5)).toBe(input);
+    expect(document.elementFromPoint(box.left + box.width / 2, box.bottom - 0.5)).toBe(input);
+  });
+
+  it("keeps a stepper's edge, turning it to the ring's colour while its number has focus", async () => {
+    theme("light");
+    const el = build(
+      '<button type="button">Before</button><div class="cp-stepper" role="group" aria-label="Parallel checks"><button class="cp-button" data-variant="quiet" type="button" aria-label="Fewer">-</button><input type="number" value="3" aria-label="Parallel checks"><button class="cp-button" data-variant="quiet" type="button" aria-label="More">+</button></div>',
+    );
+    const stepper = el.querySelector(".cp-stepper") as HTMLElement;
+    const edge = () => {
+      const after = getComputedStyle(stepper, "::after");
+      const own = getComputedStyle(stepper);
+      return after.content === "none" ? own.borderTopColor : after.borderTopColor;
+    };
+    const probe = host("");
+    probe.style.color = "var(--cp-border-strong)";
+    expect(edge()).toBe(getComputedStyle(probe).color);
+    (el.querySelector("button") as HTMLButtonElement).focus();
+    await userEvent.keyboard("{Tab}{Tab}");
+    expect(document.activeElement).toBe(el.querySelector("input"));
+    expect(edge()).toBe(getComputedStyle(stepper).outlineColor);
+  });
+
+  it("rings a date or a time field while focus is in one of its parts", async () => {
+    theme("light");
+    const el = build(
+      '<button type="button">Before</button><input class="cp-input" type="date" value="2026-11-15" aria-label="Pause until"><input class="cp-input" type="time" value="03:00" aria-label="Nightly check at">',
+    );
+    const [date, time] = [...el.querySelectorAll("input")] as [HTMLInputElement, HTMLInputElement];
+    (el.querySelector("button") as HTMLButtonElement).focus();
+    const rings: string[] = [];
+    for (const field of [date, time]) {
+      for (let i = 0; i < 8 && document.activeElement !== field; i++) {
+        await userEvent.keyboard("{Tab}");
+      }
+      expect(document.activeElement).toBe(field);
+      rings.push(`${field.type} ${getComputedStyle(field).outlineStyle}`);
+    }
+    expect(rings).toEqual(["date solid", "time solid"]);
+  });
+
+  it("shows a pointer over a choice row with its own field only where a press acts", () => {
+    theme("light");
+    const el = build(
+      '<fieldset class="cp-choices"><legend>Run checks</legend><div class="cp-choice"><input class="cp-radio" type="radio" name="c" id="t-every" checked><span class="cp-choice-field"><label for="t-every">Every</label><input class="cp-input" type="number" value="30" aria-label="Minutes between checks"><label for="t-every">minutes</label></span></div><label class="cp-choice"><input class="cp-radio" type="radio" name="c"><span>Only when triggered</span></label></fieldset>',
+    );
+    const cursor = (e: Element | null) => getComputedStyle(e as Element).cursor;
+    const [field, plain] = [...el.querySelectorAll(".cp-choice")];
+    const [every, unit] = [...(field as Element).querySelectorAll("label")];
+    expect([cursor(field as Element), cursor(every as Element), cursor(unit as Element)]).toEqual([
+      "auto",
+      "pointer",
+      "pointer",
+    ]);
+    expect(cursor(plain as Element)).toBe("pointer");
+  });
+
+  it("shows not-allowed over a disabled choice row with its own field and over its labels", () => {
+    theme("light");
+    const el = build(
+      '<fieldset class="cp-choices" disabled><legend>Run checks</legend><div class="cp-choice"><input class="cp-radio" type="radio" name="c" id="t-off" checked><span class="cp-choice-field"><label for="t-off">Every</label><input class="cp-input" type="number" value="30" aria-label="Minutes between checks"><label for="t-off">minutes</label></span></div><label class="cp-choice"><input class="cp-radio" type="radio" name="c"><span>Only when triggered</span></label></fieldset>',
+    );
+    const cursor = (e: Element | null) => getComputedStyle(e as Element).cursor;
+    const [field, plain] = [...el.querySelectorAll(".cp-choice")];
+    const [every, unit] = [...(field as Element).querySelectorAll("label")];
+    expect([
+      cursor(field as Element),
+      cursor(every as Element),
+      cursor(unit as Element),
+      cursor(plain as Element),
+    ]).toEqual(["not-allowed", "not-allowed", "not-allowed", "not-allowed"]);
+  });
+
   it("fills the chosen segment and rings it when its radio has keyboard focus", async () => {
     const life = new AbortController();
     onTestFinished(() => life.abort());
@@ -2737,6 +3127,12 @@ describe("css/system.css", () => {
     expect(box(narrow, ".cp-settings-nav").bottom).toBeLessThanOrEqual(
       box(narrow, ".cp-setting").top,
     );
+    narrow.style.inlineSize = "12rem";
+    const strip = narrow.querySelector(".cp-settings-nav > .cp-list") as HTMLElement;
+    strip.scrollLeft = 40;
+    expect(strip.scrollLeft).toBeGreaterThan(0);
+    const nav = narrow.querySelector(".cp-settings-nav") as HTMLElement;
+    expect(nav.scrollWidth).toBe(nav.clientWidth);
   });
 
   it("keeps the save bar and the toasts clear of the bottom bar on a phone", async () => {
@@ -2793,6 +3189,42 @@ describe("css/system.css", () => {
     expect(nav.bottom).toBeLessThanOrEqual(
       (narrow.querySelector(".cp-setting") as Element).getBoundingClientRect().top,
     );
+  });
+
+  it("draws the narrow category select's focus ring whole, cut by no box round it", async () => {
+    theme("light");
+    await page.viewport(400, 800);
+    const el = build(
+      '<div class="cp-settings"><nav class="cp-settings-nav" aria-label="Settings"><ul class="cp-list" data-surface="plain" data-divider="none" data-density="compact">' +
+        '<li><a class="cp-list-row" href="#c" aria-current="location"><span class="cp-cell-stack">Connections</span></a></li></ul>' +
+        '<div class="cp-field"><label class="cp-label" for="cat">Category</label><div class="cp-select"><select class="cp-input" id="cat"><option>Connections</option></select></div></div></nav>' +
+        '<div><div class="cp-setting"><div><label class="cp-label" for="n">Notifications</label></div><input class="cp-switch" id="n" type="checkbox" role="switch"></div></div></div>',
+    );
+    const select = el.querySelector("select") as HTMLSelectElement;
+    select.focus({ focusVisible: true } as FocusOptions);
+    const cs = getComputedStyle(select);
+    expect(cs.outlineStyle).toBe("solid");
+    const ring = parseFloat(cs.outlineWidth) + parseFloat(cs.outlineOffset);
+    const b = select.getBoundingClientRect();
+    const cut: string[] = [];
+    for (let a = select.parentElement; a && a !== el.parentElement; a = a.parentElement) {
+      const st = getComputedStyle(a);
+      if (st.overflowX === "visible" && st.overflowY === "visible") {
+        continue;
+      }
+      const box = a.getBoundingClientRect();
+      const left = box.left + a.clientLeft;
+      const top = box.top + a.clientTop;
+      if (
+        b.left - ring < left ||
+        b.top - ring < top ||
+        b.right + ring > left + a.clientWidth ||
+        b.bottom + ring > top + a.clientHeight
+      ) {
+        cut.push(a.className);
+      }
+    }
+    expect(cut).toEqual([]);
   });
 
   it("puts a setting's error on its own line under the row, the control still at the end", () => {
@@ -3695,6 +4127,56 @@ describe("css/system.css buttons and arrangements", () => {
     }
   }
 
+  // Exact, unrounded readings: a width that drifts by Gecko's 1/60px app unit
+  // still moves what follows the button.
+  for (const [rest, busy, fails, icon] of [
+    ["Download", "Downloading…", false, true],
+    ["Grab", "Grabbing…", false, true],
+    ["Save", "Saving…", false, true],
+    ["Download", "Downloading…", true, true],
+    ["Grab", "Grabbing…", false, false],
+    ["Show all 5 running", "Loading…", false, false],
+    ["Show all 5 running", "Loading…", false, true],
+  ] as const) {
+    it(`holds a small fixed ${rest} button ${icon ? "with" : "without"} an icon at one exact width at rest, its face centred, while ${busy} and ${fails ? "back on Retry after a failure" : "back at rest"}`, async () => {
+      await fontsIn(`${rest} ${busy} Retry`);
+      const b = build(
+        `<button class="cp-button" data-size="sm" type="button">${icon ? '<span class="cp-icon" data-cp-icon="download"></span>' : ""}<span class="cp-icon" data-cp-icon="spinner-arc" data-part="busy"></span><span class="cp-roll">${rest}</span></button>`,
+      ).querySelector("button") as HTMLButtonElement;
+      const c = enhanceConfirm(b, { busy, done: false, busyDelay: 0, width: "fixed" });
+      const inner = b.getBoundingClientRect();
+      const first = (
+        b.querySelector(":scope > .cp-icon:not([data-part]), :scope > .cp-roll") as Element
+      ).getBoundingClientRect().left;
+      const trail = (b.querySelector(".cp-roll") as Element).getBoundingClientRect().right;
+      expect(first - inner.left).toBeCloseTo(inner.right - trail, 0);
+      const seen = new Map<string, string>();
+      let sampling = true;
+      const sample = () => {
+        const words = b.dataset["cpState"] ?? (b.querySelector(".cp-roll") as Element).textContent;
+        seen.set(String(b.getBoundingClientRect().width), words);
+        if (sampling) {
+          requestAnimationFrame(sample);
+        }
+      };
+      sample();
+      await c
+        .run(async () => {
+          await new Promise((r) => setTimeout(r, 300));
+          if (fails) {
+            c.setRest("Retry");
+            throw new Error("failed");
+          }
+        })
+        .catch(() => undefined);
+      await new Promise((r) => setTimeout(r, 900));
+      sampling = false;
+      expect(b.hasAttribute("data-cp-state")).toBe(false);
+      expect((b.querySelector(".cp-roll") as Element).textContent).toBe(fails ? "Retry" : rest);
+      expect([...seen.entries()], JSON.stringify([...seen.entries()])).toHaveLength(1);
+    });
+  }
+
   it("never moves a table's other columns while a row's Grab confirms in its actions cell", async () => {
     await fontsIn("Grab Grabbing… Grabbed Not the best 33.0 GB");
     const el = build(
@@ -3796,6 +4278,53 @@ describe("css/system.css buttons and arrangements", () => {
       expect(split.getBoundingClientRect().width).toBeCloseTo(want, 0);
     });
   }
+
+  // WCAG 2.4.13: a ring of the split's own fill on the seam shows nothing,
+  // so the whole split rings outside its shape and the part inside it.
+  for (const part of ["main action", "caret"] as const) {
+    it(`rings a split around its shape and marks the focused ${part} at 3:1 on its fill`, async () => {
+      theme("light");
+      const el = build(
+        '<button type="button">Before</button><div class="cp-split" role="group" aria-label="Grab"><button class="cp-button" data-variant="primary" type="button">Grab the best</button><button class="cp-button" data-variant="primary" type="button" aria-label="More ways to grab"><span class="cp-icon"></span></button></div>',
+      );
+      const split = el.querySelector(".cp-split") as HTMLElement;
+      const target = split.children[part === "caret" ? 1 : 0] as HTMLElement;
+      (el.firstElementChild as HTMLElement).focus();
+      await userEvent.tab();
+      if (part === "caret") {
+        await userEvent.tab();
+      }
+      expect(document.activeElement).toBe(target);
+      const ring = host("");
+      ring.style.color = "var(--cp-focus-ring)";
+      const outer = getComputedStyle(split);
+      expect([outer.outlineStyle, outer.outlineWidth, outer.outlineColor]).toEqual([
+        "solid",
+        "2px",
+        getComputedStyle(ring).color,
+      ]);
+      expect(Number.parseFloat(outer.outlineOffset)).toBeGreaterThanOrEqual(0);
+      const inner = getComputedStyle(target);
+      expect([inner.outlineStyle, inner.outlineWidth]).toEqual(["solid", "2px"]);
+      expect(Number.parseFloat(inner.outlineOffset)).toBeLessThanOrEqual(-2);
+      expect(contrast(inner.outlineColor, outer.backgroundColor)).toBeGreaterThanOrEqual(3);
+    });
+  }
+
+  // WCAG 2.5.5, which the bar adopts on the coarse tier.
+  it("gives a split button's caret a 44px target on the coarse tier and keeps it 36px on the fine", () => {
+    theme("light");
+    const split = () =>
+      build(
+        '<div class="cp-split" role="group" aria-label="Grab"><button class="cp-button" data-variant="primary" type="button">Grab</button><button class="cp-button" data-variant="primary" type="button" aria-label="More ways to grab"><span class="cp-icon"></span></button></div>',
+      ).querySelector("[aria-label='More ways to grab']") as HTMLElement;
+    root.setAttribute("data-pointer", "fine");
+    expect(split().getBoundingClientRect().width).toBeCloseTo(36, 0);
+    root.setAttribute("data-pointer", "coarse");
+    const caret = split().getBoundingClientRect();
+    expect(caret.width).toBeGreaterThanOrEqual(44);
+    expect(caret.height).toBeGreaterThanOrEqual(44);
+  });
 
   it("joins a group's buttons with one line and rounds only its outer corners", () => {
     theme("light");
@@ -4088,6 +4617,42 @@ describe("css/system.css overlays", () => {
     );
   });
 
+  // 320 by 256 CSS px is a 1280 by 1024 window at 400%: a panel fits neither
+  // under nor over a button there, and from a button at the line's end it is
+  // wider than the room to the window's edge.
+  it.each([
+    ["panel", "start"],
+    ["panel", "end"],
+    ["select", "start"],
+    ["select", "end"],
+  ])(
+    "keeps a %s popover inside a short window and off its button at the line's %s, scrolling what does not fit",
+    async (kind, side) => {
+      await page.viewport(320, 256);
+      theme("light");
+      const rows = Array.from({ length: 10 }, (_, i) => `<p>Row ${String(i + 1)}</p>`).join("");
+      const body =
+        kind === "panel"
+          ? `<div class="cp-popover" data-variant="panel" popover id="pop">${rows}</div>`
+          : `<div class="cp-popover cp-select-panel" popover id="pop"><form><input class="cp-input"><ul role="listbox">${rows}</ul></form></div>`;
+      const el = build(
+        `<div style="padding-block-start: 96px; text-align: ${side}"><button class="cp-button" type="button" id="opener">Filters</button></div>${body}`,
+      );
+      const b = el.querySelector("#opener") as HTMLElement;
+      const pop = el.querySelector("#pop") as HTMLElement;
+      pop.style.transition = "none";
+      b.style.setProperty("anchor-name", "--t-short");
+      pop.style.setProperty("position-anchor", "--t-short");
+      pop.showPopover();
+      await new Promise((r) => requestAnimationFrame(r));
+      const p = pop.getBoundingClientRect();
+      const o = b.getBoundingClientRect();
+      expect([Math.round(p.top) >= 0, Math.round(p.bottom) <= innerHeight]).toEqual([true, true]);
+      expect(p.bottom <= o.top + 0.5 || p.top >= o.bottom - 0.5).toBe(true);
+      expect(pop.scrollHeight).toBeGreaterThan(pop.clientHeight);
+    },
+  );
+
   it("turns a checked menu item's box into an accent circle and shows a radio item's tick only when checked", () => {
     theme("light");
     const el = build(
@@ -4333,6 +4898,132 @@ describe("css/system.css overlays", () => {
     d.close();
     expect(getComputedStyle(root).overflow).not.toBe("hidden");
   });
+
+  it.each([
+    [320, 256],
+    [640, 360],
+  ])("keeps a palette's actions inside it at %ix%i, scrolling the list", async (w, h) => {
+    await page.viewport(w, h);
+    theme("light");
+    const d = document.createElement("dialog");
+    d.className = "cp-dialog cp-palette";
+    d.style.transition = "none";
+    const options = Array.from(
+      { length: 14 },
+      (_, i) => `<li role="option"><span>Action ${String(i + 1)}</span></li>`,
+    ).join("");
+    d.innerHTML = `<div class="cp-palette-field"><input aria-label="Search"></div><ul role="listbox" aria-label="Actions">${options}</ul>`;
+    hosts.push(d as unknown as HTMLElement);
+    document.body.append(d);
+    d.showModal();
+    const box = d.getBoundingClientRect();
+    const list = d.querySelector("ul") as HTMLElement;
+    expect(Math.round(box.bottom)).toBeLessThanOrEqual(innerHeight);
+    expect(list.getBoundingClientRect().bottom).toBeLessThanOrEqual(box.bottom + 0.5);
+    expect(list.scrollHeight).toBeGreaterThan(list.clientHeight);
+    list.scrollTop = list.scrollHeight;
+    const last = (list.lastElementChild as Element).getBoundingClientRect();
+    expect(last.bottom).toBeLessThanOrEqual(box.bottom + 0.5);
+    d.close();
+  });
+
+  it.each(["fine", "coarse"])(
+    "makes a palette's field a target its whole row tall, 44px or more, on the %s tier",
+    (tier) => {
+      theme("light");
+      root.setAttribute("data-pointer", tier);
+      const d = document.createElement("dialog");
+      d.className = "cp-dialog cp-palette";
+      d.style.transition = "none";
+      d.innerHTML =
+        '<div class="cp-palette-field"><span class="cp-icon" data-cp-icon="search" aria-hidden="true"></span><input aria-label="Search"></div><ul role="listbox" aria-label="Actions"><li role="option"><span>Open settings</span></li></ul>';
+      hosts.push(d as unknown as HTMLElement);
+      document.body.append(d);
+      d.showModal();
+      const row = d.querySelector(".cp-palette-field") as HTMLElement;
+      const input = (row.querySelector("input") as HTMLElement).getBoundingClientRect();
+      const inner = row.clientHeight;
+      expect(input.height).toBeGreaterThanOrEqual(44);
+      expect(input.height).toBeCloseTo(inner, 0);
+      d.close();
+    },
+  );
+
+  // A palette opened as an app opens it, from a focused opener, its field
+  // focused.
+  function openPalette(): {
+    d: HTMLDialogElement;
+    row: HTMLElement;
+    input: HTMLElement;
+    opener: HTMLElement;
+  } {
+    const opener = host("", { type: "button" }, "button");
+    opener.textContent = "Actions";
+    opener.focus();
+    const d = document.createElement("dialog");
+    d.className = "cp-dialog cp-palette";
+    d.style.transition = "none";
+    d.innerHTML =
+      '<div class="cp-palette-field"><span class="cp-icon" data-cp-icon="search" aria-hidden="true"></span><input aria-label="Search"></div><ul role="listbox" aria-label="Actions"><li role="option"><span>Open settings</span></li><li role="option"><span>Search</span></li></ul>';
+    hosts.push(d as unknown as HTMLElement);
+    document.body.append(d);
+    const life = new AbortController();
+    onTestFinished(() => {
+      life.abort();
+    });
+    enhancePalette(d, { onRun: () => undefined, key: null, signal: life.signal }).open();
+    const row = d.querySelector(".cp-palette-field") as HTMLElement;
+    const input = row.querySelector("input") as HTMLElement;
+    expect(document.activeElement).toBe(input);
+    return { d, row, input, opener };
+  }
+
+  it("rings a palette's whole field row inside the dialog's edge, and the input draws no second ring", async () => {
+    theme("light");
+    root.setAttribute("data-pointer", "fine");
+    const { d, row, input, opener } = openPalette();
+    const cs = getComputedStyle(row);
+    expect([cs.outlineStyle, cs.outlineWidth, cs.outlineOffset]).toEqual(["solid", "2px", "-2px"]);
+    const probe = host("");
+    probe.style.color = "var(--cp-focus-ring)";
+    expect(cs.outlineColor).toBe(getComputedStyle(probe).color);
+    expect(getComputedStyle(input).outlineStyle).toBe("none");
+    // The dialog clips at its padding box, so the ring's top corners curve
+    // with it: outer radius less the dialog's border.
+    const dcs = getComputedStyle(d);
+    const inner = `${String(Number.parseFloat(dcs.borderTopLeftRadius) - Number.parseFloat(dcs.borderTopWidth))}px`;
+    expect([cs.borderTopLeftRadius, cs.borderTopRightRadius]).toEqual([inner, inner]);
+    expect([cs.borderBottomLeftRadius, cs.borderBottomRightRadius]).toEqual(["0px", "0px"]);
+    await userEvent.keyboard("{Escape}");
+    expect(document.activeElement).toBe(opener);
+    expect(getComputedStyle(row).outlineStyle).toBe("none");
+  });
+
+  it("draws the palette field's ring at 3:1 on the dialog, in both themes", () => {
+    for (const t of ["light", "dark"] as const) {
+      theme(t);
+      const { d, row } = openPalette();
+      const cs = getComputedStyle(row);
+      expect(cs.outlineStyle, t).toBe("solid");
+      expect(
+        contrast(cs.outlineColor, getComputedStyle(d).backgroundColor),
+        t,
+      ).toBeGreaterThanOrEqual(3);
+      d.close();
+    }
+  });
+
+  it("rings the palette's field in Highlight in forced colours", async () => {
+    await forceColours();
+    theme("light");
+    const { d, row } = openPalette();
+    const probe = host("");
+    probe.style.color = "Highlight";
+    const cs = getComputedStyle(row);
+    expect(cs.outlineStyle).toBe("solid");
+    expect(cs.outlineColor).toBe(getComputedStyle(probe).color);
+    d.close();
+  });
 });
 
 describe("css/system.css feedback and steps", () => {
@@ -4515,6 +5206,74 @@ describe("css/system.css feedback and steps", () => {
     const el = build('<span class="cp-loader" aria-hidden="true"><span></span></span>');
     expect(getComputedStyle(el.querySelector(".cp-loader > span") as Element).animationName).toBe(
       "cp-twirl-loop",
+    );
+  });
+
+  // WCAG 3 draft 2.6.1.4: a busy indicator stops moving within 5 seconds,
+  // on a whole cycle, so it rests on the frame it started from.
+  const BUSY =
+    '<span class="cp-icon" data-cp-icon="spinner-arc" aria-hidden="true"></span>' +
+    '<button class="cp-button" type="button" data-cp-state="busy" aria-busy="true"><span class="cp-icon" data-cp-icon="spinner-arc" data-part="busy" aria-hidden="true"></span>Saving…</button>' +
+    '<span class="cp-state" data-cp-state="busy">Uploading…</span>' +
+    '<div class="cp-skeleton"></div>';
+  const runs = (el: HTMLElement) =>
+    el.getAnimations({ subtree: true }).filter((a): a is CSSAnimation => a instanceof CSSAnimation);
+
+  it("rests every busy indicator within 5 seconds, on a whole cycle", () => {
+    theme("light");
+    const el = build(BUSY);
+    const found = runs(el).map((a) => {
+      const t = a.effect?.getComputedTiming();
+      return {
+        name: a.animationName,
+        whole:
+          a.animationName === "cp-skeleton"
+            ? t?.direction === "alternate" && Number(t.iterations) % 2 === 0
+            : Number.isInteger(t?.iterations),
+        within: Number(t?.endTime) <= 5000,
+      };
+    });
+    expect(found).toEqual([
+      ...Array.from({ length: 3 }, () => ({ name: "cp-spin", whole: true, within: true })),
+      { name: "cp-skeleton", whole: true, within: true },
+    ]);
+  });
+
+  it("ends each busy indicator on the frame it started from", () => {
+    theme("light");
+    const el = build(BUSY);
+    for (const a of runs(el)) {
+      a.pause();
+      a.currentTime = Number(a.effect?.getComputedTiming().endTime) - 1;
+    }
+    const turn = (style: CSSStyleDeclaration) => {
+      const [cos = Number.NaN, sin = Number.NaN] =
+        /matrix\(([^)]*)\)/.exec(style.transform)?.[1]?.split(",").map(Number) ?? [];
+      return Math.round((Math.atan2(sin, cos) * 180) / Math.PI) + 0;
+    };
+    const state = el.querySelector(".cp-state") as HTMLElement;
+    expect([
+      ...[...el.querySelectorAll(".cp-icon")].map((i) => turn(getComputedStyle(i))),
+      turn(getComputedStyle(state, "::before")),
+      Number(getComputedStyle(el.querySelector(".cp-skeleton") as Element).opacity),
+    ]).toEqual([0, 0, 0, expect.closeTo(1, 2)]);
+  });
+
+  it("holds every busy indicator still under reduced motion", async () => {
+    await reduceMotion();
+    theme("light");
+    const el = build(BUSY);
+    expect(runs(el).map((a) => a.animationName)).toEqual([]);
+  });
+
+  it("draws a skeleton's lines in GrayText in forced colours", async () => {
+    await forceColours();
+    theme("light");
+    const el = build('<div class="cp-skeleton"></div>');
+    const gray = host("");
+    gray.style.backgroundColor = "GrayText";
+    expect(getComputedStyle(el.firstElementChild as Element).backgroundColor).toBe(
+      getComputedStyle(gray).backgroundColor,
     );
   });
 });
@@ -6792,7 +7551,6 @@ describe("css/system.css popup option row", () => {
     for (const row of popups()) {
       const cs = getComputedStyle(row);
       expect([cs.backgroundColor, cs.color], row.textContent).toEqual([wash, ink]);
-      expect(cs.outlineStyle, row.textContent).toBe("none");
       // A checked select panel option the keys have not reached is not lit.
       expect(getComputedStyle(rest(row)).backgroundColor, rest(row).textContent).toBe(
         "rgba(0, 0, 0, 0)",
@@ -6815,6 +7573,166 @@ describe("css/system.css popup option row", () => {
       );
     });
   }
+
+  // Each popup enhanced and opened from the keyboard, then one Arrow press:
+  // the row it reached, a row it did not, and the popup's own surface.
+  const KINDS = ["menu", "listbox", "select panel", "palette"] as const;
+  let opened = 0;
+  async function reach(kind: (typeof KINDS)[number]) {
+    const id = `ring-${String(++opened)}`;
+    const life = new AbortController();
+    onTestFinished(() => {
+      life.abort();
+      for (const p of document.querySelectorAll<HTMLElement>(":popover-open")) {
+        p.hidePopover();
+      }
+    });
+    const { signal } = life;
+    const rows = (n: number, tag: string, role: string) =>
+      Array.from(
+        { length: n },
+        (_, i) => `<${tag} role="${role}" aria-selected="false">Row ${String(i + 1)}</${tag}>`,
+      ).join("");
+    let popup: HTMLElement;
+    if (kind === "menu") {
+      const el = build(
+        `<button type="button" popovertarget="${id}">Actions</button><div id="${id}" class="cp-popover cp-menu" popover role="menu">${rows(3, "button", "menuitem").replaceAll(' aria-selected="false"', ' type="button"')}</div>`,
+      );
+      popup = el.querySelector(".cp-menu") as HTMLElement;
+      popup.style.transition = "none";
+      enhanceMenu(popup, { signal });
+      (el.querySelector("button") as HTMLElement).focus();
+      await userEvent.keyboard("{Enter}");
+    } else if (kind === "listbox") {
+      const el = build(
+        `<input aria-label="Language"><ul class="cp-popover cp-listbox" role="listbox" aria-label="Languages">${rows(3, "li", "option")}</ul>`,
+      );
+      popup = el.querySelector(".cp-listbox") as HTMLElement;
+      popup.style.transition = "none";
+      enhanceCombobox(el.querySelector("input") as HTMLInputElement, popup, {
+        onAccept: () => undefined,
+        signal,
+      });
+      (el.querySelector("input") as HTMLElement).focus();
+    } else if (kind === "select panel") {
+      const el = build(
+        `<button type="button" popovertarget="${id}">Lists</button><div id="${id}" class="cp-popover cp-select-panel" popover><form><input aria-label="Filter lists"><ul role="listbox" aria-label="Lists" aria-multiselectable="true">${rows(3, "li", "option")}</ul><button type="submit">Apply</button></form></div>`,
+      );
+      popup = el.querySelector(".cp-select-panel") as HTMLElement;
+      popup.style.transition = "none";
+      enhanceSelectPanel(popup, { onApply: () => undefined, signal });
+      (el.querySelector("button") as HTMLElement).focus();
+      await userEvent.keyboard("{Enter}");
+    } else {
+      const el = build(
+        `<dialog class="cp-dialog cp-palette"><div class="cp-palette-field"><input aria-label="Search"></div><ul role="listbox" aria-label="Actions">${rows(3, "li", "option")}</ul></dialog>`,
+      );
+      const d = el.querySelector("dialog") as HTMLDialogElement;
+      d.style.transition = "none";
+      popup = d;
+      enhancePalette(d, { onRun: () => undefined, key: null, signal }).open();
+    }
+    // A closed combobox's first ArrowDown opens it on its first row; the
+    // other popups open there.
+    const presses = kind === "listbox" ? 2 : 1;
+    await userEvent.keyboard("{ArrowDown}".repeat(presses));
+    const all = [...popup.querySelectorAll<HTMLElement>('[role^="menuitem"], [role="option"]')];
+    const row = all[1] as HTMLElement;
+    const rest = all[2] as HTMLElement;
+    const lit =
+      kind === "menu"
+        ? document.activeElement === row
+        : kind === "select panel"
+          ? row.hasAttribute("data-cp-active")
+          : row.getAttribute("aria-selected") === "true";
+    expect(lit, `${kind}: the Arrow key reached the second row`).toBe(true);
+    return { row, rest, surface: getComputedStyle(popup).backgroundColor };
+  }
+  const ring = (row: HTMLElement) => {
+    const cs = getComputedStyle(row);
+    return [cs.outlineStyle, cs.outlineWidth, cs.outlineOffset];
+  };
+
+  for (const kind of KINDS) {
+    it(`rings the ${kind} row an Arrow key reaches inside it, and no other row`, async () => {
+      theme("light");
+      root.setAttribute("data-pointer", "fine");
+      const { row, rest } = await reach(kind);
+      expect(ring(row)).toEqual(["solid", "2px", "-2px"]);
+      expect(getComputedStyle(row).outlineColor).toBe(resolve("color", "var(--cp-focus-ring)"));
+      expect(ring(rest)[0]).toBe("none");
+    });
+
+    it(`keeps a ${kind} row under a mouse to its fill, with no ring`, async () => {
+      theme("light");
+      root.setAttribute("data-pointer", "fine");
+      const { rest } = await reach(kind);
+      await userEvent.hover(rest);
+      expect(getComputedStyle(rest).backgroundColor).toBe(
+        resolve("backgroundColor", "var(--cp-fill)"),
+      );
+      expect(ring(rest)[0]).toBe("none");
+    });
+
+    it(`draws the ${kind}'s ring at 3:1 on the wash and on the popup, in both themes`, async () => {
+      for (const t of ["light", "dark"] as const) {
+        theme(t);
+        const { row, surface } = await reach(kind);
+        const cs = getComputedStyle(row);
+        expect(cs.outlineStyle, t).toBe("solid");
+        expect(contrast(cs.outlineColor, cs.backgroundColor), `${t} wash`).toBeGreaterThanOrEqual(
+          3,
+        );
+        expect(contrast(cs.outlineColor, surface), `${t} surface`).toBeGreaterThanOrEqual(3);
+        for (const p of document.querySelectorAll<HTMLElement>(":popover-open")) {
+          p.hidePopover();
+        }
+        for (const d of document.querySelectorAll("dialog")) {
+          d.close();
+        }
+      }
+    });
+  }
+
+  it("rings no menu item a mouse click opened the menu on, until a key moves", async () => {
+    theme("light");
+    root.setAttribute("data-pointer", "fine");
+    const el = build(
+      '<button type="button" popovertarget="ring-click">Actions</button><div id="ring-click" class="cp-popover cp-menu" popover role="menu"><button role="menuitem" type="button">Edit</button><button role="menuitem" type="button">Export</button></div>',
+    );
+    const menu = el.querySelector(".cp-menu") as HTMLElement;
+    menu.style.transition = "none";
+    const life = new AbortController();
+    onTestFinished(() => {
+      life.abort();
+      menu.hidePopover();
+    });
+    enhanceMenu(menu, { signal: life.signal });
+    await userEvent.click(el.querySelector("button") as HTMLElement);
+    const [first, second] = [...menu.children] as [HTMLElement, HTMLElement];
+    expect(document.activeElement).toBe(first);
+    expect(ring(first)[0]).toBe("none");
+    await userEvent.keyboard("{ArrowDown}");
+    expect(document.activeElement).toBe(second);
+    expect(ring(second)[0]).toBe("solid");
+  });
+
+  it.skipIf(!emulates)("rings the reached row in Highlight in forced colours", async () => {
+    await media("forced-colors", "active");
+    theme("light");
+    for (const kind of KINDS) {
+      const { row } = await reach(kind);
+      const cs = getComputedStyle(row);
+      expect(cs.outlineStyle, kind).toBe("solid");
+      expect(cs.outlineColor, kind).toBe(resolve("color", "Highlight"));
+      for (const p of document.querySelectorAll<HTMLElement>(":popover-open")) {
+        p.hidePopover();
+      }
+      for (const d of document.querySelectorAll("dialog")) {
+        d.close();
+      }
+    }
+  });
 
   it("fills no option under a finger", async () => {
     theme("light");

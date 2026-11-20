@@ -165,6 +165,29 @@ function fill(host: HTMLElement, ...nodes: (Node | string)[]): void {
   (host.querySelector("[data-part='body']") ?? host).replaceChildren(...nodes);
 }
 
+function idFor(el: HTMLElement, stem: string): string {
+  if (el.id === "") {
+    el.id = `cp-${stem}-${String(++seq)}`;
+  }
+  return el.id;
+}
+
+/** Makes `host`, which takes focus with no role of its own, a group named
+ *  by `name` and described by `description`, so a screen reader says where
+ *  focus landed in every engine (Firefox and WebKit name a bare element by
+ *  nothing). A role the app gave it stays. */
+function nameGroup(host: HTMLElement, name: HTMLElement, description?: HTMLElement): void {
+  if (!host.hasAttribute("role")) {
+    host.setAttribute("role", "group");
+  }
+  host.setAttribute("aria-labelledby", idFor(name, "label"));
+  if (description === undefined) {
+    host.removeAttribute("aria-describedby");
+  } else {
+    host.setAttribute("aria-describedby", idFor(description, "list"));
+  }
+}
+
 /**
  * Shows `errors` on `form` and clears what an earlier call or `showError`
  * showed that `errors` no longer names (docs/forms/form.md says which stay).
@@ -212,6 +235,7 @@ export function reportErrors(
     if (lone !== undefined) {
       toField(lone.field, own);
     } else if (noticed) {
+      nameGroup(notice, notice.querySelector<HTMLElement>("[data-part='body']") ?? notice);
       focusOn(notice);
     }
     return;
@@ -250,6 +274,7 @@ export function reportErrors(
     list.append(item);
   }
   fill(summary, heading, list);
+  nameGroup(summary, heading, list);
   summary.hidden = false;
   summary.tabIndex = -1;
   summary.focus();

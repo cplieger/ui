@@ -45,7 +45,7 @@ App CSS reads role names, and the component classes read a tone's steps. The rol
 - Accent: `--cp-accent`, `--cp-accent-hover`, `--cp-on-accent`, `--cp-accent-ink`, `--cp-accent-wash`, `--cp-focus-ring`.
 - Brand and header: `--cp-brand`, `--cp-on-brand`, `--cp-shell-bg`, `--cp-shell-ink`, `--cp-shell-current`, `--cp-shell-hover`.
 - Overlays: `--cp-backdrop`, `--cp-shadow-overlay`.
-- Confirmation: `--cp-done-fill`, the green a button fills with as it confirms, dark enough for white words in both themes.
+- Confirmation: `--cp-done-fill`, the green a button fills with as it confirms, dark enough for white words in both themes, and darker under `prefers-contrast: more`, where they clear 7:1.
 
 Ink on a solid fill is `contrast-color()` of that fill, so it is black or white, whichever has more contrast. In the light theme every solid is dark enough for white ink: step 9 sits at 54.8%, and greens and teals, the brightest hues at a given lightness, sit up to 2.4% lower. The three engines choose by the WCAG 2 ratio today, which the CSS specification leaves to the browser. A hover on a solid moves away from its ink, so the contrast rises when the pointer arrives.
 
@@ -67,6 +67,8 @@ The stylesheet owns lightness, and a test checks every hue at every chroma in th
 | primary and secondary text on steps 1 to 5 | 4.5:1 | 7:1 |
 | a boundary on steps 1 to 3 | 3:1 | 4.5:1 |
 | ink on a solid fill, at rest and on hover | 4.5:1 | 7:1 |
+| ink on a harmony colour | 4.5:1 | 7:1 |
+| white words on the done fill | 4.5:1 | 7:1 |
 | header text on the header | 4.5:1 | 7:1 |
 
 WCAG 2.2 is the floor. APCA scores can help compare two candidate seeds, but they never replace it.
@@ -144,7 +146,7 @@ When a screen needs a few colours that belong together, such as avatars, a loade
 - 2 and 3 are its split complement, the accent's hue turned 150 and 210 degrees.
 - 4 is a lighter accent.
 
-The partners are tuned for the eye, after the method of [pro-color-harmonies](https://github.com/meodai/pro-color-harmonies). Each sits at the lightness step 9 had before its white-ink dip, 56% in the light theme and the accent's 64% in the dark, and takes its own ink, `--cp-harmony-N-on`, which is black for many greens and teals. Yellows and ambers need more lightness to look clean, so they rise and never come out olive. A turn into the yellow-greens moves to a golden yellow (hue 90) or a clean green (hue 142), whichever is nearer. Each partner carries a fifth more chroma than the accent, capped where a hue would leave sRGB. An orange is then vivid rather than brown, and a muted accent still gets muted partners. A test checks every hue in both themes.
+The partners are tuned for the eye, after the method of [pro-color-harmonies](https://github.com/meodai/pro-color-harmonies). Each sits at the lightness step 9 had before its white-ink dip, 56% in the light theme and the accent's 64% in the dark, and takes its own ink, `--cp-harmony-N-on`, which is black for many greens and teals. Yellows and ambers need more lightness to look clean, so they rise and never come out olive. A turn into the yellow-greens moves to a golden yellow (hue 90) or a clean green (hue 142), whichever is nearer. Each partner carries a fifth more chroma than the accent, capped where a hue would leave sRGB. An orange is then vivid rather than brown, and a muted accent still gets muted partners. Under `prefers-contrast: more`, the partners leave the middle lightness, where neither ink reaches 7:1. In the light theme a yellow or amber rises to 80% for black ink and the others sit at the solid's 43% for white. In the dark theme they sit at 72% or above. Each keeps four fifths of its chroma, so it stays inside sRGB. A test checks every hue in both themes, with and without more contrast.
 
 A yellow partner is lighter than the accent, so a mark that must stand out from the page by colour alone, such as a thin chart line, also needs an outline or a label.
 

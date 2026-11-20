@@ -770,20 +770,20 @@
 :root {
   --cp-harmony-2-h: calc(
     mod(calc(var(--cp-accent-h) + 150), 360) +
-      clamp(0, (mod(calc(var(--cp-accent-h) + 150), 360) - 100) * 100000, 1) *
-      clamp(0, (117.5 - mod(calc(var(--cp-accent-h) + 150), 360)) * 100000, 1) *
+      max(0, sign(mod(calc(var(--cp-accent-h) + 150), 360) - 100)) *
+      max(0, sign(117.5 - mod(calc(var(--cp-accent-h) + 150), 360))) *
       (90 - mod(calc(var(--cp-accent-h) + 150), 360)) +
-      clamp(0, (mod(calc(var(--cp-accent-h) + 150), 360) - 117.5) * 100000 + 1, 1) *
-      clamp(0, (135 - mod(calc(var(--cp-accent-h) + 150), 360)) * 100000, 1) *
+      (1 - max(0, sign(-1 * (mod(calc(var(--cp-accent-h) + 150), 360) - 117.5)))) *
+      max(0, sign(135 - mod(calc(var(--cp-accent-h) + 150), 360))) *
       (142 - mod(calc(var(--cp-accent-h) + 150), 360))
   );
   --cp-harmony-3-h: calc(
     mod(calc(var(--cp-accent-h) + 210), 360) +
-      clamp(0, (mod(calc(var(--cp-accent-h) + 210), 360) - 100) * 100000, 1) *
-      clamp(0, (117.5 - mod(calc(var(--cp-accent-h) + 210), 360)) * 100000, 1) *
+      max(0, sign(mod(calc(var(--cp-accent-h) + 210), 360) - 100)) *
+      max(0, sign(117.5 - mod(calc(var(--cp-accent-h) + 210), 360))) *
       (90 - mod(calc(var(--cp-accent-h) + 210), 360)) +
-      clamp(0, (mod(calc(var(--cp-accent-h) + 210), 360) - 117.5) * 100000 + 1, 1) *
-      clamp(0, (135 - mod(calc(var(--cp-accent-h) + 210), 360)) * 100000, 1) *
+      (1 - max(0, sign(-1 * (mod(calc(var(--cp-accent-h) + 210), 360) - 117.5)))) *
+      max(0, sign(135 - mod(calc(var(--cp-accent-h) + 210), 360))) *
       (142 - mod(calc(var(--cp-accent-h) + 210), 360))
   );
   --cp-harmony-1: var(--cp-accent-9);
@@ -845,6 +845,89 @@
   --cp-harmony-2-on: contrast-color(var(--cp-harmony-2));
   --cp-harmony-3-on: contrast-color(var(--cp-harmony-3));
   --cp-harmony-4-on: contrast-color(var(--cp-harmony-4));
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --cp-harmony-2: light-dark(
+      oklch(
+        calc(
+            0.43 +
+              max(
+                0,
+                sign(
+                  calc(0.5 + 0.32 * pow(max(0, cos((var(--cp-harmony-2-h) - 95) * 1deg)), 4)) - 0.62
+                )
+              ) *
+              (
+                max(
+                    calc(0.5 + 0.32 * pow(max(0, cos((var(--cp-harmony-2-h) - 95) * 1deg)), 4)),
+                    0.8
+                  ) -
+                  0.43
+              )
+          )
+          calc(
+            min(
+                calc(var(--cp-accent-c) * 1.2),
+                calc(0.166 - 0.066 * pow(max(0, cos((var(--cp-harmony-2-h) - 200) * 1deg)), 3))
+              ) *
+              0.8
+          )
+          var(--cp-harmony-2-h)
+      ),
+      oklch(
+        max(0.72, calc(0.5 + 0.32 * pow(max(0, cos((var(--cp-harmony-2-h) - 95) * 1deg)), 4)))
+          calc(
+            min(
+                calc(var(--cp-accent-c) * 1.2),
+                calc(0.166 - 0.056 * pow(max(0, cos((var(--cp-harmony-2-h) - 200) * 1deg)), 4))
+              ) *
+              0.8
+          )
+          var(--cp-harmony-2-h)
+      )
+    );
+    --cp-harmony-3: light-dark(
+      oklch(
+        calc(
+            0.43 +
+              max(
+                0,
+                sign(
+                  calc(0.5 + 0.32 * pow(max(0, cos((var(--cp-harmony-3-h) - 95) * 1deg)), 4)) - 0.62
+                )
+              ) *
+              (
+                max(
+                    calc(0.5 + 0.32 * pow(max(0, cos((var(--cp-harmony-3-h) - 95) * 1deg)), 4)),
+                    0.8
+                  ) -
+                  0.43
+              )
+          )
+          calc(
+            min(
+                calc(var(--cp-accent-c) * 1.2),
+                calc(0.166 - 0.066 * pow(max(0, cos((var(--cp-harmony-3-h) - 200) * 1deg)), 3))
+              ) *
+              0.8
+          )
+          var(--cp-harmony-3-h)
+      ),
+      oklch(
+        max(0.72, calc(0.5 + 0.32 * pow(max(0, cos((var(--cp-harmony-3-h) - 95) * 1deg)), 4)))
+          calc(
+            min(
+                calc(var(--cp-accent-c) * 1.2),
+                calc(0.166 - 0.056 * pow(max(0, cos((var(--cp-harmony-3-h) - 200) * 1deg)), 4))
+              ) *
+              0.8
+          )
+          var(--cp-harmony-3-h)
+      )
+    );
+  }
 }
 
 @property --cp-series-1-h {
@@ -988,11 +1071,11 @@
   );
   --cp-series-4-h: calc(
     mod(calc(var(--cp-accent-h) + 30), 360) +
-      clamp(0, (mod(calc(var(--cp-accent-h) + 30), 360) - 100) * 100000, 1) *
-      clamp(0, (117.5 - mod(calc(var(--cp-accent-h) + 30), 360)) * 100000, 1) *
+      max(0, sign(mod(calc(var(--cp-accent-h) + 30), 360) - 100)) *
+      max(0, sign(117.5 - mod(calc(var(--cp-accent-h) + 30), 360))) *
       (90 - mod(calc(var(--cp-accent-h) + 30), 360)) +
-      clamp(0, (mod(calc(var(--cp-accent-h) + 30), 360) - 117.5) * 100000 + 1, 1) *
-      clamp(0, (135 - mod(calc(var(--cp-accent-h) + 30), 360)) * 100000, 1) *
+      (1 - max(0, sign(-1 * (mod(calc(var(--cp-accent-h) + 30), 360) - 117.5)))) *
+      max(0, sign(135 - mod(calc(var(--cp-accent-h) + 30), 360))) *
       (142 - mod(calc(var(--cp-accent-h) + 30), 360))
   );
   --cp-series-4: light-dark(
@@ -1024,11 +1107,11 @@
   );
   --cp-series-5-h: calc(
     mod(calc(var(--cp-accent-h) + 60), 360) +
-      clamp(0, (mod(calc(var(--cp-accent-h) + 60), 360) - 100) * 100000, 1) *
-      clamp(0, (117.5 - mod(calc(var(--cp-accent-h) + 60), 360)) * 100000, 1) *
+      max(0, sign(mod(calc(var(--cp-accent-h) + 60), 360) - 100)) *
+      max(0, sign(117.5 - mod(calc(var(--cp-accent-h) + 60), 360))) *
       (90 - mod(calc(var(--cp-accent-h) + 60), 360)) +
-      clamp(0, (mod(calc(var(--cp-accent-h) + 60), 360) - 117.5) * 100000 + 1, 1) *
-      clamp(0, (135 - mod(calc(var(--cp-accent-h) + 60), 360)) * 100000, 1) *
+      (1 - max(0, sign(-1 * (mod(calc(var(--cp-accent-h) + 60), 360) - 117.5)))) *
+      max(0, sign(135 - mod(calc(var(--cp-accent-h) + 60), 360))) *
       (142 - mod(calc(var(--cp-accent-h) + 60), 360))
   );
   --cp-series-5: light-dark(
@@ -1060,11 +1143,11 @@
   );
   --cp-series-6-h: calc(
     mod(calc(var(--cp-accent-h) + 90), 360) +
-      clamp(0, (mod(calc(var(--cp-accent-h) + 90), 360) - 100) * 100000, 1) *
-      clamp(0, (117.5 - mod(calc(var(--cp-accent-h) + 90), 360)) * 100000, 1) *
+      max(0, sign(mod(calc(var(--cp-accent-h) + 90), 360) - 100)) *
+      max(0, sign(117.5 - mod(calc(var(--cp-accent-h) + 90), 360))) *
       (90 - mod(calc(var(--cp-accent-h) + 90), 360)) +
-      clamp(0, (mod(calc(var(--cp-accent-h) + 90), 360) - 117.5) * 100000 + 1, 1) *
-      clamp(0, (135 - mod(calc(var(--cp-accent-h) + 90), 360)) * 100000, 1) *
+      (1 - max(0, sign(-1 * (mod(calc(var(--cp-accent-h) + 90), 360) - 117.5)))) *
+      max(0, sign(135 - mod(calc(var(--cp-accent-h) + 90), 360))) *
       (142 - mod(calc(var(--cp-accent-h) + 90), 360))
   );
   --cp-series-6: light-dark(
@@ -1096,11 +1179,11 @@
   );
   --cp-series-7-h: calc(
     mod(calc(var(--cp-accent-h) + 120), 360) +
-      clamp(0, (mod(calc(var(--cp-accent-h) + 120), 360) - 100) * 100000, 1) *
-      clamp(0, (117.5 - mod(calc(var(--cp-accent-h) + 120), 360)) * 100000, 1) *
+      max(0, sign(mod(calc(var(--cp-accent-h) + 120), 360) - 100)) *
+      max(0, sign(117.5 - mod(calc(var(--cp-accent-h) + 120), 360))) *
       (90 - mod(calc(var(--cp-accent-h) + 120), 360)) +
-      clamp(0, (mod(calc(var(--cp-accent-h) + 120), 360) - 117.5) * 100000 + 1, 1) *
-      clamp(0, (135 - mod(calc(var(--cp-accent-h) + 120), 360)) * 100000, 1) *
+      (1 - max(0, sign(-1 * (mod(calc(var(--cp-accent-h) + 120), 360) - 117.5)))) *
+      max(0, sign(135 - mod(calc(var(--cp-accent-h) + 120), 360))) *
       (142 - mod(calc(var(--cp-accent-h) + 120), 360))
   );
   --cp-series-7: light-dark(
@@ -1132,11 +1215,11 @@
   );
   --cp-series-8-h: calc(
     mod(calc(var(--cp-accent-h) + 240), 360) +
-      clamp(0, (mod(calc(var(--cp-accent-h) + 240), 360) - 100) * 100000, 1) *
-      clamp(0, (117.5 - mod(calc(var(--cp-accent-h) + 240), 360)) * 100000, 1) *
+      max(0, sign(mod(calc(var(--cp-accent-h) + 240), 360) - 100)) *
+      max(0, sign(117.5 - mod(calc(var(--cp-accent-h) + 240), 360))) *
       (90 - mod(calc(var(--cp-accent-h) + 240), 360)) +
-      clamp(0, (mod(calc(var(--cp-accent-h) + 240), 360) - 117.5) * 100000 + 1, 1) *
-      clamp(0, (135 - mod(calc(var(--cp-accent-h) + 240), 360)) * 100000, 1) *
+      (1 - max(0, sign(-1 * (mod(calc(var(--cp-accent-h) + 240), 360) - 117.5)))) *
+      max(0, sign(135 - mod(calc(var(--cp-accent-h) + 240), 360))) *
       (142 - mod(calc(var(--cp-accent-h) + 240), 360))
   );
   --cp-series-8: light-dark(
@@ -1168,11 +1251,11 @@
   );
   --cp-series-9-h: calc(
     mod(calc(var(--cp-accent-h) + 270), 360) +
-      clamp(0, (mod(calc(var(--cp-accent-h) + 270), 360) - 100) * 100000, 1) *
-      clamp(0, (117.5 - mod(calc(var(--cp-accent-h) + 270), 360)) * 100000, 1) *
+      max(0, sign(mod(calc(var(--cp-accent-h) + 270), 360) - 100)) *
+      max(0, sign(117.5 - mod(calc(var(--cp-accent-h) + 270), 360))) *
       (90 - mod(calc(var(--cp-accent-h) + 270), 360)) +
-      clamp(0, (mod(calc(var(--cp-accent-h) + 270), 360) - 117.5) * 100000 + 1, 1) *
-      clamp(0, (135 - mod(calc(var(--cp-accent-h) + 270), 360)) * 100000, 1) *
+      (1 - max(0, sign(-1 * (mod(calc(var(--cp-accent-h) + 270), 360) - 117.5)))) *
+      max(0, sign(135 - mod(calc(var(--cp-accent-h) + 270), 360))) *
       (142 - mod(calc(var(--cp-accent-h) + 270), 360))
   );
   --cp-series-9: light-dark(
@@ -1457,14 +1540,13 @@
 :root {
   --cp-scale-to-light: clamp(
     -30,
-    mod(95 - var(--cp-accent-h), 360) - 360 *
-      clamp(0, (mod(95 - var(--cp-accent-h), 360) - 180) * 100000, 1),
+    mod(95 - var(--cp-accent-h), 360) - 360 * max(0, sign(mod(95 - var(--cp-accent-h), 360) - 180)),
     30
   );
   --cp-scale-to-dark: clamp(
     -30,
     mod(265 - var(--cp-accent-h), 360) - 360 *
-      clamp(0, (mod(265 - var(--cp-accent-h), 360) - 180) * 100000, 1),
+      max(0, sign(mod(265 - var(--cp-accent-h), 360) - 180)),
     30
   );
   --cp-scale-1-h: mod(
@@ -1533,14 +1615,14 @@
   --cp-scale-opposite-h: calc(
     245 +
       (
-        clamp(0, (mod(var(--cp-accent-h), 360) - 120) * 100000 + 1, 1) *
-          clamp(0, (170 - mod(var(--cp-accent-h), 360)) * 100000, 1) +
-          clamp(0, (mod(var(--cp-accent-h), 360) - 308) * 100000 + 1, 1) *
-          clamp(0, (355 - mod(var(--cp-accent-h), 360)) * 100000, 1)
+        (1 - max(0, sign(-1 * (mod(var(--cp-accent-h), 360) - 120)))) *
+          max(0, sign(170 - mod(var(--cp-accent-h), 360))) +
+          (1 - max(0, sign(-1 * (mod(var(--cp-accent-h), 360) - 308)))) *
+          max(0, sign(355 - mod(var(--cp-accent-h), 360)))
       ) *
       (230 - mod(var(--cp-accent-h), 360)) -
-      clamp(0, (mod(var(--cp-accent-h), 360) - 170) * 100000 + 1, 1) *
-      clamp(0, (308 - mod(var(--cp-accent-h), 360)) * 100000, 1) * 190
+      (1 - max(0, sign(-1 * (mod(var(--cp-accent-h), 360) - 170)))) *
+      max(0, sign(308 - mod(var(--cp-accent-h), 360))) * 190
   );
   --cp-scale-1-lc: calc(
     0.7427 - 0.1278 * cos(var(--cp-scale-1-h) * 1deg) + 0.1233 * sin(var(--cp-scale-1-h) * 1deg) +
@@ -2301,6 +2383,14 @@
   );
 }
 
+/* At lightness 0.43 at most, white words on the done fill clear 7:1 in both
+ * themes. */
+@media (prefers-contrast: more) {
+  :root {
+    --cp-done-fill: oklch(from var(--cp-success-9) min(l, 0.43) c h);
+  }
+}
+
 /* Type: one family for text, its mono for machine text (file and release
  * names, hashes, offsets). Sizes step by about 1.2. */
 :root {
@@ -2485,6 +2575,12 @@
   );
   --cp-dur-spring: 520ms;
   --cp-press-scale: 0.97;
+  /* A busy indicator rests within 5 seconds, on the frame it started from,
+   * while aria-busy and its words keep saying the work runs (WCAG 3 draft
+   * 2.6.1.4, https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#no-visual-motion-no-exceptions):
+   * six 0.8s turns end upright at 4.8s, and the skeleton's beat runs out and
+   * back once, so --cp-skeleton-dur stays at 2.5s or less. */
+  --cp-spin: cp-spin 0.8s linear 6;
   --cp-skeleton-dur: 1.6s;
 }
 
@@ -2791,6 +2887,14 @@
   padding-inline: var(--cp-page-gutter);
   background: var(--cp-shell-bg);
   color: var(--cp-shell-ink);
+  /* The accent ring is the shell's own fill in light (1:1); its ink clears 3:1. */
+  --cp-focus-ring: var(--cp-shell-ink);
+}
+
+/* An overlay the header opens sits on its own surface, where the page's ring
+ * (roles.css) shows. */
+.cp-header :is([popover], dialog) {
+  --cp-focus-ring: var(--cp-accent-9);
 }
 
 .cp-rail {
@@ -3081,6 +3185,12 @@
   .cp-switch:disabled::after {
     background: GrayText;
   }
+
+  /* forced-color-adjust: none keeps the accent ring too, so the ring is
+   * set to the system's highlight here. */
+  .cp-switch:focus-visible {
+    outline-color: Highlight;
+  }
 }
 
 /* A settings page: its categories, a plain compact list of links, beside
@@ -3136,13 +3246,13 @@
     gap: var(--cp-space-5);
   }
 
-  .cp-settings-nav {
+  /* The links scroll, never the nav: a scroll box clips at its padding
+   * edge, so a nav that scrolled would cut the made select's focus ring.
+   * The element names the list's to outrank its plain surface's overflow. */
+  .cp-settings-nav > :is(ul, ol).cp-list {
+    display: flex;
     overflow-x: auto;
     scrollbar-width: none;
-  }
-
-  .cp-settings-nav > .cp-list {
-    display: flex;
   }
 
   .cp-settings-nav > .cp-list > li {
@@ -3358,6 +3468,12 @@ form:has(.cp-savebar:not([hidden])) {
   padding: 0;
 }
 
+/* The ring stays in the room inside the field's border: where it crossed
+ * the border, those pixels would change to the ring under 3:1. */
+.cp-input-wrap > .cp-button:focus-visible {
+  outline-offset: 0;
+}
+
 /* Under a finger, the control's target reaches the tier's minimum. */
 :root[data-pointer="coarse"] .cp-input-wrap > .cp-button::after {
   content: "";
@@ -3539,8 +3655,12 @@ a.cp-wordmark {
  * it covers there, which the frame, the save bar and the toasts keep clear
  * of; it is unset while no bottom bar shows. */
 @media (width < 40rem) {
+  /* The scroll padding keeps a control Tab reaches from stopping under the
+   * bar, since the browser scrolls focus into view only past the padding. */
   :root:has(.cp-header > .cp-nav) {
     --cp-nav-inset: calc(3.5rem + var(--cp-line-w) + env(safe-area-inset-bottom));
+
+    scroll-padding-block-end: var(--cp-nav-inset);
   }
 
   .cp-header > .cp-nav {
@@ -3799,19 +3919,35 @@ a.cp-wordmark {
   pointer-events: auto;
 }
 
-/* Breadcrumbs: the levels above the page, muted and small. */
+/* Breadcrumbs: the levels above the page, muted and small. Each level is a
+ * target of the tier's minimum while the line keeps its height, so wrapped
+ * lines, and whatever follows the trail, sit far enough apart that no two
+ * press areas overlap. */
 .cp-crumbs {
+  --cp-crumbs-reach: calc((var(--cp-hit-min) - 1lh) / 2);
+
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--cp-space-2);
-  margin-block-end: var(--cp-space-2);
+  gap: max(var(--cp-space-2), 2 * var(--cp-crumbs-reach)) var(--cp-space-2);
+  margin-block-end: max(var(--cp-space-2), var(--cp-crumbs-reach));
   color: var(--cp-ink-muted);
   font-size: var(--cp-text-xs);
 }
 
 .cp-crumbs a {
+  position: relative;
+  min-inline-size: var(--cp-hit-min);
   color: inherit;
+
+  &::after {
+    content: "";
+    position: absolute;
+    inset-block-start: 50%;
+    inset-inline: 0;
+    block-size: var(--cp-hit-min);
+    translate: 0 -50%;
+  }
 }
 
 /* A chevron between levels, drawn by CSS so it is never read aloud, and
@@ -4023,35 +4159,33 @@ input.cp-input:is([type^="date"], [type="time"]) {
 
 .cp-input:user-invalid,
 .cp-input[aria-invalid="true"] {
+  --cp-field-ring: var(--cp-danger-9);
+
   border-color: var(--cp-danger-8);
 }
 
 .cp-input[data-tone="warning"] {
+  --cp-field-ring: var(--cp-warning-9);
+
   border-color: var(--cp-warning-8);
 }
 
 /* A focused field reads like a focused button: a ring sitting outside the
  * field with a gap, in the accent (or the state's colour for an error or a
  * warning). The field keeps its own border, so the ring is a halo, not a
- * doubled line at the edge. */
-.cp-input:focus-visible {
-  --cp-field-ring: var(--cp-focus-ring);
-
-  outline: var(--cp-focus-w) solid var(--cp-field-ring);
+ * doubled line at the edge. WebKit focuses a date or time field's part,
+ * and the field then never matches :focus-visible, so those ring while
+ * focus is within. */
+.cp-input:focus-visible,
+input.cp-input:is([type^="date"], [type="time"]):focus-within {
+  outline: var(--cp-focus-w) solid var(--cp-field-ring, var(--cp-focus-ring));
   outline-offset: var(--cp-focus-offset);
-  border-color: var(--cp-field-ring);
-}
-
-.cp-input:is(:user-invalid, [aria-invalid="true"]):focus-visible {
-  --cp-field-ring: var(--cp-danger-9);
-}
-
-.cp-input[data-tone="warning"]:focus-visible {
-  --cp-field-ring: var(--cp-warning-9);
+  border-color: var(--cp-field-ring, var(--cp-focus-ring));
 }
 
 @media (forced-colors: active) {
-  .cp-input:focus-visible {
+  .cp-input:focus-visible,
+  input.cp-input:is([type^="date"], [type="time"]):focus-within {
     outline-color: Highlight;
   }
 }
@@ -4223,6 +4357,12 @@ input.cp-input:is([type^="date"], [type="time"]) {
   .cp-checkbox:disabled {
     border-color: GrayText;
   }
+
+  /* forced-color-adjust: none keeps the accent ring too, so the ring is
+   * set to the system's highlight here. */
+  .cp-checkbox:focus-visible {
+    outline-color: Highlight;
+  }
 }
 
 /* A radio: the native input, a circle that fills with the accent as its
@@ -4329,6 +4469,12 @@ input.cp-input:is([type^="date"], [type="time"]) {
   .cp-radio:disabled {
     border-color: GrayText;
   }
+
+  /* forced-color-adjust: none keeps the accent ring too, so the ring is
+   * set to the system's highlight here. */
+  .cp-radio:focus-visible {
+    outline-color: Highlight;
+  }
 }
 
 /* A list of choices: a fieldset of rows, each a whole-row label holding a
@@ -4425,6 +4571,20 @@ input.cp-input:is([type^="date"], [type="time"]) {
   gap: var(--cp-space-2);
 }
 
+/* Such a row is no label, so only its labels choose its radio. A disabled
+ * row keeps not-allowed on both: the :where() puts this rule below it. */
+.cp-choice:where(:has(> .cp-choice-field)) {
+  cursor: auto;
+}
+
+.cp-choice-field > label {
+  cursor: pointer;
+}
+
+.cp-choice:has(> :disabled) > .cp-choice-field > label {
+  cursor: inherit;
+}
+
 .cp-choice-field > .cp-input {
   inline-size: 5rem;
   min-block-size: var(--cp-control-h-sm);
@@ -4475,6 +4635,7 @@ input.cp-input:is([type^="date"], [type="time"]) {
  * a button that resets it. */
 .cp-stepper {
   --cp-chart-surface: var(--cp-surface-raised);
+  --cp-stepper-edge: var(--cp-border-strong);
 
   position: relative;
   display: inline-flex;
@@ -4482,32 +4643,38 @@ input.cp-input:is([type^="date"], [type="time"]) {
   align-items: stretch;
   inline-size: fit-content;
   max-inline-size: 100%;
-  /* Border-box: the border sits inside the control height, and stays
-   * visible behind a button's hover fill, which an inset shadow would not. */
-  border: var(--cp-line-w) solid var(--cp-border-strong);
   border-radius: var(--cp-radius-control);
   background: var(--cp-surface-raised);
+}
+
+/* The edge is drawn over the parts, not as the stepper's border: a border
+ * would take the number below the control height, short of a finger's
+ * target, and a button's hover fill would cover an inset shadow. */
+.cp-stepper::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: var(--cp-line-w) solid var(--cp-stepper-edge);
+  border-radius: inherit;
+  pointer-events: none;
 }
 
 .cp-field > .cp-stepper {
   justify-self: start;
 }
 
-/* Each part fills the control height inside the bar's border. A bar too
- * wide for its column, at 320px or under large text, wraps its parts onto a
- * second row inside its edge rather than scroll the page sideways. */
+/* Each part is one control tall. A bar too wide for its column, at 320px or
+ * under large text, wraps its parts onto a second row inside its edge
+ * rather than scroll the page sideways. */
 .cp-stepper > :is(.cp-button, input) {
   position: relative;
   flex: none;
-  min-block-size: calc(var(--cp-control-h) - 2 * var(--cp-line-w));
-}
-
-.cp-stepper > .cp-button {
-  border-radius: calc(var(--cp-radius-control) - var(--cp-line-w));
+  min-block-size: var(--cp-control-h);
 }
 
 .cp-stepper > input {
   inline-size: 4ch;
+  min-inline-size: var(--cp-hit-min);
   border: 0;
   outline: none;
   background: transparent;
@@ -4548,7 +4715,8 @@ input.cp-input:is([type^="date"], [type="time"]) {
 
 /* Focus on its number rings the whole stepper, as a focused field is. */
 .cp-stepper:has(> input:focus-visible) {
-  border-color: var(--cp-focus-ring);
+  --cp-stepper-edge: var(--cp-focus-ring);
+
   outline: var(--cp-focus-w) solid var(--cp-focus-ring);
   outline-offset: var(--cp-focus-offset);
 }
@@ -4571,14 +4739,6 @@ input.cp-input:is([type^="date"], [type="time"]) {
   color: transparent;
 }
 
-/* Under a finger, each button's target reaches the tier's minimum in
- * height, which the border inside the control height takes from it. */
-:root[data-pointer="coarse"] .cp-stepper > .cp-button::after {
-  content: "";
-  position: absolute;
-  inset: calc((100% - var(--cp-hit-min)) / 2) 0;
-}
-
 @media (forced-colors: active) {
   .cp-stepper:has(> input:focus-visible) {
     outline-color: Highlight;
@@ -4597,6 +4757,9 @@ input.cp-input:is([type^="date"], [type="time"]) {
   align-items: center;
   gap: var(--cp-space-2);
   min-block-size: var(--cp-control-h);
+  /* Replace sits 0.1875rem inside the box's edge, as a field's quiet control
+   * does (input-wrap.css), so its ring has the room inside the border. */
+  padding-block: calc(0.1875rem - var(--cp-line-w));
   padding-inline: var(--cp-space-3) 0.25rem;
   border: var(--cp-line-w) dashed var(--cp-border-strong);
   border-radius: var(--cp-radius-control);
@@ -4604,7 +4767,22 @@ input.cp-input:is([type^="date"], [type="time"]) {
 }
 
 .cp-secret > [data-part="saved"] > .cp-button {
+  position: relative;
+  align-self: stretch;
+  min-block-size: 0;
   margin-inline-start: auto;
+}
+
+.cp-secret > [data-part="saved"] > .cp-button:focus-visible {
+  outline-offset: 0;
+}
+
+/* Under a finger, Replace's target reaches the tier's minimum. */
+:where(:root[data-pointer="coarse"]) .cp-secret > [data-part="saved"] > .cp-button::after {
+  content: "";
+  position: absolute;
+  inset-block: calc((100% - var(--cp-hit-min)) / 2);
+  inset-inline: 0;
 }
 
 .cp-secret > [data-part="edit"] {
@@ -4701,16 +4879,27 @@ button.cp-button.cp-copy[data-cp-state="done"]:not(:disabled) {
  * unit: one box, one control tall, the fixed part outside what is typed. */
 .cp-affix {
   --cp-chart-surface: var(--cp-surface-raised);
+  --cp-affix-edge: var(--cp-border-strong);
 
+  position: relative;
   display: flex;
   align-items: stretch;
-  /* Border-box: the border sits inside the control height, and stays
-   * visible beside the fixed part's fill, which an inset shadow would not. */
   block-size: var(--cp-control-h);
-  border: var(--cp-line-w) solid var(--cp-border-strong);
   border-radius: var(--cp-radius-control);
   background: var(--cp-surface-raised);
   overflow: hidden;
+}
+
+/* The edge is drawn over the parts, not as the box's border: a border would
+ * take the field below the control height, short of a finger's target, and
+ * the fixed part's fill would cover an inset shadow. */
+.cp-affix::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: var(--cp-line-w) solid var(--cp-affix-edge);
+  border-radius: inherit;
+  pointer-events: none;
 }
 
 .cp-affix > .cp-input {
@@ -4733,13 +4922,14 @@ button.cp-button.cp-copy[data-cp-state="done"]:not(:disabled) {
 
 /* Focus on its field rings the whole box, as a focused field is ringed. */
 .cp-affix:has(> .cp-input:focus-visible) {
-  border-color: var(--cp-focus-ring);
+  --cp-affix-edge: var(--cp-focus-ring);
+
   outline: var(--cp-focus-w) solid var(--cp-focus-ring);
   outline-offset: var(--cp-focus-offset);
 }
 
 .cp-affix:has(> .cp-input:is(:user-invalid, [aria-invalid="true"])) {
-  border-color: var(--cp-danger-8);
+  --cp-affix-edge: var(--cp-danger-8);
 }
 
 @media (forced-colors: active) {
@@ -5016,6 +5206,12 @@ textarea.cp-input {
   .cp-range::-moz-range-thumb {
     background: ButtonText;
     box-shadow: none;
+  }
+
+  /* forced-color-adjust: none keeps the accent ring too, so the ring is
+   * set to the system's highlight here. */
+  .cp-range:focus-visible {
+    outline-color: Highlight;
   }
 }
 
@@ -5395,7 +5591,7 @@ textarea.cp-input {
 
 .cp-state[data-cp-state="busy"]::before {
   content: "";
-  animation: cp-spin 0.8s linear infinite;
+  animation: var(--cp-spin);
 }
 
 .cp-state[data-cp-state="done"] {
@@ -7068,11 +7264,12 @@ th[aria-sort="descending"] > .cp-sort::after {
   fill: var(--cp-ink);
 }
 
-/* A note's, a bar value's or a tile label's 3 px halo of the plot's surface
- * keeps it legible over bars, tiles, gridlines and rules, on the surface
- * its ink was tested on; the stroke paints first, so it widens the glyphs
- * by half. */
+/* A note's, a bar value's, a tile label's or an in-plot rule label's 3 px
+ * halo of the plot's surface keeps it legible over bars, tiles, lines,
+ * gridlines and rules, on the surface its ink was tested on; the stroke
+ * paints first, so it widens the glyphs by half. */
 .cp-chart svg :is([data-part="note"], [data-part="value"]) text,
+.cp-chart svg [data-part="area"] [data-part="rule-label"] text,
 .cp-chart svg [data-part="tile"] text {
   fill: var(--cp-ink);
   stroke: var(--cp-chart-surface);
@@ -7198,6 +7395,30 @@ th[aria-sort="descending"] > .cp-sort::after {
 .cp-cell-stack > small {
   color: var(--cp-ink-muted);
   font-size: var(--cp-text-xs);
+}
+
+/* A link on a muted line answers a press across the tier's minimum while
+ * its line keeps its height. Its margins and the stack's 0.125rem gap
+ * space the lines so no two press areas overlap. */
+.cp-cell-stack > small:has(> a) {
+  --cp-cell-reach: calc((var(--cp-hit-min) - 1lh) / 2);
+
+  margin-block: max(0px, var(--cp-cell-reach) - 0.0625rem);
+}
+
+.cp-cell-stack > small > a {
+  position: relative;
+  display: inline-block;
+  min-inline-size: var(--cp-hit-min);
+
+  &::after {
+    content: "";
+    position: absolute;
+    inset-block-start: 50%;
+    inset-inline: 0;
+    block-size: var(--cp-hit-min);
+    translate: 0 -50%;
+  }
 }
 
 @container (width < 44rem) {
@@ -7745,6 +7966,26 @@ th[aria-sort="descending"] > .cp-sort::after {
 
 .cp-list-row :is(small, .cp-meta) > .cp-icon {
   --cp-icon-size: 0.875rem;
+}
+
+/* A row holding its own action, such as a failed upload's Retry: when its
+ * end and action would leave the words under 4rem, they wrap under the
+ * words, the action at the row's end, and the action never shrinks under
+ * its words. */
+.cp-list-row:has(> .cp-button) {
+  flex-wrap: wrap;
+}
+
+.cp-list-row:has(> .cp-button) > .cp-cell-stack {
+  flex: 1 1 4rem;
+}
+
+.cp-list-row > :nth-child(1 of .cp-button) {
+  margin-inline-start: auto;
+}
+
+.cp-list-row > .cp-button {
+  flex-shrink: 0;
 }
 
 /* The trailing column: the time on the title's line, then the counts. */
@@ -8846,10 +9087,16 @@ div.cp-list-foot {
   }
 }
 
-/* A list inside a notice, such as an error summary's links to its fields. */
+/* A list inside a notice, such as an error summary's links to its fields.
+ * Each item is at least 24 CSS px tall at any root font size, so links on
+ * consecutive lines keep the spacing WCAG 2.5.8 asks of targets under 24px. */
 .cp-notice :where(ul, ol) {
   margin: var(--cp-space-1) 0 0;
   padding-inline-start: 1.25em;
+}
+
+.cp-notice :where(ul, ol) > li {
+  min-block-size: max(1.5rem, 24px);
 }
 
 /* A banner's links keep the accent, so its one way to act reads as a link
@@ -8900,6 +9147,21 @@ div.cp-list-foot {
 .cp-notice:has(> ul) > small {
   color: var(--cp-tone-11);
   font-size: var(--cp-text-xs);
+}
+
+/* A foot's link is the notice's one way to act, so a press reaches it across
+ * the tier's minimum target; the small line keeps its height. */
+.cp-notice small a {
+  position: relative;
+
+  &::after {
+    content: "";
+    position: absolute;
+    inset-block-start: 50%;
+    inset-inline: 0;
+    block-size: var(--cp-hit-min);
+    translate: 0 -50%;
+  }
 }
 
 @media (forced-colors: active) {
@@ -10733,14 +10995,16 @@ button.cp-figure[aria-expanded="true"]::after {
   }
 }
 
-/* Skeleton: the shape of what is coming, with a slow opacity beat that stops
- * under reduced motion. @cplieger/ui/skeleton decides when it shows. */
+/* Skeleton: the shape of what is coming, with a slow opacity beat that runs
+ * out and back once and rests at full opacity (--cp-skeleton-dur owns the
+ * 5-second limit), and stops under reduced motion.
+ * @cplieger/ui/skeleton decides when it shows. */
 .cp-skeleton {
   display: block;
   block-size: 0.75em;
   border-radius: var(--cp-radius-control);
   background: var(--cp-fill-hover);
-  animation: cp-skeleton var(--cp-skeleton-dur) var(--cp-ease-move) infinite alternate;
+  animation: cp-skeleton var(--cp-skeleton-dur) var(--cp-ease-move) 2 alternate;
 }
 
 /* Lines that stand for text: a heading is short, and a paragraph's last
@@ -10762,6 +11026,14 @@ button.cp-figure[aria-expanded="true"]::after {
 @media (prefers-reduced-motion: reduce) {
   .cp-skeleton {
     animation: none;
+  }
+}
+
+/* Forced colours drop the fill, which would leave an empty region with
+ * nothing on screen saying it loads. */
+@media (forced-colors: active) {
+  .cp-skeleton {
+    background: GrayText;
   }
 }
 
@@ -11546,18 +11818,42 @@ button.cp-figure[aria-expanded="true"]::after {
   }
 }
 
+/* The list shrinks to the room the dialog's height leaves under the field
+ * and scrolls, so at 400% zoom every action stays reachable. */
+.cp-palette[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+/* The field fills the row's height, so the whole row is its target. */
 .cp-palette-field {
   display: flex;
   align-items: center;
   gap: var(--cp-space-2);
-  padding: var(--cp-space-3) var(--cp-space-4);
+  min-block-size: 3rem;
+  padding-inline: var(--cp-space-4);
   border-block-end: var(--cp-line-w) solid var(--cp-line);
 }
 
-/* Focus stays in the field while the palette is open, so a ring would mark
- * nothing; the caret and the active option show where typing and Enter go. */
+/* The row rings as its input takes focus, inset because the dialog clips at
+ * its padding box, its top corners following that box's curve. */
+.cp-palette-field:focus-within {
+  border-start-start-radius: calc(var(--cp-radius-overlay) - var(--cp-line-w));
+  border-start-end-radius: calc(var(--cp-radius-overlay) - var(--cp-line-w));
+  outline: var(--cp-focus-w) solid var(--cp-focus-ring);
+  outline-offset: calc(-1 * var(--cp-focus-w));
+}
+
+@media (forced-colors: active) {
+  .cp-palette-field:focus-within {
+    outline-color: Highlight;
+  }
+}
+
+/* The row draws the ring, so the input draws none of its own. */
 .cp-palette-field > input {
   flex: 1;
+  align-self: stretch;
   min-inline-size: 0;
   border: 0;
   background: transparent;
@@ -11604,7 +11900,9 @@ button.cp-figure[aria-expanded="true"]::after {
   position-try-fallbacks:
     flip-block,
     flip-inline,
-    flip-block flip-inline;
+    flip-block flip-inline,
+    --cp-popover-below,
+    --cp-popover-above;
   transform-origin: top left;
   opacity: 0;
   scale: 0.96;
@@ -11628,9 +11926,29 @@ button.cp-figure[aria-expanded="true"]::after {
   }
 }
 
-/* Opened at a point (showPopoverAt), its corner sits where the press was. */
+/* Where the whole popover fits on neither side, as in a short window or at
+ * 400% zoom, it shrinks into the room under its button, or over it when
+ * under is less than a few rows, and scrolls; otherwise it would leave the
+ * window or cover the button. It may take the row's whole width, since a
+ * button near the window's edge leaves too little room beside it. */
+@position-try --cp-popover-below {
+  position-area: block-end span-all;
+  min-block-size: 6rem;
+  max-block-size: calc(100% - var(--cp-space-1));
+  margin-block: var(--cp-space-1) 0;
+}
+
+@position-try --cp-popover-above {
+  position-area: block-start span-all;
+  max-block-size: calc(100% - var(--cp-space-1));
+  margin-block: 0 var(--cp-space-1);
+}
+
+/* Opened at a point (showPopoverAt), its corner sits where the press was
+ * and the script keeps it in the window. */
 .cp-popover[data-cp-at] {
   position-area: none;
+  position-try-fallbacks: none;
   margin: 0;
 }
 
@@ -11849,9 +12167,10 @@ button.cp-figure[aria-expanded="true"]::after {
   font-size: var(--cp-text-sm);
 }
 
-/* Options led by a .cp-cover run edge to edge: the covers stack into one
- * square-cornered strip at the list's start, each beside its title over a
- * line of facts. The list's own clip rounds the strip's two outer corners. */
+/* Options led by a .cp-cover run edge to edge: the covers stack at the
+ * list's start, square-cornered and --cp-option-gap apart, each beside its
+ * title over a line of facts. The list's own clip rounds the first and last
+ * covers' outer corners. */
 .cp-listbox:has([role="option"] > .cp-cover) {
   padding: 0;
 }
@@ -11884,8 +12203,9 @@ button.cp-figure[aria-expanded="true"]::after {
  * combobox (.cp-listbox), a select panel and a palette. A row is a lead
  * (.cp-icon, a check box, a .cp-cover), its words, and an end: keys in a
  * <kbd>, a muted <small> or a quiet .cp-badge. The option the keys reach,
- * where Enter goes, takes the selected wash; a pointer over a row takes the
- * fill. A menu's keys move focus and the others' aria-activedescendant, and
+ * where Enter goes, takes the selected wash and the focus ring inside it; a
+ * pointer over a row takes the fill alone. A menu's keys move focus and the
+ * others' aria-activedescendant, and
  * a select panel's aria-selected means checked, so each marks the reached
  * option its own way. */
 :is(.cp-menu, .cp-listbox, .cp-select-panel, .cp-palette) {
@@ -11970,6 +12290,15 @@ button.cp-figure[aria-expanded="true"]::after {
   outline: none;
   background: var(--cp-selected);
   color: var(--cp-accent-12);
+}
+
+/* Inset, so a scrolling list never clips it. A menu item focused after a
+ * click on its opener shows no ring, as any button would not. */
+.cp-menu [role^="menuitem"]:focus-visible,
+:is(.cp-listbox, .cp-palette) [role="option"][aria-selected="true"],
+.cp-select-panel [role="option"][data-cp-active] {
+  outline: var(--cp-focus-w) solid var(--cp-focus-ring);
+  outline-offset: calc(-1 * var(--cp-focus-w));
 }
 
 .cp-menu [role^="menuitem"]:focus > .cp-icon,
@@ -12118,6 +12447,12 @@ button.cp-figure[aria-expanded="true"]::after {
     color: HighlightText;
   }
 
+  .cp-menu [role^="menuitem"]:focus-visible,
+  :is(.cp-listbox, .cp-palette) [role="option"][aria-selected="true"],
+  .cp-select-panel [role="option"][data-cp-active] {
+    outline-color: Highlight;
+  }
+
   .cp-menu [role^="menuitem"]:focus :is(kbd, small, .cp-icon),
   :is(.cp-listbox, .cp-palette) [role="option"][aria-selected="true"] :is(kbd, small, .cp-icon),
   .cp-select-panel [role="option"][data-cp-active] :is(kbd, small, .cp-icon) {
@@ -12254,7 +12589,7 @@ button.cp-figure[aria-expanded="true"]::after {
 }
 
 :where(.cp) .cp-icon[data-cp-icon="spinner-arc"] {
-  animation: cp-spin 0.8s linear infinite;
+  animation: var(--cp-spin);
 }
 
 @keyframes cp-spin {
@@ -12295,25 +12630,39 @@ button.cp-figure[aria-expanded="true"]::after {
 }
 
 /* A fixed button is as wide as its widest state: every state's icon and
- * words sit hidden in one cell across the button, and the state on show
- * sits centred over them between two free tracks. The gap moves onto the
- * words, as a grid gap would also open beside the free tracks. The hidden
- * cell is a .cp-roll, so `> .cp-roll { display: none }` drops it too. It is
- * laid out at max-content: Gecko gives an item spanning free tracks no
- * min-content size, which a table's 1% actions cell asks for. */
+ * words sit hidden in one cell across both tracks, which share its spare
+ * width, so the icon at the first's end and the words at the second's start
+ * sit centred. Free (fr) tracks would let Gecko round the width per state,
+ * by 1/60px. The gap sits on the words, so a state with no icon opens none.
+ * `> .cp-roll { display: none }` drops the hidden cell too. Laid out at
+ * max-content: Gecko gives a spanning item no min-content size, which a
+ * table's 1% actions cell asks for. */
 .cp-button[data-cp-confirm="fixed"] {
   display: inline-grid;
-  grid-template-columns: 1fr auto auto 1fr;
+  grid-template-columns: auto auto;
   column-gap: 0;
   inline-size: max-content;
 }
 
-.cp-button[data-cp-confirm="fixed"] > .cp-icon {
-  grid-area: 1 / 2;
+/* An empty track would take all the spare width, as an empty track has no
+ * growth limit while spanning items are sized (CSS Grid 1, 12.5 step 3), so
+ * words with no icon would sit off centre. This item keeps it from empty. */
+.cp-button[data-cp-confirm="fixed"]::before {
+  content: "";
+  grid-area: 1 / 1;
 }
 
+.cp-button[data-cp-confirm="fixed"] > .cp-icon {
+  grid-area: 1 / 1;
+  justify-self: end;
+}
+
+/* Words that wrapped would size their track below their width while the
+ * hidden cell is shared out, and the button would change width per state. */
 .cp-button[data-cp-confirm="fixed"] > .cp-roll {
-  grid-area: 1 / 3;
+  grid-area: 1 / 2;
+  justify-self: start;
+  white-space: nowrap;
   transition: none;
 }
 
@@ -12373,7 +12722,7 @@ button.cp-button[data-tone="danger"][data-cp-state="done"]:not(:disabled) {
 
 .cp-button[data-cp-state="busy"] > .cp-icon[data-part="busy"] {
   display: inline-block;
-  animation: cp-spin 0.8s linear infinite;
+  animation: var(--cp-spin);
 }
 
 .cp-button[data-cp-state="done"] > .cp-icon[data-part="done"] {
@@ -12447,10 +12796,9 @@ button.cp-button[data-tone="danger"][data-cp-state="done"]:not(:disabled) {
  * choices. It is one shape: the split paints the fill, its corners and its
  * state's colour, and its parts paint nothing at rest, so its edges are drawn
  * once and cannot disagree between the parts at a fractional offset. A part
- * paints only its own hover or press, inside the shape, and the split does
- * not clip, so a part's focus ring still shows outside it. */
+ * paints only its own hover or press, inside the shape. */
 .cp-split {
-  --cp-caret-w: 2.25rem;
+  --cp-caret-w: max(2.25rem, var(--cp-hit-min));
   --cp-done-paint: transparent;
 
   border-radius: var(--cp-radius-control);
@@ -12461,7 +12809,7 @@ button.cp-button[data-tone="danger"][data-cp-state="done"]:not(:disabled) {
 }
 
 .cp-split:has(> [data-cp-state="done"]) {
-  background: oklch(from var(--cp-success-9) min(l, 0.52) c h);
+  background: var(--cp-done-fill);
   transition:
     background-color 160ms var(--cp-ease-out),
     transform var(--cp-dur-press) var(--cp-ease-out);
@@ -12551,6 +12899,25 @@ button.cp-button[data-tone="danger"][data-cp-state="done"]:not(:disabled) {
 .cp-split:has(> [data-cp-state]) > :last-child > .cp-icon {
   opacity: 0;
   transition: opacity 90ms var(--cp-ease-out);
+}
+
+/* A part's own ring would cross the seam onto the other part, where it is
+ * the split's fill, so focus rings the whole split outside its shape and
+ * marks the focused part inside it in the split's ink. */
+.cp-split:has(> :focus-visible) {
+  outline: var(--cp-focus-w) solid var(--cp-focus-ring);
+  outline-offset: var(--cp-focus-offset);
+}
+
+.cp-split > .cp-button:focus-visible {
+  outline-color: var(--cp-tone-on);
+  outline-offset: calc(-2 * var(--cp-focus-w));
+}
+
+@media (forced-colors: active) {
+  .cp-split > .cp-button:focus-visible {
+    outline-color: Highlight;
+  }
 }
 
 /* A toggle (@cplieger/ui/toggle): a quiet icon button that is on or off,
@@ -13121,6 +13488,14 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
 
 .cp-pill[data-cp-still] {
   transition: none;
+}
+
+/* The chosen segment, tab or link says which it is by its own state, so
+ * the pill lands at once, as reordered items do. */
+@media (prefers-reduced-motion: reduce) {
+  .cp-pill {
+    transition: none;
+  }
 }
 
 .cp-pill[hidden] {

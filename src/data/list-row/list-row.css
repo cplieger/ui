@@ -303,6 +303,26 @@
   --cp-icon-size: 0.875rem;
 }
 
+/* A row holding its own action, such as a failed upload's Retry: when its
+ * end and action would leave the words under 4rem, they wrap under the
+ * words, the action at the row's end, and the action never shrinks under
+ * its words. */
+.cp-list-row:has(> .cp-button) {
+  flex-wrap: wrap;
+}
+
+.cp-list-row:has(> .cp-button) > .cp-cell-stack {
+  flex: 1 1 4rem;
+}
+
+.cp-list-row > :nth-child(1 of .cp-button) {
+  margin-inline-start: auto;
+}
+
+.cp-list-row > .cp-button {
+  flex-shrink: 0;
+}
+
 /* The trailing column: the time on the title's line, then the counts. */
 .cp-list-row > [data-part="end"] {
   display: grid;

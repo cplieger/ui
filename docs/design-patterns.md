@@ -22,7 +22,7 @@ Every region that loads data has four designed states, for loading, empty, error
 - Empty says what belongs here and offers the one action that fills it (`.cp-empty`). Error says what broke and what to do next, in a notice where the region would be. It never apologises and never stays vague.
 - A change that will most likely succeed shows at once and rolls back on failure, through `@cplieger/reactive/actions`. A destructive action asks first or offers an Undo.
 
-**A known amount.** Work with known steps is a native `<progress>` in a `.cp-progress`, with the step in words beside it. The page sets the bar's `value` and the words as the work moves, and adds `data-state="done"` with the last step. A run that starts over is a new `<progress>`.
+**A known amount.** Work with known steps is a native `<progress>` in a `.cp-progress`, with the step in words beside it. The page sets the bar's `value` and the words as the work moves, and adds `data-state="done"` with the last step. A known value never shows without its words: the accessibility gate fails a `.cp-progress` whose bar has a `value` and nothing beside it. A run that starts over is a new `<progress>`.
 
 ```html
 <span class="cp-progress">
@@ -34,13 +34,13 @@ Every region that loads data has four designed states, for loading, empty, error
 **An item's own work.** An item that runs work of its own, such as an upload, a send or a check, says where that work is in a `.cp-state` with `data-cp-state`, which holds only its word: `busy`, such as "Uploading…", `done`, such as "Uploaded", or `failed`, such as "Not uploaded". The stylesheet draws the spinner, the check or the cross. In a list row the state sits in the row's end and a failure's reason is the row's second line. A state that is its line's own content, such as a test's answer beside its button, holds the whole sentence. A failed item that can run again has one action, Retry, a small `.cp-button` whose accessible name adds the item, such as "Retry Frieren.S01E05.en.ass", run through [confirm](buttons/confirm.md) with `done: false`. A failure that would fail the same way again, such as a file over the size limit or a format the app cannot write, is final: the item shows its reason and no Retry. An upload's row is [file](forms/file.md)'s `uploadFile`, which runs these steps.
 
 ```html
-<div class="cp-list-row" tabindex="-1">
+<div class="cp-list-row" tabindex="-1" role="group" aria-labelledby="up-5-name up-5-state">
   <span class="cp-icon" data-cp-icon="file-text" aria-hidden="true"></span>
   <span class="cp-cell-stack">
-    <span class="cp-truncate cp-mono">Frieren.S01E05.en.ass</span>
+    <span class="cp-mono" id="up-5-name">Frieren.S01E05.en.ass</span>
     <small>The server did not answer.</small>
   </span>
-  <span data-part="end"><span class="cp-state" data-cp-state="failed">Not uploaded</span></span>
+  <span data-part="end"><span class="cp-state" data-cp-state="failed" id="up-5-state">Not uploaded</span></span>
   <button class="cp-button" data-size="sm" type="button" aria-label="Retry Frieren.S01E05.en.ass">
     <span class="cp-icon" data-cp-icon="refresh-cw" aria-hidden="true"></span>
     <span class="cp-icon" data-cp-icon="spinner-arc" data-part="busy" aria-hidden="true"></span>
@@ -50,7 +50,7 @@ Every region that loads data has four designed states, for loading, empty, error
 ```
 
 1. Retry turns busy while the work runs again, and the state and its reason stay until the answer comes, so the item never shows two spinners.
-2. When the work is done, the state turns `done` and Retry leaves. If Retry had focus, focus the item before removing Retry, so focus never falls to the page. The item carries `tabindex="-1"` so it can take focus.
+2. When the work is done, the state turns `done` and Retry leaves. If Retry had focus, focus the item before removing Retry, so focus never falls to the page. The item carries `tabindex="-1"` so it can take focus, and `role="group"` named by its name and its state (`aria-labelledby`), so a screen reader says which item it is and how its work ended as focus lands. A name with no break point, such as a file's, wraps inside the row, and the state and Retry wrap under it when the row is too narrow for the three.
 3. When it fails again, the reason changes to the new one and Retry is back at rest.
 4. Announce the outcome through `@cplieger/ui/announce`, assertively for a failure of what the person just did.
 
@@ -64,7 +64,7 @@ A form never loses what the person typed, and every error is text that says how 
 2. A field the submit needs carries `aria-required="true"` and shows the word "Required." as its `.cp-help` line, or, when the field already has help, `<span class="cp-required">(Required)</span>` inside its label, such as "API key (Required)". Those two are the only marks: the gallery's form check counts nothing else, and needs the mark visible, uncut and unclipped, with a closed `details`, dialog or popover around the field opened first. A sighted person then sees what is needed before submitting ([WCAG 2.2 SC 3.3.2](https://www.w3.org/WAI/WCAG22/Understanding/labels-or-instructions)), and `aria-required` tells assistive technology the same. Never use `required`: an empty `required` field is invalid before anything is typed, and Firefox and WebKit then call it an invalid entry. The submit's own check finds what is missing.
 3. Validate a field when it loses focus and when the form submits, never on every keystroke. Keep submit enabled, so a submit shows what is missing.
 4. A field with an error gets `aria-invalid="true"` and a `.cp-field-error` under it, with a `circle-x` icon and a sentence that names the fix, such as "Enter 5 minutes or more". Tie the error to the field with `aria-describedby`.
-5. On a submit with one error, focus its field. With two or more, show a danger notice at the top of the form that lists each field as a link to it. Head it with the count, such as "2 settings need a fix before they save", give it `tabindex="-1"` and focus it.
+5. On a submit with one error, focus its field. With two or more, show a danger notice at the top of the form that lists each field as a link to it. Head it with the count, such as "2 settings need a fix before they save", give it `tabindex="-1"` and focus it. [form](forms/form.md) names it by that heading.
 6. Clear a field's error as soon as its value is valid. Never clear what the person typed.
 7. While the form saves, the submit button is busy, and the fields stay as they are.
 8. A form with unsaved changes asks before a navigation or a close that would discard them. [form](forms/form.md#unsaved-changes)'s `guardChanges` counts the changes, asks, and takes in values saved elsewhere while keeping the person's.
@@ -101,7 +101,7 @@ Rows are never interactive. A row's actions are buttons in its last cell, and a 
 
 **Pages.** A list longer than one page has a `.cp-pager` under its table, inside the panel:
 
-1. It shows the range and the total, such as "1 to 25 of 412", then Previous and Next as links. At the first or the last page that link has `aria-disabled="true"` and no `href`.
+1. It shows the range and the total, such as "1 to 25 of 412", then Previous and Next as links. At the first or the last page that link has no `href`, with `role="link"` and `aria-disabled="true"`: without its `href` a link is a plain element, so only the role keeps it a link that a screen reader says is unavailable.
 2. The page and the page size are in the URL. Offer a page size choice only when people need it.
 3. After a page change, focus moves to the heading that names the table, which carries `tabindex="-1"`, or the first row's title link, and the scroll returns to the top of the table.
 4. When the last page empties, such as after a delete, the list moves to the new last page.
@@ -189,7 +189,7 @@ A sheet is a `.cp-dialog` marked `data-variant="sheet"`, with the same header, b
 1. Below 60rem, a Filters button in the page toolbar opens the rail's filters in a sheet. Its label carries the count of active filters, such as "Filters, 2", and while any filter is active, a "Clear filters" button sits beside it. Both carry `.cp-rail-toggle`, which marks a toolbar control that serves the rail once it is gone: the stylesheet shows them only below 60rem, where the rail is hidden.
 2. The head holds the title "Filters" and a Close button.
 3. A sheet with one group of filters whose results come back fast applies each change at once and writes the URL. Its foot holds "Clear all" and "Done", and Close and Escape keep the changes.
-4. A sheet with several groups, or whose results are slow, stages the changes. Its foot holds "Clear all" and "Show 41 results", which applies them as one URL entry and closes the sheet. Close and Escape discard what was staged.
+4. A sheet with several groups, or whose results are slow, stages the changes. Its foot holds "Clear all" and "Show 41 results", which applies them as one URL entry and closes the sheet. Each change of the count is also said politely through `@cplieger/ui/announce`, such as "41 results", so a screen reader hears it without leaving the choice. Close and Escape discard what was staged.
 5. A filter set too long for a sheet is a page of its own, with Back returning to the list.
 
 ## Notifications

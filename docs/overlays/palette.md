@@ -33,6 +33,8 @@ palette.open(); // from your own code, such as a menu item
 - While no action matches, the `data-part="empty"` element shows and its words are said to a screen reader through [announce](../feedback/announce.md).
 - `key` is the letter that opens the palette with Ctrl or Command, `"k"` by default, or `null` for none. It does nothing while another modal dialog is open.
 - Each open starts with the field empty and every action shown. Escape and, with `closedby="any"`, a press outside close it.
+- While the field holds focus its whole row takes the focus ring, drawn inside the palette's edge, beside the ring on the action the arrows reach: one marks where typing goes, the other where Enter goes. Both are `Highlight` in forced colours.
+- The list is at most 20rem tall and scrolls. In a short window, at 400% zoom or a phone held sideways, it shrinks to the room under the field, so every action stays in reach.
 - A dialog with no `<input>` or no `role="listbox"` throws a `TypeError`. `signal` removes the listeners, the key's among them.
 
 The keys at an action's end are muted words, as in a [menu](menu.md). A list of every shortcut is the `.cp-keys` list in a dialog, as [Components](../design-components.md) describes.

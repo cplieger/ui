@@ -1,25 +1,13 @@
 import { readdirSync } from "node:fs";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
-import { createServer } from "node:http";
-import type { AddressInfo } from "node:net";
-import { tmpdir } from "node:os";
-import { extname, join, normalize } from "node:path";
+import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { chromium, firefox, webkit, type Browser, type BrowserType, type Page } from "playwright";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { buildGallery, frameNames, pageNames, templateNames } from "./build.js";
+import { frameNames, pageNames, templateNames } from "./build.js";
+import { serveGallery, type Served } from "./serve.js";
 
-const TYPES: Record<string, string> = {
-  ".html": "text/html",
-  ".js": "text/javascript",
-  ".css": "text/css",
-  ".svg": "image/svg+xml",
-  ".woff2": "font/woff2",
-  ".vtt": "text/vtt",
-  ".webm": "video/webm",
-};
 const ENGINES: Record<string, BrowserType> = { chromium, firefox, webkit };
 const browsers = (process.env["CPLIEGER_BROWSERS"] ?? "chromium").split(",");
 const SYSTEM_DIR = join(import.meta.dirname, "..", "docs", "system");
@@ -132,6 +120,19 @@ const requiredWithoutMark = (): string[] => {
   );
 };
 
+/** The live region's words once they read `want`, or what it holds after 5s:
+ *  a count waits out its debounce and announce's gap, which run late under load. */
+async function heardIn(tab: Page, region: string, want: string): Promise<string | undefined> {
+  await tab
+    .waitForFunction(
+      ([sel, words]) => document.querySelector(sel)?.textContent.trim() === words,
+      [region, want] as const,
+      { timeout: 5_000 },
+    )
+    .catch(() => undefined);
+  return tab.evaluate((sel) => document.querySelector(sel)?.textContent.trim(), region);
+}
+
 // WCAG 2.5.3 Label in Name: an account button is named by the initials it
 // shows then ", account", or "Account" alone over an avatar with no text.
 // Runs in the page, so it closes over nothing.
@@ -142,53 +143,16 @@ const misnamedAccounts = (): string[] =>
     return name === (text === "" ? "Account" : `${text}, account`) ? [] : [`${name} / ${text}`];
   });
 
-let out = "";
+let served: Served | undefined;
 let origin = "";
-let close = (): void => undefined;
-const missing = new Set<string>();
 
 beforeAll(async () => {
-  out = await mkdtemp(join(tmpdir(), "ui-gallery-"));
-  await buildGallery(out);
-  const server = createServer((req, res) => {
-    const path = new URL(req.url ?? "/", "http://x").pathname;
-    // A page framed the way a preview tab frames it: sandboxed, so at an
-    // opaque origin, where reading a stylesheet's rules throws.
-    const framed = /^\/framed\/([\w-]+)$/.exec(path);
-    if (framed !== null) {
-      res.writeHead(200, { "content-type": "text/html" });
-      res.end(
-        `<link rel="icon" href="data:,"><iframe sandbox="allow-scripts" src="/${framed[1] ?? ""}.html"></iframe>`,
-      );
-      return;
-    }
-    // normalize() of a rooted path cannot climb above it, so the join stays under out.
-    const file = join(out, normalize(decodeURIComponent(path)));
-    readFile(file).then(
-      (body) => {
-        // An opaque-origin page fetches its module script and fonts by CORS.
-        res.writeHead(200, {
-          "content-type": TYPES[extname(file)] ?? "application/octet-stream",
-          "access-control-allow-origin": "*",
-        });
-        res.end(body);
-      },
-      () => {
-        missing.add(path);
-        res.writeHead(404).end();
-      },
-    );
-  });
-  await new Promise<void>((ok) => server.listen(0, "127.0.0.1", ok));
-  origin = `http://127.0.0.1:${String((server.address() as AddressInfo).port)}`;
-  close = () => {
-    server.close();
-  };
+  served = await serveGallery();
+  origin = served.origin;
 }, 60_000);
 
 afterAll(async () => {
-  close();
-  await rm(out, { recursive: true, force: true });
+  await served?.close();
 });
 
 type Kind = "self" | "one" | "none" | "many";
@@ -873,6 +837,75 @@ describe.each(browsers)("the gallery in %s", (name) => {
     await tab.close();
   }, 60_000);
 
+  // WCAG 3.2.1 On Focus and 2.4.3 Focus Order: a demo that fills and sends a
+  // card's form moves focus, so it waits for that card's Run.
+  it("moves focus on the account page only by Tab, and a card's Run runs its demo with focus in the card", async () => {
+    const tab = await (browser as Browser).newPage({ viewport: { width: 1440, height: 900 } });
+    await tab.goto(`${origin}/account.html`);
+    const card = (title: string) =>
+      tab
+        .locator(".card")
+        .filter({ has: tab.locator("h2", { hasText: new RegExp(`^${title}$`) }) });
+    const wrong = card("A wrong password");
+    const refused = wrong.locator(".cp-notice[data-tone='danger']:not([hidden])");
+    await expect.poll(() => wrong.locator("form").count(), { timeout: 10_000 }).toBeGreaterThan(0);
+    await tab.evaluate(() => {
+      const log = { strays: [] as string[], tabbed: false };
+      (globalThis as { focusLog?: typeof log }).focusLog = log;
+      addEventListener("keydown", (e) => (log.tabbed ||= e.key === "Tab"), true);
+      addEventListener(
+        "focusin",
+        (e) => {
+          if (!log.tabbed) {
+            log.strays.push((e.target as Element).outerHTML.slice(0, 80));
+          }
+          log.tabbed = false;
+        },
+        true,
+      );
+    });
+    const past = card("Too many attempts");
+    let presses = 0;
+    while (presses < 300 && !(await past.evaluate((c) => c.contains(document.activeElement)))) {
+      await tab.keyboard.press("Tab");
+      presses += 1;
+    }
+    // The page's fake server takes 900ms at most to answer a sent form.
+    await tab.waitForTimeout(1_500);
+    const walk = await tab.evaluate(
+      () => (globalThis as { focusLog?: { strays: string[] } }).focusLog?.strays,
+    );
+    expect([presses < 300, walk, await refused.count()]).toEqual([true, [], 0]);
+
+    await wrong.getByRole("button", { name: "Run, A wrong password" }).focus();
+    await tab.keyboard.press("Enter");
+    await expect.poll(() => refused.count(), { timeout: 10_000 }).toBe(1);
+    expect(await wrong.evaluate((c) => c.contains(document.activeElement))).toBe(true);
+    await tab.close();
+  }, 120_000);
+
+  // WCAG 2.4.6 Headings and Labels: each card mounts its own copy of a
+  // screen, so a 320px window gives many cards an "API keys, table" region.
+  it("gives every region on the account page its own name in a 320px window", async () => {
+    const tab = await (browser as Browser).newPage({ viewport: { width: 320, height: 800 } });
+    await tab.goto(`${origin}/account.html`);
+    const tables = tab.locator(".card .cp-panel[role='region']");
+    await expect.poll(() => tables.count(), { timeout: 10_000 }).toBeGreaterThan(1);
+    const names = await tab.evaluate(() =>
+      [...document.querySelectorAll("[role='region']")].map((r) => {
+        const by = r.getAttribute("aria-labelledby");
+        return by === null
+          ? (r.getAttribute("aria-label") ?? "")
+          : by
+              .split(" ")
+              .map((id) => document.getElementById(id)?.textContent ?? "")
+              .join(" ");
+      }),
+    );
+    await tab.close();
+    expect(names.filter((n, i) => names.indexOf(n) !== i)).toEqual([]);
+  }, 60_000);
+
   it("clears every row of a choices set whose legend has a button under the floats, and no other set's", async () => {
     const wrong: string[] = [];
     let floated = 0;
@@ -1209,7 +1242,7 @@ describe.each(browsers)("the gallery in %s", (name) => {
   );
 
   it("finds every file the pages ask for", () => {
-    expect([...missing]).toEqual([]);
+    expect([...(served?.missing ?? [])]).toEqual([]);
   });
 
   describe("the conversation's address", () => {
@@ -2775,6 +2808,36 @@ describe.each(browsers)("the gallery in %s", (name) => {
     }));
     await tab.close();
     expect(state).toEqual({ heading: label, current: label, focused: true });
+  }, 60_000);
+
+  // WCAG 4.1.3: a result count that follows a choice is a status message, so it reaches a
+  // screen reader without focus moving to the button that shows it.
+  it("says a staged filter sheet's result count as each choice changes it", async () => {
+    const tab = await (browser as Browser).newPage({ viewport: { width: 1440, height: 900 } });
+    await tab.goto(`${origin}/overlays.html`);
+    await tab.click("[commandfor='d-filters'][command='show-modal']");
+    const said = async (choice: string, want: string): Promise<string | undefined> => {
+      await tab.check(`#d-filters input[value='${choice}']`);
+      return heardIn(tab, "#d-filters [data-cp-politeness='polite']", want);
+    };
+    // The gallery's counts: 268 on the best and 33 not, of which films are a fifth.
+    const heard = [await said("best", "301 results"), await said("film", "60 results")];
+    await tab.close();
+    expect(heard).toEqual(["301 results", "60 results"]);
+  }, 60_000);
+
+  it("says the jump field's count once typing stops, one entry in the singular", async () => {
+    const tab = await (browser as Browser).newPage({ viewport: { width: 1440, height: 900 } });
+    await tab.goto(`${origin}/navigation.html`);
+    const said = async (text: string, want: string): Promise<string | undefined> => {
+      await tab.fill("#jump-in", "");
+      await tab.locator("#jump-in").pressSequentially(text);
+      return heardIn(tab, "[data-cp-politeness='polite']", want);
+    };
+    // The card's three entries: Frieren alone holds "fri", Mushishi and the Heron hold "m".
+    const heard = [await said("fri", "1 entry"), await said("m", "2 entries")];
+    await tab.close();
+    expect(heard).toEqual(["1 entry", "2 entries"]);
   }, 60_000);
 
   it.each(pageNames)(

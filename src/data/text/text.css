@@ -46,6 +46,30 @@
   font-size: var(--cp-text-xs);
 }
 
+/* A link on a muted line answers a press across the tier's minimum while
+ * its line keeps its height. Its margins and the stack's 0.125rem gap
+ * space the lines so no two press areas overlap. */
+.cp-cell-stack > small:has(> a) {
+  --cp-cell-reach: calc((var(--cp-hit-min) - 1lh) / 2);
+
+  margin-block: max(0px, var(--cp-cell-reach) - 0.0625rem);
+}
+
+.cp-cell-stack > small > a {
+  position: relative;
+  display: inline-block;
+  min-inline-size: var(--cp-hit-min);
+
+  &::after {
+    content: "";
+    position: absolute;
+    inset-block-start: 50%;
+    inset-inline: 0;
+    block-size: var(--cp-hit-min);
+    translate: 0 -50%;
+  }
+}
+
 @container (width < 44rem) {
   .cp-cell-stack {
     min-inline-size: 0;

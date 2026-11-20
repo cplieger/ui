@@ -51,13 +51,13 @@
     gap: var(--cp-space-5);
   }
 
-  .cp-settings-nav {
+  /* The links scroll, never the nav: a scroll box clips at its padding
+   * edge, so a nav that scrolled would cut the made select's focus ring.
+   * The element names the list's to outrank its plain surface's overflow. */
+  .cp-settings-nav > :is(ul, ol).cp-list {
+    display: flex;
     overflow-x: auto;
     scrollbar-width: none;
-  }
-
-  .cp-settings-nav > .cp-list {
-    display: flex;
   }
 
   .cp-settings-nav > .cp-list > li {

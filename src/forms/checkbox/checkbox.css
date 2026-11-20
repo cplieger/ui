@@ -128,4 +128,10 @@
   .cp-checkbox:disabled {
     border-color: GrayText;
   }
+
+  /* forced-color-adjust: none keeps the accent ring too, so the ring is
+   * set to the system's highlight here. */
+  .cp-checkbox:focus-visible {
+    outline-color: Highlight;
+  }
 }

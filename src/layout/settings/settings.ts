@@ -7,6 +7,7 @@
  */
 
 import { until, whenAborted } from "../../core/lifetime/lifetime.js";
+import { holdsFocus, refocus } from "../../forms/form/refocus.js";
 
 export interface SettingsWords {
   /** The save bar's count. Default "1 unsaved change", "3 unsaved changes". */
@@ -291,6 +292,8 @@ export function enhanceSettings(form: HTMLFormElement, options: SettingsOptions 
   let links: HTMLAnchorElement[] = [];
   let targets = new Map<HTMLAnchorElement, Element>();
   let last: readonly Element[] = [];
+  // What last waited, where focus goes when the bar it held hides.
+  let waited: readonly Element[] = [];
   let changed = new Set<HTMLAnchorElement>();
   // Paints in the task that enhanced the page are its first paint, which
   // does not animate.
@@ -389,9 +392,14 @@ export function enhanceSettings(form: HTMLFormElement, options: SettingsOptions 
       return;
     }
     const n = last.length;
+    const held = document.activeElement;
+    const holding = bar.contains(held) && holdsFocus(held);
     // While Save changes plays its busy and done words the bar stays; it
     // recounts once the button is back at rest.
     bar.hidden = n === 0 && !playing();
+    if (holding) {
+      refocus(form, held, waited);
+    }
     const count = bar.querySelector(`[data-part="count"]`);
     if (count !== null && n > 0) {
       count.textContent = words.count(n);
@@ -400,6 +408,9 @@ export function enhanceSettings(form: HTMLFormElement, options: SettingsOptions 
 
   const paint = (changes: readonly Element[]): void => {
     last = changes;
+    if (changes.length > 0) {
+      waited = changes;
+    }
     changed = new Set();
     for (const el of changes) {
       const link = ownerOf(el);

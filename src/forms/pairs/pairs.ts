@@ -6,10 +6,18 @@
  */
 
 import { until } from "../../core/lifetime/lifetime.js";
+import { announce } from "../../feedback/announce/announce.js";
 import { holds } from "../form/changed.js";
 import { type Values, registerPiece, touched } from "../form/pieces.js";
 
+export interface PairsWords {
+  /** Said when a row goes, given its fields' values that are not empty.
+   *  Default "/tv, /media/tv removed", or "Row removed" for an empty row. */
+  readonly removed?: (values: readonly string[]) => string;
+}
+
 export interface PairsOptions {
+  readonly words?: PairsWords;
   /** After each add and removal. */
   readonly onChange?: () => void;
   /** Removes the listeners. */
@@ -26,6 +34,24 @@ function fieldsOf(row: Element): [string, RowControl][] {
   return [...row.querySelectorAll<RowControl>("input, select, textarea")]
     .filter((c) => c.type !== "button" && c.type !== "submit" && c.type !== "reset")
     .map((c, i) => [c.name === "" ? `:${String(i)}` : c.name, c]);
+}
+
+const removed = (values: readonly string[]): string =>
+  values.length === 0 ? "Row removed" : `${values.join(", ")} removed`;
+
+/** What a row's fields show, as a person reads them: text, or a select's
+ *  chosen option; a box or a radio shows no value of its own. */
+function shown(row: Element): string[] {
+  return fieldsOf(row)
+    .map(([, c]) =>
+      c instanceof HTMLSelectElement
+        ? (c.selectedOptions[0]?.text ?? "")
+        : c instanceof HTMLInputElement && (c.type === "checkbox" || c.type === "radio")
+          ? ""
+          : c.value,
+    )
+    .map((v) => v.trim())
+    .filter((v) => v !== "");
 }
 
 const read = (c: RowControl): string =>
@@ -63,6 +89,7 @@ function fits(c: RowControl, v: string): boolean {
  */
 export function enhancePairs(box: HTMLElement, options: PairsOptions = {}): void {
   const { signal, onChange } = options;
+  const say = options.words?.removed ?? removed;
   const list = box.querySelector<HTMLUListElement>(".cp-pairs");
   const model = list?.querySelector(":scope > li")?.cloneNode(true);
   if (list === null || signal?.aborted === true) {
@@ -105,8 +132,22 @@ export function enhancePairs(box: HTMLElement, options: PairsOptions = {}): void
       f.removeAttribute("aria-invalid");
       f.removeAttribute("data-cp-error");
     }
+    const errors = new Set<string>();
     for (const e of row.querySelectorAll<HTMLElement>(".cp-field-error")) {
       e.hidden = true;
+      errors.add(e.id);
+    }
+    // A description is read from hidden text too, so a field names its
+    // error only while it shows, as showError writes it.
+    for (const f of row.querySelectorAll<HTMLElement>("[aria-describedby]")) {
+      const ids = (f.getAttribute("aria-describedby") ?? "")
+        .split(/\s+/)
+        .filter((t) => t !== "" && !errors.has(t));
+      if (ids.length > 0) {
+        f.setAttribute("aria-describedby", ids.join(" "));
+      } else {
+        f.removeAttribute("aria-describedby");
+      }
     }
     row.setAttribute(ADDED, "");
     return row;
@@ -188,8 +229,10 @@ export function enhancePairs(box: HTMLElement, options: PairsOptions = {}): void
           return;
         }
         const next = row.nextElementSibling ?? row.previousElementSibling;
+        const gone = shown(row);
         row.remove();
         (next?.querySelector<HTMLElement>("input, select, textarea") ?? add)?.focus();
+        announce(say(gone));
         touched(box);
         onChange?.();
       } else if (b === add) {

@@ -27,7 +27,7 @@ enhanceStepper(stepper, { signal: page.signal });
 - The number rolls up as it grows and down as it shrinks, laid over the field. A keystroke ends the roll at once, and under reduced motion the value only changes.
 - A `.cp-stepper` whose value is a `.cp-stepper-value` button, such as a zoom that resets on a press, takes the same look and leaves the steps to the app. That value keeps one width, set for "100%", so a shorter value sits centred and the plus never moves.
 - Shift with Up or Down moves ten steps.
-- The stepper is one bar, one control tall. A bar too wide for its column, at 320px or under large text, wraps its parts onto a second row inside its edge.
+- The stepper is one bar, one control tall, and its minus, its number and its plus each fill that height, so under a finger each is at least 44px square. A bar too wide for its column, at 320px or under large text, wraps its parts onto a second row inside its edge.
 - `signal` removes the listeners, the roll and the end marks.
 
 ## Signed steps of several sizes

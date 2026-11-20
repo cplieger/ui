@@ -158,4 +158,10 @@
     background: ButtonText;
     box-shadow: none;
   }
+
+  /* forced-color-adjust: none keeps the accent ring too, so the ring is
+   * set to the system's highlight here. */
+  .cp-range:focus-visible {
+    outline-color: Highlight;
+  }
 }

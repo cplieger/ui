@@ -1,5 +1,5 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
-import { page } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 
 import { enhancePill } from "../../core/pill/pill.js";
 
@@ -88,5 +88,58 @@ describe("the bottom bar's selection", () => {
     const { nav, items } = header();
     expect(getComputedStyle(pillOf(nav)).display).toBe("none");
     expect(getComputedStyle(items[1] as HTMLElement).backgroundColor).not.toBe("rgba(0, 0, 0, 0)");
+  });
+});
+
+describe("the bottom bar and focus", () => {
+  function longPage(): { nav: HTMLElement; rows: HTMLButtonElement[] } {
+    const { nav } = header();
+    const main = document.createElement("main");
+    main.className = "cp-main";
+    const rows = Array.from({ length: 30 }, (_, i) => {
+      const b = document.createElement("button");
+      b.className = "cp-button";
+      b.type = "button";
+      b.textContent = `Row ${String(i + 1)}`;
+      const line = document.createElement("p");
+      line.append(b);
+      main.append(line);
+      return b;
+    });
+    nav.closest(".cp-app")?.append(main);
+    return { nav, rows };
+  }
+
+  it("pads the page's end by the bar's height under 40rem", async () => {
+    await page.viewport(390, 640);
+    const { nav } = longPage();
+    const pad = Number.parseFloat(getComputedStyle(document.documentElement).scrollPaddingBlockEnd);
+    expect(pad).toBeGreaterThanOrEqual(nav.getBoundingClientRect().height - 0.5);
+  });
+
+  // Gecko scrolls a focused control only when no part of it is in view, so a
+  // control partly above the bar may stay partly under it
+  // (https://bugzilla.mozilla.org/show_bug.cgi?id=1326943); none stays wholly under it.
+  it("never leaves a control Tab reaches wholly under the bar", async () => {
+    await page.viewport(390, 640);
+    const { nav, rows } = longPage();
+    rows[0]?.focus();
+    const hidden: string[] = [];
+    for (let i = 1; i < rows.length; i++) {
+      await userEvent.keyboard("{Tab}");
+      const box = document.activeElement?.getBoundingClientRect();
+      if (box && box.top >= nav.getBoundingClientRect().top - 0.5) {
+        hidden.push(document.activeElement?.textContent ?? "");
+      }
+    }
+    expect(document.activeElement).toBe(rows.at(-1));
+    expect(document.scrollingElement?.scrollTop).toBeGreaterThan(0);
+    expect(hidden).toEqual([]);
+  });
+
+  it("leaves the page's end unpadded at full width, where no bar shows", async () => {
+    await page.viewport(1280, 720);
+    header();
+    expect(getComputedStyle(document.documentElement).scrollPaddingBlockEnd).toBe("auto");
   });
 });

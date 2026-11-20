@@ -73,6 +73,37 @@ export function whenAborted(signal: AbortSignal | undefined, fn: () => void): vo
   }
 }
 
+// WebKit collects the page's FontFaceSet wrapper, and every listener on it,
+// once nothing in script references it, so the first caller pins it here.
+let fontSet: FontFaceSet | undefined;
+
+/**
+ * Runs `run` once the page's fonts settle, after a load already running
+ * and after each load that starts until `signal` aborts. A load is seen by
+ * its `loading` event, because WebKit fires no `loadingdone` for a face a
+ * stylesheet starts.
+ */
+export function afterFontLoads(run: () => void, signal?: AbortSignal): void {
+  const fonts = (fontSet ??= document.fonts);
+  let waiting = false;
+  const settle = (): void => {
+    if (waiting) {
+      return;
+    }
+    waiting = true;
+    void fonts.ready.then(() => {
+      waiting = false;
+      if (signal?.aborted !== true) {
+        run();
+      }
+    });
+  };
+  fonts.addEventListener("loading", settle, until(signal));
+  if (fonts.status === "loading") {
+    settle();
+  }
+}
+
 /** Whether the person asked for less motion. */
 export function reducedMotion(): boolean {
   return matchMedia("(prefers-reduced-motion: reduce)").matches;

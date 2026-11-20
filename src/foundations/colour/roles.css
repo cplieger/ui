@@ -73,3 +73,11 @@
     contrast-color(var(--cp-shell-ink)) 12%
   );
 }
+
+/* At lightness 0.43 at most, white words on the done fill clear 7:1 in both
+ * themes. */
+@media (prefers-contrast: more) {
+  :root {
+    --cp-done-fill: oklch(from var(--cp-success-9) min(l, 0.43) c h);
+  }
+}

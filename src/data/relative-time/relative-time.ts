@@ -143,6 +143,12 @@ export function enhanceRelativeTime(
   hidden.textContent = ` ${exact}`;
   time.replaceChildren(text, hidden);
   time.dataset["cpTip"] = exact;
+  // Inside a live region, such as a banner's, each rewrite would say the
+  // whole region again; the time is still read when its region changes.
+  // WebKit still posts the region's change on every rewrite: its
+  // text-change walk passes over an `off` element to the region above it.
+  // https://github.com/WebKit/WebKit/blob/main/Source/WebCore/accessibility/AXObjectCache.cpp
+  time.setAttribute("aria-live", "off");
   const entry: Entry = {
     ref: new WeakRef(time),
     at,
