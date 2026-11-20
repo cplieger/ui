@@ -138,6 +138,35 @@ describe("mountSecurity: API keys", () => {
     expect(panel.hasAttribute("tabindex")).toBe(false);
   });
 
+  it("keeps a focused panel's stop when its table fits, until focus leaves it", async () => {
+    // The frame's first focus reads the keys again and redraws the table.
+    await userEvent.click(document.body);
+    const fake = new Fake().always("keys", ok([BACKUP, CI, CHILD]));
+    const { region } = mount(fake, { parts: [...KEY_PARTS], scopes: SCOPES });
+    region.style.inlineSize = "200px";
+    await keyRows(region);
+    const panel = keysSection(region).querySelector<HTMLElement>(".cp-panel")!;
+    await vi.waitFor(() => {
+      expect(panel.tabIndex).toBe(0);
+    });
+    panel.focus();
+    expect(document.activeElement).toBe(panel);
+    region.style.inlineSize = "1200px";
+    await vi.waitFor(() => {
+      expect(panel.scrollWidth).toBeLessThanOrEqual(panel.clientWidth);
+    });
+    // Two frames: the observer's report, then the engines' focus fixup.
+    await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)));
+    expect(document.activeElement).toBe(panel);
+    expect(panel.getAttribute("role")).toBe("region");
+    expect(panel.getAttribute("aria-label")).toBe("API keys, table");
+    expect(panel.tabIndex).toBe(0);
+    panel.blur();
+    expect(panel.hasAttribute("role")).toBe(false);
+    expect(panel.hasAttribute("aria-label")).toBe(false);
+    expect(panel.hasAttribute("tabindex")).toBe(false);
+  });
+
   it("names a minting key that is gone by its id", async () => {
     const fake = new Fake().answer("keys", ok([CHILD]));
     const { region } = mount(fake, { parts: [...KEY_PARTS] });

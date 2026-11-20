@@ -117,7 +117,7 @@ The app shows `settings.noWayToEnrol` on the field when its save would leave no 
 
 ## Words
 
-`defaultAccountWords` holds every word, and `wordsOf(overrides)` puts an app's on top. A word with a varying part is a function, such as `` "keys.rotateQuestion": (label) => `Rotate ${label}?` ``. The keys group by screen: `signIn.*`, `pending.*`, `setup.*`, `invite.*`, `link.*`, `stepUp.*`, `proof.*`, `plain.*`, `security.*`, `profile.*`, `methods.*`, `password.*`, `passkeys.*`, `totp.*`, `recoveryCode.*`, `oidc.*`, `sessions.*`, `keys.*`, `shown.*`, `log.*`, `users.*`, `invites.*` and `settings.*`, and `table.scroll` names a table wider than its panel, the region that scrolls it. An answer's words are under its code, such as `auth_rate_limited`, or its code and reason, such as `auth_code_invalid.code_reused`. The `AccountWords` type lists every key.
+`defaultAccountWords` holds every word, and `wordsOf(overrides)` puts an app's on top. A word with a varying part is a function, such as `` "keys.rotateQuestion": (label) => `Rotate ${label}?` ``. The keys group by screen: `signIn.*`, `pending.*`, `setup.*`, `invite.*`, `link.*`, `stepUp.*`, `proof.*`, `plain.*`, `security.*`, `profile.*`, `methods.*`, `password.*`, `passkeys.*`, `totp.*`, `recoveryCode.*`, `oidc.*`, `sessions.*`, `keys.*`, `shown.*`, `log.*`, `users.*`, `invites.*` and `settings.*`, and `table.scroll` names a table wider than its panel, the region that scrolls it, which stays a region while it holds focus. An answer's words are under its code, such as `auth_rate_limited`, or its code and reason, such as `auth_code_invalid.code_reused`. The `AccountWords` type lists every key.
 
 ## What each write is called
 

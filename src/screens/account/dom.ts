@@ -214,7 +214,8 @@ interface Column {
 /** A flush `.cp-panel` holding a `.cp-table` named by `labelledBy`, and
  *  its body. While the table is wider than the panel, the panel is a
  *  region named `scrolls(title)` that takes focus for the arrow keys; a
- *  table that fits adds no stop and no landmark beside its section. */
+ *  table that fits adds no stop and no landmark beside its section, once
+ *  focus is off the panel. */
 export function table(
   labelledBy: string,
   columns: readonly Column[],
@@ -252,14 +253,16 @@ export function table(
 }
 
 /** Keeps `root`'s region role, name and tab stop on while `table`
- *  overflows it. The observer reports a removed panel as a size change,
- *  so it ends with the panel. */
+ *  overflows it, and while `root` holds focus, so a fitting table never
+ *  drops focus to the page; they go once focus leaves. The observer
+ *  reports a removed panel as a size change, so it ends with the panel. */
 function scrollRegion(
   root: HTMLElement,
   table: HTMLTableElement,
   labelledBy: string,
   scrolls: (title: string) => string,
 ): void {
+  let held = false;
   const sync = (): void => {
     if (root.scrollWidth > root.clientWidth) {
       const title = labelledBy
@@ -270,19 +273,27 @@ function scrollRegion(
       root.setAttribute("role", "region");
       root.setAttribute("aria-label", scrolls(title));
       root.tabIndex = 0;
+    } else if (root === root.ownerDocument.activeElement) {
+      // A window losing focus fires focusout with the panel still active,
+      // so sync runs again and holds on until focus really moves.
+      if (!held) {
+        held = true;
+        root.addEventListener(
+          "focusout",
+          () => {
+            held = false;
+            sync();
+          },
+          { once: true },
+        );
+      }
     } else {
       root.removeAttribute("role");
       root.removeAttribute("aria-label");
       root.removeAttribute("tabindex");
     }
   };
-  const RO = (
-    root.ownerDocument.defaultView as { readonly ResizeObserver?: typeof ResizeObserver } | null
-  )?.ResizeObserver;
-  if (RO === undefined) {
-    return;
-  }
-  const observer = new RO(() => {
+  const observer = new ResizeObserver(() => {
     if (!root.isConnected) {
       observer.disconnect();
       return;
