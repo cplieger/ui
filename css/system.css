@@ -4562,13 +4562,18 @@ input.cp-input:is([type^="date"], [type="time"]):focus-within {
   gap: var(--cp-space-2);
 }
 
-/* Such a row is no label, so only its labels choose its radio. */
-.cp-choice:has(> .cp-choice-field) {
+/* Such a row is no label, so only its labels choose its radio. A disabled
+ * row keeps not-allowed on both: the :where() puts this rule below it. */
+.cp-choice:where(:has(> .cp-choice-field)) {
   cursor: auto;
 }
 
 .cp-choice-field > label {
   cursor: pointer;
+}
+
+.cp-choice:has(> :disabled) > .cp-choice-field > label {
+  cursor: inherit;
 }
 
 .cp-choice-field > .cp-input {

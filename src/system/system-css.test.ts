@@ -3017,6 +3017,22 @@ describe("css/system.css", () => {
     expect(cursor(plain as Element)).toBe("pointer");
   });
 
+  it("shows not-allowed over a disabled choice row with its own field and over its labels", () => {
+    theme("light");
+    const el = build(
+      '<fieldset class="cp-choices" disabled><legend>Run checks</legend><div class="cp-choice"><input class="cp-radio" type="radio" name="c" id="t-off" checked><span class="cp-choice-field"><label for="t-off">Every</label><input class="cp-input" type="number" value="30" aria-label="Minutes between checks"><label for="t-off">minutes</label></span></div><label class="cp-choice"><input class="cp-radio" type="radio" name="c"><span>Only when triggered</span></label></fieldset>',
+    );
+    const cursor = (e: Element | null) => getComputedStyle(e as Element).cursor;
+    const [field, plain] = [...el.querySelectorAll(".cp-choice")];
+    const [every, unit] = [...(field as Element).querySelectorAll("label")];
+    expect([
+      cursor(field as Element),
+      cursor(every as Element),
+      cursor(unit as Element),
+      cursor(plain as Element),
+    ]).toEqual(["not-allowed", "not-allowed", "not-allowed", "not-allowed"]);
+  });
+
   it("fills the chosen segment and rings it when its radio has keyboard focus", async () => {
     const life = new AbortController();
     onTestFinished(() => life.abort());
