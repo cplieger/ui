@@ -25,7 +25,7 @@ export interface Served {
 
 /** Serves `dir` on a free local port. `/framed/<page>` answers a page that
  *  frames `<page>.html` the way a preview tab does. */
-export async function serve(dir: string): Promise<Served> {
+async function serve(dir: string): Promise<Served> {
   const missing = new Set<string>();
   const server = createServer((req, res) => {
     const path = new URL(req.url ?? "/", "http://x").pathname;

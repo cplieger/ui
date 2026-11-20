@@ -11,7 +11,7 @@ This page is the accessibility bar that every part of `@cplieger/ui` is built an
 - An addition that makes a screen reader say more without telling the person more is refused. That covers a duplicate name, a description that repeats the name, and ARIA that restates what the HTML element already says. This page calls it the noise rule.
 - Contrast uses the WCAG 2 ratios, as [Contrast](#contrast) explains.
 
-Automated checks find only part of the problems, so the [axe check](#the-axe-check) is the floor and the [checks by hand](#checks-by-hand) cover the rest.
+Automated checks find only part of the problems, so the [axe check](#the-axe-check) is the floor and the [checks by hand](#checks-by-hand) cover the rest. The axe check is not in ui yet: until it lands, the checks by hand also run its rules and its own measures.
 
 ## Sources
 
@@ -797,7 +797,7 @@ Level A. Adopted, partly met, owed by `data/list-row`, `forms/copy` and `forms/f
 Native elements first. A custom widget has its APG role, its name, and each state and value in ARIA 1.2, kept current by its module. A list row's cut line takes focus with no role, as [Where ui falls short](#where-ui-falls-short) records.
 
 - axe: `aria-*`, `button-name`, `input-button-name`, `input-image-alt`, `link-name`, `area-alt`, `label`, `select-name`, `summary-name`, `nested-interactive`, `presentation-role-conflict`, `focus-order-semantics`, `duplicate-id`, `duplicate-id-active`, `duplicate-id-aria`, `frame-title`, `frame-title-unique`.
-- The axe test's own check for an `aria-disabled` element with no role.
+- The axe check's own measure of an `aria-disabled` element with no role.
 - Manual: each engine's own accessibility tree per gallery card.
 
 ### 4.1.3 Status messages
@@ -1951,9 +1951,11 @@ Contrast uses the WCAG 2 ratios: 4.5:1 for text, 3:1 for large text, boundaries 
 
 ### The axe check
 
-`gallery/a11y.ts` runs axe-core over every gallery page and frame and every reference page in `docs/system/`, in Chromium, Firefox and WebKit. Each engine has three test files: `gallery/a11y-<engine>.node.test.ts` checks the pages, `gallery/a11y-overlays-<engine>.node.test.ts` their overlays, and `gallery/a11y-charts-<engine>.node.test.ts` the charts page and its overlays, whose SVG text check takes the longest. Each runs one test per page and state. CI runs them with the other tests, split over three jobs (`cplieger.vitestShards` in `package.json`), and any violation fails the pull request.
+The axe check is not in ui yet. It lands once every page passes it, since it starts with [no tolerated violations](#no-tolerated-violations). This section and the next say what it does once it lands. Until then, the review of each element runs the rules in the [table of rules](#axe-rules) with axe-core 4.13.0 in each engine and in the states below, and takes the SVG text check and the check's own measures by hand.
 
-- axe-core is pinned to 4.13.0 as an exact dev dependency. A bump comes as a dependency update, and the check fails until each rule the new version adds is ruled in the table below.
+The check runs axe-core over every gallery page and frame and every reference page in `docs/system/`, in Chromium, Firefox and WebKit, one test per page and state. CI runs it with the other tests, and any violation fails the pull request.
+
+- The check pins axe-core to 4.13.0 as an exact dev dependency. A bump comes as a dependency update, and the check fails until each rule the new version adds is ruled in the table below.
 - The check selects rules by id, never by tag, so a rule that tests an adopted criterion runs even when axe marks it experimental. It also asserts that the rules it runs and the rules it leaves out together equal `axe.getRules()`.
 - Each page runs in the light and dark themes at 1440 by 900 and 390 by 844 CSS pixels. Both themes at 1440 also run under `prefers-contrast: more`, where `color-contrast-enhanced` and the SVG text check hold the 7:1 pairs and the other rules have nothing new to find.
 - Each overlay, every `[popover]` and `dialog`, is opened the way a person opens it and checked alone, in each of the page's six states. A dialog becomes a bottom sheet at 390, and the overlays' text must hold 7:1 under more contrast. A menu or panel opens by its button, a list of suggestions by ArrowDown in its field, and the tooltip by the pointer resting on a control with a tip. An overlay inside another opens after the one holding it. The tooltip is skipped on a page with no control that has a tip, since it never shows there. Any other overlay with nothing on the page to open it is opened by script, and the check's report names it. A button whose overlay is built when it is pressed, such as a question or a toast, is pressed on a fresh page, and what it opens is checked.
