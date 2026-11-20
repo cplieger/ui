@@ -463,6 +463,9 @@ export interface AccountWords {
   /** A key no other key minted, on the every-account table. */
   readonly "keys.bySession": string;
   readonly "keys.reached": string;
+  /** The words after "keys.reached" that only a screen reader hears,
+   *  naming the key. */
+  readonly "keys.reachedKey": (label: string) => string;
   readonly "keys.reachedBy": (label: string) => string;
   readonly "keys.invitesOf": (label: string, count: number) => string;
   readonly "keys.inviteLine": (i: {
@@ -1371,6 +1374,7 @@ export const defaultAccountWords: AccountWords = {
   "keys.invites": "Live invites",
   "keys.bySession": "Made in a signed-in session",
   "keys.reached": "People it reached",
+  "keys.reachedKey": (label) => `, ${label}`,
   "keys.reachedBy": (label) => `Show the people ${label} reached`,
   "keys.invitesOf": (label, count) =>
     `${count === 1 ? "1 live invite" : `${String(count)} live invites`} from ${label} and the keys it minted`,

@@ -324,12 +324,12 @@ export function drawKeys(
   const invitesOf = (id: number): readonly TokenView[] =>
     admin?.invites().filter((i) => i.issuer_lineage?.includes(id) === true) ?? [];
 
-  /** A link to the people the key `id` reached, shown in place. */
-  /** Every row's link has the same words, so the key's name, unseen,
-   *  tells each one's target apart. */
+  /** A link to the people the key `id` reached, shown in place. Every
+   *  row's link has the same words, so `key`, unseen, tells their targets
+   *  apart. */
   const reachedLink = (id: number, text: string, key: string): HTMLAnchorElement => {
     const a = el("a", undefined, text);
-    a.append(el("span", "cp-visually-hidden", `, ${key}`));
+    a.append(el("span", "cp-visually-hidden", w["keys.reachedKey"](key)));
     a.href = admin?.reached(id) ?? "";
     a.addEventListener(
       "click",
