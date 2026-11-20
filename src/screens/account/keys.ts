@@ -327,8 +327,8 @@ export function drawKeys(
   /** A link to the people the key `id` reached, shown in place. Every
    *  row's link has the same words, so `key`, unseen, tells their targets
    *  apart. */
-  const reachedLink = (id: number, text: string, key: string): HTMLAnchorElement => {
-    const a = el("a", undefined, text);
+  const reachedLink = (id: number, key: string): HTMLAnchorElement => {
+    const a = el("a", undefined, w["keys.reached"]);
     a.append(el("span", "cp-visually-hidden", w["keys.reachedKey"](key)));
     a.href = admin?.reached(id) ?? "";
     a.addEventListener(
@@ -399,7 +399,7 @@ export function drawKeys(
       lines.push(w["keys.bySession"]);
     }
     if (admin !== undefined) {
-      lines.push(reachedLink(k.id, w["keys.reached"], name));
+      lines.push(reachedLink(k.id, name));
     }
     const actions: Action[] = [];
     if (own !== undefined) {
