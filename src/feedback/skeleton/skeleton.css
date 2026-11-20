@@ -1,5 +1,5 @@
 /* Skeleton: the shape of what is coming, with a slow opacity beat that runs
- * out and back twice and rests at full opacity (--cp-skeleton-dur owns the
+ * out and back once and rests at full opacity (--cp-skeleton-dur owns the
  * 5-second limit), and stops under reduced motion.
  * @cplieger/ui/skeleton decides when it shows. */
 .cp-skeleton {

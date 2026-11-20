@@ -353,33 +353,51 @@ describe("css/system.css harmony colours", () => {
 
 describe("done fill", () => {
   // The success seed's hue is the app's to set.
-  const inks = (): number[] => {
+  const inks = (fill: () => HTMLElement): number[] => {
     const out: number[] = [];
     for (let hue = 0; hue < 360; hue += 15) {
       root.style.setProperty("--cp-success-h", String(hue));
-      const el = host("");
+      const el = fill();
       el.style.color = "oklch(100% 0 0deg)";
-      el.style.backgroundColor = "var(--cp-done-fill)";
       const cs = getComputedStyle(el);
       out.push(contrast(cs.color, cs.backgroundColor));
     }
     return out;
   };
+  const token = (): HTMLElement => {
+    const el = host("");
+    el.style.backgroundColor = "var(--cp-done-fill)";
+    return el;
+  };
+  // A split paints its done main action's fill on itself.
+  const split = (): HTMLElement => {
+    const el = host("cp-split");
+    const main = document.createElement("button");
+    main.className = "cp-button";
+    main.dataset["cpState"] = "done";
+    el.append(main);
+    return el;
+  };
 
   for (const t of ["light", "dark"] as const) {
-    it(`inks white words on the done fill at 4.5:1 or more in ${t}, at every success hue`, () => {
-      theme(t);
-      expect(Math.min(...inks())).toBeGreaterThanOrEqual(4.5);
-    });
-
-    it.skipIf(!emulates)(
-      `inks white words on the done fill at 7:1 or more with more contrast in ${t}, at every success hue`,
-      async () => {
+    for (const [what, fill] of [
+      ["the done fill", token],
+      ["a done split", split],
+    ] as const) {
+      it(`inks white words on ${what} at 4.5:1 or more in ${t}, at every success hue`, () => {
         theme(t);
-        await media("prefers-contrast", "more");
-        expect(Math.min(...inks())).toBeGreaterThanOrEqual(7);
-      },
-    );
+        expect(Math.min(...inks(fill))).toBeGreaterThanOrEqual(4.5);
+      });
+
+      it.skipIf(!emulates)(
+        `inks white words on ${what} at 7:1 or more with more contrast in ${t}, at every success hue`,
+        async () => {
+          theme(t);
+          await media("prefers-contrast", "more");
+          expect(Math.min(...inks(fill))).toBeGreaterThanOrEqual(7);
+        },
+      );
+    }
   }
 });
 

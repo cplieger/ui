@@ -85,6 +85,13 @@
 /* A radio's own field, such as "Every [30] minutes": its words and the
  * field read as one sentence, and the field is live only while its radio
  * is chosen (@cplieger/ui/choice). */
+.cp-choice > .cp-choice-field {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cp-space-2);
+}
+
 /* Such a row is no label, so only its labels choose its radio. */
 .cp-choice:has(> .cp-choice-field) {
   cursor: auto;
@@ -92,13 +99,6 @@
 
 .cp-choice-field > label {
   cursor: pointer;
-}
-
-.cp-choice > .cp-choice-field {
-  display: inline-flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--cp-space-2);
 }
 
 .cp-choice-field > .cp-input {

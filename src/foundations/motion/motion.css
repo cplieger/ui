@@ -100,7 +100,7 @@
    * while aria-busy and its words keep saying the work runs (WCAG 3 draft
    * 2.6.1.4, https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#no-visual-motion-no-exceptions):
    * six 0.8s turns end upright at 4.8s, and the skeleton's beat runs out and
-   * back twice, so it stays at 2.5s or less. */
+   * back once, so --cp-skeleton-dur stays at 2.5s or less. */
   --cp-spin: cp-spin 0.8s linear 6;
   --cp-skeleton-dur: 1.6s;
 }

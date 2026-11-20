@@ -57,7 +57,7 @@
 }
 
 .cp-split:has(> [data-cp-state="done"]) {
-  background: oklch(from var(--cp-success-9) min(l, 0.52) c h);
+  background: var(--cp-done-fill);
   transition:
     background-color 160ms var(--cp-ease-out),
     transform var(--cp-dur-press) var(--cp-ease-out);
