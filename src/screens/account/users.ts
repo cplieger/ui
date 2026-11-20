@@ -493,14 +493,18 @@ export function mountUsers<C extends UsersClient>(
       parts.push(el("p", "cp-meta", w["users.reachedNone"]));
     } else {
       const through = list.some((u) => (u.key_lineage?.length ?? 0) > 0);
-      const t = table(h.id, [
-        { text: w["users.person"] },
-        { text: w["users.role"], priority: "mid" },
-        { text: w["users.signIn"], priority: "low" },
-        ...(through ? [{ text: w["users.through"], priority: "low" as const }] : []),
-        { text: w["users.state"] },
-        { text: w["methods.actions"], col: "actions" },
-      ]);
+      const t = table(
+        h.id,
+        [
+          { text: w["users.person"] },
+          { text: w["users.role"], priority: "mid" },
+          { text: w["users.signIn"], priority: "low" },
+          ...(through ? [{ text: w["users.through"], priority: "low" as const }] : []),
+          { text: w["users.state"] },
+          { text: w["methods.actions"], col: "actions" },
+        ],
+        w["table.scroll"],
+      );
       for (const u of list) {
         const actions = actionsOf(u, me, plain);
         held ||= actions.some((a) => a.https === true);
@@ -565,13 +569,17 @@ export function mountUsers<C extends UsersClient>(
     if (shown.length === 0) {
       invitesPart.body.replaceChildren(el("p", "cp-meta", w["invites.empty"]));
     } else {
-      const t = table(invitesPart.heading.id, [
-        { text: w["invites.kind"] },
-        { text: w["users.role"], priority: "mid" },
-        { text: w["invites.made"], priority: "low" },
-        { text: w["invites.until"] },
-        { text: w["invites.by"], priority: "low" },
-      ]);
+      const t = table(
+        invitesPart.heading.id,
+        [
+          { text: w["invites.kind"] },
+          { text: w["users.role"], priority: "mid" },
+          { text: w["invites.made"], priority: "low" },
+          { text: w["invites.until"] },
+          { text: w["invites.by"], priority: "low" },
+        ],
+        w["table.scroll"],
+      );
       for (const i of shown) {
         const by = i.issued_by_key;
         const tr = el("tr");

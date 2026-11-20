@@ -632,14 +632,18 @@ export function drawLog(
       content.replaceChildren(empty(p.view));
       return;
     }
-    const t = table(title.id, [
-      { text: w["log.when"] },
-      { text: w["log.what"] },
-      ...(fixed ? [] : [{ text: w["log.account"], priority: "mid" as const }]),
-      { text: w["log.who"] },
-      { text: w["log.where"], priority: "low" },
-      { text: w["log.type"], priority: "low" },
-    ]);
+    const t = table(
+      title.id,
+      [
+        { text: w["log.when"] },
+        { text: w["log.what"] },
+        ...(fixed ? [] : [{ text: w["log.account"], priority: "mid" as const }]),
+        { text: w["log.who"] },
+        { text: w["log.where"], priority: "low" },
+        { text: w["log.type"], priority: "low" },
+      ],
+      w["table.scroll"],
+    );
     for (const e of p.entries) {
       const tr = el("tr");
       tr.dataset["seq"] = String(e.seq);
@@ -724,6 +728,8 @@ export function drawLog(
     a.dataset["part"] = side;
     a.dataset["cpAction"] = `log-${side}`;
     if (to === undefined) {
+      // A link with no href has no role to carry aria-disabled (ARIA 1.2).
+      a.setAttribute("role", "link");
       a.setAttribute("aria-disabled", "true");
       return a;
     }

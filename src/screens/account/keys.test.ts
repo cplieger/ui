@@ -113,6 +113,31 @@ describe("mountSecurity: API keys", () => {
     expect(region.querySelectorAll("[style]")).toHaveLength(0);
   });
 
+  it("makes the table's panel a named region with a tab stop only while the table is wider", async () => {
+    const fake = new Fake().always("keys", ok([BACKUP, CI, CHILD]));
+    const { region } = mount(fake, { parts: [...KEY_PARTS], scopes: SCOPES });
+    region.style.inlineSize = "1200px";
+    await keyRows(region);
+    const panel = keysSection(region).querySelector<HTMLElement>(".cp-panel")!;
+    await vi.waitFor(() => {
+      expect(panel.scrollWidth).toBeLessThanOrEqual(panel.clientWidth);
+      expect(panel.hasAttribute("role")).toBe(false);
+    });
+    expect(panel.hasAttribute("tabindex")).toBe(false);
+    expect(panel.hasAttribute("aria-label")).toBe(false);
+    region.style.inlineSize = "200px";
+    await vi.waitFor(() => {
+      expect(panel.getAttribute("role")).toBe("region");
+    });
+    expect(panel.getAttribute("aria-label")).toBe("API keys, table");
+    expect(panel.tabIndex).toBe(0);
+    region.style.inlineSize = "1200px";
+    await vi.waitFor(() => {
+      expect(panel.hasAttribute("role")).toBe(false);
+    });
+    expect(panel.hasAttribute("tabindex")).toBe(false);
+  });
+
   it("names a minting key that is gone by its id", async () => {
     const fake = new Fake().answer("keys", ok([CHILD]));
     const { region } = mount(fake, { parts: [...KEY_PARTS] });

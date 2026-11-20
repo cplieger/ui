@@ -284,6 +284,7 @@ describe("mountSecurityLog: the address and the pages", () => {
     const newer = pagerLink(region, "Newer");
     expect(newer.getAttribute("aria-disabled")).toBe("true");
     expect(newer.hasAttribute("href")).toBe(false);
+    expect(newer.getAttribute("role")).toBe("link");
     const older = pagerLink(region, "Older");
     expect(new URL(older.href).searchParams.get("before")).toBe("8");
 

@@ -212,18 +212,16 @@ interface Column {
 }
 
 /** A flush `.cp-panel` holding a `.cp-table` named by `labelledBy`, and
- *  its body. The panel scrolls a wide table sideways, so it takes focus
- *  for the arrow keys; a group, since its section is the region of that
- *  name already. */
+ *  its body. While the table is wider than the panel, the panel is a
+ *  region named `scrolls(title)` that takes focus for the arrow keys; a
+ *  table that fits adds no stop and no landmark beside its section. */
 export function table(
   labelledBy: string,
   columns: readonly Column[],
+  scrolls: (title: string) => string,
 ): { readonly root: HTMLElement; readonly body: HTMLTableSectionElement } {
   const root = el("div", "cp-panel");
   root.dataset["flush"] = "";
-  root.setAttribute("role", "group");
-  root.setAttribute("aria-labelledby", labelledBy);
-  root.tabIndex = 0;
   const t = el("table", "cp-table");
   t.setAttribute("aria-labelledby", labelledBy);
   const row = el("tr");
@@ -249,7 +247,50 @@ export function table(
   const body = el("tbody");
   t.append(head, body);
   root.append(t);
+  scrollRegion(root, t, labelledBy, scrolls);
   return { root, body };
+}
+
+/** Keeps `root`'s region role, name and tab stop on while `table`
+ *  overflows it. The observer reports a removed panel as a size change,
+ *  so it ends with the panel. */
+function scrollRegion(
+  root: HTMLElement,
+  table: HTMLTableElement,
+  labelledBy: string,
+  scrolls: (title: string) => string,
+): void {
+  const sync = (): void => {
+    if (root.scrollWidth > root.clientWidth) {
+      const title = labelledBy
+        .split(" ")
+        .map((id) => root.ownerDocument.getElementById(id)?.textContent ?? "")
+        .join(" ")
+        .trim();
+      root.setAttribute("role", "region");
+      root.setAttribute("aria-label", scrolls(title));
+      root.tabIndex = 0;
+    } else {
+      root.removeAttribute("role");
+      root.removeAttribute("aria-label");
+      root.removeAttribute("tabindex");
+    }
+  };
+  const RO = (
+    root.ownerDocument.defaultView as { readonly ResizeObserver?: typeof ResizeObserver } | null
+  )?.ResizeObserver;
+  if (RO === undefined) {
+    return;
+  }
+  const observer = new RO(() => {
+    if (!root.isConnected) {
+      observer.disconnect();
+      return;
+    }
+    sync();
+  });
+  observer.observe(root);
+  observer.observe(table);
 }
 
 /** A table cell holding `content`. */

@@ -206,6 +206,8 @@ export interface AccountWords {
   readonly "methods.method": string;
   readonly "methods.state": string;
   readonly "methods.actions": string;
+  /** A table wider than its panel, as the region that scrolls it. */
+  readonly "table.scroll": (title: string) => string;
   readonly "methods.actionsFor": (name: string) => string;
   readonly "methods.set": string;
   readonly "methods.notSet": string;
@@ -1115,6 +1117,7 @@ export const defaultAccountWords: AccountWords = {
   "methods.method": "Method",
   "methods.state": "State",
   "methods.actions": "Actions",
+  "table.scroll": (title) => `${title}, table`,
   "methods.actionsFor": (name) => `Actions for ${name}`,
   "methods.set": "Set",
   "methods.notSet": "Not set",

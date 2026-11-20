@@ -327,11 +327,15 @@ export function drawMethods<C extends SecurityClient>(
   }
 
   const titleId = body.closest("section")?.getAttribute("aria-labelledby") ?? "";
-  const t = table(titleId, [
-    { text: w["methods.method"] },
-    { text: w["methods.state"] },
-    { text: w["methods.actions"], col: "actions" },
-  ]);
+  const t = table(
+    titleId,
+    [
+      { text: w["methods.method"] },
+      { text: w["methods.state"] },
+      { text: w["methods.actions"], col: "actions" },
+    ],
+    w["table.scroll"],
+  );
   for (const r of rows) {
     const [controls, help] = rowActions(ctx, r.name, r.actions);
     const state = help === undefined ? r.state : cellStack(r.state, help);
@@ -352,13 +356,17 @@ export function drawMethods<C extends SecurityClient>(
 
   function passkeyTable(): Node[] {
     const h = heading(ctx.level + 1, w["passkeys.title"]);
-    const p = table(h.id, [
-      { text: w["passkeys.name"] },
-      { text: w["passkeys.created"], priority: "mid" },
-      { text: w["passkeys.lastUsed"], priority: "low" },
-      { text: w["passkeys.where"] },
-      { text: w["methods.actions"], col: "actions" },
-    ]);
+    const p = table(
+      h.id,
+      [
+        { text: w["passkeys.name"] },
+        { text: w["passkeys.created"], priority: "mid" },
+        { text: w["passkeys.lastUsed"], priority: "low" },
+        { text: w["passkeys.where"] },
+        { text: w["methods.actions"], col: "actions" },
+      ],
+      w["table.scroll"],
+    );
     for (const k of passkeys) {
       const nameNode = el("span", undefined, k.name);
       const where = el("div", "cp-cluster");

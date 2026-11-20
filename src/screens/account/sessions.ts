@@ -64,13 +64,17 @@ export function drawSessions<C extends SecurityClient>(
   };
 
   const draw = (): void => {
-    const t = table(heading.id, [
-      { text: w["sessions.device"] },
-      { text: w["sessions.method"], priority: "mid" },
-      { text: w["sessions.lastActive"] },
-      { text: w["sessions.address"], priority: "low" },
-      { text: w["methods.actions"], col: "actions" },
-    ]);
+    const t = table(
+      heading.id,
+      [
+        { text: w["sessions.device"] },
+        { text: w["sessions.method"], priority: "mid" },
+        { text: w["sessions.lastActive"] },
+        { text: w["sessions.address"], priority: "low" },
+        { text: w["methods.actions"], col: "actions" },
+      ],
+      w["table.scroll"],
+    );
     for (const s of list) {
       const name = deviceName(s, w);
       const nameNode = el("span", undefined, name);

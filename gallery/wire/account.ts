@@ -2441,8 +2441,9 @@ for (const form of document.querySelectorAll<HTMLFormElement>("[data-second-fact
 }
 
 // Each card mounts its own copy of a screen, so the page holds many regions
-// named "Sign in" or "API keys" and many log pagers; the card's own heading
-// leads each name, as a page with one screen never needs.
+// named "Sign in" or "API keys", many log pagers and many "Older" links to
+// other pages of other logs; the card's own heading leads each name, as a
+// page with one screen never needs.
 let cardNames = 0;
 function nameByCard(section: Element): void {
   const card = section.closest(".card");
@@ -2468,6 +2469,11 @@ const named = (): void => {
     const label = nav.getAttribute("aria-label") ?? "";
     if (card !== "" && !label.startsWith(`${card}: `)) {
       nav.setAttribute("aria-label", `${card}: ${label}`);
+    }
+    for (const a of nav.querySelectorAll("a")) {
+      if (card !== "" && a.getAttribute("aria-label") === null) {
+        a.setAttribute("aria-label", `${a.textContent}, ${card}`);
+      }
     }
   }
 };

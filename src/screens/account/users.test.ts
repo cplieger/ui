@@ -873,10 +873,12 @@ describe("mountUsers, who a key reached", () => {
     expect(ci?.textContent).toContain("Made in a signed-in session");
     expect(ci?.textContent).toContain("mika");
     expect(nightly?.querySelector("th a")?.textContent).toBe("Minted by ci");
-    const reachedLink = [...(ci?.querySelectorAll("a") ?? [])].find(
-      (a) => a.textContent === "People it reached",
+    const reachedLink = [...(ci?.querySelectorAll("a") ?? [])].find((a) =>
+      a.textContent.startsWith("People it reached"),
     );
     expect(reachedLink?.getAttribute("href")).toMatch(/[?&]key=12$/);
+    expect(reachedLink?.textContent).toBe("People it reached, ci");
+    expect(reachedLink?.querySelector(".cp-visually-hidden")?.textContent).toBe(", ci");
     expect(actions(ci!)).toEqual(["Revoke ci…"]);
     await userEvent.click(nightly!.querySelector("th a")!);
     expect(document.activeElement).toBe(ci?.querySelector("th"));

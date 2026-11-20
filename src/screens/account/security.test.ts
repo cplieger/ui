@@ -220,17 +220,21 @@ describe("mountSecurity: the profile", () => {
     expect(fake.named("sendSignals")).toHaveLength(1);
   });
 
-  it("lets a keyboard scroll each wide table, its panel named by the table's heading", async () => {
+  it("lets a keyboard scroll each table wider than its panel, the region named by its heading", async () => {
     const { region } = mount();
+    region.style.inlineSize = "200px";
     await ready(region);
     const panels = [...region.querySelectorAll<HTMLElement>(".cp-panel[data-flush]")];
     expect(panels.length).toBeGreaterThanOrEqual(3);
     for (const p of panels) {
+      const by = p.querySelector("table")?.getAttribute("aria-labelledby") ?? "";
+      const title = document.getElementById(by);
+      expect(title?.tagName).toMatch(/^H[2-4]$/);
+      await vi.waitFor(() => {
+        expect(p.getAttribute("role")).toBe("region");
+      });
       expect(p.tabIndex).toBe(0);
-      expect(p.getAttribute("role")).toBe("group");
-      const by = p.getAttribute("aria-labelledby") ?? "";
-      expect(document.getElementById(by)?.tagName).toMatch(/^H[2-4]$/);
-      expect(p.querySelector("table")?.getAttribute("aria-labelledby")).toBe(by);
+      expect(p.getAttribute("aria-label")).toBe(`${title?.textContent ?? ""}, table`);
     }
   });
 

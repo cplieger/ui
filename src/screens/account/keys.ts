@@ -292,17 +292,21 @@ export function drawKeys(
     const scoped = picked || list.some((k) => k.scopes.length > 0);
     const invites = new Map(list.map((k) => [k.id, invitesOf(k.id)]));
     const detailed = [...invites.values()].some((i) => i.length > 0);
-    const t = table(heading.id, [
-      ...(detailed ? [{ text: w["keys.invites"], col: "expand" as const }] : []),
-      { text: w["keys.label"] },
-      ...(admin === undefined ? [] : [{ text: w["keys.owner"], priority: "mid" as const }]),
-      { text: w["keys.key"], priority: "mid" },
-      ...(scoped ? [{ text: w["keys.scopes"], priority: "low" as const }] : []),
-      { text: w["keys.expires"], priority: "low" },
-      { text: w["keys.lastUsed"], priority: "low" },
-      { text: w["keys.state"] },
-      { text: w["methods.actions"], col: "actions" },
-    ]);
+    const t = table(
+      heading.id,
+      [
+        ...(detailed ? [{ text: w["keys.invites"], col: "expand" as const }] : []),
+        { text: w["keys.label"] },
+        ...(admin === undefined ? [] : [{ text: w["keys.owner"], priority: "mid" as const }]),
+        { text: w["keys.key"], priority: "mid" },
+        ...(scoped ? [{ text: w["keys.scopes"], priority: "low" as const }] : []),
+        { text: w["keys.expires"], priority: "low" },
+        { text: w["keys.lastUsed"], priority: "low" },
+        { text: w["keys.state"] },
+        { text: w["methods.actions"], col: "actions" },
+      ],
+      w["table.scroll"],
+    );
     for (const k of list) {
       t.body.append(
         ...row(k, now, scoped, https, detailed ? (invites.get(k.id) ?? []) : undefined),
@@ -321,8 +325,11 @@ export function drawKeys(
     admin?.invites().filter((i) => i.issuer_lineage?.includes(id) === true) ?? [];
 
   /** A link to the people the key `id` reached, shown in place. */
-  const reachedLink = (id: number, text: string): HTMLAnchorElement => {
+  /** Every row's link has the same words, so the key's name, unseen,
+   *  tells each one's target apart. */
+  const reachedLink = (id: number, text: string, key: string): HTMLAnchorElement => {
     const a = el("a", undefined, text);
+    a.append(el("span", "cp-visually-hidden", `, ${key}`));
     a.href = admin?.reached(id) ?? "";
     a.addEventListener(
       "click",
@@ -392,7 +399,7 @@ export function drawKeys(
       lines.push(w["keys.bySession"]);
     }
     if (admin !== undefined) {
-      lines.push(reachedLink(k.id, w["keys.reached"]));
+      lines.push(reachedLink(k.id, w["keys.reached"], name));
     }
     const actions: Action[] = [];
     if (own !== undefined) {
