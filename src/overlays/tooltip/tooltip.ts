@@ -64,8 +64,9 @@ function ms(time: string): number {
   return Number.parseFloat(time) * 1000;
 }
 
-/** `el` and each of its ancestors in the flat tree, through the slot it
- *  or an ancestor is assigned to and each shadow host. */
+/** `el` and each of its ancestors in the flat tree, through each shadow
+ *  host and each slot an open shadow root exposes: `assignedSlot` is null
+ *  for a slot in a closed root, so the walk goes to the light-DOM parent. */
 function* lineage(el: Element): Generator<Element> {
   for (let n: Element | null = el; n !== null;) {
     yield n;
@@ -75,13 +76,13 @@ function* lineage(el: Element): Generator<Element> {
 }
 
 /** Whether `el` is in the page and seen: rendered, visible, and neither
- *  it nor an ancestor at a computed opacity of 0. The opacity is read
- *  from each computed style, as checkVisibility's `opacityProperty` is
- *  specified (https://drafts.csswg.org/cssom-view/#dom-element-checkvisibility),
- *  because WebKit's own check reports seen, a few times in a hundred, an
- *  element whose ended `forwards` CSS animation holds it at 0. */
+ *  it nor a flat-tree ancestor at opacity 0. Either check saying unseen
+ *  wins. checkVisibility walks the flat tree, closed shadow roots
+ *  included; the computed-opacity walk catches WebKit's check reporting
+ *  seen, a few times in a hundred, an element an ended `forwards` CSS
+ *  animation holds at opacity 0. */
 function present(el: HTMLElement): boolean {
-  if (!el.isConnected || !el.checkVisibility({ visibilityProperty: true })) {
+  if (!el.isConnected || !el.checkVisibility({ visibilityProperty: true, opacityProperty: true })) {
     return false;
   }
   for (const n of lineage(el)) {
@@ -206,7 +207,6 @@ function listen(signal: AbortSignal, delay: number): void {
     // A control not yet seen, as one focused in the task that opens its
     // popover at opacity 0, shows no tip.
     if (!present(el)) {
-      close();
       return;
     }
     if (!write(el)) {
@@ -218,8 +218,8 @@ function listen(signal: AbortSignal, delay: number): void {
     seen.observe(el);
     // A MutationObserver does not enter a shadow tree, an end event does
     // not leave one, and a shadow root's own observer misses its host's
-    // removal, so every tree the control is drawn through, a slot's
-    // included, is observed and heard. gone() writes nothing while the
+    // removal, so every tree the control is drawn through, an open root's
+    // slot included, is observed and heard. gone() writes nothing while the
     // control stays, and close() disconnects it first, so no write loops.
     ends?.abort();
     ends = new AbortController();

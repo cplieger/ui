@@ -945,13 +945,13 @@ describe("installTooltips with the system sheet", () => {
   });
 
   /** A tipped button in the light DOM, assigned to a slot inside a
-   *  wrapper of its host's open shadow root, directly or through a
-   *  slotted div. */
-  const slotted = (deep: boolean) => {
+   *  wrapper of its host's shadow root, directly or through a slotted
+   *  div. */
+  const slotted = (deep: boolean, mode: ShadowRootMode = "open") => {
     const host = document.createElement("div");
     const wrap = document.createElement("div");
     wrap.append(document.createElement("slot"));
-    host.attachShadow({ mode: "open" }).append(wrap);
+    host.attachShadow({ mode }).append(wrap);
     const b = document.createElement("button");
     b.type = "button";
     b.textContent = "⚙";
@@ -1001,6 +1001,38 @@ describe("installTooltips with the system sheet", () => {
       expect(showing()).toBe(true);
       wrap.style.opacity = "0";
       await Promise.resolve();
+      expect(showing()).toBe(false);
+    },
+  );
+
+  it.each([
+    ["a slotted button", false],
+    ["a button in a slotted div", true],
+  ])(
+    "shows no keyboard tip for %s whose slot's wrapper in a closed shadow root is at opacity 0",
+    (_kind, deep) => {
+      installTooltips({ signal: life.signal });
+      const { b, wrap } = slotted(deep, "closed");
+      wrap.style.opacity = "0";
+      b.focus({ focusVisible: true });
+      expect(document.activeElement).toBe(b);
+      expect(showing()).toBe(false);
+    },
+  );
+
+  it.each([
+    ["a slotted button", false],
+    ["a button in a slotted div", true],
+  ])(
+    "hides a keyboard tip of %s at the next key once its slot's wrapper in a closed shadow root turns opacity 0",
+    async (_kind, deep) => {
+      installTooltips({ signal: life.signal });
+      const { b, wrap } = slotted(deep, "closed");
+      b.focus({ focusVisible: true });
+      expect(showing()).toBe(true);
+      wrap.style.opacity = "0";
+      await userEvent.keyboard("{Shift}");
+      expect(document.activeElement).toBe(b);
       expect(showing()).toBe(false);
     },
   );
