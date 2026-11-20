@@ -324,6 +324,28 @@ describe.each(browsers)("the gallery in %s", (name) => {
     await tab.close();
   }, 120_000);
 
+  // WCAG 2.4.6 Headings and Labels: each card mounts its own copy of a
+  // screen, so a 320px window gives many cards an "API keys, table" region.
+  it("gives every region on the account page its own name in a 320px window", async () => {
+    const tab = await (browser as Browser).newPage({ viewport: { width: 320, height: 800 } });
+    await tab.goto(`${origin}/account.html`);
+    const tables = tab.locator(".card .cp-panel[role='region']");
+    await expect.poll(() => tables.count(), { timeout: 10_000 }).toBeGreaterThan(1);
+    const names = await tab.evaluate(() =>
+      [...document.querySelectorAll("[role='region']")].map((r) => {
+        const by = r.getAttribute("aria-labelledby");
+        return by === null
+          ? (r.getAttribute("aria-label") ?? "")
+          : by
+              .split(" ")
+              .map((id) => document.getElementById(id)?.textContent ?? "")
+              .join(" ");
+      }),
+    );
+    await tab.close();
+    expect(names.filter((n, i) => names.indexOf(n) !== i)).toEqual([]);
+  }, 60_000);
+
   it("clears every row of a choices set whose legend has a button under the floats, and no other set's", async () => {
     const wrong: string[] = [];
     let floated = 0;

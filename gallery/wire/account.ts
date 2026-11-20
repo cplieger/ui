@@ -2464,9 +2464,9 @@ for (const form of document.querySelectorAll<HTMLFormElement>("[data-second-fact
 }
 
 // Each card mounts its own copy of a screen, so the page holds many regions
-// named "Sign in" or "API keys", many log pagers and many "Older" links to
-// other pages of other logs; the card's own heading leads each name, as a
-// page with one screen never needs.
+// named "Sign in" or "API keys, table", many log pagers and many "Older"
+// links to other pages of other logs; the card's own heading leads each
+// name, as a page with one screen never needs.
 let cardNames = 0;
 function nameByCard(section: Element): void {
   const card = section.closest(".card");
@@ -2487,13 +2487,18 @@ const named = (): void => {
   for (const section of document.querySelectorAll(".card section[aria-labelledby]")) {
     nameByCard(section);
   }
-  for (const nav of document.querySelectorAll(".card nav[aria-label]")) {
-    const card = nav.closest(".card")?.querySelector(":scope > h2")?.textContent ?? "";
-    const label = nav.getAttribute("aria-label") ?? "";
+  for (const box of document.querySelectorAll(
+    ".card nav[aria-label], .card [role='region'][aria-label]",
+  )) {
+    const card = box.closest(".card")?.querySelector(":scope > h2")?.textContent ?? "";
+    const label = box.getAttribute("aria-label") ?? "";
     if (card !== "" && !label.startsWith(`${card}: `)) {
-      nav.setAttribute("aria-label", `${card}: ${label}`);
+      box.setAttribute("aria-label", `${card}: ${label}`);
     }
-    for (const a of nav.querySelectorAll("a")) {
+    if (box.localName !== "nav") {
+      continue;
+    }
+    for (const a of box.querySelectorAll("a")) {
       if (card !== "" && a.getAttribute("aria-label") === null) {
         a.setAttribute("aria-label", `${a.textContent}, ${card}`);
       }
