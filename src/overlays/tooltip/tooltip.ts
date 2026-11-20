@@ -93,8 +93,8 @@ function present(el: HTMLElement): boolean {
   return true;
 }
 
-/** Every tree `el` is drawn through: the root of each element of its
- *  flat-tree lineage. */
+/** The trees `el` is drawn through that the page can observe: the root
+ *  of each element of its lineage(). */
 function trees(el: HTMLElement): Set<Node> {
   return new Set(Array.from(lineage(el), (n) => n.getRootNode()));
 }
