@@ -120,6 +120,19 @@ const requiredWithoutMark = (): string[] => {
   );
 };
 
+/** The live region's words once they read `want`, or what it holds after 5s:
+ *  a count waits out its debounce and announce's gap, which run late under load. */
+async function heardIn(tab: Page, region: string, want: string): Promise<string | undefined> {
+  await tab
+    .waitForFunction(
+      ([sel, words]) => document.querySelector(sel)?.textContent.trim() === words,
+      [region, want] as const,
+      { timeout: 5_000 },
+    )
+    .catch(() => undefined);
+  return tab.evaluate((sel) => document.querySelector(sel)?.textContent.trim(), region);
+}
+
 // WCAG 2.5.3 Label in Name: an account button is named by the initials it
 // shows then ", account", or "Account" alone over an avatar with no text.
 // Runs in the page, so it closes over nothing.
@@ -1927,15 +1940,12 @@ describe.each(browsers)("the gallery in %s", (name) => {
     const tab = await (browser as Browser).newPage({ viewport: { width: 1440, height: 900 } });
     await tab.goto(`${origin}/overlays.html`);
     await tab.click("[commandfor='d-filters'][command='show-modal']");
-    const said = async (choice: string): Promise<string | undefined> => {
+    const said = async (choice: string, want: string): Promise<string | undefined> => {
       await tab.check(`#d-filters input[value='${choice}']`);
-      await tab.waitForTimeout(400);
-      return tab.evaluate(() =>
-        document.querySelector("#d-filters [data-cp-politeness='polite']")?.textContent.trim(),
-      );
+      return heardIn(tab, "#d-filters [data-cp-politeness='polite']", want);
     };
     // The gallery's counts: 268 on the best and 33 not, of which films are a fifth.
-    const heard = [await said("best"), await said("film")];
+    const heard = [await said("best", "301 results"), await said("film", "60 results")];
     await tab.close();
     expect(heard).toEqual(["301 results", "60 results"]);
   }, 60_000);
@@ -1943,16 +1953,13 @@ describe.each(browsers)("the gallery in %s", (name) => {
   it("says the jump field's count once typing stops, one entry in the singular", async () => {
     const tab = await (browser as Browser).newPage({ viewport: { width: 1440, height: 900 } });
     await tab.goto(`${origin}/navigation.html`);
-    const said = async (text: string): Promise<string | undefined> => {
+    const said = async (text: string, want: string): Promise<string | undefined> => {
       await tab.fill("#jump-in", "");
       await tab.locator("#jump-in").pressSequentially(text);
-      await tab.waitForTimeout(900);
-      return tab.evaluate(() =>
-        document.querySelector("[data-cp-politeness='polite']")?.textContent.trim(),
-      );
+      return heardIn(tab, "[data-cp-politeness='polite']", want);
     };
     // The card's three entries: Frieren alone holds "fri", Mushishi and the Heron hold "m".
-    const heard = [await said("fri"), await said("m")];
+    const heard = [await said("fri", "1 entry"), await said("m", "2 entries")];
     await tab.close();
     expect(heard).toEqual(["1 entry", "2 entries"]);
   }, 60_000);
