@@ -545,7 +545,7 @@ describe("mountUsers", () => {
       "Required.",
     );
     await userEvent.click(button(d, "Add user"));
-    expect(errorOf(name)).toBe("Enter your username.");
+    expect(errorOf(name)).toBe("Enter a username.");
   });
 
   it("says a new user has no temporary password when issuing it failed", async () => {

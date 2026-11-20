@@ -1152,7 +1152,7 @@ export function mountUsers<C extends UsersClient>(
       }
       const username = name.input.value.trim();
       if (username === "") {
-        showError(name.input, w["auth_username_invalid.empty"]);
+        showError(name.input, w["setup.usernameEmpty"]);
         name.input.focus();
         return;
       }
