@@ -216,7 +216,8 @@ interface Column {
  *  region named `scrolls(title)` that takes focus for the arrow keys; a
  *  table that fits adds no stop and no landmark beside its section, once
  *  focus is off the panel. The panel's `data-cp-action` is
- *  `table-<labelledBy>`, so a redraw puts focus back on it. */
+ *  `table-<labelledBy>`, so a redraw puts focus back on it only when the
+ *  caller passes the same ids on every draw. */
 export function table(
   labelledBy: string,
   columns: readonly Column[],
@@ -281,7 +282,6 @@ function scrollRegion(
     if (root.scrollWidth > root.clientWidth) {
       stop();
     } else if (root === root.ownerDocument.activeElement) {
-      stop();
       // A window losing focus fires focusout with the panel still active,
       // so sync runs again and holds on until focus really moves.
       if (!held) {

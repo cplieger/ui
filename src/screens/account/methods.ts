@@ -356,6 +356,7 @@ export function drawMethods<C extends SecurityClient>(
 
   function passkeyTable(): Node[] {
     const h = heading(ctx.level + 1, w["passkeys.title"]);
+    h.id = `${titleId}-passkeys`;
     const p = table(
       h.id,
       [

@@ -445,6 +445,36 @@ describe("mountSecurity: passkeys", () => {
     );
   });
 
+  it("keeps focus and the scroll on a focused passkeys panel the refresh draws again", async () => {
+    await userEvent.click(document.body);
+    const fake = new Fake().always("passkeys", ok([PHONE, { ...PHONE, id: 8, name: "Key" }]));
+    const { region, screen } = mount(fake);
+    region.style.inlineSize = "200px";
+    const panelOf = (): HTMLElement | undefined =>
+      [...region.querySelectorAll("table")][1]?.closest<HTMLElement>(".cp-panel") ?? undefined;
+    const panel = await vi.waitFor(() => {
+      const p = panelOf();
+      expect(p?.tabIndex).toBe(0);
+      return p as HTMLElement;
+    });
+    panel.focus();
+    panel.scrollLeft = 40;
+    const left = panel.scrollLeft;
+    expect(left).toBeGreaterThan(0);
+    await screen.refresh();
+    const again = await vi.waitFor(() => {
+      const next = panelOf();
+      expect(next).toBeDefined();
+      expect(next).not.toBe(panel);
+      return next as HTMLElement;
+    });
+    await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)));
+    expect(document.activeElement).toBe(again);
+    expect(again.getAttribute("role")).toBe("region");
+    expect(again.getAttribute("aria-label")).toBe("Passkeys, table");
+    expect(again.scrollLeft).toBe(left);
+  });
+
   it("adds one with no proof while no second factor is held", async () => {
     const { fake, region } = mount();
     await ready(region);
