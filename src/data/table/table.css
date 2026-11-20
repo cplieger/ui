@@ -1,4 +1,5 @@
-/* Data table: rows are never interactive; actions are buttons in a cell.
+/* Data table: a row is one action only when it holds one link or button
+ * (installRowActions), else its actions are the controls in its cells.
  * A column carries its priority, and a narrow container drops low, then mid. */
 .cp-table {
   inline-size: 100%;
@@ -265,14 +266,18 @@ th[aria-sort="descending"] > .cp-sort::after {
       opacity: 0.4;
     }
 
-    .cp-table tbody tr:hover :is(td, th) {
+    /* stylelint-disable-next-line selector-max-pseudo-class -- the fill keys on the stretched action, :where keeps the row rule's specificity */
+    .cp-table tbody tr[data-cp-row-action]:has(:where([data-cp-stretch]):hover) > :is(td, th) {
       background: var(--cp-fill);
     }
 
     /* A plain button in a row shares the row's hover fill and would vanish;
      * lift it to the raised surface. Only a resting button: one that
      * confirms in place keeps the fill its busy or done state gives it. */
-    .cp-table tr:hover .cp-button:not([data-variant], [data-cp-state]) {
+    /* stylelint-disable-next-line selector-max-attribute, selector-max-specificity, selector-max-pseudo-class -- the one-action row and the plain resting button are each attributes */
+    .cp-table
+      tr[data-cp-row-action]:has(:where([data-cp-stretch]):hover)
+      .cp-button:not([data-variant], [data-cp-state]) {
       --cp-chart-surface: var(--cp-surface-raised);
 
       background: var(--cp-surface-raised);

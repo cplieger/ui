@@ -119,8 +119,8 @@
 @media (any-hover: hover) {
   @scope (:root:not([data-pointer="coarse"])) {
     /* :scope names the root, so .cp on <html> matches as well as a .cp subtree. */
-    :scope.cp :where(a):hover,
-    .cp :where(a):hover {
+    :scope.cp :where(a[href]):hover,
+    .cp :where(a[href]):hover {
       text-decoration-color: currentcolor;
     }
   }

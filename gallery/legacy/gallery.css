@@ -794,93 +794,6 @@ input.cp-input::-webkit-calendar-picker-indicator {
   }
 }
 
-/* Tables and lists */
-
-.g-avatar {
-  display: inline-grid;
-  place-items: center;
-  flex: none;
-  inline-size: 2rem;
-  block-size: 2rem;
-  border-radius: 30%;
-  background: var(--av, var(--cp-harmony-1));
-  color: var(--av-on, var(--cp-harmony-1-on));
-  font-size: var(--cp-text-xs);
-  font-weight: var(--cp-weight-heading);
-}
-
-.g-list {
-  display: grid;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  border: var(--cp-line-w) solid var(--cp-line);
-  border-radius: var(--cp-radius-surface);
-  background: var(--cp-surface-raised);
-  overflow: hidden;
-}
-
-.g-list > li + li {
-  border-block-start: var(--cp-line-w) solid var(--cp-line);
-}
-
-.g-row {
-  display: flex;
-  align-items: center;
-  gap: var(--cp-space-3);
-  inline-size: 100%;
-  min-block-size: 3.25rem;
-  padding: var(--cp-space-2) var(--cp-space-4);
-  border: 0;
-  background: transparent;
-  color: var(--cp-ink);
-  font: inherit;
-  text-align: start;
-  text-decoration: none;
-  cursor: pointer;
-  transition: background-color var(--cp-dur-micro) var(--cp-ease-out);
-}
-
-.g-row > span:not(.g-avatar, .cp-icon) {
-  display: grid;
-  flex: 1;
-  gap: 0.125rem;
-  min-inline-size: 0;
-}
-
-.g-row small {
-  color: var(--cp-ink-muted);
-  font-size: var(--cp-text-xs);
-}
-
-.g-row > .cp-icon {
-  color: var(--cp-ink-muted);
-  transition: translate 200ms var(--cp-ease-out);
-}
-
-.g-row[aria-current="true"] {
-  background: var(--cp-selected);
-}
-
-@media (any-hover: hover) {
-  @scope (:root:not([data-pointer="coarse"])) {
-    .g-row:hover {
-      background: var(--cp-fill);
-    }
-
-    /* A filled action in the row shares the hover fill and would vanish; lift
-     * it to the raised surface so Remove, Download and the like stay visible. */
-    .g-row:hover .cp-button:not([data-variant], [data-state]) {
-      background: var(--cp-surface-raised);
-    }
-  }
-}
-
-.g-row:focus-visible {
-  outline: var(--cp-focus-w) solid var(--cp-focus-ring);
-  outline-offset: -2px;
-}
-
 /* Backspace in an empty field marks the last token first, then removes it. */
 
 @keyframes token-in {
@@ -1036,11 +949,6 @@ input.cp-input::-webkit-calendar-picker-indicator {
   align-items: center;
   gap: var(--cp-space-2) var(--cp-space-3);
 }
-
-.g-list .g-row {
-  cursor: default;
-}
-
 
 /* Foundations page */
 

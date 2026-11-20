@@ -47,6 +47,7 @@ if (groups !== null) {
 - Enter in the field answers. Cancel and Escape decline.
 - A yes or no and a question with choices are an `alertdialog`, described by the message when there is a title. A value question is a dialog named by its heading.
 - No group is chosen to start, and the answer stays disabled until one is. `count` defaults to 1, so without counts the function gets the number of groups chosen. The answer resolves the chosen groups' values in their order.
+- Asked while the focus is in an open popover that is a dialog, such as from a button in a [panel](panel.md), the question opens inside that popover, since a modal dialog closes every popover outside it. The popover stays open under it, and focus goes back to that button at either answer. A popover that closes meanwhile answers the question as declined. A caller whose press may not focus its button, as a mouse press does not in Safari, focuses it before asking. A question asked from a menu opens in the page, since a menu closes as it is chosen.
 - A question asked while another is open replaces it, and the open one answers as declined, as it does when its `signal` aborts.
 - Options it cannot draw throw a `TypeError` before anything opens: `details` or `choices` that are not arrays of string pairs, an empty `choices`, two choices with one value, a `count` that is not a whole number of 0 or more, `input` with `choices`, a `confirmLabel` function without `choices`, a `link` without a string `text` and `href`, a `signal` that is not an `AbortSignal`, and a `tone` or `focus` outside its values.
 

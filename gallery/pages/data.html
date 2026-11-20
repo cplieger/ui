@@ -170,9 +170,9 @@
             <thead><tr><th>Copy</th><th>Verdict</th><th>Grab</th></tr></thead>
             <tbody id="hold-library">
               <tr data-copy="ping-pong" data-verdict="missing"><td><div class="cp-cell-stack"><a href="#lists">Ping Pong the Animation</a><span class="cp-meta">Sonarr, TV, 2014</span></div></td><td><span class="cp-chip" data-tone="danger"><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span>Missing</span></td><td><span class="cp-meta">None</span></td></tr>
-              <tr data-copy="dungeon" data-verdict="worse"><td><div class="cp-cell-stack"><a href="#lists">Delicious in Dungeon</a><span class="cp-meta">Sonarr, TV, 2024</span></div></td><td><span class="cp-chip" data-tone="warning"><span class="cp-icon" data-cp-icon="triangle-alert" aria-hidden="true"></span>Not the best</span></td><td><button class="cp-track-compact" type="button" data-cp-tip="Step 2 of 4: Found, Sent, Downloading, Imported" data-cp-tip-toggle aria-label="Sent, 60 %"><span class="cp-icon" data-cp-icon="send-horizontal" aria-hidden="true"></span>Sent</button></td></tr>
-              <tr data-copy="mushishi" data-verdict="alt"><td><div class="cp-cell-stack"><a href="#lists">Mushishi</a><span class="cp-meta">Sonarr, TV, 2005</span></div></td><td><span class="cp-chip" data-tone="success"><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>On an alt</span></td><td><button class="cp-track-compact" type="button" data-cp-tip="Step 3 of 4: Found, Sent, Downloading, Imported" data-cp-tip-toggle aria-label="Downloading, 42 %"><span class="cp-icon" data-cp-icon="download" aria-hidden="true"></span>Downloading</button></td></tr>
-              <tr data-copy="frieren" data-verdict="best"><td><div class="cp-cell-stack"><a href="#lists">Frieren: Beyond Journey's End</a><span class="cp-meta">Sonarr, TV, 2023</span></div></td><td><span class="cp-chip" data-tone="success"><span class="cp-icon" data-cp-icon="circle-check" aria-hidden="true"></span>On the best</span></td><td><button class="cp-track-compact" type="button" data-cp-tip="Step 3 of 4: Found, Sent, Downloading, Imported" data-cp-tip-toggle aria-label="Downloading, 87 %"><span class="cp-icon" data-cp-icon="download" aria-hidden="true"></span>Downloading</button></td></tr>
+              <tr data-copy="dungeon" data-verdict="worse"><td><div class="cp-cell-stack"><a href="#lists">Delicious in Dungeon</a><span class="cp-meta">Sonarr, TV, 2024</span></div></td><td><span class="cp-chip" data-tone="warning"><span class="cp-icon" data-cp-icon="triangle-alert" aria-hidden="true"></span>Not the best</span></td><td><span class="cp-track-compact" tabindex="0" data-cp-tip="Step 2 of 4: Found, Sent, Downloading, Imported" data-cp-tip-toggle><span class="cp-icon" data-cp-icon="send-horizontal" aria-hidden="true"></span>Sent<span class="cp-visually-hidden">, 60 %</span></span></td></tr>
+              <tr data-copy="mushishi" data-verdict="alt"><td><div class="cp-cell-stack"><a href="#lists">Mushishi</a><span class="cp-meta">Sonarr, TV, 2005</span></div></td><td><span class="cp-chip" data-tone="success"><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>On an alt</span></td><td><span class="cp-track-compact" tabindex="0" data-cp-tip="Step 3 of 4: Found, Sent, Downloading, Imported" data-cp-tip-toggle><span class="cp-icon" data-cp-icon="download" aria-hidden="true"></span>Downloading<span class="cp-visually-hidden">, 42 %</span></span></td></tr>
+              <tr data-copy="frieren" data-verdict="best"><td><div class="cp-cell-stack"><a href="#lists">Frieren: Beyond Journey's End</a><span class="cp-meta">Sonarr, TV, 2023</span></div></td><td><span class="cp-chip" data-tone="success"><span class="cp-icon" data-cp-icon="circle-check" aria-hidden="true"></span>On the best</span></td><td><span class="cp-track-compact" tabindex="0" data-cp-tip="Step 3 of 4: Found, Sent, Downloading, Imported" data-cp-tip-toggle><span class="cp-icon" data-cp-icon="download" aria-hidden="true"></span>Downloading<span class="cp-visually-hidden">, 87 %</span></span></td></tr>
               <tr data-copy="heron" data-verdict="best"><td><div class="cp-cell-stack"><a href="#lists">The Boy and the Heron</a><span class="cp-meta">Radarr, film, 2023</span></div></td><td><span class="cp-chip" data-tone="success"><span class="cp-icon" data-cp-icon="circle-check" aria-hidden="true"></span>On the best</span></td><td><span class="cp-meta">None</span></td></tr>
             </tbody>
           </table>
@@ -196,7 +196,7 @@
         <div class="cp-cluster"><button class="cp-button" data-size="sm" type="button" data-hold-live="hold-steps"><span class="cp-icon" data-cp-icon="play" aria-hidden="true"></span>Start live changes</button></div>
         <footer>A log oldest first lets each new row in at once, since it goes in below the reader and moves nothing they see. A row that goes in out of view is counted on a line pinned to the window's end, “2 newer rows · Show”: Show goes to the newest row and moves focus to it, and the count goes once the reader scrolls there. Start the live changes, which run one full check, then scroll the page up until the log's end is below the window.</footer>
       </div>
-        <div class="card g-wide">
+        <div class="card g-wide" data-new>
           <h2>A long list</h2>
         <div class="g-row-inline"><div class="cp-search g-grow"><input class="cp-input" id="v-filter" type="search" placeholder="Filter titles" aria-label="Filter titles"><button class="cp-button" data-variant="quiet" type="button" aria-label="Clear"></button></div><span id="v-count"></span><button class="cp-button" type="button" data-live-update="v-list">Live update</button></div>
         <ul class="cp-list g-gap-top" id="v-list" data-virtual aria-label="Titles"></ul>
@@ -267,7 +267,7 @@
         </div>
         <footer>Nine slots for categories in data, turned from the accent as the harmony colours are: data-series puts a chip, a swatch or any element that reads a tone on one. Odd slots are bright and even ones deep, so neighbours differ in lightness under every colour-vision deficiency, and each holds 3:1 on the page, a panel, a sunken surface and a popover, measured here in the current theme. Change the hue in the bar below and every slot follows. The verdicts are a release tracker's, most common first.</footer>
       </div>
-      <div class="card g-wide">
+      <div class="card g-wide" data-new>
         <h2>Share bar</h2>
         <section class="cp-panel" aria-labelledby="share-h">
           <div class="cp-heading-row">
@@ -294,7 +294,7 @@
         <div class="g-row-inline g-gap-top"><button class="cp-button" type="button" data-share-grab="verdict-share">Grab 20 upgrades</button></div>
         <footer>One segment per verdict, sized by its share, with the surface showing through a 2px gap; a mouse or a tap on a segment shows its words, count and share. The legend chips are the links, each with its swatch, glyph, words and count; a reader also hears its share, and focus or a mouse shows the segment's tip on it. Table view shows the same numbers as a table, which is also what a page without the script shows. Grab 20 upgrades moves twenty copies from Not listed to On the best, and the bar follows the table.</footer>
       </div>
-      <div class="card g-wide">
+      <div class="card g-wide" data-new>
         <h2 id="spark-title">Sparkline</h2>
         <div class="cp-panel" data-flush role="region" tabindex="0" aria-labelledby="spark-title">
           <table class="cp-table" aria-labelledby="spark-title">
@@ -353,7 +353,7 @@
         <div class="g-row-inline g-gap-top"><button class="cp-button" type="button" data-meter-step="store-meter" data-by="30">Add 30 GB</button><button class="cp-button" type="button" data-meter-step="store-meter" data-by="-150">Free 150 GB</button></div>
         <footer>A native meter against its ceiling, marked at 80% and 90%. Past the first mark the fill turns to the warning tone and past the second to danger, each with its glyph before the words, which say the value and the mark it passed. Add 30 GB and Free 150 GB move it.</footer>
       </div>
-      <div class="card g-wide">
+      <div class="card g-wide" data-new>
         <h2 id="ranked-title">Ranked table</h2>
         <div class="cp-panel" data-flush role="region" tabindex="0" aria-labelledby="ranked-title">
           <table class="cp-table" data-ranked aria-labelledby="ranked-title">
@@ -407,7 +407,7 @@
   <section class="g-section" id="steps">
     <h2>Progress and work</h2>
     <div class="g-grid">
-      <div class="card">
+      <div class="card" data-new>
         <h2>Step track</h2>
         <ol class="cp-track" aria-label="Grab progress, Frieren Season 1">
           <li data-state="done">Found<span class="cp-visually-hidden">, done</span></li>
@@ -424,7 +424,7 @@
           </ol>
           <p class="cp-kept">Last known at 14:02: the download client is not answering</p>
         </div>
-        <p class="g-gap-top">In a table row: <button class="cp-track-compact" type="button" data-cp-tip="Step 3 of 4: Found, Sent, Downloading, Imported" data-cp-tip-toggle aria-label="Downloading, 42 %"><span class="cp-icon" data-cp-icon="download" aria-hidden="true"></span>Downloading</button></p>
+        <p class="g-gap-top">In a table row: <span class="cp-track-compact" tabindex="0" data-cp-tip="Step 3 of 4: Found, Sent, Downloading, Imported" data-cp-tip-toggle><span class="cp-icon" data-cp-icon="download" aria-hidden="true"></span>Downloading<span class="cp-visually-hidden">, 42 %</span></span></p>
         <footer>Four named steps, each done, current or to come, in words for a screen reader as well as by fill; the current step's bar fills as it goes, and its percentage is read out, not shown. The kept form goes grey and says when it was true. The compact form shows the current step and puts the rest in a tooltip.</footer>
       </div>
       <div class="card">
@@ -442,7 +442,7 @@
         </ul>
         <footer>What, where as a link, how far, the phase, and Stop. An ended job drops its bar and Stop, and keeps its outcome at its end and its cause under its scope. Show all 5 running adds the other jobs before the foot, moves focus to the first one's link, and goes.</footer>
       </div>
-      <div class="card g-wide">
+      <div class="card g-wide" data-new>
         <h2>Problems</h2>
         <ul class="cp-list">
           <li><div class="cp-list-row" data-lines="wrap"><span class="cp-icon" data-cp-icon="triangle-alert" data-tone="warning" aria-hidden="true"></span><div><p>OpenSubtitles refused the API key, so 18 episodes are waiting.</p><time data-ago="5400"></time></div><a href="#steps">Fix the key</a></div></li>

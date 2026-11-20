@@ -1,5 +1,5 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { page } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 
 import { relative } from "../../core/format/format.js";
 import { installAnnouncer } from "../../feedback/announce/announce.js";
@@ -407,12 +407,20 @@ describe("at compact width", () => {
   });
 });
 
+/** The panel's parts in order, leaving out its live region. */
 const sections = (panel: HTMLElement) =>
-  [...panel.children].map((c) =>
-    c instanceof HTMLElement && c.dataset["cpStatus"] !== undefined
-      ? c.dataset["cpStatus"]
-      : c.tagName.toLowerCase(),
-  );
+  [...panel.children]
+    .filter((c) => !c.hasAttribute("aria-live"))
+    .map((c) =>
+      c instanceof HTMLElement && c.dataset["cpStatus"] !== undefined
+        ? c.dataset["cpStatus"]
+        : c.tagName.toLowerCase(),
+    );
+/** What the panel's own polite region says, once its pause has passed. */
+const panelSaid = (panel: HTMLElement) => {
+  vi.advanceTimersByTime(100);
+  return panel.querySelector('[aria-live="polite"]')?.textContent ?? "";
+};
 const rows = (panel: HTMLElement, name: string) => [
   ...panel.querySelectorAll<HTMLElement>(
     `[data-cp-status="${name}"] li[data-cp-key] > .cp-list-row`,
@@ -481,6 +489,51 @@ describe("the panel's sections", () => {
     document.documentElement.dataset["pointer"] = "coarse";
     try {
       expect(link.offsetHeight).toBeGreaterThanOrEqual(44);
+    } finally {
+      delete document.documentElement.dataset["pointer"];
+    }
+  });
+
+  it("draws a one-line row a menu item tall under a mouse, a finger's under touch", () => {
+    const { panel, status } = mount();
+    status.update(
+      model({
+        conditions: [
+          problem("full", { since: Date.now() - 60_000 }),
+          warning("slow", { reasons: ["Sonarr took 9 s"] }),
+        ],
+        recent: [{ id: "r", words: "Check finished", at: Date.now() - 60_000 }],
+      }),
+    );
+    panel.showPopover();
+    const menu = document.createElement("div");
+    menu.className = "cp-menu";
+    menu.innerHTML = '<button type="button" role="menuitem">Rename</button>';
+    document.body.append(menu);
+    const option = menu.firstElementChild as HTMLElement;
+    const one = [
+      ...panel.querySelectorAll<HTMLElement>(
+        '[data-cp-status="conditions"] li:first-child .cp-list-row, [data-cp-status="recent"] .cp-list-row',
+      ),
+    ];
+    expect(one).toHaveLength(2);
+    const two = panel.querySelector(
+      '[data-cp-status="conditions"] li:last-child .cp-list-row',
+    ) as HTMLElement;
+    expect(two.textContent).toContain("Sonarr took 9 s");
+    const inset = () => Number.parseFloat(getComputedStyle(two).paddingBlockStart);
+    // offsetHeight, since the panel's entry scales its box.
+    try {
+      for (const tier of ["fine", "coarse"] as const) {
+        document.documentElement.dataset["pointer"] = tier;
+        for (const r of one) {
+          expect(r.offsetHeight, `${tier} ${r.textContent ?? ""}`).toBe(option.offsetHeight);
+        }
+        expect(inset(), tier).toBeGreaterThan(0);
+      }
+      expect(option.offsetHeight).toBeGreaterThanOrEqual(44);
+      document.documentElement.dataset["pointer"] = "fine";
+      expect(option.offsetHeight).toBeLessThan(44);
     } finally {
       delete document.documentElement.dataset["pointer"];
     }
@@ -996,6 +1049,98 @@ describe("the running section", () => {
     expect(before).not.toHaveBeenCalled();
   });
 
+  /** An open panel whose work items each ask before they stop, with the
+   *  exit motion off so a question's answer arrives at once. */
+  const asking = async (ids: readonly string[]) => {
+    vi.useRealTimers();
+    const real = matchMedia.bind(window);
+    vi.stubGlobal("matchMedia", (q: string) =>
+      q === "(prefers-reduced-motion: reduce)" ? { ...real(q), matches: true } : real(q),
+    );
+    const mounted = mount();
+    const opened = new Promise((resolve) => {
+      mounted.panel.addEventListener("toggle", resolve, { once: true });
+    });
+    mounted.panel.showPopover();
+    await opened;
+    const run = vi.fn(() => Promise.resolve());
+    const items = ids.map((id) => job(id, { stop: { run, ask: { message: `Stop ${id}?` } } }));
+    mounted.status.update(model({ work: items }));
+    return { ...mounted, run, items };
+  };
+  const question = () =>
+    vi.waitFor(() => {
+      const d = document.querySelector<HTMLDialogElement>("dialog[open]");
+      expect(d).not.toBeNull();
+      return d as HTMLDialogElement;
+    });
+  const presses = [
+    [
+      "the keys",
+      async (b: HTMLButtonElement) => {
+        b.focus({ focusVisible: true });
+        await userEvent.keyboard("{Enter}");
+      },
+    ],
+    [
+      "the mouse",
+      async (b: HTMLButtonElement) => {
+        await userEvent.click(b);
+      },
+    ],
+    [
+      "a press that leaves the focus where it was, as Safari's mouse does",
+      (b: HTMLButtonElement) => {
+        b.click();
+        return Promise.resolve();
+      },
+    ],
+  ] as const;
+
+  it.each(presses)(
+    "keeps the panel open over Stop's question pressed by %s, and gives focus back to Stop at either answer",
+    async (_by, press) => {
+      const { panel, run } = await asking(["Full check"]);
+      for (const [answer, calls] of [
+        ["footer > button:not([value])", 0],
+        ['button[value="confirm"]', 1],
+      ] as const) {
+        await press(stopButton(panel, "Full check"));
+        const d = await question();
+        expect(panel.matches(":popover-open")).toBe(true);
+        (d.querySelector(answer) as HTMLButtonElement).click();
+        await vi.waitFor(() => {
+          expect(document.querySelector("dialog")).toBeNull();
+        });
+        expect(panel.matches(":popover-open")).toBe(true);
+        expect(document.activeElement).toBe(stopButton(panel, "Full check"));
+        expect(run).toHaveBeenCalledTimes(calls);
+      }
+      expect(stopButton(panel, "Full check").firstChild?.textContent).toBe("Stopping…");
+    },
+  );
+
+  it.each([
+    ["declined", "footer > button:not([value])"],
+    ["answered", 'button[value="confirm"]'],
+  ])(
+    "gives focus to the next row's control when the asking row left before its question was %s",
+    async (_how, answer) => {
+      const { panel, status, run, items } = await asking(["a", "b"]);
+      await presses[0][1](stopButton(panel, "a"));
+      const d = await question();
+      status.update(model({ work: items.slice(1) }));
+      expect(panel.contains(d)).toBe(true);
+      (d.querySelector(answer) as HTMLButtonElement).click();
+      await vi.waitFor(() => {
+        expect(document.querySelector("dialog")).toBeNull();
+      });
+      expect(panel.matches(":popover-open")).toBe(true);
+      expect(document.activeElement).toBe(stopButton(panel, "b"));
+      expect(run).not.toHaveBeenCalled();
+    },
+  );
+
   it("drops a refusal that comes back after its item left", async () => {
     const { panel, status } = mount();
     let refuse = (_: Error): void => undefined;
@@ -1022,12 +1167,11 @@ describe("the running section", () => {
   it("keeps a second stop's Stopping… when the first stop's refusal comes late", async () => {
     const { panel, status } = mount();
     const refusals: ((error: Error) => void)[] = [];
-    const run = vi.fn(
-      () =>
-        new Promise<void>((_, reject) => {
-          refusals.push(reject);
-        }),
-    );
+    const run = vi.fn(() => {
+      const { promise, reject }: PromiseWithResolvers<void> = Promise.withResolvers();
+      refusals.push(reject);
+      return promise;
+    });
     const m = model({ work: [job("a", { stop: { run } })] });
     status.update(m);
     stopButton(panel, "a").click();
@@ -1144,6 +1288,43 @@ describe("the starts", () => {
     expect(said()).toBe("");
   });
 
+  it("says a start's settled words once from the panel when the app accepts it, again at the next", async () => {
+    const { panel, status } = mount();
+    panel.showPopover();
+    const run = vi.fn(() => Promise.resolve());
+    status.update(model({ starts: [begin("q", { label: "Quick check", run })] }));
+    const q = startButton(panel, "q");
+    q.click();
+    expect(q.textContent).toBe("Starting…");
+    expect(panelSaid(panel)).toBe("");
+    await vi.waitFor(() => {
+      expect(q.textContent).toBe("Quick check");
+    });
+    expect(panelSaid(panel)).toBe("Quick check");
+    expect(said()).toBe("");
+    q.click();
+    await vi.waitFor(() => {
+      expect(run).toHaveBeenCalledTimes(2);
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    const region = panel.querySelector('[aria-live="polite"]');
+    expect(region?.textContent).toBe("");
+    expect(panelSaid(panel)).toBe("Quick check");
+  });
+
+  it("says a refused start once, from the page and not the panel", async () => {
+    const { panel, status } = mount();
+    panel.showPopover();
+    const run = vi.fn((): Promise<void> => Promise.reject(new Error("No budget left")));
+    status.update(model({ starts: [begin("f", { label: "Full check", run })] }));
+    startButton(panel, "f").click();
+    await vi.waitFor(() => {
+      expect(startLine(panel, "f").textContent).toBe("No budget left");
+    });
+    expect(said()).toBe("No budget left");
+    expect(panelSaid(panel)).toBe("");
+  });
+
   it("writes a refusal as the start's reason line, says it, and gives the button back", async () => {
     const { panel, status } = mount();
     panel.showPopover();
@@ -1181,12 +1362,11 @@ describe("the starts", () => {
   it("drops a refusal that comes back after its start left or was pressed again", async () => {
     const { panel, status } = mount();
     const refusals: ((error: Error) => void)[] = [];
-    const run = vi.fn(
-      () =>
-        new Promise<void>((_, reject) => {
-          refusals.push(reject);
-        }),
-    );
+    const run = vi.fn(() => {
+      const { promise, reject }: PromiseWithResolvers<void> = Promise.withResolvers();
+      refusals.push(reject);
+      return promise;
+    });
     const m = model({ starts: [begin("f", { icon: icon("refresh-cw"), turn: true, run })] });
     status.update(m);
     startButton(panel, "f").click();
@@ -1402,66 +1582,89 @@ describe("the starts", () => {
     expect(q.hasAttribute("aria-describedby")).toBe(false);
   });
 
-  it("writes the starts' info button last, its tip shown on a tap", async () => {
-    const { panel, status } = mount();
-    panel.showPopover();
-    const startsInfo = { label: "About the checks", tip: "Quick check reads the last 48 hours." };
-    const starts = [begin("q", { label: "Quick check" }), begin("f", { label: "Full check" })];
-    status.update(model({ starts, startsInfo }));
-    const last = () => panel.querySelector('[data-cp-status="starts"] li:last-child button');
-    const info = last() as HTMLButtonElement;
-    expect(info.hasAttribute("data-cp-start")).toBe(false);
-    expect(
-      info.matches('.cp-button[data-variant="quiet"][data-size="sm"][data-cp-tip-toggle]'),
-    ).toBe(true);
-    expect(info.dataset["cpTip"]).toBe(startsInfo.tip);
-    expect(info.querySelector('.cp-icon[data-cp-icon="info"]')).not.toBeNull();
-    await expect
-      .element(page.getByRole("button", { name: "About the checks" }))
-      .toBeInTheDocument();
-    status.update(model({ starts: starts.toReversed(), startsInfo }));
-    expect(last()).toBe(info);
-    status.update(model({ starts }));
-    expect(panel.querySelector("[data-cp-tip-toggle]")).toBeNull();
-    status.update(model({ startsInfo }));
-    expect(panel.querySelector('[data-cp-status="starts"]')).toBeNull();
-  });
-
   describe("with the tooltip", () => {
     const tip = () => document.getElementById("cp-tooltip") as HTMLElement;
     const anchor = (el: HTMLElement) => el.style.getPropertyValue("anchor-name");
     const moving = (step: number): StatusModel =>
       model({
         work: [job("Full check", { value: step, max: 8 })],
-        starts: [begin("q", { label: "Quick check", tip: "Reads the last 48 hours." })],
-        startsInfo: { label: "About the checks", tip: "Quick check reads the last 48 hours." },
+        starts: [
+          begin("q", { label: "Quick check", tip: "Reads the last 48 hours." }),
+          begin("r", { label: "Refresh now", unavailable: "Refreshed 10 seconds ago" }),
+        ],
       });
 
     beforeEach(() => {
       installTooltips({ signal: life.signal, delay: 10 });
     });
 
-    it("keeps the info button's tapped tip on it across an update", () => {
+    const tap = (el: HTMLElement) =>
+      el.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, pointerType: "touch" }));
+    /** Opens `panel` and waits out its fade-in from opacity 0, before
+     *  whose first frame its controls are hidden and show no tip. */
+    const open = async (panel: HTMLElement) => {
+      panel.showPopover();
+      await Promise.all(panel.getAnimations().map(async (a) => a.finished));
+    };
+
+    it("shows an unavailable start's reason as its tip to a mouse, the keys and a tap", async () => {
       const { panel, status } = mount();
       status.update(moving(1));
-      panel.showPopover();
-      const info = panel.querySelector<HTMLElement>("[data-cp-tip-toggle]") as HTMLElement;
-      info.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, pointerType: "touch" }));
+      await open(panel);
+      const r = startButton(panel, "r");
+      const reason = "Refreshed 10 seconds ago";
+      expect(panel.querySelector('[data-cp-tip-toggle], [data-cp-icon="info"]')).toBeNull();
+      expect(r.getAttribute("aria-describedby")?.split(" ")).toContain(startLine(panel, "r").id);
+      await expect
+        .element(page.getByRole("button", { name: "Refresh now" }))
+        .toHaveAccessibleDescription(reason);
+      r.dispatchEvent(new PointerEvent("pointerover", { bubbles: true, pointerType: "mouse" }));
+      vi.advanceTimersByTime(10);
       expect(tip().matches(":popover-open")).toBe(true);
-      const at = anchor(info);
+      expect(tip().textContent).toBe(reason);
+      r.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, pointerType: "mouse" }));
+      expect(tip().matches(":popover-open")).toBe(false);
+      r.focus({ focusVisible: true });
+      expect(tip().matches(":popover-open")).toBe(true);
+      expect(tip().textContent).toBe(reason);
+      r.blur();
+      expect(tip().matches(":popover-open")).toBe(false);
+      tap(r);
+      expect(tip().matches(":popover-open")).toBe(true);
+      expect(tip().textContent).toBe(reason);
+      tap(r);
+      expect(tip().matches(":popover-open")).toBe(false);
+    });
+
+    it("keeps an unavailable start's tapped tip on it across an update", async () => {
+      const { panel, status } = mount();
+      status.update(moving(1));
+      await open(panel);
+      const r = startButton(panel, "r");
+      const own = r.getAttribute("aria-describedby");
+      tap(r);
+      expect(tip().matches(":popover-open")).toBe(true);
+      const at = anchor(r);
       expect(at).not.toBe("");
-      expect(info.getAttribute("aria-describedby")).toBe(tip().id);
       status.update(moving(2));
-      expect(panel.querySelector("[data-cp-tip-toggle]")).toBe(info);
-      expect(anchor(info)).toBe(at);
-      expect(info.getAttribute("aria-describedby")).toBe(tip().id);
+      expect(startButton(panel, "r")).toBe(r);
+      expect(anchor(r)).toBe(at);
+      expect(r.getAttribute("aria-describedby")).toBe(own);
       expect(tip().matches(":popover-open")).toBe(true);
     });
 
-    it("keeps a start's tip shown to a mouse on it across an update", () => {
+    it("leaves a tap on a start that can run to the start", async () => {
       const { panel, status } = mount();
       status.update(moving(1));
-      panel.showPopover();
+      await open(panel);
+      tap(startButton(panel, "q"));
+      expect(tip().matches(":popover-open")).toBe(false);
+    });
+
+    it("keeps a start's tip shown to a mouse on it across an update", async () => {
+      const { panel, status } = mount();
+      status.update(moving(1));
+      await open(panel);
       const q = startButton(panel, "q");
       const own = q.getAttribute("aria-describedby");
       q.dispatchEvent(new PointerEvent("pointerover", { bubbles: true, pointerType: "mouse" }));
@@ -1559,6 +1762,50 @@ describe("the panel while offline", () => {
     expect(row.hasAttribute("data-kept")).toBe(false);
     expect(row.querySelector(".cp-kept")).toBeNull();
     expect(row.querySelector("small:not([hidden])")?.textContent).toBe("Port changed");
+  });
+
+  /** A panel gone offline, with its model's `reconnect`. */
+  const offline = (m: Partial<StatusModel>) => {
+    const mounted = mount();
+    mounted.panel.showPopover();
+    const reconnect = vi.fn();
+    mounted.status.update(model({ ...m, reconnect }));
+    mounted.status.connection("lost");
+    vi.advanceTimersByTime(10_000);
+    expect(said()).toBe("Offline");
+    return { ...mounted, reconnect };
+  };
+  const retry = (panel: HTMLElement) => {
+    panel.querySelector<HTMLButtonElement>("[data-cp-retry]")?.click();
+  };
+
+  it("says the pill's words once from the panel when Retry brings the stream back", () => {
+    const { panel, status, reconnect } = offline({
+      work: [job("Full check", { value: 3, max: 8 })],
+    });
+    retry(panel);
+    expect(reconnect).toHaveBeenCalledOnce();
+    status.connection("live");
+    expect(heading(panel)).toBe("Full check 3/8");
+    expect(panelSaid(panel)).toBe("Full check 3/8");
+    expect(said()).toBe("Offline");
+    status.update(model({ work: [job("Full check", { value: 4, max: 8 })], reconnect }));
+    expect(panelSaid(panel)).toBe("Full check 3/8");
+  });
+
+  it("says nothing from the panel when the stream comes back with no Retry", () => {
+    const { panel, status } = offline({ work: [job("Full check", { value: 3, max: 8 })] });
+    status.connection("live");
+    expect(panelSaid(panel)).toBe("");
+    expect(said()).toBe("Offline");
+  });
+
+  it("says All good once, from the page, when Retry brings back nothing wrong", () => {
+    const { panel, status } = offline({});
+    retry(panel);
+    status.connection("live");
+    expect(said()).toBe("All good");
+    expect(panelSaid(panel)).toBe("");
   });
 });
 

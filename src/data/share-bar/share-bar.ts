@@ -203,10 +203,12 @@ export function enhanceShareBar(share: HTMLElement, options: ShareBarOptions = {
             attrs.delete("id");
             attrs.delete("style");
             attrs.set("class", "cp-chip");
-            // A tap on a link chip follows it, so only a plain chip toggles.
+            // A link chip shows its tip as a link does and a tap follows it,
+            // so only a plain chip takes the focus and the tap toggle.
             if (total > 0) {
               attrs.set("data-cp-tip", tip(s));
               if (s.link === null) {
+                attrs.set("tabindex", "0");
                 attrs.set("data-cp-tip-toggle", "");
               }
             }

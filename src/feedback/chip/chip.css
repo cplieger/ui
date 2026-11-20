@@ -20,7 +20,7 @@
   white-space: nowrap;
 }
 
-.cp-header .cp-chip[data-tone="neutral"] {
+.cp-header .cp-chip[data-tone="neutral"]:not([popover] *) {
   background: var(--cp-shell-hover);
   color: var(--cp-shell-ink);
 }

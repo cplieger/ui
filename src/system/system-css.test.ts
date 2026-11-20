@@ -665,19 +665,21 @@ describe("css/system.css share bar", () => {
     expect(getComputedStyle(link).alignItems).toBe("center");
   });
 
-  it("fills a row's header with its row, hovered or selected", async () => {
+  it("fills a one-action row's header with its row, hovered or selected", async () => {
     theme("light");
     root.setAttribute("data-pointer", "fine");
     const el = build(
-      '<table class="cp-table"><tbody><tr><th scope="row">best</th><td>3</td></tr></tbody></table>',
+      '<table class="cp-table"><tbody><tr data-cp-row-action><th scope="row"><a href="#best" data-cp-stretch>best</a></th><td>3</td></tr></tbody></table>',
     );
     const [th, td] = [el.querySelector("th"), el.querySelector("td")] as HTMLElement[];
     const fill = host("");
     fill.style.color = "var(--cp-fill)";
-    await userEvent.hover(td as HTMLElement);
+    // The row's link covers it, so the mouse goes to the row.
+    const tr = el.querySelector("tr") as HTMLElement;
+    await userEvent.hover(tr);
     expect(getComputedStyle(td as Element).backgroundColor).toBe(getComputedStyle(fill).color);
     expect(getComputedStyle(th as Element).backgroundColor).toBe(getComputedStyle(fill).color);
-    await userEvent.unhover(td as HTMLElement);
+    await userEvent.unhover(tr);
     const pick = document.createElement("td");
     pick.dataset["col"] = "select";
     pick.setHTMLUnsafe('<label><input type="checkbox" checked aria-label="Pick"></label>');
@@ -2052,6 +2054,34 @@ describe("css/system.css", () => {
     expect(box.top).toBeLessThan(item.top + 8);
   });
 
+  for (const t of ["light", "dark"] as const) {
+    it(`keeps a popover inside the header in its own colours, under the mouse too, in ${t}`, async () => {
+      theme(t);
+      const el = build(
+        '<header class="cp-header"><div class="cp-popover" popover="manual"><button class="cp-button" data-variant="quiet" data-size="sm" type="button">More</button><span class="cp-badge">3</span><span class="cp-chip" data-tone="neutral">Anime</span></div></header>',
+      );
+      const pop = el.querySelector<HTMLElement>(".cp-popover") as HTMLElement;
+      pop.showPopover();
+      const header = getComputedStyle(el.querySelector(".cp-header") as Element);
+      const surface = getComputedStyle(pop).backgroundColor;
+      const probe = host("");
+      probe.style.backgroundColor = "var(--cp-shell-hover)";
+      const shellHover = getComputedStyle(probe).backgroundColor;
+      const [button, badge, chip] = [...pop.children] as [HTMLElement, HTMLElement, HTMLElement];
+      expect(getComputedStyle(badge).backgroundColor).not.toBe(header.color);
+      expect(getComputedStyle(chip).backgroundColor).not.toBe(header.backgroundColor);
+      expect(getComputedStyle(button).color).not.toBe(header.color);
+      await userEvent.hover(button);
+      expect(getComputedStyle(button).backgroundColor).not.toBe(shellHover);
+      expect(contrast(getComputedStyle(button).color, surface)).toBeGreaterThanOrEqual(4.5);
+      for (const part of [badge, chip]) {
+        const p = getComputedStyle(part);
+        expect(contrast(p.color, p.backgroundColor), part.className).toBeGreaterThanOrEqual(4.5);
+      }
+      pop.hidePopover();
+    });
+  }
+
   it("rings the account button's round avatar in the bar's ink, wider while its menu is open", () => {
     theme("light");
     const el = build(
@@ -3314,28 +3344,41 @@ describe("css/system.css", () => {
     },
   );
 
-  it("keeps a plain row action visible on a hovered row, and lets the button's own state fill win", async () => {
+  it("keeps a one-action row's plain button visible on the hovered row, and lets the button's own state or hover fill win", async () => {
     theme("light");
     root.dataset["pointer"] = "fine";
+    const one = (id: string, button: string) =>
+      `<tr data-cp-row-action><td>Frieren</td><td data-col="actions">${button.replace("<button", `<button id="${id}" data-cp-stretch`)}</td></tr>`;
     const el = build(
-      '<table class="cp-table"><tbody><tr><td>Frieren</td><td data-col="actions">' +
-        '<button class="cp-button" type="button" id="plain">Grab</button>' +
-        '<button class="cp-button" type="button" id="done" data-cp-state="done">Grabbed</button>' +
-        '<button class="cp-button" data-variant="quiet" type="button" id="quiet">More</button>' +
-        "</td></tr></tbody></table>" +
-        '<style>.cp-button[data-cp-state="done"] { background: rgb(0, 128, 0); }</style>',
+      '<table class="cp-table"><tbody>' +
+        one("plain", '<button class="cp-button" type="button">Grab</button>') +
+        one(
+          "done",
+          '<button class="cp-button" type="button" data-cp-confirm data-cp-state="done">Grabbed</button>',
+        ) +
+        one("quiet", '<button class="cp-button" data-variant="quiet" type="button">More</button>') +
+        "</tbody></table>" +
+        "<style>.cp-button { transition: none; }</style>",
     );
     const fill = (id: string) =>
       getComputedStyle(el.querySelector(`#${id}`) as Element).backgroundColor;
-    const cell = el.querySelector("td") as HTMLElement;
+    const token = (name: string) => {
+      const probe = host("");
+      probe.style.backgroundColor = `var(${name})`;
+      return getComputedStyle(probe).backgroundColor;
+    };
+    // Each row's button covers it, so the mouse goes to the row.
+    const rowOf = (id: string) => el.querySelector(`#${id}`)?.closest("tr") as HTMLTableRowElement;
     const rest = fill("plain");
-    await userEvent.hover(cell);
-    const row = getComputedStyle(cell).backgroundColor;
+    await userEvent.hover(rowOf("plain"));
+    const row = getComputedStyle(rowOf("plain").cells[0] as Element).backgroundColor;
     expect(fill("plain")).not.toBe(row);
     expect(fill("plain")).not.toBe(rest);
-    expect(fill("done")).toBe("rgb(0, 128, 0)");
-    expect(fill("quiet")).toBe("rgba(0, 0, 0, 0)");
-    await userEvent.unhover(cell);
+    await userEvent.hover(rowOf("done"));
+    expect(fill("done")).toBe(token("--cp-done-fill"));
+    await userEvent.hover(rowOf("quiet"));
+    expect(fill("quiet")).toBe(token("--cp-wash-hover"));
+    await userEvent.unhover(rowOf("quiet"));
   });
 
   it("leaves an unavailable quiet button without a fill and greys a plain one", () => {
@@ -5359,10 +5402,10 @@ describe("css/system.css lists, feeds and counts", () => {
     }
   });
 
-  it("fills a hovered row under a fine pointer and not under a coarse one, lifting its plain button", async () => {
+  it("fills a hovered one-action row under a fine pointer and not under a coarse one, lifting its plain button", async () => {
     theme("light");
     const el = build(
-      '<ul class="cp-list"><li><div class="cp-list-row"><span class="cp-cell-stack">Frieren.ass<small>48 KB</small></span><a class="cp-button" data-size="sm" href="#d">Download</a></div></li></ul>',
+      '<ul class="cp-list"><li><div class="cp-list-row" data-cp-row-action><span class="cp-cell-stack">Frieren.ass<small>48 KB</small></span><a class="cp-button" data-size="sm" href="#d" data-cp-stretch>Download</a></div></li></ul>',
     );
     const r = row(el);
     const button = el.querySelector(".cp-button") as HTMLElement;
@@ -5384,12 +5427,12 @@ describe("css/system.css lists, feeds and counts", () => {
     expect(await hovered()).toEqual(rest);
   });
 
-  it("gives a quiet button its own hover in a hovered row, and a press its fill under a mouse", async () => {
+  it("gives a one-action row's quiet button its own hover in the hovered row, and a press its fill under a mouse", async () => {
     theme("light");
     root.dataset["pointer"] = "fine";
     const el = build(
-      '<ul class="cp-list"><li><div class="cp-list-row"><span class="cp-cell-stack">Frieren</span><button class="cp-button" data-variant="quiet" data-size="sm" type="button" aria-label="More for Frieren"><span class="cp-icon"></span></button></div></li></ul>' +
-        '<table class="cp-table"><tbody><tr><td>Frieren</td><td><button class="cp-button" data-variant="quiet" data-size="sm" type="button" aria-label="More for Frieren"><span class="cp-icon"></span></button></td></tr></tbody></table>',
+      '<ul class="cp-list"><li><div class="cp-list-row" data-cp-row-action><span class="cp-cell-stack">Frieren</span><button class="cp-button" data-variant="quiet" data-size="sm" type="button" aria-label="More for Frieren" data-cp-stretch><span class="cp-icon"></span></button></div></li></ul>' +
+        '<table class="cp-table"><tbody><tr data-cp-row-action><td>Frieren</td><td><button class="cp-button" data-variant="quiet" data-size="sm" type="button" aria-label="More for Frieren" data-cp-stretch><span class="cp-icon"></span></button></td></tr></tbody></table>',
     );
     const [inRow, inTable] = [...el.querySelectorAll<HTMLButtonElement>(".cp-button")] as [
       HTMLButtonElement,
@@ -5690,22 +5733,16 @@ describe("css/system.css lists, feeds and counts", () => {
     expect(details.left).toBeCloseTo(actions.left, 1);
   });
 
-  it("tops a failing status row's lead, state and small info button on its heading", () => {
+  it("tops a failing status row's lead and state on its heading", () => {
     theme("light");
     const el = build(
-      '<ul class="cp-list"><li><div class="cp-list-row"><span class="cp-icon" data-cp-icon="radio-tower" aria-hidden="true"></span><div class="cp-cell-stack"><h3 id="st-sd" tabindex="-1">SeaDex</h3><small>Its API answers 503 Service Unavailable</small><small>Since 14:02</small></div><span data-part="end"><span class="cp-state" data-tone="danger"><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span>Failing</span></span><button class="cp-button" data-variant="quiet" data-size="sm" type="button" aria-label="About SeaDex states"><span class="cp-icon" data-cp-icon="info" aria-hidden="true"></span></button><div class="cp-cluster" data-part="actions"><button class="cp-button" data-size="sm" type="button">Test again</button></div><details open><summary>Show details</summary><p>503 from the provider</p></details></div></li></ul>',
+      '<ul class="cp-list"><li><div class="cp-list-row"><span class="cp-icon" data-cp-icon="radio-tower" aria-hidden="true"></span><div class="cp-cell-stack"><h3 id="st-sd" tabindex="-1">SeaDex</h3><small>Its API answers 503 Service Unavailable</small><small>Since 14:02</small></div><span data-part="end"><span class="cp-state" data-tone="danger"><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span>Failing</span></span><div class="cp-cluster" data-part="actions"><button class="cp-button" data-size="sm" type="button">Test again</button></div><details open><summary>Show details</summary><p>503 from the provider</p></details></div></li></ul>',
     );
     el.style.inlineSize = "30rem";
     const top = (s: string) => (el.querySelector(s) as Element).getBoundingClientRect().top;
     const heading = top("h3");
     expect(top(".cp-list-row > .cp-icon"), "lead").toBeCloseTo(heading, 1);
     expect(top(".cp-state"), "state").toBeCloseTo(heading, 1);
-    expect(top('[aria-label="About SeaDex states"]'), "info").toBeCloseTo(heading, 1);
-    // 26px is --cp-control-h-sm under a mouse.
-    expect(
-      (el.querySelector('[aria-label="About SeaDex states"]') as Element).getBoundingClientRect()
-        .height,
-    ).toBeCloseTo(26, 1);
   });
 
   it("titles a row with a heading in the row's own font, size and line, at a title link's weight", () => {

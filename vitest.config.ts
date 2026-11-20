@@ -6,6 +6,31 @@ import { extname, join, normalize } from "node:path";
 
 import { playwright } from "@vitest/browser-playwright";
 import { defineConfig, type Plugin } from "vitest/config";
+import type { BrowserCommand } from "vitest/node";
+
+/** Moves the mouse through `points`, in the test frame's coordinates, one
+ *  every `interval` ms from the first. Each move is sent on its own clock
+ *  and not after the last one's answer, because each answer takes a loaded
+ *  driver longer than a real mouse's frame. */
+const glide: BrowserCommand<
+  [points: readonly { x: number; y: number }[], interval: number]
+> = async (ctx, points, interval) => {
+  const box = await (await (await ctx.frame()).frameElement()).boundingBox();
+  if (box === null) {
+    throw new Error("glide: the test frame has no box");
+  }
+  const { mouse } = ctx.page;
+  await Promise.all(
+    points.map(
+      (p, i) =>
+        new Promise<void>((ok, fail) => {
+          setTimeout(() => {
+            mouse.move(box.x + p.x, box.y + p.y).then(ok, fail);
+          }, i * interval);
+        }),
+    ),
+  );
+};
 
 function chromium() {
   return {
@@ -21,6 +46,7 @@ function chromium() {
     instances: [{ browser: "chromium" as const }],
     viewport: { width: 1280, height: 720 },
     screenshotFailures: false,
+    commands: { glide },
   };
 }
 
