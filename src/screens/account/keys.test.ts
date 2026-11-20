@@ -139,7 +139,7 @@ describe("mountSecurity: API keys", () => {
   });
 
   it("keeps a focused panel's stop when its table fits, until focus leaves it", async () => {
-    // The frame's first focus reads the keys again and redraws the table.
+    // The frame's first focus reads the keys again and draws a new panel.
     await userEvent.click(document.body);
     const fake = new Fake().always("keys", ok([BACKUP, CI, CHILD]));
     const { region } = mount(fake, { parts: [...KEY_PARTS], scopes: SCOPES });
@@ -165,6 +165,35 @@ describe("mountSecurity: API keys", () => {
     expect(panel.hasAttribute("role")).toBe(false);
     expect(panel.hasAttribute("aria-label")).toBe(false);
     expect(panel.hasAttribute("tabindex")).toBe(false);
+  });
+
+  it("keeps focus and the scroll on a focused panel the window's focus draws again", async () => {
+    await userEvent.click(document.body);
+    const fake = new Fake().always("keys", ok([BACKUP, CI, CHILD]));
+    const { region } = mount(fake, { parts: [...KEY_PARTS], scopes: SCOPES });
+    region.style.inlineSize = "200px";
+    await keyRows(region);
+    const panel = keysSection(region).querySelector<HTMLElement>(".cp-panel")!;
+    await vi.waitFor(() => {
+      expect(panel.tabIndex).toBe(0);
+    });
+    panel.focus();
+    panel.scrollLeft = 40;
+    const left = panel.scrollLeft;
+    expect(left).toBeGreaterThan(0);
+    window.dispatchEvent(new FocusEvent("focus"));
+    const again = await vi.waitFor(() => {
+      const next = keysSection(region).querySelector<HTMLElement>(".cp-panel");
+      expect(next).not.toBeNull();
+      expect(next).not.toBe(panel);
+      return next as HTMLElement;
+    });
+    await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)));
+    expect(document.activeElement).toBe(again);
+    expect(again.getAttribute("role")).toBe("region");
+    expect(again.getAttribute("aria-label")).toBe("API keys, table");
+    expect(again.tabIndex).toBe(0);
+    expect(again.scrollLeft).toBe(left);
   });
 
   it("names a minting key that is gone by its id", async () => {
