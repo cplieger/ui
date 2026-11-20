@@ -56,10 +56,11 @@ function chrome(el: Element): string[] {
 
 const BARE = ["rgba(0, 0, 0, 0)", "none", "none", "none", "none", "none", "none"];
 
-const touch = (el: Element) =>
+const touch = (el: Element): void => {
   el.dispatchEvent(
     new PointerEvent("pointerdown", { bubbles: true, composed: true, pointerType: "touch" }),
   );
+};
 
 describe("info glyph", () => {
   for (const [label, markup] of [
