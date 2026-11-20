@@ -1710,7 +1710,7 @@ A change of window or device is announced before it happens. No ui element opens
 
 ## Other WCAG 3 requirements
 
-Of the rest, 47 are met through a WCAG 2.2 criterion at the same strength, 7 ask the same as a WCAG 2.2 criterion ui does not meet yet, 12 do not apply, and 41 are not adopted. An assertion is an organisation's statement about its own process, not a property of the interface, and ui claims no WCAG 3 conformance, so no assertion is adopted. A requirement whose values the draft still leaves undetermined cannot be tested, so it waits for a draft that sets them.
+Of the rest, 48 are met through a WCAG 2.2 criterion at the same strength, 6 ask the same as a WCAG 2.2 criterion ui does not meet yet, 12 do not apply, and 41 are not adopted. An assertion is an organisation's statement about its own process, not a property of the interface, and ui claims no WCAG 3 conformance, so no assertion is adopted. A requirement whose values the draft still leaves undetermined cannot be tested, so it waits for a draft that sets them.
 
 | Requirement | Type | Ruling |
 | --- | --- | --- |
@@ -1774,7 +1774,7 @@ Of the rest, 47 are met through a WCAG 2.2 criterion at the same strength, 7 ask
 | [2.3.4.3 Conventional pattern used](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#conventional-pattern-used) | assertion | Not adopted, because it is an assertion |
 | [2.3.5.1 Interactive element contrast sufficient](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#interactive-element-contrast-sufficient) | core | Met through WCAG 2.2 [1.4.11](#1411-non-text-contrast) |
 | [2.3.5.5 Label included in programmatic name](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#label-included-in-programmatic-name) | core | Same as WCAG 2.2 [2.5.3](#253-label-in-name), which ui does not meet yet, owed by `navigation/account`, as [Where ui falls short](#where-ui-falls-short) records |
-| [2.3.5.6 Roles, values, states, properties available](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#roles-values-states-properties-available) | core | Same as WCAG 2.2 [4.1.2](#412-name-role-value), which ui does not meet yet, owed by `data/list-row` and `forms/copy`, as [Where ui falls short](#where-ui-falls-short) records |
+| [2.3.5.6 Roles, values, states, properties available](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#roles-values-states-properties-available) | core | Same as WCAG 2.2 [4.1.2](#412-name-role-value), which ui does not meet yet, owed by `data/list-row`, `feedback/track`, `forms/copy`, `forms/file` and `overlays/tooltip`, as [Where ui falls short](#where-ui-falls-short) records |
 | [2.4.1.1 Keyboard operable](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#keyboard-operable) | core | Met through WCAG 2.2 [2.1.1](#211-keyboard) |
 | [2.4.1.7 No keyboard traps](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#no-keyboard-traps) | core | Met through WCAG 2.2 [2.1.2](#212-no-keyboard-trap) |
 | [2.4.2.3 Keyboard effort comparable](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#keyboard-effort-comparable) | assertion | Not adopted, because it is an assertion |
@@ -1816,7 +1816,7 @@ Of the rest, 47 are met through a WCAG 2.2 criterion at the same strength, 7 ask
 | [2.11.1.4 Sensory characteristics not relied on](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#sensory-characteristics-not-relied-on) | core | Met through WCAG 2.2 [1.3.3](#133-sensory-characteristics) |
 | [2.11.1.5 Supported decision-making review](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#supported-decision-making-review) | assertion | Not adopted, because it is an assertion |
 | [2.11.1.6 Help usability testing](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#help-usability-testing) | assertion | Not adopted, because it is an assertion |
-| [2.12.1.1 Assistive technology supported](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#assistive-technology-supported) | core | Same as WCAG 2.2 [4.1.2](#412-name-role-value), which ui does not meet yet, owed by `data/list-row` and `forms/copy`, as [Where ui falls short](#where-ui-falls-short) records |
+| [2.12.1.1 Assistive technology supported](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#assistive-technology-supported) | core | Same as WCAG 2.2 [4.1.2](#412-name-role-value), which ui does not meet yet, owed by `data/list-row`, `feedback/track`, `forms/copy`, `forms/file` and `overlays/tooltip`, as [Where ui falls short](#where-ui-falls-short) records |
 | [2.12.3.1 Orientation supported (minimum)](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#orientation-supported-minimum) | core | Met through WCAG 2.2 [1.3.4](#134-orientation) |
 | [2.12.3.2 Orientation supported (enhanced)](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#orientation-supported-enhanced) | supplemental | Met through WCAG 2.2 [1.3.4](#134-orientation) |
 | [2.12.3.3 Text reflow supported](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#text-reflow-supported) | supplemental | Met through WCAG 2.2 [1.4.10](#1410-reflow) |
