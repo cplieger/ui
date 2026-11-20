@@ -261,7 +261,7 @@ describe("enhanceRelativeTime", () => {
     expect(shown(t)).toBe(`24${NB}minutes ago`);
   });
 
-  it("keeps its own rewrites out of a live region it sits in", () => {
+  it("marks the time aria-live off inside a live region, and keeps it across a tick", () => {
     vi.useFakeTimers();
     vi.setSystemTime(NOW);
     const region = document.createElement("div");
