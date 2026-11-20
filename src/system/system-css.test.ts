@@ -2034,10 +2034,10 @@ describe("css/system.css", () => {
     expect(box.top).toBeLessThan(item.top + 8);
   });
 
-  it("rings the account button's avatar in the bar's ink, wider while its menu is open", () => {
+  it("rings the account button's round avatar in the bar's ink, wider while its menu is open", () => {
     theme("light");
     const el = build(
-      '<header class="cp-header"><a class="cp-wordmark" href="/"><span class="cp-mark">G</span>grelot</a><button class="cp-button cp-account" data-variant="quiet" type="button" aria-label="Account" aria-expanded="false"><span class="cp-avatar" data-size="sm">CP</span></button><button class="cp-button" data-variant="quiet" type="button" aria-label="Settings"><span class="cp-icon"></span></button></header>',
+      '<header class="cp-header"><a class="cp-wordmark" href="/"><span class="cp-mark">G</span>grelot</a><button class="cp-button cp-account" data-variant="quiet" type="button" aria-label="CP, account" aria-expanded="false"><span class="cp-avatar" data-size="sm">CP</span></button><button class="cp-button" data-variant="quiet" type="button" aria-label="Settings"><span class="cp-icon"></span></button></header>',
     );
     const [button, settings] = [...el.querySelectorAll<HTMLElement>("button")] as [
       HTMLElement,
@@ -2058,6 +2058,12 @@ describe("css/system.css", () => {
       expect(settings.getBoundingClientRect().height, tier).toBe(control);
       expect(avatar.getBoundingClientRect().width, tier).toBe(control - 6);
       expect(wordmark.getBoundingClientRect().height, tier).toBeGreaterThanOrEqual(hit);
+    }
+    // Inside the round button the avatar's corner nests only as a circle:
+    // the button's radius less the inset is the avatar's half width.
+    expect(getComputedStyle(button).borderTopLeftRadius).toBe("50%");
+    for (const corner of ["TopLeft", "TopRight", "BottomRight", "BottomLeft"] as const) {
+      expect(getComputedStyle(avatar)[`border${corner}Radius`], corner).toBe("50%");
     }
     expect(getComputedStyle(avatar).boxShadow).toMatch(/ 0px 0px 0px 2px$/);
     button.setAttribute("aria-expanded", "true");
@@ -3399,6 +3405,9 @@ describe("css/system.css", () => {
       probe?.style.setProperty("color", v);
       return probe ? getComputedStyle(probe).color : "";
     };
+    for (const a of el.querySelectorAll<HTMLElement>("a")) {
+      a.style.transition = "none";
+    }
     const link = (id: string) => getComputedStyle(el.querySelector(`#${id}`) as Element);
     expect(link("t").textDecorationColor).toBe("rgba(0, 0, 0, 0)");
     expect(link("t").color).toBe(colour("var(--cp-ink)"));

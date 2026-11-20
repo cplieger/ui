@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "license": "Apache-2.0",
   "exports": {
+    "./account": "./src/screens/account/account.ts",
     "./active-filters": "./src/data/active-filters/active-filters.ts",
     "./anchor": "./src/overlays/anchor/anchor.ts",
     "./announce": "./src/feedback/announce/announce.ts",
@@ -23,6 +24,7 @@
     "./feed": "./src/data/feed/feed.ts",
     "./file": "./src/forms/file/file.ts",
     "./form": "./src/forms/form/form.ts",
+    "./format": "./src/core/format/format.ts",
     "./frame": "./src/data/frame/frame.ts",
     "./header-status": "./src/navigation/header-status/header-status.ts",
     "./held-list": "./src/data/held-list/held-list.ts",
@@ -48,6 +50,7 @@
     "./popconfirm": "./src/overlays/popconfirm/popconfirm.ts",
     "./press": "./src/core/press/press.ts",
     "./proposal": "./src/feedback/proposal/proposal.ts",
+    "./qr": "./src/media/qr/qr.ts",
     "./radio-focus": "./src/core/radio-focus/radio-focus.ts",
     "./range": "./src/forms/range/range.ts",
     "./ranked-bars": "./src/data/ranked-bars/ranked-bars.ts",

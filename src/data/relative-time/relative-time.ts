@@ -6,77 +6,24 @@
  * @module
  */
 
-/** How many words the time takes: "4 minutes ago", "4 min. ago" or "4m ago"
- *  in English. */
-export type RelativeStyle = "long" | "short" | "narrow";
-
-export interface FormatRelativeOptions {
-  /** The moment to count from, in ms since the epoch. Default: now. */
-  readonly now?: number;
-  /** Default "narrow"; "long" for a time inside a sentence. */
-  readonly style?: RelativeStyle;
-  /** A BCP 47 language tag. Default: the browser's. */
-  readonly locale?: string;
-}
+import type { RelativeStyle } from "../../core/format/format.js";
+import { dateWords, RELATIVE_UNITS, relativeWords } from "../../core/format/intl.js";
+import { localeOf } from "../../core/locale/locale.js";
 
 export interface RelativeTimeOptions {
   /** Default "narrow"; "long" for a time inside a sentence. */
   readonly style?: RelativeStyle;
-  /** A BCP 47 language tag. Default: the browser's. */
+  /** A BCP 47 language tag. Default: the lang of the time or its nearest
+   *  ancestor; with no lang on either, as for a time not yet in the page,
+   *  the page's. An empty lang, or one that is not a tag, means the
+   *  browser's language. */
   readonly locale?: string;
   /** Stops keeping the time current. Its words stay as they last read. */
   readonly signal?: AbortSignal;
 }
 
-// Each unit's length in seconds, largest first, as a calendar-free count.
-const LENGTHS = [
-  ["year", 31_536_000],
-  ["month", 2_592_000],
-  ["week", 604_800],
-  ["day", 86_400],
-  ["hour", 3_600],
-  ["minute", 60],
-] as const;
-
-// Each unit with the age it starts at: half a smaller unit before the
-// smaller's rounded count would reach one of it, so "60 minutes ago" and
-// "12 months ago" never show. The minute starts at a minute.
-const UNITS = LENGTHS.map(([unit, n], i) => {
-  const next = LENGTHS[i + 1]?.[1];
-  return [unit, n, next === undefined ? n : (Math.round(n / next) - 0.5) * next] as const;
-});
-
 // The longest delay setTimeout keeps; a longer one fires at once.
 const MAX_DELAY = 2 ** 31 - 1;
-
-let formats: Map<string, Intl.RelativeTimeFormat> | undefined;
-
-function formatter(
-  locale: string | undefined,
-  style: RelativeStyle,
-  numeric: "auto" | "always",
-): Intl.RelativeTimeFormat {
-  formats ??= new Map();
-  const key = `${locale ?? ""} ${style} ${numeric}`;
-  let f = formats.get(key);
-  if (f === undefined) {
-    f = new Intl.RelativeTimeFormat(locale, { style, numeric });
-    formats.set(key, f);
-  }
-  return f;
-}
-
-function words(at: number, now: number, style: RelativeStyle, locale?: string): string {
-  const s = Math.round((at - now) / 1000);
-  for (const [unit, n, from] of UNITS) {
-    if (Math.abs(s) >= from) {
-      // A compact form reads as a number: "1d ago", never "yesterday".
-      const numeric = style === "long" ? "auto" : "always";
-      return formatter(locale, style, numeric).format(Math.round(s / n), unit);
-    }
-  }
-  return formatter(locale, style, "auto").format(0, "second");
-}
 
 /** The first instant after `now` at which the words for `at` may change. */
 function nextChange(at: number, now: number): number {
@@ -86,7 +33,7 @@ function nextChange(at: number, now: number): number {
   const s = Math.round((at - now) / 1000);
   let target = -60;
   let bigger = Number.POSITIVE_INFINITY;
-  for (const [, n, from] of UNITS) {
+  for (const [, n, from] of RELATIVE_UNITS) {
     if (Math.abs(s) >= from) {
       const half = n * Math.round(s / n) - n / 2 - 1;
       target = Math.max(half, s < 0 ? -bigger : Math.ceil(from) - 1);
@@ -96,21 +43,6 @@ function nextChange(at: number, now: number): number {
   }
   // Math.round reads `target` once (at - now) / 1000 is below target + 0.5.
   return at - (target + 0.5) * 1000 + 1;
-}
-
-function toMs(date: Date | number): number {
-  const ms = typeof date === "number" ? date : date.getTime();
-  if (!Number.isFinite(ms)) {
-    throw new TypeError("relative-time: not a valid date");
-  }
-  return ms;
-}
-
-/** How long ago or ahead `date` is in the locale's words: "4m ago",
- *  "in 25m", "1d ago", or "now" under a minute. Throws a
- *  TypeError for an invalid date. */
-export function formatRelative(date: Date | number, options: FormatRelativeOptions = {}): string {
-  return words(toMs(date), options.now ?? Date.now(), options.style ?? "narrow", options.locale);
 }
 
 interface Entry {
@@ -131,7 +63,7 @@ let timer: ReturnType<typeof setTimeout> | undefined;
 
 function write(entry: Entry, now: number): void {
   const text = entry.text.deref();
-  const w = words(entry.at, now, entry.style, entry.locale);
+  const w = relativeWords(entry.at, now, entry.style, entry.locale);
   if (text !== undefined && text.data !== w) {
     text.data = w;
   }
@@ -184,7 +116,13 @@ export function enhanceRelativeTime(
   time: HTMLTimeElement,
   options: RelativeTimeOptions = {},
 ): void {
-  const { signal, style = "narrow", locale } = options;
+  const {
+    signal,
+    style = "narrow",
+    // Only a time with no `lang` around it takes the page's: an empty or
+    // invalid one is an unknown language, as `localeOf` reads it.
+    locale = time.closest("[lang]") === null ? localeOf(document.documentElement) : localeOf(time),
+  } = options;
   const at = Date.parse(time.dateTime);
   if (Number.isNaN(at)) {
     throw new TypeError(`relative-time: datetime "${time.dateTime}" does not parse`);
@@ -197,9 +135,7 @@ export function enhanceRelativeTime(
   if (prior !== undefined) {
     live?.delete(prior);
   }
-  const exact = new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }).format(
-    at,
-  );
+  const exact = dateWords(at, "datetime", locale);
   const text = document.createTextNode("");
   const hidden = document.createElement("span");
   hidden.className = "cp-visually-hidden";

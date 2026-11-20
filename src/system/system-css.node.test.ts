@@ -1253,7 +1253,7 @@ describe("css/system.css", () => {
     };
     await walk(join(ROOT, "src"), "");
     expect(new Set(listed).size, "a file listed twice").toBe(listed.length);
-    expect([...listed].sort()).toEqual(onDisk.sort());
+    expect(listed.toSorted()).toEqual(onDisk.toSorted());
   });
 
   // An app may allow only the classes this stylesheet draws, so a module that

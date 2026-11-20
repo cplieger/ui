@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { slicePath, sliceRing } from "./geometry.js";
 import { chartModel, type PieModel } from "./model.js";
-import { shareWriter, sliceAngles, TURN, type Disc } from "./pie.js";
+import { sliceAngles, TURN, type Disc } from "./pie.js";
 import type { ChartSpec } from "./spec.js";
 import { categories } from "./test-helpers/frames.js";
 
@@ -194,35 +194,5 @@ describe("sliceRing", () => {
     // 2.5 px of rim: edges 1.5 px in would leave the ring no arc at the 99 px rim.
     const span = 2.5 / 100;
     expect(sliceRing(disc, 1, 1 + span)).toBe(slicePath(disc, 1, 1 + span));
-  });
-});
-
-describe("shareWriter", () => {
-  const share = shareWriter("en");
-
-  it("writes two significant digits, so no share above 0 reads 0%", () => {
-    expect([0.509, 0.3, 0.023, 0.0041, 1e-9, 0].map(share)).toEqual([
-      "51%",
-      "30%",
-      "2.3%",
-      "0.41%",
-      "0.0000001%",
-      "0%",
-    ]);
-  });
-
-  it("never writes a share below 1 as 100%, cutting three digits toward 0", () => {
-    expect([0.99, 0.9949, 0.9951, 0.9999, 0.999_999_9, 1].map(share)).toEqual([
-      "99%",
-      "99%",
-      "99.5%",
-      "99.9%",
-      "99.9%",
-      "100%",
-    ]);
-  });
-
-  it("writes in the locale's own percent form", () => {
-    expect(shareWriter("fr")(0.509)).toMatch(/^51\s%$/u);
   });
 });

@@ -566,7 +566,7 @@ describe("the selection across an update", () => {
       { key: "docs-bot", at: [] },
     ];
     const a = built(timeline(rows)).model;
-    const b = built(timeline([...rows].reverse())).model;
+    const b = built(timeline(rows.toReversed())).model;
     expect(rekey(a, { kind: "dot", row: 0, from: 0, to: 1 }, b)).toEqual({
       kind: "dot",
       row: 1,
@@ -1581,7 +1581,7 @@ describe("a pie's keys, pointer and readings", () => {
 
   it("keeps a slice across an update by its name, and drops one that left", () => {
     const before = built(land()).model;
-    const after = built(land([...LAND].reverse())).model;
+    const after = built(land(LAND.toReversed())).model;
     expect(rekey(before, slice(1), after)).toEqual(slice(3));
     expect(rekey(before, slice(0), built(land(LAND.slice(1))).model)).toBe(undefined);
   });

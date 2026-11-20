@@ -6,6 +6,7 @@
     "**/*.css"
   ],
   "exports": {
+    "./account": "./src/screens/account/account.ts",
     "./active-filters": "./src/data/active-filters/active-filters.ts",
     "./anchor": "./src/overlays/anchor/anchor.ts",
     "./announce": "./src/feedback/announce/announce.ts",
@@ -26,6 +27,7 @@
     "./feed": "./src/data/feed/feed.ts",
     "./file": "./src/forms/file/file.ts",
     "./form": "./src/forms/form/form.ts",
+    "./format": "./src/core/format/format.ts",
     "./frame": "./src/data/frame/frame.ts",
     "./header-status": "./src/navigation/header-status/header-status.ts",
     "./held-list": "./src/data/held-list/held-list.ts",
@@ -51,6 +53,7 @@
     "./popconfirm": "./src/overlays/popconfirm/popconfirm.ts",
     "./press": "./src/core/press/press.ts",
     "./proposal": "./src/feedback/proposal/proposal.ts",
+    "./qr": "./src/media/qr/qr.ts",
     "./radio-focus": "./src/core/radio-focus/radio-focus.ts",
     "./range": "./src/forms/range/range.ts",
     "./ranked-bars": "./src/data/ranked-bars/ranked-bars.ts",
@@ -102,6 +105,8 @@
     "lint:fix": "eslint . --fix && prettier --write ."
   },
   "devDependencies": {
+    "@cplieger/access": "1.0.0-dev.18",
+    "@cplieger/reactive": "2.4.0",
     "@eslint/js": "10.0.1",
     "@fontsource-variable/atkinson-hyperlegible-mono": "5.3.0",
     "@fontsource-variable/atkinson-hyperlegible-next": "5.3.0",
@@ -124,7 +129,7 @@
     "stylelint": "18.0.0",
     "stylelint-config-standard": "41.0.0",
     "typescript": "npm:@typescript/typescript6@6.0.2",
-    "typescript-eslint": "8.72.2",
+    "typescript-eslint": "8.73.0",
     "vitest": "5.1.0"
   },
   "overrides": {

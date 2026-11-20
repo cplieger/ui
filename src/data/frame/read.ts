@@ -115,8 +115,8 @@ export function door(prefix: string, most: number): Door {
   return { list, add, count: () => count, fail };
 }
 
-// Every frame type, so a type the contract adds fails the type check here.
-const KINDS = {
+/** Every frame type, so a type the contract adds fails the type check here. */
+export const TYPES = {
   series: true,
   bins: true,
   categories: true,
@@ -131,24 +131,26 @@ const KINDS = {
   value: true,
 } satisfies Record<FrameType, true>;
 
-const isKind = (v: unknown): v is FrameType => typeof v === "string" && Object.hasOwn(KINDS, v);
+const isType = (v: unknown): v is FrameType => typeof v === "string" && Object.hasOwn(TYPES, v);
 
 const ALL = (length: number): number => length;
 
 // A series or a row is one value at least, as chartdata charges it.
 const ONE_AT_LEAST = (length: number): number => Math.max(1, length);
 
-const MAGNITUDE = String(MAX_MAGNITUDE).replace("e+", "e");
+/** The largest magnitude a value may have, as an error writes it. */
+export const MAGNITUDE = String(MAX_MAGNITUDE).replace("e+", "e");
 
-const words = (types: readonly string[]): string => {
+/** `types` quoted and joined as a sentence lists them: "a", "b" or "c". */
+export const words = (types: readonly string[]): string => {
   const quoted = types.map((t) => JSON.stringify(t));
   return quoted.length < 2
     ? (quoted[0] ?? "a frame type")
     : `${quoted.slice(0, -1).join(", ")} or ${quoted.at(-1) ?? ""}`;
 };
 
-// The checks every frame's fields share, over one door.
-function checks(d: Door) {
+/** The checks every frame's fields share, over door `d`. */
+export function checks(d: Door) {
   const { list, fail } = d;
   const record = (v: unknown, field: Field): Record<string, unknown> =>
     isRecord(v) ? v : fail(`${nameOf(field)} must be an object`);
@@ -908,7 +910,7 @@ export function readFrame(v: unknown, field: string, d: Door, types: readonly Fr
   const c = checks(d);
   const o = c.record(v, field);
   const type = o["type"];
-  if (!(isKind(type) && types.includes(type))) {
+  if (!(isType(type) && types.includes(type))) {
     return c.fail(
       `${field}.type must be ${words(types)}${typeof type === "string" ? `, not ${JSON.stringify(type)}` : ""}`,
     );

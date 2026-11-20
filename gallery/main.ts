@@ -28,6 +28,7 @@ import "./legacy/gallery.js";
 import "./wire/feed.js";
 import "./wire/conversations.js";
 import { markCards } from "./review.js";
+import "./wire/account.js";
 import "./wire/charts.js";
 import "./wire/content.js";
 import "./wire/controls.js";

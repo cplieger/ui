@@ -39,6 +39,7 @@ const PAGES: readonly (readonly [
   ["search", "Search", "search", "Screen: search", "layouts"],
   ["messages", "Messages", "messages-square", "Screen: messages", "layouts"],
   ["not-found", "Not found", "telescope", "Screen: not found", "layouts"],
+  ["account", "Account", "user", "Screens: account", "layouts"],
   ["scope", "Scope", "list-checks", "Scope against other libraries"],
 ];
 

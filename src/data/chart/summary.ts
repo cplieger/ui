@@ -4,7 +4,8 @@
  * @module
  */
 
-import { grainStep, writer, type Unit } from "../scale/format.js";
+import type { Unit } from "../../core/format/format.js";
+import { grainStep, writer } from "../scale/format.js";
 import { grainsBetween } from "../scale/time.js";
 
 import {

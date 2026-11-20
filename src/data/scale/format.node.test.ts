@@ -1,16 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  durationRecord,
-  instantFormat,
-  keepUnit,
-  noun,
-  spanFormat,
-  tickFormat,
-  widthKey,
-  withNoun,
-  writer,
-} from "./format.js";
+import { durationRecord } from "../../core/format/intl.js";
+import { instantFormat, spanFormat, tickFormat, widthKey, writer } from "./format.js";
 
 const short = (locale: string, record: Record<string, number>) =>
   new Intl.DurationFormat(locale, { style: "short" }).format(record);
@@ -207,30 +198,67 @@ describe("widthKey", () => {
     ...Array.from({ length: 300 }, (_, i) => (10 + i * 7) * DAY),
   ];
 
-  it.each(["en", "fr", "ru", "pl", "ar", "cy", "ar-EG", "ja"])(
-    "gives durations of one width one key, in %s",
-    (locale) => {
+  // A duration's key holds its record's largest unit and that count's sign,
+  // so values of one key always share a group: each case checks one group,
+  // and together they make every comparison one pass over all values did.
+  const signed = [...durations, ...durations.map((d) => -d)];
+  const groups = new Map<string, number[]>();
+  for (const v of signed) {
+    const record = durationRecord(v * 1_000);
+    const unit = (["days", "hours", "minutes", "seconds", "milliseconds"] as const).find(
+      (u) => record[u] !== undefined,
+    );
+    const big = unit === undefined ? Number.NaN : (record[unit] ?? Number.NaN);
+    const name = `${big > 0 ? "positive" : big < 0 ? "negative" : "zero"} ${unit ?? "none"}`;
+    groups.set(name, [...(groups.get(name) ?? []), v]);
+  }
+  const locales = ["en", "fr", "ru", "pl", "ar", "cy", "ar-EG", "ja"];
+
+  it("checks every duration in exactly one group, and each key in one group", () => {
+    const grouped = [...groups.values()].flat();
+    expect(grouped).toHaveLength(signed.length);
+    expect(new Set(grouped)).toEqual(new Set(signed));
+    const split: string[] = [];
+    for (const locale of locales) {
       const key = widthKey("duration", locale);
-      expect(key).toBeDefined();
-      // Thousands of values per locale: each written once and an expect only
-      // over the misses, so the case stays far inside its timeout under load.
-      const misses: string[] = [];
-      for (const signed of [false, true]) {
-        const write = writer("duration", locale, { signed });
-        const seen = new Map<number, string>();
-        for (const v of [...durations, ...durations.map((d) => -d)]) {
+      const owner = new Map<number, string>();
+      for (const [name, values] of groups) {
+        for (const v of values) {
           const k = key?.(v) ?? Number.NaN;
-          const text = shape(write(v));
-          const s = seen.get(k) ?? text;
-          if (Number.isNaN(k) || text !== s) {
-            misses.push(`${String(signed)} ${String(v)}: ${text} under ${s}'s key`);
+          const held = owner.get(k);
+          if (held !== undefined && held !== name) {
+            split.push(`${locale}: ${String(v)} in ${name}, its key in ${held}`);
           }
-          seen.set(k, s);
+          owner.set(k, held ?? name);
         }
       }
-      expect(misses).toEqual([]);
-    },
-  );
+    }
+    expect(split).toEqual([]);
+  });
+
+  it.each(
+    locales.flatMap((locale) =>
+      [false, true].flatMap((sign) =>
+        [...groups.keys()].map((group) => [locale, sign ? "signed" : "unsigned", group] as const),
+      ),
+    ),
+  )("gives durations of one width one key, in %s, %s, %s", (locale, sign, group) => {
+    const key = widthKey("duration", locale);
+    expect(key).toBeDefined();
+    const write = writer("duration", locale, { signed: sign === "signed" });
+    const seen = new Map<number, string>();
+    const misses: string[] = [];
+    for (const v of groups.get(group) ?? []) {
+      const k = key?.(v) ?? Number.NaN;
+      const text = shape(write(v));
+      const s = seen.get(k) ?? text;
+      if (Number.isNaN(k) || text !== s) {
+        misses.push(`${String(v)}: ${text} under ${s}'s key`);
+      }
+      seen.set(k, s);
+    }
+    expect(misses).toEqual([]);
+  });
 
   it("keys a duration by its units, each count's digits and plural form, and its sign", () => {
     const key = widthKey("duration", "en");
@@ -289,27 +317,6 @@ describe("writer, signed", () => {
 });
 
 describe("the duration rule", () => {
-  it("splits into the largest unit and, under 10 of it, the next, each whole", () => {
-    expect(durationRecord(87_000)).toEqual({ minutes: 1, seconds: 27 });
-    expect(durationRecord(1_087_000)).toEqual({ minutes: 18 });
-    expect(durationRecord(108_000_000)).toEqual({ days: 1, hours: 6 });
-    expect(durationRecord(9 * 86_400_000 + 23 * 3_600_000)).toEqual({ days: 9, hours: 23 });
-    expect(durationRecord(12 * 86_400_000 + 20 * 3_600_000)).toEqual({ days: 13 });
-    expect(durationRecord(400)).toEqual({ milliseconds: 400 });
-    expect(durationRecord(1_500)).toEqual({ seconds: 2 });
-  });
-
-  it("drops a next unit that rounds to zero, and carries rounding into the larger unit", () => {
-    expect(durationRecord(120_200)).toEqual({ minutes: 2 });
-    expect(durationRecord(59_600)).toEqual({ minutes: 1 });
-    expect(durationRecord(9_600)).toEqual({ seconds: 10 });
-    expect(durationRecord(999.6)).toEqual({ seconds: 1 });
-    expect(durationRecord(9 * 3_600_000 + 59.6 * 60_000)).toEqual({ hours: 10 });
-    expect(durationRecord(23.6 * 3_600_000)).toEqual({ days: 1 });
-    expect(durationRecord(59.7 * 60_000)).toEqual({ hours: 1 });
-    expect(durationRecord(-87_000)).toEqual({ minutes: -1, seconds: -27 });
-  });
-
   it("writes each record through Intl.DurationFormat in en and fr, a plain number-unit space made non-breaking", () => {
     for (const [seconds, record] of [
       [87, { minutes: 1, seconds: 27 }],
@@ -329,24 +336,6 @@ describe("the duration rule", () => {
 
   it("writes zero as zero milliseconds", () => {
     expect(writer("duration", "en")(0)).toBe("0\u00A0ms");
-  });
-});
-
-describe("words around numbers", () => {
-  it("makes only a space between a digit and a word non-breaking", () => {
-    expect(keepUnit("1 min, 27 sec")).toBe("1\u00A0min, 27\u00A0sec");
-    expect(keepUnit("1\u00A0min et 27\u202Fs")).toBe("1\u00A0min et 27\u202Fs");
-    expect(keepUnit("١ د")).toBe("١\u00A0د");
-    expect(keepUnit("12 34")).toBe("12 34");
-  });
-
-  it("picks a unit's noun by Intl.PluralRules, and joins it with a non-breaking space", () => {
-    const posts = { one: "post", other: "posts" };
-    expect(noun(posts, 1, "en")).toBe("post");
-    expect(noun(posts, 0, "en")).toBe("posts");
-    expect(noun({ one: "message", other: "messages" }, 0, "fr")).toBe("message");
-    expect(noun({ other: "items" }, 1, "en")).toBe("items");
-    expect(withNoun("86", "reads")).toBe("86\u00A0reads");
   });
 });
 
