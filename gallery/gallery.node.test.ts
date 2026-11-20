@@ -419,8 +419,10 @@ function installProbe(): void {
     for (const box of el.getClientRects()) {
       for (const fy of [0.5, 0.2, 0.8, 0.1, 0.35, 0.65, 0.9]) {
         for (const fx of [0.5, 0.15, 0.85, 0.03, 0.97, 0.3, 0.7]) {
-          const x = box.left + box.width * fx;
-          const y = box.top + box.height * fy;
+          // Firefox and WebKit truncate a fractional mouse position, so the
+          // point tested is the whole pixel the mouse will reach.
+          const x = Math.floor(box.left + box.width * fx);
+          const y = Math.floor(box.top + box.height * fy);
           if (x < 0 || y < 0 || x >= innerWidth - 8 || y >= innerHeight - 8) {
             continue;
           }
