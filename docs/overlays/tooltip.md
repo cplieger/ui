@@ -21,5 +21,6 @@ installTooltips({ signal: page.signal }); // at startup
 ```html
 <span>Seeders<span class="cp-info" tabindex="0" role="img" aria-label="About seeders" data-cp-tip="People sharing the release right now" data-cp-tip-toggle></span></span>
 ```
+
 - The tip's words never replace the control's own name. A tip that says more than that name, the control's `aria-label` or else its own words, visually hidden ones included, also describes the control, through `aria-describedby`. Punctuation, spacing and case do not count as more. On a label, as a segment of a `.cp-segmented` with icons, the tip shows when its radio has keyboard focus, and it describes the radio unless the radio's own `aria-label` already says the same words. In Safari it follows the arrow keys from radio to radio through [`@cplieger/ui/radio-focus`](../core/radio-focus.md), which `installTooltips()` installs under the same signal.
 - The tip follows its control while it shows. A control that changes face, such as Send turning into Cancel, takes the tip's words and its description with it, and a control whose `data-cp-tip` is removed hides it. A word wider than the tip, such as a long file name, breaks inside its box.
