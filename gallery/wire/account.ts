@@ -562,25 +562,48 @@ const CARDS: Readonly<Record<string, Card>> = {
   },
 };
 
-/** Runs `then` once `panel` is drawn and in view, so the focus it moves
- *  never scrolls the page. */
-function whenShown(panel: HTMLElement, then: (panel: HTMLElement) => void): void {
-  const seen = new IntersectionObserver(
-    ([entry]) => {
-      if (entry?.isIntersecting === true && !panel.hasAttribute("aria-busy")) {
-        seen.disconnect();
+/** Puts a Run button under `panel` in its card. Its press runs `then` once
+ *  the screen is drawn, and only that once, since a demo fills and sends the
+ *  form and moves focus: on view it would move a keyboard user's focus. */
+function runOnPress(panel: HTMLElement, then: (panel: HTMLElement) => void): void {
+  const card = panel.closest(".card");
+  const at = [...(card?.children ?? [])].find((child) => child.contains(panel)) ?? panel;
+  const icon = document.createElement("span");
+  icon.className = "cp-icon";
+  icon.dataset["cpIcon"] = "play";
+  icon.setAttribute("aria-hidden", "true");
+  const run = document.createElement("button");
+  run.className = "cp-button";
+  run.type = "button";
+  run.dataset["size"] = "sm";
+  run.append(icon, "Run");
+  const title = card?.querySelector(":scope > h2")?.textContent ?? "";
+  if (title !== "") {
+    run.setAttribute("aria-label", `Run, ${title}`);
+  }
+  const row = document.createElement("div");
+  row.className = "cp-cluster";
+  row.append(run);
+  at.after(row);
+  const go = (): void => {
+    if (!panel.hasAttribute("aria-busy")) {
+      then(panel);
+      return;
+    }
+    const drawn = new MutationObserver(() => {
+      if (!panel.hasAttribute("aria-busy")) {
+        drawn.disconnect();
         then(panel);
       }
-    },
-    { threshold: 0.6 },
-  );
-  const drawn = new MutationObserver(() => {
-    if (!panel.hasAttribute("aria-busy")) {
-      drawn.disconnect();
-      seen.observe(panel);
+    });
+    drawn.observe(panel, { attributes: true, attributeFilter: ["aria-busy"] });
+  };
+  run.addEventListener("click", () => {
+    if (run.getAttribute("aria-disabled") !== "true") {
+      run.setAttribute("aria-disabled", "true");
+      go();
     }
   });
-  drawn.observe(panel, { attributes: true, attributeFilter: ["aria-busy"] });
 }
 
 for (const panel of document.querySelectorAll<HTMLElement>("[data-account-demo]")) {
@@ -600,7 +623,7 @@ for (const panel of document.querySelectorAll<HTMLElement>("[data-account-demo]"
     access,
   });
   if (then !== undefined) {
-    whenShown(panel, then);
+    runOnPress(panel, then);
   }
 }
 
@@ -772,7 +795,7 @@ for (const panel of document.querySelectorAll<HTMLElement>("[data-setup-demo]"))
     access,
   });
   if (then !== undefined) {
-    whenShown(panel, then);
+    runOnPress(panel, then);
   }
 }
 
@@ -884,7 +907,7 @@ for (const panel of document.querySelectorAll<HTMLElement>("[data-invite-demo]")
     access,
   });
   if (then !== undefined) {
-    whenShown(panel, then);
+    runOnPress(panel, then);
   }
 }
 

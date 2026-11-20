@@ -277,6 +277,53 @@ describe.each(browsers)("the gallery in %s", (name) => {
     await tab.close();
   }, 60_000);
 
+  // WCAG 3.2.1 On Focus and 2.4.3 Focus Order: a demo that fills and sends a
+  // card's form moves focus, so it waits for that card's Run.
+  it("moves focus on the account page only by Tab, and a card's Run runs its demo with focus in the card", async () => {
+    const tab = await (browser as Browser).newPage({ viewport: { width: 1440, height: 900 } });
+    await tab.goto(`${origin}/account.html`);
+    const card = (title: string) =>
+      tab
+        .locator(".card")
+        .filter({ has: tab.locator("h2", { hasText: new RegExp(`^${title}$`) }) });
+    const wrong = card("A wrong password");
+    const refused = wrong.locator(".cp-notice[data-tone='danger']:not([hidden])");
+    await expect.poll(() => wrong.locator("form").count(), { timeout: 10_000 }).toBeGreaterThan(0);
+    await tab.evaluate(() => {
+      const log = { strays: [] as string[], tabbed: false };
+      (globalThis as { focusLog?: typeof log }).focusLog = log;
+      addEventListener("keydown", (e) => (log.tabbed ||= e.key === "Tab"), true);
+      addEventListener(
+        "focusin",
+        (e) => {
+          if (!log.tabbed) {
+            log.strays.push((e.target as Element).outerHTML.slice(0, 80));
+          }
+          log.tabbed = false;
+        },
+        true,
+      );
+    });
+    const past = card("Too many attempts");
+    let presses = 0;
+    while (presses < 300 && !(await past.evaluate((c) => c.contains(document.activeElement)))) {
+      await tab.keyboard.press("Tab");
+      presses += 1;
+    }
+    // The page's fake server takes 900ms at most to answer a sent form.
+    await tab.waitForTimeout(1_500);
+    const walk = await tab.evaluate(
+      () => (globalThis as { focusLog?: { strays: string[] } }).focusLog?.strays,
+    );
+    expect([presses < 300, walk, await refused.count()]).toEqual([true, [], 0]);
+
+    await wrong.getByRole("button", { name: "Run, A wrong password" }).focus();
+    await tab.keyboard.press("Enter");
+    await expect.poll(() => refused.count(), { timeout: 10_000 }).toBe(1);
+    expect(await wrong.evaluate((c) => c.contains(document.activeElement))).toBe(true);
+    await tab.close();
+  }, 120_000);
+
   it("clears every row of a choices set whose legend has a button under the floats, and no other set's", async () => {
     const wrong: string[] = [];
     let floated = 0;
