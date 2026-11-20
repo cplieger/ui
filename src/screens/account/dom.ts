@@ -58,6 +58,10 @@ interface FieldSpec {
   readonly type?: "text" | "password";
   readonly help?: string;
   readonly value?: string;
+  /** Marks a field the submit needs, as step 2 of the forms pattern asks:
+   *  `aria-required`, never `required`, with `label` in the label when the
+   *  field has help, else `help` as its help. */
+  readonly required?: { readonly label: string; readonly help: string };
 }
 
 export interface Field {
@@ -86,8 +90,15 @@ export function field(spec: FieldSpec): Field {
   const label = el("label", "cp-label", spec.label);
   label.htmlFor = input.id;
   root.append(label, input);
-  if (spec.help !== undefined) {
-    const help = el("p", "cp-help", spec.help);
+  if (spec.required !== undefined) {
+    input.setAttribute("aria-required", "true");
+    if (spec.help !== undefined) {
+      label.append(" ", el("span", "cp-required", spec.required.label));
+    }
+  }
+  const helpText = spec.help ?? spec.required?.help;
+  if (helpText !== undefined) {
+    const help = el("p", "cp-help", helpText);
     help.id = `${input.id}-help`;
     input.setAttribute("aria-describedby", help.id);
     root.append(help);

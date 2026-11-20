@@ -562,8 +562,8 @@ export function drawKeys(
       name: "label",
       autocomplete: "off",
       help: w["keys.labelHelp"],
+      required: { label: w["form.requiredLabel"], help: w["form.requiredHelp"] },
     });
-    label.input.required = true;
     const picker = scopePicker();
     const lifetime = lifetimeField();
     d.stack.append(label.root, ...(picker === undefined ? [] : [picker.root]), lifetime.root);

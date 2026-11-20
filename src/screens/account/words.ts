@@ -26,6 +26,10 @@ export interface AccountWords {
   readonly "generic.unavailable": string;
   /** The heading of a form's error summary. */
   readonly "form.summary": (count: number) => string;
+  /** In the label of a field the submit needs that has help of its own. */
+  readonly "form.requiredLabel": string;
+  /** The help of a field the submit needs that has none of its own. */
+  readonly "form.requiredHelp": string;
   readonly "password.show": string;
   /** The single sign-on provider's name, when the host gives none. */
   readonly provider: string;
@@ -920,6 +924,8 @@ export const defaultAccountWords: AccountWords = {
   "generic.retry": "Retry",
   "generic.unavailable": "The app cannot do this right now. Try again in a few seconds.",
   "form.summary": (count) => `${String(count)} fields need a fix`,
+  "form.requiredLabel": "(Required)",
+  "form.requiredHelp": "Required.",
   "password.show": "Show password",
   provider: "single sign-on",
 

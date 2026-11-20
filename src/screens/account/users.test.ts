@@ -532,6 +532,22 @@ describe("mountUsers", () => {
     expect(fake.named("adminCreateUser")).toHaveLength(0);
   });
 
+  it("marks the username Required. with aria-required, so the empty field opens valid", async () => {
+    const fake = people(ME);
+    const { region } = mount(fake);
+    await userEvent.click(await vi.waitFor(() => button(region, "Add user…")));
+    const d = await dialogOf("Add a user");
+    const name = d.querySelector<HTMLInputElement>("input[name='username']")!;
+    expect(name.required).toBe(false);
+    expect(name.matches(":invalid")).toBe(false);
+    expect(name.getAttribute("aria-required")).toBe("true");
+    expect(document.getElementById(name.getAttribute("aria-describedby") ?? "")?.textContent).toBe(
+      "Required.",
+    );
+    await userEvent.click(button(d, "Add user"));
+    expect(errorOf(name)).toBe("Enter your username.");
+  });
+
   it("says a new user has no temporary password when issuing it failed", async () => {
     const fake = people(ME).answer("adminTemporaryPassword", refuse(503, "auth_unavailable"));
     const { region } = mount(fake);

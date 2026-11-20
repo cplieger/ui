@@ -169,6 +169,19 @@ describe("mountSecurity: Create key", () => {
     expect(fake.named("createKey")).toHaveLength(0);
   });
 
+  it("marks the label (Required) with aria-required, so the empty field opens valid", async () => {
+    const fake = new Fake();
+    const { region } = mount(fake, { parts: [...KEY_PARTS], scopes: SCOPES });
+    const d = await openCreate(region);
+    const label = field(d, "label");
+    expect(label.required).toBe(false);
+    expect(label.matches(":invalid")).toBe(false);
+    expect(label.getAttribute("aria-required")).toBe("true");
+    expect(label.labels?.[0]?.querySelector(".cp-required")?.textContent).toBe("(Required)");
+    await userEvent.click(button(d, "Create key"));
+    expect(errorOf(label)).toBe("Give the key a name.");
+  });
+
   it("sends the label, the level and permissions and the lifetime, then shows the key once", async () => {
     const fake = new Fake().answer(
       "keys",

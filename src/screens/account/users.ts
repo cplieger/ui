@@ -1123,8 +1123,12 @@ export function mountUsers<C extends UsersClient>(
       opener,
       ...life,
     });
-    const name = field({ label: w["users.username"], name: "username", autocomplete: "off" });
-    name.input.required = true;
+    const name = field({
+      label: w["users.username"],
+      name: "username",
+      autocomplete: "off",
+      required: { label: w["form.requiredLabel"], help: w["form.requiredHelp"] },
+    });
     const [roleField, role] = roleSelect("user");
     const [lastsField, lasts] = hoursSelect("ttl_hours", LIFETIMES, LIFETIME);
     d.stack.append(name.root, roleField, ...(issue === undefined ? [] : [lastsField]));
